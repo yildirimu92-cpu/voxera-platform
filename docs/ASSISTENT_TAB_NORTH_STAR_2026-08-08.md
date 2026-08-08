@@ -448,7 +448,15 @@ Vorschläge für Nachträge, sobald das Konzept entschieden ist:
 
 ---
 
-# 4. Offene Entscheidungen — vor jeder Umsetzung
+# 4. Entscheidungen — alle getroffen (08.08.)
+
+> **Stand:** E1–E5 wurden am 08.08. entschieden, dazu E6 (Begrüssungsquelle) und E7
+> (serverseitige Ton-Durchsetzung wandert in S3). Die Tabelle unten hält die ursprüngliche
+> Fragestellung und meine Empfehlung fest; die **verbindlichen Entscheidungen und die daraus
+> geschnittenen Aufträge** stehen in `docs/ETAPPE_6_BRIEFINGS_2026-08-08.md`.
+> Ausführungsreihenfolge: **S2 → S3** (Fenster A), **S4** (Fenster B), danach **S1** allein.
+> Abweichung zur Tabelle: E5 wurde *nicht* wie empfohlen freigegeben, sondern bleibt vorläufig
+> ab Business — technisch aber über `plan_config.allow_custom_tone` steuerbar statt verdrahtet.
 
 | # | Frage | Empfehlung |
 |---|---|---|

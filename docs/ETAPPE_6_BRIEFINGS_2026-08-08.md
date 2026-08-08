@@ -16,7 +16,11 @@ vollständige Ist-Zustand. Dieses Dokument enthält nur die ausführbaren Auftr�
 | **E2** | Alt-Block wird **gelöscht**, nicht weiter versteckt. |
 | **E3** | Umschalter 3 → 2 als **S6**, nach den launch-kritischen Schritten. |
 | **E4** | Layer 1 im Kunden-UI: **nur Kategorien** („Immer gültig", „Ihre Branche", „Von Ihnen gesetzt"), kein Prompt-Wortlaut. |
-| **E5** | Ton/Anrede bleiben vorläufig **ab Business**. Preisstrategie nicht final → die Sperre muss **leicht aufhebbar** gebaut sein, nicht hart verdrahtet. Serverseitige Durchsetzung wird **separat** eingeplant, nicht Teil von S1–S7. |
+| **E5** | Ton/Anrede bleiben vorläufig **ab Business**. Preisstrategie nicht final → die Sperre muss **leicht aufhebbar** gebaut sein, nicht hart verdrahtet. |
+| **E6** | Begrüssungsquelle für S2: **Weg (a)** — die effektive Begrüssung wird beim Sync zurückgeschrieben. `buildGreeting()` wird **nicht** ins Dashboard kopiert. |
+| **E7** | **A1 (serverseitige Durchsetzung der Ton-Sperre) wird in S3 mitgenommen**, nicht separat ausgelagert — der Endpoint wird ohnehin angefasst. E5 bleibt davon unberührt: die Sperre bleibt über `plan_config` steuerbar. |
+
+**Fensterzuteilung (User, 08.08.):** Fenster A startet mit **S2**, Fenster B startet mit **S4**.
 
 ---
 
@@ -99,9 +103,8 @@ Funktionslücken im Produktivsystem.
 
 ## 4. Briefing S2 — Kopfbereich „So meldet sich Ihr Assistent"
 
-**Modell/Effort:** Opus 5, Hoch für den Begrüssungsquellen-Entscheid (Abschnitt unten),
-danach Umsetzung Medium. Wenn der Entscheid vorab getroffen wird: Sonnet 5, Medium.
-**Vorbedingung:** keine. Kann sofort starten.
+**Modell/Effort:** Sonnet 5, Medium. Die Architekturfrage ist mit E6 entschieden.
+**Vorbedingung:** keine. **Fenster A — kann sofort starten.**
 **Behebt:** F1 (Begrüssung unsichtbar), F8 (keine Serifen-Typografie), und nimmt der
 verwaisten Karte inhaltlich den Platz weg.
 
@@ -121,26 +124,47 @@ Baue in der Assistent-Ansicht (`vx-assistant-profile-body`, gerendert von
    die Abweichung im Klartext. Datenquelle bleibt `technical_status` aus
    `customer-assistant-profile`. „Technische Details" erscheint **nur bei Abweichung**.
 
-### Die Begrüssungsquelle — vor der Umsetzung entscheiden
+### Die Begrüssungsquelle — entschieden (E6): Rückschreiben beim Sync
 
-3 von 4 Kunden haben leeres `ai_greeting` (N2). Der real verwendete Satz entsteht in
-`buildGreeting()` in `admin-panel/netlify/functions/_lib/prompt-builder-v2.js`. Beide
-Netlify-Sites deployen aus getrennten Wurzeln — ein gemeinsamer Import ist nicht möglich.
-Drei gangbare Wege, in absteigender Empfehlung:
+`buildGreeting()` wird **nicht** ins Dashboard kopiert. Stattdessen persistiert der Sync den
+Satz, den der Agent tatsächlich bekommen hat, und das Dashboard liest genau dieses Feld.
+Damit ist Drift per Konstruktion ausgeschlossen.
 
-| Weg | Bewertung |
-|---|---|
-| **(a) Effektive Begrüssung beim Sync zurückschreiben.** `trigger-elevenlabs-sync` berechnet `firstMessage` ohnehin und schickt ihn an ElevenLabs. Zusätzlich in eine Spalte persistieren; das Dashboard liest genau dieses Feld. | **Empfohlen.** Garantiert per Konstruktion, dass der angezeigte Satz derselbe ist, den der Agent bekommen hat — kein Drift möglich. Kosten: eine neue Spalte + wenige Zeilen im Sync. |
-| **(b) `buildGreeting()` nach `customer-dashboard/.../_lib/` kopieren**, kanonische Kopie im Admin-Panel markieren und `scripts/verify-prompt-builder-v2.mjs` um einen Gleichheits-Test beider Kopien erweitern. | Vertretbar, aber es entsteht eine zweite Quelle — genau das Muster, das in Etappe 4/5 Bugs erzeugt hat. Nur wählen, wenn (a) abgelehnt wird. |
-| **(c) Nur `ai_greeting` ausgeben, sonst Platzhaltertext.** | Billigste Variante, aber das Kernelement bleibt bei 3 von 4 Kunden leer. Nur als Notlösung. |
+**Umsetzung in drei Teilen:**
 
-**Der ausführende Chat entscheidet das nicht allein** — er legt die Wahl mit Begründung vor,
-wenn sie nicht vorab getroffen ist.
+1. **Neue Spalte** `customers.ai_effective_greeting` (text, nullable). Migrationsdatei unter
+   `supabase/sql/` anlegen, Namensschema der bestehenden Dateien übernehmen. Die Spalte ist
+   **abgeleitet, nie vom Menschen editiert** — das gehört als Kommentar in die Migration.
+   `customers.ai_greeting` (die frei gewählte Begrüssung des Kunden) bleibt unverändert und
+   wird **nicht** überschrieben.
+2. **Rückschreiben im Sync.** `admin-panel/netlify/functions/trigger-elevenlabs-sync.js`
+   erhält `firstMessage` bereits aus `buildPromptV2()`. Nach **erfolgreichem** Sync den Wert
+   in `ai_effective_greeting` schreiben. Zwei Regeln: nur bei Erfolg schreiben (ein
+   fehlgeschlagener Sync darf keinen Satz behaupten, den der Agent nie erhalten hat), und
+   das Rückschreiben darf den Sync nicht zum Scheitern bringen — Fehler beim Persistieren
+   protokollieren, nicht werfen. `prompt-preview.js` schreibt **nichts** zurück, das ist
+   eine Vorschau.
+3. **Anzeige-Reihenfolge im Dashboard:**
+   `ai_effective_greeting` → sonst `ai_greeting` → sonst Platzhalter.
+
+**Der Platzhalterfall ist heute der Normalfall und muss ordentlich aussehen:** Nur 1 von 4
+Kunden hat überhaupt einen `elevenlabs_agent_id`, bei den übrigen lief nie ein Sync. Für sie
+bleibt `ai_effective_greeting` leer. Der Kopfbereich sagt dann ehrlich, dass der Satz
+entsteht, sobald der Assistent aktiviert ist — kein leerer Kasten, kein erfundener
+Beispielsatz. `technical_status.assistant` liefert die Information, ob ein Agent existiert.
+
+`customer-assistant-profile.js` liefert entsprechend
+`greeting: { text, source: 'effective' | 'custom' | 'none' }` — die UI trifft keine eigene
+Herleitung.
 
 ### Akzeptanzkriterien
 
 - Der Begrüssungssatz ist auf dem Assistent-Screen sichtbar, in Serife, und stimmt mit dem
   überein, was der Agent tatsächlich verwendet.
+- Nach einem erfolgreichen Sync steht der Satz in `ai_effective_greeting` und erscheint im
+  Dashboard. **End-to-End geprüft** am einzigen Kunden mit Agent, nicht nur unit-getestet.
+- Ein fehlgeschlagener Sync hinterlässt **keinen** Wert in `ai_effective_greeting`.
+- Für Kunden ohne Agent zeigt der Kopfbereich den ehrlichen Platzhalter, keinen Beispielsatz.
 - Genau **eine** Statuszeile auf dem Screen. Die alte Betriebsstatus-Zusammenfassung ist in
   den Kopfbereich aufgegangen, nicht dupliziert.
 - „Anhören" funktioniert wie vorher; keine zweite Preview-Implementierung.
@@ -156,17 +180,18 @@ eigenes Thema). Avatar oder Initiale in irgendeiner Form. Alt-Block anfassen —
 ### Dateien
 
 `shared/customer-runtime-assistant-profile.js` (`renderAssistant`),
-`shared/customer-assistant-components.css`, ggf.
+`shared/customer-assistant-components.css`,
 `netlify/functions/customer-assistant-profile.js` (Feld `greeting` ergänzen),
-bei Weg (a) zusätzlich `admin-panel/netlify/functions/trigger-elevenlabs-sync.js`.
+`admin-panel/netlify/functions/trigger-elevenlabs-sync.js` (Rückschreiben),
+neue Migrationsdatei unter `supabase/sql/`.
 
 ---
 
 ## 5. Briefing S3 — Ton & Anrede wieder editierbar
 
 **Modell/Effort:** Sonnet 5, Medium.
-**Vorbedingung:** S2 gemergt (der Editor sitzt im Kopfbereich).
-**Behebt:** F2 (Funktionsverlust), setzt E5 um.
+**Vorbedingung:** S2 gemergt (der Editor sitzt im Kopfbereich). **Fenster A, direkt nach S2.**
+**Behebt:** F2 (Funktionsverlust), setzt E5 um, **enthält A1** (E7).
 
 ### Auftrag
 
@@ -188,6 +213,20 @@ bearbeitbar.
 Damit ist das Aufheben der Sperre später ein einzelnes DB-Update ohne Deploy — genau die
 Anforderung aus E5.
 
+**Serverseitige Durchsetzung (A1, per E7 hier integriert):**
+
+4. `netlify/functions/customer-update-assistant.js` weist `ai_tone` zurück, wenn
+   `plan_config.allow_custom_tone` für den Plan des Aufrufers `false` ist — **exakt nach dem
+   Muster der bestehenden Prüfungen** für `assistant_name` (`allow_custom_assistant_name`)
+   und `voice_id` (`voice_selection_enabled`), inklusive derselben Fehlerstruktur:
+   `403` mit `errors: ['tone_not_allowed_on_plan']` über `buildContractPayload`.
+   Der Plan-Code wird dort bereits geladen — es kommt keine zusätzliche Abfrage dazu.
+
+**Wichtig:** `ai_address_form` (Sie/Du) ist von der Sperre **nicht** betroffen. E5 spricht von
+Ton/Anrede als Paket, aber `allow_custom_tone` meint die Tonalität. Die Anrede bleibt für alle
+Pläne frei — sie ist eine Grundhöflichkeitsentscheidung, kein Premium-Merkmal. Falls das
+anders gewollt ist: vor Start des Fensters sagen, es wäre eine zweite `plan_config`-Spalte.
+
 **Bestätigungsschleife:** Nach erfolgreichem Speichern spiegelt der Kopfbereich das Ergebnis
 zurück — der Begrüssungs- bzw. Auftrittsblock aktualisiert sich sichtbar („so klingt Ihr
 Assistent jetzt"). Keine Erfolgsmeldung ohne sichtbare Wirkung.
@@ -202,20 +241,24 @@ Toast im Klartext.
   Speichern im Kopfbereich sichtbar.
 - Starter-Konto sieht beide Werte, kann sie nicht ändern, und sieht den Gold-Hinweis.
 - Ein Umstellen von `plan_config.allow_custom_tone` auf `true` für `starter` schaltet die
-  Bearbeitung frei — **ohne Code-Änderung**. Ist explizit zu testen.
+  Bearbeitung frei — **ohne Code-Änderung**. Ist explizit zu testen, und zwar auf beiden
+  Ebenen: UI **und** Endpoint.
 - Im gesamten neuen UI-Code kommt kein Plan-Name als String vor.
+- **A1:** Ein direkter POST auf `customer-update-assistant` mit `ai_tone` von einem
+  Starter-Konto wird mit `403` und `tone_not_allowed_on_plan` abgewiesen. Ohne diesen Test
+  gilt A1 als nicht erledigt — genau das war der Mangel am bisherigen Zustand.
+- `ai_address_form` bleibt für alle Pläne änderbar, auch per direktem POST.
 
 ### Nicht-Ziele
 
-**Serverseitige Durchsetzung** in `customer-update-assistant.js`. Gemäss E5 separat geplant
-(Auftrag A1). *Hinweis zur Kenntnis: S3 fasst den Endpoint ohnehin an, die Durchsetzung wäre
-dort wenige Zeilen. Wird sie weggelassen, bleibt die Sperre — wie heute — reine Optik und ein
-manueller API-Aufruf umgeht sie. Das ist bewusst so entschieden; wenn ihr es doch mitnehmen
-wollt, sagt es vor Start des Fensters.*
+Begrüssung editierbar machen. Weitere ungenutzte `plan_config`-Spalten
+(`allow_custom_language`, `allow_personality_wizard`, `allow_custom_customer_type`)
+verdrahten — die haben eigene Produktfragen und gehören nicht in dieses Fenster.
 
 ### Dateien
 
 `netlify/functions/customer-assistant-profile.js`,
+`netlify/functions/customer-update-assistant.js` (A1),
 `shared/customer-runtime-assistant-profile.js`,
 `shared/customer-assistant-components.css`.
 
@@ -224,7 +267,11 @@ wollt, sagt es vor Start des Fensters.*
 ## 6. Briefing S4 — „Wenn es dringend wird" + Änderungsanfrage-Kanal
 
 **Modell/Effort:** Sonnet 5, Medium.
-**Vorbedingung:** keine. Parallel zu Fenster A möglich — berührt andere Karten.
+**Vorbedingung:** keine. **Fenster B — kann sofort starten**, parallel zu Fenster A; berührt
+andere Karten. Einzige Überschneidung mit S2/S3: `customer-assistant-profile.js` und
+`customer-runtime-assistant-profile.js` werden von beiden Fenstern erweitert — beim Rebasen
+mit Konflikten in diesen zwei Dateien rechnen und sie bewusst auflösen, nicht blind
+übernehmen (dasselbe Vorgehen wie beim Rebase-Konflikt-Check von PR #826 auf #827).
 **Behebt:** F3 (Weiterleitung/Notfall unsichtbar) und sichert N5 (Einreichpfad) ab.
 **Kritisch:** Dieses Briefing ist die Voraussetzung dafür, dass S1 überhaupt laufen darf.
 
@@ -357,7 +404,7 @@ aufgefallen und sollten eigene Einträge bekommen.
 
 | # | Auftrag | Dringlichkeit |
 |---|---|---|
-| **A1** | **Serverseitige Durchsetzung der Ton-Sperre** in `customer-update-assistant.js` gegen `plan_config.allow_custom_tone` — analog zur bestehenden Prüfung für Name und Stimme. Ohne sie bleibt die Sperre umgehbar. Gemäss E5 bewusst aus S1–S7 ausgeklammert. | Vor Preisstrategie-Entscheid einplanen |
+| ~~A1~~ | **In S3 aufgegangen** (E7). Nummer bleibt vergeben, damit Querverweise gültig bleiben. | erledigt mit S3 |
 | **A2** | **Layer-Reihenfolge im Master-Prompt (N4).** `prompt_master_l1` enthält keine Platzhalter, deshalb landen Kundeneingaben am Prompt-Ende — gegenteilig zur Absicht der Leitplanken-Priorität. Entweder Platzhalter in Layer 1 ergänzen oder den Builder die Position erzwingen lassen. **Direkter Bezug zu Sicherheitspunkt P2-11.** | Hoch — Sicherheitsthema, Opus 5 / Hoch |
 | **A3** | **Branchenzuordnung nachziehen (N3).** 19 fertige Vorlagen, aber nur 1 von 4 Kunden hat `industry_template_id`. Die übrigen laufen ohne Branchen-Layer, obwohl eine passende Vorlage bereitliegt. Betriebs-, kein Code-Thema. | Mittel — schneller Qualitätsgewinn ohne Entwicklung |
 
@@ -374,5 +421,9 @@ aufgefallen und sollten eigene Einträge bekommen.
   Kategorie „interaktiv" (Blau).
 - **Tab „Fahrplan"/Etappe 6** — Status auf „Konzept entschieden, Briefings geschnitten",
   Ausführungsreihenfolge S2 → S3 → S4 → S1 vermerken.
-- **Tab „Offene Entscheidungen"** — E1–E5 nach „entschieden" verschieben; offen bleibt allein
-  die Begrüssungsquelle in S2 (Weg a/b/c).
+- **Tab „Offene Entscheidungen"** — E1–E7 nach „entschieden" verschieben. Für Etappe 6 ist
+  damit **keine Konzeptfrage mehr offen**; beide Fenster können ohne Rückfragen starten.
+- **Tab „Datenbank & Architektur"** — neue Spalte `customers.ai_effective_greeting`
+  (abgeleitet, wird vom Sync geschrieben, nie manuell gepflegt) nachtragen, sobald S2 gemergt
+  ist. Ebenso vermerken, dass `plan_config.allow_custom_tone` ab S3 aktiv gelesen **und**
+  serverseitig durchgesetzt wird — Freischalten für Starter ist danach ein reines DB-Update.
