@@ -38,14 +38,19 @@ create temp table probe_result (status text, grp text, name text, detail text) o
 
 -- Grundgesamtheit: ohne sie waere "0 Zeilen sichtbar" bei einer leeren Tabelle
 -- ein falsches PASS.
-create temp table census (rel text, n bigint) on commit drop;
-insert into census select * from public.ci_security_probe_census();
-
 create temp table ident (
   user_id uuid, home_customer_id text, foreign_customer_id text,
   home_rows bigint, foreign_rows bigint
 ) on commit drop;
 insert into ident select * from public.ci_security_probe_identity();
+
+-- Grundgesamtheit plus, je Tabelle, wie viele Zeilen NICHT dem gewaehlten
+-- Mandanten gehoeren. Ohne diese zweite Zahl waere "0 fremde Zeilen getroffen"
+-- in einer Tabelle ohne fremde Zeilen ein Zufall und kein Beweis -- z.B. liegen
+-- in ai_change_requests und voxera_cases derzeit ausschliesslich eigene Zeilen.
+create temp table census (rel text, n bigint, foreign_n bigint) on commit drop;
+insert into census
+select * from public.ci_security_probe_census((select home_customer_id from ident limit 1));
 
 -- Mandantentabellen dynamisch: jede neue Tabelle mit customer_id wird ab dem
 -- naechsten Lauf automatisch mitgeprueft, ohne dass jemand daran denken muss.
@@ -63,6 +68,15 @@ insert into tenant_tbl values ('customers', 'id');
 do $probes$
 declare
   bogus_sub constant text := '00000000-0000-4000-8000-0000000ffff1';
+  -- Die Rolle, zu der nach jeder Probe zurueckgekehrt wird. Bewusst NICHT
+  -- `reset role`: das springt auf den SESSION-User zurueck, nicht auf die
+  -- zuletzt aktive Rolle. In CI faellt beides zufaellig zusammen (die Session
+  -- laeuft als voxera_ci_verifier), aber schon beim Nachstellen per
+  -- `set role voxera_ci_verifier` als postgres laufen sie auseinander -- und
+  -- dann schlaegt das Zurueckschreiben der Ergebnisse mit "permission denied"
+  -- fehl, weil die Temp-Tabellen einer anderen Rolle gehoeren. Eine Probe, die
+  -- sich nur in genau einer Umgebung ausfuehren laesst, ist nicht nachpruefbar.
+  probe_owner constant text := current_user;
   r record;
   -- Skalare statt record: bei null Treffern in `ident` sind Feldzugriffe auf
   -- eine record-Variable je nach Zuweisungszustand ein Laufzeitfehler.
@@ -100,7 +114,7 @@ begin
       perform set_config('request.jwt.claims',
         pg_catalog.json_build_object('sub', bogus_sub, 'role', 'authenticated')::text, true);
       execute pg_catalog.format('select pg_catalog.count(*) from public.%I', r.rel) into visible;
-      reset role;
+      perform set_config('role', probe_owner, true);
       insert into probe_result values (
         case when visible = 0 then 'PASS' else 'FAIL' end,
         'A-deny-default',
@@ -108,7 +122,7 @@ begin
         visible::text || ' von ' || r.n::text || ' Zeilen sichtbar');
     exception when others then
       txt := sqlstate;
-      reset role;
+      perform set_config('role', probe_owner, true);
       -- Gar kein Leserecht ist strenger als eine leere Ergebnismenge.
       insert into probe_result values (
         case when txt = '42501' then 'PASS' else 'FAIL' end,
@@ -138,14 +152,14 @@ begin
       perform set_config('role', 'anon', true);
       perform set_config('request.jwt.claims', '', true);
       execute pg_catalog.format('select pg_catalog.count(*) from public.%I', r.rel) into visible;
-      reset role;
+      perform set_config('role', probe_owner, true);
       insert into probe_result values (
         case when visible = 0 then 'PASS' else 'FAIL' end,
         'B-anon', 'anon sieht nichts in ' || r.rel,
         visible::text || ' von ' || r.n::text || ' Zeilen sichtbar');
     exception when others then
       txt := sqlstate;
-      reset role;
+      perform set_config('role', probe_owner, true);
       insert into probe_result values (
         case when txt = '42501' then 'PASS' else 'FAIL' end,
         'B-anon', 'anon sieht nichts in ' || r.rel,
@@ -153,6 +167,97 @@ begin
              else 'unerwarteter Fehler SQLSTATE ' || txt end);
     end;
   end loop;
+
+  -- ═══ Probe B2: jeder gehaltene anon-Schreibpfad ══════════════════════════
+  -- Probe B misst nur Lesen. anon haelt aber auf 27 Tabellen auch INSERT,
+  -- UPDATE und DELETE. Bekaeme eine davon eine permissive Policy, ohne dass
+  -- sich am Grant etwas aendert, bliebe der Baseline-Diff still (der Grant ist
+  -- ja bekannt) und Probe B gruen (die liest nur) -- waehrend anon
+  -- Produktionsdaten aendern koennte. Also wird jeder tatsaechlich gehaltene
+  -- Schreibpfad einzeln ausgeloest.
+  --
+  -- Bewusst OHNE `where false`, anders als Probe D: eine nie zutreffende
+  -- Bedingung wuerde nur den Grant pruefen, nicht die Policy -- und der Grant
+  -- ist hier bekanntermassen vorhanden. Greift RLS wie vorgesehen, trifft die
+  -- Anweisung null Zeilen und es feuert kein Trigger. Greift sie nicht, meldet
+  -- die Probe das laut, und der Rollback macht es folgenlos.
+  for r in
+    with cand as (
+      select c.oid, c.relname as rel, coalesce(cs.n, 0) as n,
+             (select a.attname
+                from pg_catalog.pg_attribute as a
+               where a.attrelid = c.oid and a.attnum > 0 and not a.attisdropped
+                 and a.attgenerated = ''
+               order by a.attnum limit 1) as anycol
+      from pg_catalog.pg_class as c
+      join pg_catalog.pg_namespace as ns on ns.oid = c.relnamespace
+      left join census as cs on cs.rel = c.relname
+      where ns.nspname = 'public' and c.relkind = 'r'
+    )
+    select rel, n, 'UPDATE' as op,
+           pg_catalog.format('update public.%1$I set %2$I = %2$I', rel, anycol) as stmt
+    from cand
+    where pg_catalog.has_table_privilege('anon', oid, 'UPDATE') and anycol is not null
+    union all
+    select rel, n, 'DELETE', pg_catalog.format('delete from public.%I', rel)
+    from cand
+    where pg_catalog.has_table_privilege('anon', oid, 'DELETE')
+    order by 1, 3
+  loop
+    if r.n = 0 then
+      insert into probe_result values ('SKIP', 'B2-anon-schreiben',
+        'anon kann in ' || r.rel || ' nichts per ' || r.op || ' aendern',
+        'Tabelle ist leer -- 0 Treffer waeren kein Beweis');
+      continue;
+    end if;
+    -- Sicherheitsnetz fuer spaeter: eine sehr grosse Tabelle wuerde bei
+    -- kaputtem RLS eine entsprechend grosse (zurueckgerollte) Transaktion
+    -- ausloesen. Lieber ehrlich uebersprungen als heimlich riskant.
+    if r.n > 50000 then
+      insert into probe_result values ('SKIP', 'B2-anon-schreiben',
+        'anon kann in ' || r.rel || ' nichts per ' || r.op || ' aendern',
+        r.n::text || ' Zeilen -- oberhalb der Probengrenze von 50000');
+      continue;
+    end if;
+
+    begin
+      perform set_config('role', 'anon', true);
+      perform set_config('request.jwt.claims', '', true);
+      execute r.stmt;
+      get diagnostics visible = row_count;
+      perform set_config('role', probe_owner, true);
+      insert into probe_result values (
+        case when visible = 0 then 'PASS' else 'FAIL' end,
+        'B2-anon-schreiben',
+        'anon kann in ' || r.rel || ' nichts per ' || r.op || ' aendern',
+        visible::text || ' von ' || r.n::text || ' Zeilen getroffen (zurueckgerollt)');
+    exception when others then
+      txt := sqlstate;
+      perform set_config('role', probe_owner, true);
+      insert into probe_result values (
+        case when txt = '42501' then 'PASS' else 'FAIL' end,
+        'B2-anon-schreiben',
+        'anon kann in ' || r.rel || ' nichts per ' || r.op || ' aendern',
+        case when txt = '42501' then 'insufficient_privilege wie erwartet'
+             else 'unerwarteter Fehler SQLSTATE ' || txt end);
+    end;
+  end loop;
+
+  -- INSERT bleibt eine bekannte Luecke, und die wird benannt statt kaschiert:
+  -- der WITH-CHECK-Zweig einer INSERT-Policy laeuft nur fuer eine tatsaechlich
+  -- eingefuegte Zeile. Dafuer muesste die Probe je Tabelle eine gueltige Zeile
+  -- konstruieren (NOT NULL, Fremdschluessel, Constraints) -- zu bruechig, um
+  -- verlaesslich zu sein, und der Preis waere echtes Schreiben auf Produktion.
+  -- Ein SKIP mit Begruendung ist ehrlicher als ein PASS, das nichts gemessen hat.
+  insert into probe_result
+  select 'SKIP', 'B2-anon-schreiben',
+         'anon-INSERT-Pfade (WITH CHECK) nicht behavioral geprueft',
+         pg_catalog.count(*)::text || ' Tabellen mit anon-INSERT-Recht -- nur der '
+           || 'Grant ist per Baseline ueberwacht, die Policy nicht'
+  from pg_catalog.pg_class as c
+  join pg_catalog.pg_namespace as ns on ns.oid = c.relnamespace
+  where ns.nspname = 'public' and c.relkind = 'r'
+    and pg_catalog.has_table_privilege('anon', c.oid, 'INSERT');
 
   -- ═══ Probe C: positive Mandantenisolation ════════════════════════════════
   -- Probe A allein ist erfuellbar, indem RLS pauschal alles verbietet. Dann
@@ -188,7 +293,7 @@ begin
           || ' pg_catalog.count(*) filter (where %I::text is distinct from $1) from public.%I',
           r.key_col, r.key_col, r.rel)
           into visible, leaked using i_home;
-        reset role;
+        perform set_config('role', probe_owner, true);
 
         own_total := own_total + visible;
         probed_tables := probed_tables + 1;
@@ -198,12 +303,29 @@ begin
           visible::text || ' eigene, ' || leaked::text || ' fremde Zeilen sichtbar');
       exception when others then
         txt := sqlstate;
-        reset role;
+        perform set_config('role', probe_owner, true);
+        -- Hier NICHT pauschal PASS bei 42501. Probe C ist die Positivkontrolle:
+        -- "der Mandant kommt an seine Daten". Ein permission denied heisst, dass
+        -- er das eben NICHT tut. Ob das ein Defekt ist, haengt daran, ob
+        -- authenticated ueberhaupt ein SELECT-Recht auf dieser Tabelle hat:
+        -- ohne Recht ist die Tabelle bewusst nicht fuer Kunden da (SKIP), mit
+        -- Recht ist der Lesepfad kaputt (FAIL). Wuerde beides als PASS zaehlen,
+        -- koennte ein voellig gesperrtes contracts gruen bleiben, solange nur
+        -- calls noch sichtbar ist.
         insert into probe_result values (
-          case when txt = '42501' then 'PASS' else 'FAIL' end,
+          case
+            when txt <> '42501' then 'FAIL'
+            when pg_catalog.has_table_privilege('authenticated', 'public.' || r.rel, 'SELECT')
+              then 'FAIL'
+            else 'SKIP'
+          end,
           'C-isolation', 'kein Fremdmandant sichtbar in ' || r.rel,
-          case when txt = '42501' then 'permission denied'
-               else 'unerwarteter Fehler SQLSTATE ' || txt end);
+          case
+            when txt <> '42501' then 'unerwarteter Fehler SQLSTATE ' || txt
+            when pg_catalog.has_table_privilege('authenticated', 'public.' || r.rel, 'SELECT')
+              then 'permission denied, obwohl authenticated SELECT haelt -- Lesepfad kaputt'
+            else 'authenticated hat kein SELECT-Recht -- Positivkontrolle nicht anwendbar'
+          end);
       end;
     end loop;
 
@@ -243,12 +365,12 @@ begin
       perform set_config('request.jwt.claims',
         pg_catalog.json_build_object('sub', bogus_sub, 'role', r.role_name)::text, true);
       execute r.stmt;
-      reset role;
+      perform set_config('role', probe_owner, true);
       insert into probe_result values ('FAIL', 'D-schreibsperre', r.label,
         'kein Fehler -- der Schreib-/Lesepfad steht offen');
     exception when others then
       txt := sqlstate;
-      reset role;
+      perform set_config('role', probe_owner, true);
       insert into probe_result values (
         case when txt = '42501' then 'PASS' else 'FAIL' end,
         'D-schreibsperre', r.label,
@@ -266,74 +388,94 @@ begin
     perform set_config('request.jwt.claims',
       pg_catalog.json_build_object('sub', bogus_sub, 'role', 'authenticated')::text, true);
     execute 'update public.customers set updated_at = updated_at where false';
-    reset role;
+    perform set_config('role', probe_owner, true);
     insert into probe_result values ('PASS', 'D-schreibsperre',
       'Gegenkontrolle: authenticated darf customers.updated_at schreiben',
       'kein Fehler -- die D-Proben messen echte Rechte, keine Pauschalsperre');
   exception when others then
     txt := sqlstate;
-    reset role;
+    perform set_config('role', probe_owner, true);
     insert into probe_result values ('FAIL', 'D-schreibsperre',
       'Gegenkontrolle: authenticated darf customers.updated_at schreiben',
       'SQLSTATE ' || txt || ' -- entweder ist die Spalten-Allowlist kaputt, '
         || 'oder die D-Proben messen nur eine Pauschalsperre');
   end;
 
-  -- ═══ Probe D2: DELETE unter RLS ══════════════════════════════════════════
-  -- `authenticated` HAELT DELETE-Rechte auf mehreren Mandantentabellen -- auf
-  -- customers absichtlich, weil das Admin-Panel als `authenticated` arbeitet
-  -- und ueber `admins_delete_customers` loescht. Der Grant allein sagt damit
-  -- nichts; entscheidend ist, ob RLS einen Nicht-Admin von fremden Zeilen
-  -- fernhaelt. Genau das laesst sich nur durch ein echtes DELETE feststellen.
+  -- ═══ Probe D2: Schreibpfade von authenticated unter RLS ══════════════════
+  -- `authenticated` HAELT DELETE- und UPDATE-Rechte auf mehreren Mandanten-
+  -- tabellen -- auf customers absichtlich, weil das Admin-Panel als
+  -- `authenticated` arbeitet und ueber `admins_delete_customers` loescht. Der
+  -- Grant allein sagt damit nichts; entscheidend ist, ob RLS einen Nicht-Admin
+  -- von fremden Zeilen fernhaelt. Das laesst sich nur durch echtes DML zeigen.
   --
-  -- Sicherheit: das Praedikat trifft ausschliesslich Zeilen eines FREMDEN
-  -- Mandanten, und die Transaktion wird ausnahmslos zurueckgerollt -- die Datei
-  -- enthaelt kein einziges `commit`. Greift RLS wie vorgesehen, sind es null
-  -- Zeilen; greift sie nicht, meldet die Probe das laut und die Loeschung ist
-  -- durch den Rollback trotzdem folgenlos.
+  -- Die Tabellenliste kommt aus den tatsaechlich gehaltenen Rechten, nicht aus
+  -- einer gepflegten Aufzaehlung: eine neue Mandantentabelle wird ab dem
+  -- naechsten Lauf automatisch mitgeprueft.
   --
-  -- customers und users bleiben bewusst aussen vor: dort haengen Kaskaden dran,
-  -- und ein (wenn auch zurueckgerollter) Kaskadenlauf auf der Produktions-DB
-  -- ist kein angemessener Preis fuer eine Probe.
-  if i_user_id is not null and coalesce(i_foreign_rows, 0) > 0 then
+  -- Gegatet auf foreign_n > 0. Eine Tabelle ohne fremde Zeilen kann die Probe
+  -- nicht bestehen, sie kann sie nur nicht widerlegen -- das ist ein SKIP, kein
+  -- PASS. Derzeit betrifft das ai_change_requests und voxera_cases, in denen
+  -- ausschliesslich eigene Zeilen liegen.
+  --
+  -- Sicherheit: das Praedikat trifft ausschliesslich Zeilen, die dem Mandanten
+  -- NICHT gehoeren, und die Transaktion wird ausnahmslos zurueckgerollt -- die
+  -- Datei enthaelt kein einziges `commit`. Greift RLS, sind es null Zeilen und
+  -- es feuert kein Trigger. Greift sie nicht, meldet die Probe das laut.
+  --
+  -- customers und users bleiben aussen vor: dort haengen Kaskaden dran, und ein
+  -- (wenn auch zurueckgerollter) Kaskadenlauf auf der Produktions-DB ist kein
+  -- angemessener Preis fuer eine Probe.
+  if i_user_id is null then
+    insert into probe_result values ('SKIP', 'D2-schreib-rls',
+      'Nicht-Admin kann keine fremden Zeilen aendern',
+      'kein geeigneter Nicht-Admin-Nutzer gefunden');
+  else
     for r in
-      select v.rel, coalesce((select c.n from census as c where c.rel = v.rel), 0) as n
-      from (values ('calls'), ('notifications'), ('ai_change_requests')) as v(rel)
-      where coalesce((select c.n from census as c where c.rel = v.rel), 0) > 0
+      select t.rel, t.key_col, c.n, coalesce(c.foreign_n, 0) as foreign_n, v.op,
+             pg_catalog.format(
+               case v.op when 'DELETE'
+                 then 'delete from public.%1$I where %2$I::text is distinct from $1'
+                 else 'update public.%1$I set %2$I = %2$I where %2$I::text is distinct from $1'
+               end, t.rel, t.key_col) as stmt
+      from tenant_tbl as t
+      join census as c on c.rel = t.rel
+      cross join (values ('DELETE'), ('UPDATE')) as v(op)
+      where t.rel not in ('customers', 'users')
+        and pg_catalog.has_table_privilege('authenticated', 'public.' || t.rel, v.op)
+      order by t.rel, v.op
     loop
+      if r.foreign_n = 0 then
+        insert into probe_result values ('SKIP', 'D2-schreib-rls',
+          'Nicht-Admin kann fremde Zeilen in ' || r.rel || ' nicht per ' || r.op || ' aendern',
+          'keine fremden Zeilen vorhanden (' || r.n::text
+            || ' Zeilen, alle eigene) -- 0 Treffer waeren kein Beweis');
+        continue;
+      end if;
+
       begin
         perform set_config('role', 'authenticated', true);
         perform set_config('request.jwt.claims',
           pg_catalog.json_build_object('sub', i_user_id::text, 'role', 'authenticated')::text, true);
-        -- `is distinct from <eigener Mandant>` statt `= <ein bestimmter fremder
-        -- Mandant>`: sonst ist die Probe wirkungslos, sobald der zufaellig
-        -- gewaehlte Fremdmandant in dieser Tabelle gar keine Zeilen hat -- 0
-        -- Treffer waeren dann kein Beweis, sondern ein Zufall. So trifft das
-        -- Praedikat jede Zeile, die dem Mandanten nicht gehoert.
-        execute pg_catalog.format(
-          'delete from public.%I where customer_id is distinct from $1', r.rel)
-          using i_home;
+        execute r.stmt using i_home;
         get diagnostics visible = row_count;
-        reset role;
+        perform set_config('role', probe_owner, true);
         insert into probe_result values (
           case when visible = 0 then 'PASS' else 'FAIL' end,
-          'D2-delete-rls', 'Nicht-Admin kann keine fremden Zeilen in ' || r.rel || ' loeschen',
-          visible::text || ' fremde Zeilen getroffen (von ' || r.n::text
-            || ' Tabellenzeilen; zurueckgerollt)');
+          'D2-schreib-rls',
+          'Nicht-Admin kann fremde Zeilen in ' || r.rel || ' nicht per ' || r.op || ' aendern',
+          visible::text || ' von ' || r.foreign_n::text
+            || ' fremden Zeilen getroffen (zurueckgerollt)');
       exception when others then
         txt := sqlstate;
-        reset role;
+        perform set_config('role', probe_owner, true);
         insert into probe_result values (
           case when txt = '42501' then 'PASS' else 'FAIL' end,
-          'D2-delete-rls', 'Nicht-Admin kann keine fremden Zeilen in ' || r.rel || ' loeschen',
-          case when txt = '42501' then 'insufficient_privilege -- DELETE gar nicht erst erlaubt'
+          'D2-schreib-rls',
+          'Nicht-Admin kann fremde Zeilen in ' || r.rel || ' nicht per ' || r.op || ' aendern',
+          case when txt = '42501' then 'insufficient_privilege -- ' || r.op || ' gar nicht erlaubt'
                else 'unerwarteter Fehler SQLSTATE ' || txt end);
       end;
     end loop;
-  else
-    insert into probe_result values ('SKIP', 'D2-delete-rls',
-      'Nicht-Admin kann keine fremden Zeilen loeschen',
-      'keine geeignete Identitaet oder kein zweiter Mandant mit Daten');
   end if;
 
   -- ═══ Probe E: Funktionsverhalten zur Laufzeit ════════════════════════════
@@ -346,14 +488,14 @@ begin
     perform set_config('request.jwt.claims',
       pg_catalog.json_build_object('sub', bogus_sub, 'role', 'authenticated')::text, true);
     b := public.is_admin();
-    reset role;
+    perform set_config('role', probe_owner, true);
     insert into probe_result values (
       case when b is not null and b = false then 'PASS' else 'FAIL' end,
       'E-funktionen', 'is_admin() loest eindeutig auf und ist false fuer Unbekannte',
       'Ergebnis: ' || coalesce(b::text, 'null'));
   exception when others then
     txt := sqlstate;
-    reset role;
+    perform set_config('role', probe_owner, true);
     insert into probe_result values ('FAIL', 'E-funktionen',
       'is_admin() loest eindeutig auf und ist false fuer Unbekannte',
       'SQLSTATE ' || txt || ' -- bei 42725 ist der Aufruf mehrdeutig geworden');
@@ -364,13 +506,13 @@ begin
     perform set_config('request.jwt.claims',
       pg_catalog.json_build_object('sub', bogus_sub, 'role', 'authenticated')::text, true);
     b := public.is_super_admin();
-    reset role;
+    perform set_config('role', probe_owner, true);
     insert into probe_result values (
       case when b = false then 'PASS' else 'FAIL' end,
       'E-funktionen', 'is_super_admin() ist false fuer Unbekannte',
       'Ergebnis: ' || coalesce(b::text, 'null'));
   exception when others then
-    txt := sqlstate; reset role;
+    txt := sqlstate; perform set_config('role', probe_owner, true);
     insert into probe_result values ('FAIL', 'E-funktionen',
       'is_super_admin() ist false fuer Unbekannte', 'SQLSTATE ' || txt);
   end;
@@ -380,13 +522,13 @@ begin
     perform set_config('request.jwt.claims',
       pg_catalog.json_build_object('sub', bogus_sub, 'role', 'authenticated')::text, true);
     txt := public.current_customer_id();
-    reset role;
+    perform set_config('role', probe_owner, true);
     insert into probe_result values (
       case when txt is null then 'PASS' else 'FAIL' end,
       'E-funktionen', 'current_customer_id() ist null fuer ein fremdes Subject',
       'Ergebnis: ' || coalesce(txt, 'null'));
   exception when others then
-    txt := sqlstate; reset role;
+    txt := sqlstate; perform set_config('role', probe_owner, true);
     insert into probe_result values ('FAIL', 'E-funktionen',
       'current_customer_id() ist null fuer ein fremdes Subject', 'SQLSTATE ' || txt);
   end;
@@ -399,7 +541,7 @@ begin
       perform set_config('request.jwt.claims',
         pg_catalog.json_build_object('sub', i_user_id::text, 'role', 'authenticated')::text, true);
       txt := public.current_customer_id();
-      reset role;
+      perform set_config('role', probe_owner, true);
       insert into probe_result values (
         case when txt is not distinct from i_home then 'PASS' else 'FAIL' end,
         'E-funktionen', 'current_customer_id() loest ein echtes Subject korrekt auf',
@@ -407,7 +549,7 @@ begin
              then 'stimmt mit der Mandantenzuordnung ueberein'
              else 'weicht von der Mandantenzuordnung ab' end);
     exception when others then
-      txt := sqlstate; reset role;
+      txt := sqlstate; perform set_config('role', probe_owner, true);
       insert into probe_result values ('FAIL', 'E-funktionen',
         'current_customer_id() loest ein echtes Subject korrekt auf', 'SQLSTATE ' || txt);
     end;
@@ -426,12 +568,12 @@ begin
     begin
       perform set_config('role', 'anon', true);
       execute 'select ' || r.fn;
-      reset role;
+      perform set_config('role', probe_owner, true);
       insert into probe_result values ('FAIL', 'E-funktionen',
         'anon darf ' || r.fn || ' nicht aufrufen', 'Aufruf ging durch');
     exception when others then
       txt := sqlstate;
-      reset role;
+      perform set_config('role', probe_owner, true);
       insert into probe_result values (
         case when txt = '42501' then 'PASS' else 'FAIL' end,
         'E-funktionen', 'anon darf ' || r.fn || ' nicht aufrufen',

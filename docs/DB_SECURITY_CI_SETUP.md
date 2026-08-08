@@ -22,6 +22,7 @@ Checks prüfen verschiedene Dinge und ersetzen einander nicht.
 
 ```
 supabase/migrations/2026-08-08_ci_security_verifier_role.sql
+supabase/migrations/2026-08-08_ci_security_verifier_role_census_v2.sql
 ```
 
 Legt an:
@@ -29,8 +30,10 @@ Legt an:
 - die Rolle `voxera_ci_verifier` — **ohne Passwort**, `NOINHERIT`, ohne eigene
   Tabellenrechte, Mitglied von `anon` und `authenticated` (nur per `SET ROLE`
   wirksam);
-- `public.ci_security_probe_census()` — liefert je Tabelle nur die Zeilenzahl.
-  Ohne sie wäre „0 sichtbare Zeilen" bei einer leeren Tabelle ein falsches PASS;
+- `public.ci_security_probe_census(text)` — liefert je Tabelle die Zeilenzahl und,
+  bezogen auf einen Mandanten, die Zahl der *fremden* Zeilen. Ohne die erste wäre
+  „0 sichtbare Zeilen" bei einer leeren Tabelle ein falsches PASS, ohne die zweite
+  wäre „0 fremde Zeilen getroffen" in einer Tabelle ohne fremde Zeilen dasselbe;
 - `public.ci_security_probe_identity()` — liefert eine UUID und Mandanten-IDs,
   keine Namen, keine Inhalte. Nur damit lässt sich prüfen, dass ein Mandant
   **genau** seine eigenen Zeilen sieht — und nicht etwa alle oder gar keine.
@@ -87,7 +90,8 @@ steht als Tabelle in der Step Summary.
 | B | `anon` sieht nichts und darf nichts | Verhalten |
 | C | ein echter Mandant sieht **genau** seine eigenen Zeilen — und sieht überhaupt welche | Verhalten |
 | D | verbotene Schreibpfade enden in `42501` | Verhalten |
-| D2 | ein Nicht-Admin löscht keine fremden Zeilen (RLS auf DELETE) | Verhalten |
+| B2 | jeder tatsächlich gehaltene anon-Schreibpfad (UPDATE/DELETE) trifft null Zeilen | Verhalten |
+| D2 | ein Nicht-Admin ändert keine fremden Zeilen (RLS auf UPDATE und DELETE) | Verhalten |
 | E | `is_admin()` löst eindeutig auf, `current_customer_id()` löst korrekt auf, `anon` kommt an keine der Funktionen | Verhalten |
 | F | Policies, Grants, Spalten-Allowlists, `search_path`-Pinning, Funktionssignaturen | Katalog |
 | G | Migrations-Ledger ↔ `supabase/migrations/` in beide Richtungen | Katalog |
@@ -106,6 +110,37 @@ und wäre trotzdem kaputt. Deshalb prüft jede Sperre auch ihre Gegenrichtung:
   `EXECUTE` auf `current_customer_id()` für `authenticated` brechen sämtliche
   RLS-Prädikate und der Login.
 
+### Warum der Check nicht auf Pull Requests läuft
+
+Bei einem PR checkt `actions/checkout` den PR-Stand aus, und *danach* bekommt der
+Job das Produktions-Secret. Der PR könnte also den Runner oder eine SQL-Datei so
+ändern, dass sie den Connection-String ausgibt oder DML außerhalb des Rollbacks
+ausführt. Der Fork-Filter half dagegen nicht — bei Same-Repo-PRs greift er nicht,
+und genau die sind der Fall. Review-CI darf kein Weg zu Produktionszugriff sein.
+
+Zweiter Grund: der Ledger-Check würde jeden Migrations-PR rot färben. Die
+Migration liegt im PR-Baum, ist auf Produktion aber korrekt noch nicht angewandt
+— grün zu bekommen wäre er nur, indem man ungemergten Code vorab einspielt.
+
+Getriggert wird deshalb auf `push` nach `main`, alle 6 h per Cron und manuell.
+Der Verlust ist gering: ein PR-Lauf hätte ohnehin nur bereits bestehenden Drift
+gefunden, und den findet der 6-Stunden-Lauf auch.
+
+### Warum keine Standard-Sichten für Grants
+
+Die Grant-Sichten des Informationsschemas filtern auf `enabled_roles`. Die
+CI-Rolle ist `NOINHERIT`, also sind `anon` und `authenticated` dort **nicht**
+enthalten — jede Grant-Abfrage darüber liefert unter dieser Rolle null Zeilen.
+Die erste Fassung lief genau in diese Falle: „0 statt 4 Spalten" und ein leerer
+Baseline-Diff, in dem keine Ausweitung mehr aufgefallen wäre. Aufgefallen ist es
+nur, weil sich die Rolle per `set role` nachstellen lässt.
+
+Alle Grant-Abfragen gehen deshalb über `pg_catalog` (`has_table_privilege`,
+`has_column_privilege`, `aclexplode`) — die kennen die Filterung nicht. Der
+Runner hat zusätzlich einen Wachhund: eine Enumeration, die *nichts* liefert,
+obwohl die Baseline Tabellen kennt, wird als kaputte Abfrage gemeldet und nicht
+als Rechteabbau durchgewinkt.
+
 ### Warum die Proben produktionssicher sind
 
 - Alles läuft in **einer** Transaktion, die zurückgerollt wird. Die
@@ -116,10 +151,16 @@ und wäre trotzdem kaputt. Deshalb prüft jede Sperre auch ihre Gegenrichtung:
   Schreibversuch mit `25006` fehl, **bevor** Postgres die Rechte prüft. Die
   Probe könnte „durch Rechte verweigert" nicht von „durch read-only verweigert"
   unterscheiden und würde eine kaputte Berechtigung als bestanden melden.
-- Einzige Ausnahme von `where false` ist Probe D2: RLS auf DELETE lässt sich nur
-  durch ein echtes DELETE feststellen. Das Prädikat trifft ausschließlich Zeilen
-  **fremder** Mandanten, und `customers`/`users` sind wegen ihrer Kaskaden
-  ausgenommen.
+- Ausnahme sind die Proben B2 und D2: ob eine Policy hält, lässt sich nur durch
+  echtes DML feststellen — eine nie zutreffende Bedingung würde nur den Grant
+  prüfen, und der ist hier bekanntermaßen vorhanden. Greift RLS wie vorgesehen,
+  trifft die Anweisung null Zeilen und es feuert kein Trigger. `customers` und
+  `users` sind wegen ihrer Kaskaden ausgenommen, Tabellen über 50 000 Zeilen
+  werden übersprungen statt still riskant ausgeführt.
+- Beide Proben sind auf den Zensus gegatet: eine Tabelle ohne fremde Zeilen kann
+  die Probe nicht bestehen, sie kann sie nur nicht widerlegen — das ist ein
+  **SKIP**, kein PASS. Ohne dieses Gate meldeten `ai_change_requests` und
+  `voxera_cases` PASS, ohne je etwas gemessen zu haben.
 - `statement_timeout`, `lock_timeout` und `idle_in_transaction_session_timeout`
   sind auf der Rolle gesetzt; ein hängender CI-Job kann nichts blockieren.
 
@@ -148,6 +189,13 @@ der Datenbank. Das ist der P0-Fehler in seiner Reinform. Migration anwenden.
 Meist ein Supabase-Default auf einer neu angelegten Tabelle. Entweder zurück-
 nehmen oder, wenn beabsichtigt, in `db-security-baseline.json` aufnehmen — mit
 Begründung im Commit.
+
+**Bekannte Lücke:** anon-INSERT wird *nicht* behavioral geprüft. Der
+WITH-CHECK-Zweig einer INSERT-Policy läuft nur für eine tatsächlich eingefügte
+Zeile; dafür müsste die Probe je Tabelle eine gültige Zeile konstruieren (NOT
+NULL, Fremdschlüssel, Constraints) und echt auf Produktion schreiben. Der Check
+weist das als SKIP mit Begründung aus, statt ein PASS zu melden, das nichts
+gemessen hat. Überwacht ist dort nur der Grant über die Baseline.
 
 **Gruppen A–E** — eine Isolationsgrenze hält nicht mehr. Das ist ein aktiver
 Befund und kein Konfigurationsproblem: die Meldung nennt Tabelle und Zeilenzahl.

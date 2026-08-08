@@ -154,6 +154,23 @@ function diffGrants(role, expected, actual) {
   const improvements = [];
   let regressions = 0;
 
+  // Wachhund gegen stille Degradation: wenn die Baseline Grants kennt, die
+  // Abfrage aber gar nichts liefert, ist das kein Rechteabbau, sondern eine
+  // kaputte Enumeration -- und wuerde als lauter "Verbesserungen" gruen
+  // durchgehen, waehrend jede echte Ausweitung unentdeckt bliebe.
+  //
+  // Das ist kein hypothetischer Fall: die erste Fassung fragte ueber
+  // information_schema ab. Dessen Sichten filtern auf `enabled_roles`, und
+  // weil die CI-Rolle NOINHERIT ist, lieferten sie unter ihr null Zeilen --
+  // aufgefallen ist es erst im Review. Der Wachhund bleibt, auch nachdem die
+  // Abfragen auf pg_catalog umgestellt wurden.
+  if (Object.keys(expected).length > 0 && actual.size === 0) {
+    add('FAIL', 'H-baseline', `${role}-Grants konnten nicht ermittelt werden`,
+      `Baseline kennt ${Object.keys(expected).length} Tabellen, die Abfrage lieferte keine einzige `
+      + '-- das ist eine kaputte Enumeration, kein Rechteabbau');
+    return;
+  }
+
   for (const [table, privs] of actual) {
     const allowed = new Set(expected[table] || []);
     const added = privs.filter((p) => !allowed.has(p));

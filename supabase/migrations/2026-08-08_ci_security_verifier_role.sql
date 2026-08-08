@@ -15,6 +15,13 @@
 -- ohne Passwort angelegt und kann sich damit nicht anmelden. Das Passwort wird
 -- out-of-band gesetzt (siehe docs/DB_SECURITY_CI_SETUP.md) und lebt nur im
 -- GitHub-Secret.
+--
+-- NACHTRAG: Der Zensus-Helfer wurde direkt im Anschluss ueberarbeitet, siehe
+-- 2026-08-08_ci_security_verifier_role_census_v2.sql. Diese Datei bleibt
+-- unveraendert auf dem Stand, der unter diesem Namen tatsaechlich angewandt
+-- wurde -- eine Migrationsdatei nachtraeglich umzuschreiben waere genau die
+-- Sorte "Repo behauptet etwas anderes als die Datenbank", gegen die der ganze
+-- Vorgang hier gerichtet ist.
 
 begin;
 

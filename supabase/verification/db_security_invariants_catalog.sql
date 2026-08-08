@@ -115,7 +115,7 @@ from (values
   ('public.delete_auth_user_data(uuid)'), ('public.handle_auth_user_created()'),
   ('public.cleanup_old_notifications()'), ('public.next_credit_note_number_v1()'),
   ('public.next_customer_code(integer)'),
-  ('public.ci_security_probe_census()'), ('public.ci_security_probe_identity()')
+  ('public.ci_security_probe_census(text)'), ('public.ci_security_probe_identity()')
 ) as f(sig)
 where to_regprocedure(f.sig) is not null;
 
@@ -127,7 +127,7 @@ from (values
   ('public.delete_auth_user_data(uuid)'), ('public.handle_auth_user_created()'),
   ('public.cleanup_old_notifications()'), ('public.next_credit_note_number_v1()'),
   ('public.next_customer_code(integer)'),
-  ('public.ci_security_probe_census()'), ('public.ci_security_probe_identity()')
+  ('public.ci_security_probe_census(text)'), ('public.ci_security_probe_identity()')
 ) as f(sig)
 where to_regprocedure(f.sig) is not null;
 
@@ -264,44 +264,55 @@ where to_regclass('public.' || t.tbl) is not null;
 -- Spalten-Allowlists: exakt, nicht "mindestens". Eine zusaetzliche schreibbare
 -- Spalte ist genau die Luecke, die 2026-08-07 fuer onboarding_completed
 -- nachgezogen werden musste.
+-- WICHTIG: hier wird bewusst NICHT ueber die Standard-Sichten abgefragt. Deren
+-- Grant-Sichten filtern auf `enabled_roles`, und weil die CI-Rolle NOINHERIT
+-- ist, sind `anon` und `authenticated` dort nicht enthalten. Jede Grant-Abfrage
+-- darueber liefert unter dieser Rolle null Zeilen -- also "0 statt 4 Spalten"
+-- und einen leeren Baseline-Diff, in dem keine Ausweitung mehr auffaellt. Genau
+-- diese Klasse von stillem Falschergebnis soll dieser Check abschaffen, nicht
+-- selbst produzieren. Die pg_catalog-Funktionen kennen die Filterung nicht.
 select case when 4 = (
-         select pg_catalog.count(*) from information_schema.column_privileges
-         where table_schema = 'public' and table_name = 'customers'
-           and grantee = 'authenticated' and privilege_type = 'UPDATE'
+         select pg_catalog.count(*) from pg_catalog.pg_attribute as a
+         where a.attrelid = to_regclass('public.customers') and a.attnum > 0 and not a.attisdropped
+           and pg_catalog.has_column_privilege('authenticated', a.attrelid, a.attnum, 'UPDATE')
        ) then 'PASS' else 'FAIL' end,
        'F6-grants', 'customers: authenticated-UPDATE auf exakt 4 Spalten',
-       coalesce((select pg_catalog.string_agg(column_name, ',' order by column_name)
-                 from information_schema.column_privileges
-                 where table_schema = 'public' and table_name = 'customers'
-                   and grantee = 'authenticated' and privilege_type = 'UPDATE'), '<keine>');
+       coalesce((select pg_catalog.string_agg(a.attname, ',' order by a.attname)
+                 from pg_catalog.pg_attribute as a
+                 where a.attrelid = to_regclass('public.customers') and a.attnum > 0 and not a.attisdropped
+                   and pg_catalog.has_column_privilege('authenticated', a.attrelid, a.attnum, 'UPDATE')), '<keine>')
+where to_regclass('public.customers') is not null;
 
 select case when 4 = (
-         select pg_catalog.count(*) from information_schema.column_privileges
-         where table_schema = 'public' and table_name = 'customers'
-           and grantee = 'authenticated' and privilege_type = 'UPDATE'
-           and column_name in ('contact_first_name', 'in_app_notification_settings',
-                               'updated_at', 'onboarding_completed')
+         select pg_catalog.count(*) from pg_catalog.pg_attribute as a
+         where a.attrelid = to_regclass('public.customers') and a.attnum > 0 and not a.attisdropped
+           and a.attname in ('contact_first_name', 'in_app_notification_settings',
+                             'updated_at', 'onboarding_completed')
+           and pg_catalog.has_column_privilege('authenticated', a.attrelid, a.attnum, 'UPDATE')
        ) then 'PASS' else 'FAIL' end,
-       'F6-grants', 'customers: die 4 Spalten sind die erwarteten', '';
+       'F6-grants', 'customers: die 4 Spalten sind die erwarteten', ''
+where to_regclass('public.customers') is not null;
 
 select case when 4 = (
-         select pg_catalog.count(*) from information_schema.column_privileges
-         where table_schema = 'public' and table_name = 'calls'
-           and grantee = 'authenticated' and privilege_type = 'UPDATE'
+         select pg_catalog.count(*) from pg_catalog.pg_attribute as a
+         where a.attrelid = to_regclass('public.calls') and a.attnum > 0 and not a.attisdropped
+           and pg_catalog.has_column_privilege('authenticated', a.attrelid, a.attnum, 'UPDATE')
        ) then 'PASS' else 'FAIL' end,
        'F6-grants', 'calls: authenticated-UPDATE auf exakt 4 Spalten',
-       coalesce((select pg_catalog.string_agg(column_name, ',' order by column_name)
-                 from information_schema.column_privileges
-                 where table_schema = 'public' and table_name = 'calls'
-                   and grantee = 'authenticated' and privilege_type = 'UPDATE'), '<keine>');
+       coalesce((select pg_catalog.string_agg(a.attname, ',' order by a.attname)
+                 from pg_catalog.pg_attribute as a
+                 where a.attrelid = to_regclass('public.calls') and a.attnum > 0 and not a.attisdropped
+                   and pg_catalog.has_column_privilege('authenticated', a.attrelid, a.attnum, 'UPDATE')), '<keine>')
+where to_regclass('public.calls') is not null;
 
 select case when 4 = (
-         select pg_catalog.count(*) from information_schema.column_privileges
-         where table_schema = 'public' and table_name = 'calls'
-           and grantee = 'authenticated' and privilege_type = 'UPDATE'
-           and column_name in ('read_at', 'notes_customer_voxera', 'dashboard_status', 'updated_at')
+         select pg_catalog.count(*) from pg_catalog.pg_attribute as a
+         where a.attrelid = to_regclass('public.calls') and a.attnum > 0 and not a.attisdropped
+           and a.attname in ('read_at', 'notes_customer_voxera', 'dashboard_status', 'updated_at')
+           and pg_catalog.has_column_privilege('authenticated', a.attrelid, a.attnum, 'UPDATE')
        ) then 'PASS' else 'FAIL' end,
-       'F6-grants', 'calls: die 4 Spalten sind die erwarteten', '';
+       'F6-grants', 'calls: die 4 Spalten sind die erwarteten', ''
+where to_regclass('public.calls') is not null;
 
 -- Einzelne Spalten, die unter keinen Umstaenden kundenschreibbar sein duerfen.
 select case when not pg_catalog.has_column_privilege('authenticated', 'public.' || t.tbl, t.col, 'UPDATE')
@@ -333,27 +344,31 @@ where to_regclass('public.system_config') is not null;
 -- anon-Grants als Rohdaten fuer den Baseline-Diff. Aktuell haelt anon breite
 -- DML-Rechte auf vielen Tabellen; davor steht ausschliesslich RLS. Diese
 -- Alt-Schuld wird eingefroren, nicht ignoriert: jeder NEUE Grant faellt auf.
-select 'INFO', 'anon-grants', table_name,
-       pg_catalog.string_agg(distinct privilege_type, ',' order by privilege_type)
-from information_schema.role_table_grants
-where table_schema = 'public' and grantee = 'anon'
-group by table_name
-order by table_name;
+select 'INFO', 'anon-grants', c.relname,
+       pg_catalog.string_agg(distinct ac.privilege_type, ',' order by ac.privilege_type)
+from pg_catalog.pg_class as c
+join pg_catalog.pg_namespace as n on n.oid = c.relnamespace
+cross join lateral pg_catalog.aclexplode(c.relacl) as ac
+where n.nspname = 'public' and c.relkind = 'r' and ac.grantee = 'anon'::regrole
+group by c.relname
+order by c.relname;
 
 -- Dasselbe fuer authenticated, beschraenkt auf die Mandantentabellen. Einige
 -- dieser Rechte sind gewollt (Admin-Panel), andere sind Supabase-Defaults, die
 -- nur RLS zurueckhaelt. Welche davon welche sind, laesst sich aus dem Katalog
 -- nicht ablesen -- also wird der Ist-Zustand eingefroren und jede Ausweitung
 -- gemeldet.
-select 'INFO', 'authenticated-grants', table_name,
-       pg_catalog.string_agg(distinct privilege_type, ',' order by privilege_type)
-from information_schema.role_table_grants
-where table_schema = 'public' and grantee = 'authenticated'
-  and table_name in ('users', 'customers', 'calls', 'notifications', 'ai_change_requests',
-                     'contracts', 'subscriptions', 'invoices', 'offers', 'customer_addons',
-                     'voxera_cases', 'customer_tasks', 'system_config')
-group by table_name
-order by table_name;
+select 'INFO', 'authenticated-grants', c.relname,
+       pg_catalog.string_agg(distinct ac.privilege_type, ',' order by ac.privilege_type)
+from pg_catalog.pg_class as c
+join pg_catalog.pg_namespace as n on n.oid = c.relnamespace
+cross join lateral pg_catalog.aclexplode(c.relacl) as ac
+where n.nspname = 'public' and c.relkind = 'r' and ac.grantee = 'authenticated'::regrole
+  and c.relname in ('users', 'customers', 'calls', 'notifications', 'ai_change_requests',
+                    'contracts', 'subscriptions', 'invoices', 'offers', 'customer_addons',
+                    'voxera_cases', 'customer_tasks', 'system_config')
+group by c.relname
+order by c.relname;
 
 -- ═══ Gruppe G: Migrations-Ledger ═══════════════════════════════════════════
 -- Rohdaten; den Abgleich gegen supabase/migrations/ macht der Node-Runner.

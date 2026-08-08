@@ -8,21 +8,40 @@
 # `authenticated` tatsaechlich duerfen.
 name: DB Security Invariants (Produktion)
 
+# BEWUSST OHNE `pull_request`. Zwei Gruende, beide aus dem Review von PR #835:
+#
+# 1. Zugangsdaten. `actions/checkout` holt bei einem PR den PR-Stand, und erst
+#    danach bekommt der Job das Produktions-Secret in die Umgebung. Der PR
+#    koennte also den Runner oder eine der SQL-Dateien so aendern, dass sie den
+#    Connection-String ausgibt oder DML ausserhalb des Rollbacks ausfuehrt. Der
+#    Fork-Filter half dagegen nicht: bei Same-Repo-PRs greift er nicht, und
+#    genau die sind der Fall. Review-CI darf kein Weg zu Produktionszugriff
+#    sein -- schon gar nicht bei einem Security-Check.
+#
+# 2. Der Ledger-Check wuerde jeden Migrations-PR rot faerben. Eine Migration
+#    liegt im PR-Baum, ist auf Produktion aber korrekt noch nicht angewandt --
+#    der Drift-Check meldet zutreffend "nicht angewandt" und der PR waere nur
+#    gruen zu bekommen, indem man ungemergten Code vorab einspielt. Genau
+#    verkehrt herum.
+#
+# Der Verlust ist gering: der PR-Lauf haette ohnehin nur bereits bestehenden
+# Drift gefunden, und den findet der 6-Stunden-Lauf auch.
 on:
   # Nach dem Merge -- der Moment, in dem eine Migration angewandt sein muesste.
   push:
     branches:
       - main
+      # TEMPORAER, wird vor dem Merge entfernt: `workflow_dispatch` steht erst
+      # zur Verfuegung, wenn die Datei auf dem Default-Branch liegt, und der
+      # PR-Trigger ist aus gutem Grund weg (siehe oben). Ohne diese Zeile liesse
+      # sich der erste echte Lauf gar nicht beobachten -- und ein Check, der
+      # ungetestet gemergt wird, waere in diesem PR besonders unpassend.
+      - claude/ci-p0-security-db-check-phf4us
   # Der eigentliche Schutz: Drift entsteht auch OHNE Commit (manuelle Aenderung,
   # nie angewandte Migration, zurueckgesetzte Policy). Nur ein zeitgesteuerter
   # Lauf gegen die echte DB findet das.
   schedule:
     - cron: '17 */6 * * *'
-  # Vor dem Merge: der PR-Inhalt steht noch nicht auf der DB, aber ein bereits
-  # bestehender Drift faellt auf, bevor darauf aufgebaut wird.
-  pull_request:
-    branches:
-      - main
   workflow_dispatch:
 
 permissions:
@@ -37,13 +56,10 @@ jobs:
     name: Security-Invarianten gegen die Produktions-DB
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    # Fork-PRs bekommen keine Secrets. Ohne diese Bedingung stuende der Check
-    # bei ihnen dauerhaft rot und wuerde damit als Signal wertlos.
-    if: >-
-      github.event_name != 'pull_request' ||
-      github.event.pull_request.head.repo.full_name == github.repository
     # Eigenes Environment: der Zugriff auf die Produktions-Zugangsdaten ist
-    # dadurch einzeln auditierbar und kann unabhaengig entzogen werden.
+    # dadurch einzeln auditierbar und kann unabhaengig entzogen werden. In
+    # Kombination mit den Triggern oben laeuft dieser Job ausschliesslich auf
+    # Code, der bereits in main steht -- nie auf ungeprueftem PR-Stand.
     environment: production-db-readonly
     steps:
       - name: Repository auschecken

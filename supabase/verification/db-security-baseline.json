@@ -14,39 +14,282 @@
     "DML-Rechte aus Supabase-Defaults. Dass daraus kein Datenabfluss wird, haengt",
     "allein an RLS. Die Verhaltensproben B und D in",
     "db_security_invariants_behavior.sql messen genau das bei jedem Lauf nach. Diese",
-    "Baseline ersetzt kein Aufraeumen -- sie verhindert nur, dass es schlimmer wird."
+    "Baseline ersetzt kein Aufraeumen -- sie verhindert nur, dass es schlimmer wird.",
+    "",
+    "Aufgenommen ueber pg_catalog.aclexplode(relacl), NICHT ueber die Standard-Grant-Sichten:",
+    "die filtern auf enabled_roles und liefern unter der NOINHERIT-CI-Rolle nichts. Deshalb",
+    "steht hier auch MAINTAIN (PostgreSQL 17), das die Sichten nicht auswerfen."
   ],
-
   "anonTableGrants": {
-    "admin_emails": ["DELETE", "INSERT", "REFERENCES", "SELECT", "TRIGGER", "TRUNCATE", "UPDATE"],
-    "admins": ["DELETE", "INSERT", "REFERENCES", "SELECT", "TRIGGER", "TRUNCATE", "UPDATE"],
-    "credit_note_sequences": ["DELETE", "INSERT", "REFERENCES", "SELECT", "TRIGGER", "TRUNCATE", "UPDATE"],
-    "customer_tasks": ["DELETE", "INSERT", "REFERENCES", "SELECT", "TRIGGER", "TRUNCATE", "UPDATE"],
-    "elevenlabs_sync_log": ["DELETE", "INSERT", "REFERENCES", "SELECT", "TRIGGER", "TRUNCATE", "UPDATE"],
-    "feature_flags": ["DELETE", "INSERT", "REFERENCES", "SELECT", "TRIGGER", "TRUNCATE", "UPDATE"],
-    "industry_templates": ["DELETE", "INSERT", "REFERENCES", "SELECT", "TRIGGER", "TRUNCATE", "UPDATE"],
-    "invoice_financial_actions": ["DELETE", "INSERT", "REFERENCES", "SELECT", "TRIGGER", "TRUNCATE", "UPDATE"],
-    "invoice_items": ["DELETE", "INSERT", "REFERENCES", "SELECT", "TRIGGER", "TRUNCATE", "UPDATE"],
-    "invoice_refunds": ["DELETE", "INSERT", "REFERENCES", "SELECT", "TRIGGER", "TRUNCATE", "UPDATE"],
-    "invoice_sequences": ["DELETE", "INSERT", "REFERENCES", "SELECT", "TRIGGER", "TRUNCATE", "UPDATE"],
-    "kantonale_notfallnummern": ["DELETE", "INSERT", "REFERENCES", "SELECT", "TRIGGER", "TRUNCATE", "UPDATE"],
-    "minutes_topups": ["DELETE", "INSERT", "REFERENCES", "SELECT", "TRIGGER", "TRUNCATE", "UPDATE"],
-    "offer_acceptances": ["DELETE", "INSERT", "REFERENCES", "SELECT", "TRIGGER", "TRUNCATE", "UPDATE"],
-    "offer_events": ["DELETE", "INSERT", "REFERENCES", "SELECT", "TRIGGER", "TRUNCATE", "UPDATE"],
-    "offer_sequences": ["DELETE", "INSERT", "REFERENCES", "SELECT", "TRIGGER", "TRUNCATE", "UPDATE"],
-    "onboarding": ["DELETE", "INSERT", "REFERENCES", "SELECT", "TRIGGER", "TRUNCATE", "UPDATE"],
-    "outbox_events": ["DELETE", "INSERT", "REFERENCES", "SELECT", "TRIGGER", "TRUNCATE", "UPDATE"],
-    "plan_config": ["DELETE", "INSERT", "REFERENCES", "SELECT", "TRIGGER", "TRUNCATE", "UPDATE"],
-    "push_subscriptions": ["DELETE", "INSERT", "REFERENCES", "SELECT", "TRIGGER", "TRUNCATE", "UPDATE"],
-    "system_config": ["DELETE", "INSERT", "REFERENCES", "TRIGGER", "TRUNCATE", "UPDATE"],
-    "telephony_number_assignment_audit": ["DELETE", "INSERT", "REFERENCES", "SELECT", "TRIGGER", "TRUNCATE", "UPDATE"],
-    "telephony_numbers": ["DELETE", "INSERT", "REFERENCES", "SELECT", "TRIGGER", "TRUNCATE", "UPDATE"],
-    "users": ["DELETE", "INSERT", "REFERENCES", "SELECT", "TRIGGER", "TRUNCATE"],
-    "voxera_addons": ["DELETE", "INSERT", "REFERENCES", "SELECT", "TRIGGER", "TRUNCATE", "UPDATE"],
-    "voxera_cases": ["DELETE", "INSERT", "REFERENCES", "SELECT", "TRIGGER", "TRUNCATE", "UPDATE"],
-    "voxera_voices": ["DELETE", "INSERT", "REFERENCES", "SELECT", "TRIGGER", "TRUNCATE", "UPDATE"]
+    "admin_emails": [
+      "DELETE",
+      "INSERT",
+      "MAINTAIN",
+      "REFERENCES",
+      "SELECT",
+      "TRIGGER",
+      "TRUNCATE",
+      "UPDATE"
+    ],
+    "admins": [
+      "DELETE",
+      "INSERT",
+      "MAINTAIN",
+      "REFERENCES",
+      "SELECT",
+      "TRIGGER",
+      "TRUNCATE",
+      "UPDATE"
+    ],
+    "credit_note_sequences": [
+      "DELETE",
+      "INSERT",
+      "MAINTAIN",
+      "REFERENCES",
+      "SELECT",
+      "TRIGGER",
+      "TRUNCATE",
+      "UPDATE"
+    ],
+    "customer_tasks": [
+      "DELETE",
+      "INSERT",
+      "MAINTAIN",
+      "REFERENCES",
+      "SELECT",
+      "TRIGGER",
+      "TRUNCATE",
+      "UPDATE"
+    ],
+    "elevenlabs_sync_log": [
+      "DELETE",
+      "INSERT",
+      "MAINTAIN",
+      "REFERENCES",
+      "SELECT",
+      "TRIGGER",
+      "TRUNCATE",
+      "UPDATE"
+    ],
+    "feature_flags": [
+      "DELETE",
+      "INSERT",
+      "MAINTAIN",
+      "REFERENCES",
+      "SELECT",
+      "TRIGGER",
+      "TRUNCATE",
+      "UPDATE"
+    ],
+    "industry_templates": [
+      "DELETE",
+      "INSERT",
+      "MAINTAIN",
+      "REFERENCES",
+      "SELECT",
+      "TRIGGER",
+      "TRUNCATE",
+      "UPDATE"
+    ],
+    "invoice_financial_actions": [
+      "DELETE",
+      "INSERT",
+      "MAINTAIN",
+      "REFERENCES",
+      "SELECT",
+      "TRIGGER",
+      "TRUNCATE",
+      "UPDATE"
+    ],
+    "invoice_items": [
+      "DELETE",
+      "INSERT",
+      "MAINTAIN",
+      "REFERENCES",
+      "SELECT",
+      "TRIGGER",
+      "TRUNCATE",
+      "UPDATE"
+    ],
+    "invoice_refunds": [
+      "DELETE",
+      "INSERT",
+      "MAINTAIN",
+      "REFERENCES",
+      "SELECT",
+      "TRIGGER",
+      "TRUNCATE",
+      "UPDATE"
+    ],
+    "invoice_sequences": [
+      "DELETE",
+      "INSERT",
+      "MAINTAIN",
+      "REFERENCES",
+      "SELECT",
+      "TRIGGER",
+      "TRUNCATE",
+      "UPDATE"
+    ],
+    "kantonale_notfallnummern": [
+      "DELETE",
+      "INSERT",
+      "MAINTAIN",
+      "REFERENCES",
+      "SELECT",
+      "TRIGGER",
+      "TRUNCATE",
+      "UPDATE"
+    ],
+    "minutes_topups": [
+      "DELETE",
+      "INSERT",
+      "MAINTAIN",
+      "REFERENCES",
+      "SELECT",
+      "TRIGGER",
+      "TRUNCATE",
+      "UPDATE"
+    ],
+    "offer_acceptances": [
+      "DELETE",
+      "INSERT",
+      "MAINTAIN",
+      "REFERENCES",
+      "SELECT",
+      "TRIGGER",
+      "TRUNCATE",
+      "UPDATE"
+    ],
+    "offer_events": [
+      "DELETE",
+      "INSERT",
+      "MAINTAIN",
+      "REFERENCES",
+      "SELECT",
+      "TRIGGER",
+      "TRUNCATE",
+      "UPDATE"
+    ],
+    "offer_sequences": [
+      "DELETE",
+      "INSERT",
+      "MAINTAIN",
+      "REFERENCES",
+      "SELECT",
+      "TRIGGER",
+      "TRUNCATE",
+      "UPDATE"
+    ],
+    "onboarding": [
+      "DELETE",
+      "INSERT",
+      "MAINTAIN",
+      "REFERENCES",
+      "SELECT",
+      "TRIGGER",
+      "TRUNCATE",
+      "UPDATE"
+    ],
+    "outbox_events": [
+      "DELETE",
+      "INSERT",
+      "MAINTAIN",
+      "REFERENCES",
+      "SELECT",
+      "TRIGGER",
+      "TRUNCATE",
+      "UPDATE"
+    ],
+    "plan_config": [
+      "DELETE",
+      "INSERT",
+      "MAINTAIN",
+      "REFERENCES",
+      "SELECT",
+      "TRIGGER",
+      "TRUNCATE",
+      "UPDATE"
+    ],
+    "push_subscriptions": [
+      "DELETE",
+      "INSERT",
+      "MAINTAIN",
+      "REFERENCES",
+      "SELECT",
+      "TRIGGER",
+      "TRUNCATE",
+      "UPDATE"
+    ],
+    "system_config": [
+      "DELETE",
+      "INSERT",
+      "MAINTAIN",
+      "REFERENCES",
+      "TRIGGER",
+      "TRUNCATE",
+      "UPDATE"
+    ],
+    "telephony_number_assignment_audit": [
+      "DELETE",
+      "INSERT",
+      "MAINTAIN",
+      "REFERENCES",
+      "SELECT",
+      "TRIGGER",
+      "TRUNCATE",
+      "UPDATE"
+    ],
+    "telephony_numbers": [
+      "DELETE",
+      "INSERT",
+      "MAINTAIN",
+      "REFERENCES",
+      "SELECT",
+      "TRIGGER",
+      "TRUNCATE",
+      "UPDATE"
+    ],
+    "users": [
+      "DELETE",
+      "INSERT",
+      "MAINTAIN",
+      "REFERENCES",
+      "SELECT",
+      "TRIGGER",
+      "TRUNCATE"
+    ],
+    "voxera_addons": [
+      "DELETE",
+      "INSERT",
+      "MAINTAIN",
+      "REFERENCES",
+      "SELECT",
+      "TRIGGER",
+      "TRUNCATE",
+      "UPDATE"
+    ],
+    "voxera_cases": [
+      "DELETE",
+      "INSERT",
+      "MAINTAIN",
+      "REFERENCES",
+      "SELECT",
+      "TRIGGER",
+      "TRUNCATE",
+      "UPDATE"
+    ],
+    "voxera_voices": [
+      "DELETE",
+      "INSERT",
+      "MAINTAIN",
+      "REFERENCES",
+      "SELECT",
+      "TRIGGER",
+      "TRUNCATE",
+      "UPDATE"
+    ]
   },
-
   "$comment_authenticated": [
     "Rechte von `authenticated` auf den Mandantentabellen. Anders als bei anon ist",
     "hier ein Teil AUSDRUECKLICH gewollt: das Admin-Panel arbeitet als",
@@ -57,23 +300,89 @@
     "(DELETE unter RLS) bei jedem Lauf nach."
   ],
   "authenticatedTableGrants": {
-    "ai_change_requests": ["DELETE", "INSERT", "SELECT", "UPDATE"],
-    "calls": ["DELETE", "REFERENCES", "SELECT", "TRIGGER", "TRUNCATE"],
-    "contracts": ["SELECT"],
-    "customer_addons": ["SELECT"],
-    "customer_tasks": ["DELETE", "INSERT", "REFERENCES", "SELECT", "TRIGGER", "TRUNCATE", "UPDATE"],
-    "customers": ["DELETE", "INSERT", "REFERENCES", "SELECT", "TRIGGER", "TRUNCATE"],
-    "invoices": ["SELECT", "UPDATE"],
-    "notifications": ["SELECT"],
-    "offers": ["SELECT"],
-    "subscriptions": ["SELECT"],
-    "system_config": ["DELETE", "INSERT", "REFERENCES", "SELECT", "TRIGGER", "TRUNCATE", "UPDATE"],
-    "users": ["DELETE", "INSERT", "REFERENCES", "SELECT", "TRIGGER", "TRUNCATE"],
-    "voxera_cases": ["DELETE", "INSERT", "REFERENCES", "SELECT", "TRIGGER", "TRUNCATE", "UPDATE"]
+    "ai_change_requests": [
+      "DELETE",
+      "INSERT",
+      "SELECT",
+      "UPDATE"
+    ],
+    "calls": [
+      "DELETE",
+      "MAINTAIN",
+      "REFERENCES",
+      "SELECT",
+      "TRIGGER",
+      "TRUNCATE"
+    ],
+    "contracts": [
+      "SELECT"
+    ],
+    "customer_addons": [
+      "SELECT"
+    ],
+    "customer_tasks": [
+      "DELETE",
+      "INSERT",
+      "MAINTAIN",
+      "REFERENCES",
+      "SELECT",
+      "TRIGGER",
+      "TRUNCATE",
+      "UPDATE"
+    ],
+    "customers": [
+      "DELETE",
+      "INSERT",
+      "MAINTAIN",
+      "REFERENCES",
+      "SELECT",
+      "TRIGGER",
+      "TRUNCATE"
+    ],
+    "invoices": [
+      "SELECT",
+      "UPDATE"
+    ],
+    "notifications": [
+      "SELECT"
+    ],
+    "offers": [
+      "SELECT"
+    ],
+    "subscriptions": [
+      "SELECT"
+    ],
+    "system_config": [
+      "DELETE",
+      "INSERT",
+      "MAINTAIN",
+      "REFERENCES",
+      "SELECT",
+      "TRIGGER",
+      "TRUNCATE",
+      "UPDATE"
+    ],
+    "users": [
+      "DELETE",
+      "INSERT",
+      "MAINTAIN",
+      "REFERENCES",
+      "SELECT",
+      "TRIGGER",
+      "TRUNCATE"
+    ],
+    "voxera_cases": [
+      "DELETE",
+      "INSERT",
+      "MAINTAIN",
+      "REFERENCES",
+      "SELECT",
+      "TRIGGER",
+      "TRUNCATE",
+      "UPDATE"
+    ]
   },
-
   "tablesWithoutRls": [],
-
   "preLedgerMigrations": {
     "$comment": [
       "supabase_migrations.schema_migrations wurde erst am 2026-08-08 angelegt. Diese",
