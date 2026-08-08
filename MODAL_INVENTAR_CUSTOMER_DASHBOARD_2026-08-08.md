@@ -252,22 +252,91 @@ Vereinheitlichung am Basisstil muss dort separat nachgezogen werden.
 
 ---
 
-## Vorschlag für die Reihenfolge (zur Abstimmung, nichts davon umgesetzt)
+## Umsetzungsplan
 
-1. **Primärfarbe entscheiden.** Night-Navy `#0D1F3C` oder Blau `#1A6FE8` für
-   die bestätigende Aktion — eine Entscheidung, die alle anderen Schritte
-   festlegt. Betroffen: `.btn--primary`, `.modal-btn-p`, `.vx-ap-btn`,
-   `.vx-dv2-btn-primary`.
-2. **`.vx-ap-btn` auf den gewählten Wert ziehen.** `#0F2347` gegen `#0D1F3C`
-   ist ein Unterschied, den niemand beabsichtigt hat — der billigste Schritt.
-3. **Button-Geometrie zusammenführen.** Vier Höhen/Radien auf ein Paar
-   reduzieren; die Pillenform der Detailansicht ist dabei die bewusste
-   Ausnahme für Aktionszeilen und kann bleiben.
-4. **`confirm-tone-*` und Buttonfarbe zusammenlegen**, damit Icon und Button
-   nicht mehr getrennt gesteuert werden.
-5. **Ad-hoc-Dialoge angleichen** (Onboarding, Tour) — Inline-Stile auf
-   Klassen und Tokens umstellen.
-6. **z-index-Skala als Token-Satz** neu vergeben und die toten Tokens
-   entfernen.
-7. **a11y-Attribute** an den vier Overlays ergänzen.
-8. **Toten `#vx-preview-modal` entfernen.**
+**Festgelegt:** Night-Navy `#0D1F3C` ist der kanonische Wert für die
+bestätigende Aktion, **produktweit** — nicht nur in Dialogen. Blau `#1A6FE8`
+bleibt Akzentfarbe für Links, Auswahl, Chips, Fokusring und Fortschritt.
+`#0F2347` ist Drift und entfällt.
+
+### Messungen, die die ursprüngliche Reihenfolge verändert haben
+
+1. **`.btn--primary`**: 35 Render-Stellen (23 im Markup, 12 aus JS-Strings) und
+   24 CSS-Selektoren. Darunter **vier Regeln, die Blau erneut festschreiben** —
+   drei davon mit `!important`:
+   `#tab-assistent [id^="accbody-"] .btn--primary`,
+   `.dpr-action-panel-premium .btn--primary`, `.dpr-btn-primary`,
+   `.dpr-btn.btn--primary`. Ohne sie bleibt eine Änderung an der Basisregel
+   wirkungslos. Sie gehören deshalb in denselben Schritt, nicht in einen
+   späteren.
+2. **Navy hat bereits zwei Hover-Töne**: `#13284D` (15 Fundstellen, u.a.
+   `.btn--dark` und `.btn--neutral`) und `#132A52` (3 Fundstellen, Handover
+   und Audio). Wird der Hover nicht mitkanonisiert, verschiebt sich die Drift
+   nur von der Grund- auf die Hover-Farbe.
+3. **Es gibt keinen Dark Mode.** Der Token-Block ist leer, `prefers-color-scheme`
+   kommt in keiner Datei vor. Damit entfällt das grösste Risiko bei einer
+   dunklen Primärfläche.
+4. **Der Escape-Handler kennt nur vier Overlays** (confirm, manual-task,
+   followup, notiz). Die Barrierefreiheitslücke ist grösser als „Attribut
+   fehlt“ und braucht einen eigenen, vollständigen Schritt.
+5. **`#0F2347` ist kein eigener Schritt mehr.** Es ist dieselbe Zeile wie die
+   Token-Umstellung — der ursprüngliche Schritt 2 geht in Schritt 1 auf.
+
+### Phase 1 — Farbe und Wert
+
+**S1 · Semantisches Token einführen und alle Primärbuttons darauf zeigen.**
+`--vx-action-primary: var(--vx-color-night)` und
+`--vx-action-primary-hover: #13284D`. Umgestellt werden `.btn--primary`,
+`.modal-btn-p`, `.vx-ap-btn` (damit fällt `#0F2347`) und
+`.vx-dv2-btn-primary`. Die vier blau-festschreibenden Override-Regeln werden
+mitgezogen oder entfernt. `#132A52` wird auf `#13284D` vereinheitlicht.
+Blau bleibt unverändert als `--vx-color-brand` für Akzentrollen.
+
+**S2 · Sichtprüfung der 28 Nicht-Dialog-Stellen**, Desktop und Mobile.
+Erwarteter Sonderfall: Buttons auf dunklem Grund — der Accordion-Body unter
+`#tab-assistent` hat Blau genau deshalb festgeschrieben. Dort braucht es eine
+helle Variante, nicht Navy auf Navy.
+
+### Phase 2 — Barrierefreiheit *(unabhängig von Phase 1, eigener PR)*
+
+**S3 · Die vier Overlays auf den vollen Dialog-Vertrag heben:**
+Setup-Hilfe, Aktivierungs-Flow, Onboarding, Tour erhalten `role="dialog"`,
+`aria-modal`, `aria-labelledby`, gepflegtes `aria-hidden`, Escape und
+Fokus-Rückgabe. Vorarbeit je Dialog: Setup-Hilfe und Aktivierungs-Flow
+brauchen erst eine stabile Überschrift im injizierten Inhalt; Onboarding
+braucht eine echte Überschrift statt eines `div`; die Tour hat mit
+`#tour-title` bereits ein Ziel.
+
+**S4 · Escape und Fokus-Rückgabe nachziehen** für die Overlays, die zwar eine
+Dialog-Rolle haben, aber nicht im Escape-Handler stehen: `manual-request`,
+`vx-commercial`, `vox-support-request`. Die Detail-Vollansicht bringt ein
+eigenes Escape mit und braucht nur die Rolle.
+
+### Phase 3 — Form und Struktur
+
+**S5 · Button-Geometrie zusammenführen.** 44/10, 42/11 und 40/12 auf ein Paar.
+Die Pillenform 32/999 der Detail-Aktionszeile bleibt bewusste Ausnahme.
+
+**S6 · `confirm-tone-*` und Buttonfarbe auf einen Steuerpfad legen**, damit
+Icon und Button nicht mehr getrennt gesetzt werden. `.btn--neutral` entfällt
+dabei: es hat keinen Aufrufer, und sein Hover `#13284D` kollidiert nach S1 mit
+dem Primär-Hover.
+
+**S7 · Ad-hoc-Dialoge angleichen.** Onboarding und Tour von Inline-Stilen auf
+Klassen und Tokens. Beide werden in S3 ohnehin angefasst.
+
+**S8 · z-index als Token-Skala** neu vergeben, tote Tokens entfernen. Dabei zu
+klären: Toast über die Support-Anfrage (`100000`) heben oder Support senken.
+
+### Phase 4 — Aufräumen
+
+**S9 · `#vx-preview-modal` entkoppeln** und als tot dokumentieren.
+**S10 · Löschung als eigener Mini-PR.**
+
+### Offene Punkte
+
+- **Grün als Aktions- oder Zustandsfarbe.** `.vx-dv2-btn-done` („Erledigen“,
+  `#ECFDF5` auf `#047857`) löst den Bestätigen-Dialog aus, dessen Button nach
+  S1 navy ist. Soll die Bestätigung den Ton des Auslösers erben, oder ist Grün
+  ein Zustands- und kein Aktionston? Betrifft S6.
+- **Primärbuttons auf dunklem Grund** — Ergebnis von S2.
