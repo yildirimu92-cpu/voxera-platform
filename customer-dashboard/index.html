@@ -10918,19 +10918,71 @@ function vxBellPageItemClick(nid, recId) {
 }
 
 // ── Init — nach Login ──────────────────────────────────────
+// Seiteneffektfreier Zugriff auf den Auth-Client: getSupabaseAuthClient()
+// blendet bei fehlendem Client den "System nicht verfügbar"-Zustand ein, was
+// für einen optionalen Nebenpfad wie die Glocke die falsche Reaktion wäre.
+function vxNotifAuthClient() {
+  try { return (typeof _sb !== 'undefined' && _sb && _sb.auth) ? _sb : null; } catch (e) { return null; }
+}
+
+// Der Notifications-Lesepfad setzt eine echte Session voraus: die RLS-Policy
+// auf public.notifications löst den Mandanten über auth.uid() auf, ohne JWT
+// gibt es keinen. Vorher hing der Start an einem blinden
+// setTimeout(..., 2000) — auf einer frisch geladenen Seite ohne Login war das
+// nicht der Ausnahme-, sondern der Normalfall, und der Aufruf endete in einem
+// 401 samt Konsolenfehler statt in einer leeren Liste. Umgekehrt startete ein
+// Login, der später als die zwei Sekunden kam, die Benachrichtigungen bis zum
+// nächsten Reload überhaupt nicht.
+var _vxNotifStarted = false;
+
 async function vxNotifInit() {
+  if (_vxNotifStarted) return;
+  var sb = vxNotifAuthClient();
+  if (!sb) return;
+  var session = null;
+  try {
+    var res = await sb.auth.getSession();
+    session = res && res.data ? res.data.session : null;
+  } catch (e) {
+    return;
+  }
+  if (!session) return;
+  _vxNotifStarted = true;
   await vxNotifLoadFromDB();
   vxBellUpdateBadge();
   vxNotifSubscribe();
 }
+window.vxNotifInit = vxNotifInit;
 
-// Init ─ einmalig, kein Doppelt-Feuern
+// Beim Abmelden zurücksetzen, damit ein erneuter Login sauber neu startet und
+// keine Benachrichtigungen des Vorgängers im Cache stehen bleiben.
+function vxNotifReset() {
+  _vxNotifStarted = false;
+  _vxNotifCache = [];
+  var sb = vxNotifAuthClient();
+  if (sb && _vxNotifSubscription) {
+    try { sb.removeChannel(_vxNotifSubscription); } catch (e) {}
+  }
+  _vxNotifSubscription = null;
+  vxBellUpdateBadge();
+}
+window.vxNotifReset = vxNotifReset;
+
+// Init ─ an den Auth-Zustand gekoppelt, nicht an eine Wartezeit
 (function(){
-  setTimeout(vxBellUpdateBadge, 100);
-  // Nach Supabase-Auth initialisieren
-  setTimeout(function() {
-    vxNotifInit().catch(function(e){ console.warn('[vxNotif] init error', e); });
-  }, 2000);
+  setTimeout(vxBellUpdateBadge, 100); // reines DOM/Cache-Update, keine Abfrage
+  var sb = vxNotifAuthClient();
+  if (!sb) return;
+  var start = function(){ vxNotifInit().catch(function(e){ console.warn('[vxNotif] init error', e); }); };
+  // Bereits bestehende Session (Reload mit gültigem Token).
+  start();
+  // Und jeder spätere Übergang in einen angemeldeten Zustand.
+  try {
+    sb.auth.onAuthStateChange(function(event, session){
+      if (event === 'SIGNED_OUT') { vxNotifReset(); return; }
+      if (session) start();
+    });
+  } catch (e) { console.warn('[vxNotif] auth listener error', e); }
 })();
 document.addEventListener('click', vxHandleDprButtonClick, true);
 
