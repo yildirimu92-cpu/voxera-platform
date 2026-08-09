@@ -2132,7 +2132,9 @@ body.vx-detail-v2-open #confirm-overlay.open {
 .detail-overlay{display:none;position:fixed;inset:0;background:rgba(15,23,42,.44);backdrop-filter:blur(6px);z-index:var(--z-overlay-detail);align-items:center;justify-content:center;padding:16px;}
 .detail-overlay.open{display:flex;}
 .detail-modal{background:var(--surface);border-radius:var(--r-xl);width:100%;max-width:900px;max-height:min(92vh,calc(100dvh - 20px));box-shadow:0 16px 48px rgba(0,0,0,.12);animation:fadeUp .3s var(--ease) both;display:flex;flex-direction:column;overflow:hidden;}
-.detail-head{padding:22px 24px 12px;border-bottom:1px solid var(--surface2);}
+/* .detail-head hatte hier und an drei weiteren Stellen Regeln, ohne dass die
+   Klasse irgendwo im Markup oder in einem Renderer auftaucht — entfernt
+   2026-08-09. Die uebrigen .detail-*-Regeln bleiben unangetastet. */
 .detail-body{padding:16px 24px 18px;overflow:auto;min-height:0;flex:1;}
 .detail-footer{padding:12px 24px calc(var(--space-3) + env(safe-area-inset-bottom));border-top:1px solid var(--surface2);display:flex;justify-content:flex-end;background:var(--surface);}
 .detail-layout{display:flex;flex-direction:column;gap:0;}
@@ -2160,7 +2162,6 @@ body.vx-detail-v2-open #confirm-overlay.open {
   .detail-overlay{align-items:flex-end;padding:0;}
   .detail-modal{border-radius:18px 18px 0 0;max-height:calc(100dvh - 4px);}
   .detail-layout{grid-template-columns:1fr;gap:10px;}
-  .detail-head{padding:14px 14px 10px;}
   .detail-body{padding:10px 12px 14px;}
   .detail-footer{padding:10px 12px calc(14px + env(safe-area-inset-bottom));}
 
@@ -4361,8 +4362,6 @@ body,.main{background:var(--vx-bg);}
 .modal-head{background:var(--vx-modal-head)!important;padding:14px 18px!important;border-bottom:none!important;}
 .modal h3{color:var(--vx-modal-head-title)!important;font-size:15px!important;margin-bottom:0!important;letter-spacing:-.01em!important;}
 .modal-sub{color:var(--vx-modal-head-sub)!important;margin-bottom:0!important;}
-.detail-head{background:var(--vx-night)!important;padding:14px 18px!important;}
-.detail-head h3,.detail-head .modal-sub{color:#fff!important;}
 
 /* ── Call-Row Premium Layout ─────────────────────────────── */
 .call-row {
@@ -5189,10 +5188,6 @@ body,.main{background:var(--vx-bg);}
   }
   #detail-overlay {
     align-items: flex-end !important;
-  }
-  .detail-head {
-    border-radius: 16px 16px 0 0 !important;
-    padding: 12px 16px !important;
   }
   .modal-body {
     padding: 14px 16px 20px !important;
@@ -6296,6 +6291,18 @@ body.vx-customer-design-foundation .vx-requests-layout{
   min-height:620px;
   overflow:hidden;
   font-family:var(--vx-ui-row-font);
+  /* Aktiv zuruecknehmen, nicht bloss weglassen (2026-08-09): das Element
+     traegt weiterhin die Alt-Klasse .vx-split, und die setzt Fuellfarbe,
+     Rundung und Rahmen. Solange hier nichts stand, blieb der Kartenrahmen
+     um die Liste bestehen — eine umrandete Flaeche mit weissen Zeilenkarten
+     darin, also der "zwei Schichten"-Eindruck, den Heute nicht hat. Der
+     Rahmen kostete die Liste ausserdem 1px pro Seite (gemessen 336px statt
+     338px bei 390px). Die Naht zwischen Liste und Detail kommt weiterhin
+     aus dem border-right von .vx-requests-panel. */
+  background:transparent;
+  border:0;
+  border-radius:0;
+  box-shadow:none;
 }
 
 /* Beide Spalten liegen auf der Canvas-Fläche, damit die weissen Karten
@@ -7877,7 +7884,6 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
 
         <!-- MEIN ASSISTENT TAB -->
         <div class="tab-page" id="tab-assistent"></div>
-        </div>
 
         <!-- MEHR TAB -->
         <div class="tab-page" id="tab-mehr">
@@ -8317,39 +8323,10 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
           </div>
         </div>
 
-        <!-- HILFE TAB -->
-        <div class="tab-page" id="tab-hilfe">
-          <header class="vx-appbar"><button type="button" class="vx-appbar-back" aria-label="Zurück zu Einstellungen" onclick="vxScreenBack(function(){showTab('mehr',document.getElementById('nav-mehr'));})"><i class="ph-bold ph-arrow-left" aria-hidden="true"></i></button><h1 class="vx-appbar-title">Hilfe &amp; Support</h1></header>
-
-          <section class="vx-settings-card">
-            <div class="vx-settings-card-head"><div><h2 class="vx-settings-card-title">Direkte Hilfe</h2><p class="vx-settings-card-meta">Wählen Sie den passenden nächsten Schritt.</p></div></div>
-            <div class="vx-help-action-grid">
-              <button type="button" class="vx-help-action" onclick="requestSupport()"><span><i class="ph-bold ph-envelope-simple" aria-hidden="true"></i></span><strong>E-Mail</strong><small>Support kontaktieren</small></button>
-              <button type="button" class="vx-help-action" onclick="window.open('https://voxera.ch','_blank','noopener')"><span><i class="ph-bold ph-globe" aria-hidden="true"></i></span><strong>Website</strong><small>Informationen öffnen</small></button>
-              <button type="button" class="vx-help-action" onclick="vxOnboardingRestart()"><span><i class="ph-bold ph-play-circle" aria-hidden="true"></i></span><strong>Einrichtung</strong><small>Assistent erneut starten</small></button>
-            </div>
-          </section>
-
-          <section class="vx-settings-card">
-            <div class="vx-settings-card-head"><div><h2 class="vx-settings-card-title">Erste Schritte</h2><p class="vx-settings-card-meta">Die wichtigsten Punkte für einen zuverlässigen Betrieb.</p></div></div>
-            <ol class="vx-help-step-list">
-              <li class="vx-help-step"><span>1</span><div><strong>Rufumleitung einrichten</strong><small>Ihre Geschäftsnummer wird sicher mit Voxera verbunden.</small></div></li>
-              <li class="vx-help-step"><span>2</span><div><strong>Assistent konfigurieren</strong><small>Name, Stimme und Geschäftswissen im Bereich Assistent prüfen.</small></div></li>
-              <li class="vx-help-step"><span>3</span><div><strong>Testanruf durchführen</strong><small>Die Geschäftsnummer anrufen und den Eintrag unter Anfragen kontrollieren.</small></div></li>
-            </ol>
-          </section>
-
-          <section class="vx-settings-card">
-            <div class="vx-settings-card-head"><div><h2 class="vx-settings-card-title">Häufige Fragen</h2></div></div>
-            <div class="vx-help-faq">
-              <details><summary>Wie schnell sind Änderungen aktiv?</summary><p>Gespeicherte Assistenten-Einstellungen werden normalerweise innerhalb weniger Sekunden synchronisiert.</p></details>
-              <details><summary id="vx-settings-faq-lang-q">Welche Sprachen erkennt Lara?</summary><p>Deutsch, Französisch, Italienisch und Englisch werden automatisch erkannt.</p></details>
-              <details><summary>Was mache ich bei Ferien oder Schliesszeiten?</summary><p>Temporäre Änderungen können im Assistenten unter „Aktuelle Infos“ erfasst werden.</p></details>
-              <details><summary>Wo finde ich gebuchte Termine?</summary><p>Durch Voxera erstellte Termine erscheinen unter Anfragen im Status „Geplant“.</p></details>
-            </div>
-          </section>
-        </div>
-
+        <!-- Der frühere zweite Hilfe-Screen (#tab-hilfe) stand hier — als
+             .tab-page INNERHALB von #tab-einstellungen und damit nie
+             erreichbar. Sein Inhalt lebt seit dem Umzug in #mehr-sub-hilfe
+             weiter; showTab('hilfe') führt jetzt dorthin. -->
         </div><!-- /#tab-einstellungen -->
 
         <!-- ── BENACHRICHTIGUNGEN — Mobile Vollseite ── -->
@@ -8370,6 +8347,13 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
             </div>
           </div>
         </div>
+      </div><!-- /.content — schliesst hinter dem LETZTEN Screen, nicht hinter
+                    #tab-assistent. Bis 2026-08-09 stand dieses Tag dort, und
+                    #tab-mehr, #tab-einstellungen und #tab-benachrichtigungen
+                    lagen dadurch als Flex-Geschwister neben .content statt
+                    darin — Ursache des leeren Streifens ueber den
+                    Einstellungen-Screens und der schmaleren Seiteneinfassung
+                    dort (gemessen 14px statt 26px bei 390px). -->
 
 <!-- MOBILE BOTTOM NAV -->
   <div class="mobile-nav">
@@ -25767,6 +25751,20 @@ function vxCloseTransientViewsForRootTab(nextTab) {
 
 function showTab(name, el, options) {
   if (!name) return;
+  // Hilfe hat keinen eigenen Screen mehr. Der zweite, nie erreichbare
+  // #tab-hilfe ist entfernt; die einzige lebende Hilfe-Seite ist
+  // #mehr-sub-hilfe innerhalb von #tab-mehr. Vorher lief showTab('hilfe')
+  // ins Leere (targetTab lag in einer nicht aktiven .tab-page), womit
+  // openHelpSection() und die versteckten Kompatibilitäts-Einträge
+  // wirkungslos waren.
+  if (name === 'hilfe') {
+    // Bewusst nicht das uebergebene el: die Hilfe-Aufrufer zeigen auf
+    // #nav-hilfe, das seit langem display:none traegt. Die Markierung
+    // gehoert an den Einstellungen-Eintrag, unter dem die Seite liegt.
+    showTab('mehr', document.getElementById('nav-mehr'), options);
+    if (typeof vxMehrShow === 'function') vxMehrShow('hilfe');
+    return;
+  }
   const opts = (options && typeof options === 'object') ? options : {};
   vxCloseTransientViewsForRootTab(name);
   
@@ -36630,10 +36628,16 @@ body.vx-requests-focus-mode #call-detail-page.vx-detail-focus #call-detail-banne
 /* PR-FIX 2026-05-23 — Anfragen Inbox nach Mockup: Mail-like Split-View.
    Reiner UI-Layer. Keine Detail-V2-Änderung, keine DB-Änderung. */
 
+/* Fuellfarbe, Rundung und Rahmen sind hier bewusst weg (2026-08-09).
+   Der Aufraeumschritt vom selben Tag hat sie aus .vx-requests-layout
+   entfernt (siehe den langen Kommentar bei #anrufe-list.dpr-command-center),
+   aber diese Regel traegt eine ID und !important und hat sie deshalb
+   weiterhin gesetzt: eine umrandete, abgerundete Flaeche um die Liste, in
+   der wiederum weisse Zeilenkarten liegen — der "zwei Schichten"-Eindruck,
+   den Heute nicht hat. Der 0.5px-Rahmen kostete die Liste ausserdem 1px pro
+   Seite, wodurch die Anfragen-Seite gemessen 336px statt 338px breit war.
+   Die strukturellen Werte (gap, padding) bleiben. */
 #tab-anrufe .vx-split{
-  background:#F7F8FA !important;
-  border-radius:12px !important;
-  border:0.5px solid rgba(0,0,0,.07) !important;
   gap:10px !important;
   padding:0 !important;
 }
@@ -36722,6 +36726,20 @@ body.vx-requests-focus-mode #call-detail-page.vx-detail-focus #call-detail-banne
     border-radius:10px !important;
   }
 }
+
+/* Unter 769px gibt es keine zweite Spalte — #anrufe-split-right und der
+   Resizer stehen dort auf display:none. Die Naht zum Detailpanel
+   (border-right) und die Kartenrundung der Liste haben damit nichts mehr,
+   woran sie sitzen: sie zeichnen eine Linie und zwei Ecken ins Leere.
+   Sichtbar wurde das erst, als der aeussere Kartenrahmen des Splits fiel
+   (2026-08-09) — davor lagen beide innerhalb dieses Rahmens. */
+@media(max-width:768px){
+  #tab-anrufe .vx-split-left,
+  #anrufe-split-left{
+    border-right:0 !important;
+    border-radius:0 !important;
+  }
+}
 </style>
 
 
@@ -36771,60 +36789,17 @@ body.vx-requests-focus-mode #call-detail-page.vx-detail-focus #call-detail-banne
   flex:1 1 auto !important;
 }
 
-/* Der leere Streifen ueber Einstellungen, allen Einstellungen-Unterseiten
-   und der Benachrichtigungs-Vollseite (2026-08-08).
+/* Hier standen bis 2026-08-09 zwei Regeln, die beide dasselbe verirrte
+   </div> umgangen haben (leerer Streifen ueber den Einstellungen-Screens,
+   fehlende Seiteneinfassung derselben Screens): .content wuchs als leere
+   flex:1-Box, weil #tab-mehr, #tab-einstellungen und #tab-benachrichtigungen
+   daneben statt darin lagen, und dieselben Screens sahen die Polsterung von
+   .content nie.
 
-   Ursache: ein verirrtes </div> schliesst <div class="content"> schon nach
-   #tab-assistent. #tab-mehr, #tab-einstellungen und #tab-benachrichtigungen
-   liegen dadurch NEBEN .content statt darin, als Geschwister in der
-   Flex-Spalte <main class="main">. .content traegt flex:1 und waechst als
-   leere Box in die Resthoehe — gemessen 732px auf der Kalenderintegration,
-   308px auf Hilfe & Support, 48px (die eigene Polsterung) auf Profil und
-   Abonnement. Der Bericht liegt innerhalb von .content und war nie
-   betroffen.
-
-   Hier steht bewusst nur die Wirkung ab: sobald .content keinen aktiven Tab
-   mehr enthaelt, hoert sie auf zu wachsen und gibt ihre vertikale Polsterung
-   ab. Das verirrte </div> selbst zu verschieben haengt drei grosse Screens
-   um und wuerde nebenbei #tab-hilfe aus #tab-einstellungen loesen — das ist
-   eine Strukturaenderung und gehoert in einen eigenen Auftrag.
-
-   #incoming-banner bleibt sichtbar: er liegt zwar in .content, ist aber
-   position:fixed und damit nicht Teil des Flusses.
-
-   Das !important gilt nur der vertikalen Polsterung — die Mobile-Regeln
-   weiter oben setzen padding-bottom ihrerseits mit !important. div#app steht
-   im Selektor, weil eine dieser Regeln (`div#app .content, .content`) eine
-   ID traegt: ohne sie verliert diese Regel auf Mobil trotz !important und
-   der Streifen bliebe dort als 80px stehen. */
-body.vx-customer-design-foundation div#app .content:not(:has(> .tab-page.active)){
-  flex:0 0 auto;
-  padding-top:0 !important;
-  padding-bottom:0 !important;
-}
-
-/* Dieselbe Einfassung fuer die Screens neben .content (2026-08-08).
-
-   Gemessen bei 1280px: Heute, Anfragen und Bericht sitzen 28px von den
-   Seiten und 24px von oben eingerueckt — das ist die Polsterung von
-   .content. Einstellungen, die Einstellungen-Unterseiten und die
-   Benachrichtigungs-Vollseite hatten 0/0/0, weil sie durch das verirrte
-   </div> neben .content liegen und deren Polsterung nie sehen. Ihre Karten
-   mit 12-18px Radius standen damit buendig an der Fensterkante und an der
-   Sidebar.
-
-   Der Wert wird hier NICHT wiederholt, sondern aus derselben Quelle
-   gezogen wie .content, damit die beiden Familien nicht wieder
-   auseinanderlaufen. Die untere Polsterung bleibt, wie sie war: sie sorgt
-   fuer die Freihaltung ueber der Mobil-Navigation und ist an diesen
-   Screens bereits gesetzt. */
-body.vx-customer-design-foundation #tab-mehr,
-body.vx-customer-design-foundation #tab-einstellungen,
-body.vx-customer-design-foundation #tab-benachrichtigungen{
-  padding-top:var(--vx-screen-inset-y);
-  padding-right:var(--vx-screen-inset-x);
-  padding-left:var(--vx-screen-inset-x);
-}
+   Das </div> steht jetzt hinter dem letzten Screen (siehe Markup), damit
+   liegen alle .tab-page wieder in .content: die Box ist nie mehr leer, und
+   die Einfassung kommt fuer alle Screens aus derselben Quelle. Beide
+   Umgehungen sind damit gegenstandslos und entfernt. */
 
 /* Content-Wrapper: kein Overflow wenn Archiv aktiv */
 body:has(#tab-archiv.active) .content{
