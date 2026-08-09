@@ -13919,10 +13919,20 @@ function parseFollowUpDate(raw) {
   // follow_up_at ist semantisch lokale Benutzerzeit (kein UTC).
   // Supabase gibt timestamptz-Spalten mit +00:00 Suffix zurück – diesen ignorieren,
   // damit 00:32 lokal nicht als 02:32 CEST interpretiert wird.
+  //
+  // [BUGFIX 2026-08-09] Der Offset kam auch zweistellig an ("2026-08-08
+  // 09:00:00+00", die Textform von Postgres). Das alte Muster verlangte vier
+  // Offset-Ziffern, liess "+00" also stehen: parseLocalDateTimeParts scheiterte
+  // am Rest, und der Fallback new Date('…T09:00:00+00') ist laut Spezifikation
+  // ungültig (Offset muss ±HH:MM sein) → NaN → null. Für jede Oberfläche, die
+  // hier hängt (Fälligkeit in Anfragen, getPriority, formatTaskDueLabel und die
+  // fälligen Folgeaktionen auf Heute), sah ein gesetzter Termin damit aus wie
+  // gar kein Termin. Der Offset wird jetzt in allen drei Schreibweisen
+  // erkannt (+00, +0000, +00:00) — verworfen wird er nach wie vor.
   const stripped = String(raw).trim()
     .replace(' ', 'T')
-    .replace(/\.\d+/, '')                      // Mikrosekunden entfernen
-    .replace(/([Zz]|[+-]\d{2}:?\d{2})$/, ''); // TZ-Suffix entfernen
+    .replace(/\.\d+/, '')                            // Mikrosekunden entfernen
+    .replace(/([Zz]|[+-]\d{2}(?::?\d{2})?)$/, ''); // TZ-Suffix entfernen
   const localParts = parseLocalDateTimeParts(stripped);
   if (localParts) {
     return new Date(localParts.year, localParts.month - 1, localParts.day, localParts.hour, localParts.minute, localParts.second);

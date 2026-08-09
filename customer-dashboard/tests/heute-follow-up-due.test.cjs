@@ -381,3 +381,45 @@ test('die Fälligkeit hängt am kanonischen Parser, nicht an einem eigenen', () 
   assert.equal(due.getHours(), 9);
   assert.equal(due.getMinutes(), 0);
 });
+
+// ── 6. Wire-Formate ─────────────────────────────────────────────────────────
+// Im Browser-Test fiel auf, dass die Regel auf dem Datenformat mit
+// zweistelligem Offset ("2026-08-08 09:00:00+00") wirkungslos blieb:
+// parseFollowUpDate lieferte null, getFollowUpBadgeState daraufhin 'generic'.
+// Der Termin sah für jede Oberfläche aus wie gar kein Termin.
+
+const WIRE_FORMATS = [
+  ['Postgres-Textform, zweistelliger Offset', '2026-08-08 09:00:00+00'],
+  ['PostgREST/ISO, vierstelliger Offset', '2026-08-08T09:00:00+00:00'],
+  ['ISO mit T und zweistelligem Offset', '2026-08-08T09:00:00+00'],
+  ['kompakter Offset ohne Doppelpunkt', '2026-08-08T09:00:00+0000'],
+  ['Zulu', '2026-08-08T09:00:00Z'],
+  ['ohne Zeitzone', '2026-08-08 09:00:00'],
+  ['mit Mikrosekunden und Offset', '2026-08-08 09:00:00.123456+00']
+];
+
+WIRE_FORMATS.forEach(([label, raw]) => {
+  test(`parseFollowUpDate liest die Wanduhrzeit aus: ${label}`, () => {
+    const vx = loadHeute();
+    const d = vx.parseFollowUpDate(raw);
+    assert.ok(d, 'parseFollowUpDate lieferte null für ' + raw);
+    assert.equal(d.getFullYear(), 2026);
+    assert.equal(d.getMonth(), 7);
+    assert.equal(d.getDate(), 8);
+    assert.equal(d.getHours(), 9, 'Der Offset darf die Wanduhrzeit nicht verschieben');
+    assert.equal(d.getMinutes(), 0);
+  });
+
+  test(`eine überfällige Folgeaktion wird erkannt: ${label}`, () => {
+    const vx = loadHeute();
+    const rec = call('wire', {
+      caller_name: 'Wire AG',
+      created_at: utcStamp(shiftDays(-2, 9, 15)),
+      dashboard_status: 'follow_up_scheduled',
+      next_action: 'Offerte senden',
+      follow_up_at: raw
+    });
+    assert.equal(vx.vxHeuteIsFollowUpDue(rec), true, 'Format ' + raw + ' fällt aus der Regel');
+    assert.deepEqual(vx.vxHeuteGetHandoverCalls([rec]).map((r) => r.id), ['wire']);
+  });
+});
