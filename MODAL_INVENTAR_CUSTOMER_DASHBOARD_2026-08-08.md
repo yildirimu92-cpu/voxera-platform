@@ -84,8 +84,8 @@ Sechs eigenständige Bau- und Stilsysteme:
 
 ## Die Dialoge im Einzelnen
 
-### `#followup-overlay` — Nachfassen planen / Fälligkeit setzen
-- **Wo:** Aktionszeile der Detailansicht („Rückruf planen"), Zeilenmenü in
+### `#followup-overlay` — Folgeaktion planen / Fälligkeit setzen
+- **Wo:** Aktionszeile der Detailansicht („Folgeaktion planen"), Zeilenmenü in
   Anfragen/Heute, Aufgaben-Fälligkeit.
 - **Familie:** klassisch · Kopf `#0D1F3C` · Radius 18px
 - **Buttons:** „Nachfassen speichern" `.btn--primary` — bg `#1A6FE8`, fg

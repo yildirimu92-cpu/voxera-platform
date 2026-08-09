@@ -8562,7 +8562,7 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
           <div class="modal-head-row">
             <div class="modal-head-icon vx-modal-icon"><i class="ph-bold ph-phone-outgoing" aria-hidden="true"></i></div>
             <div class="vx-modal-head-copy">
-              <h3 id="followup-title" class="vx-modal-title">Nachfassen</h3>
+              <h3 id="followup-title" class="vx-modal-title">Folgeaktion planen</h3>
               <div class="vx-modal-sub" id="followup-sub"></div>
             </div>
             <button class="modal-close-btn" onclick="closeFollowup()" aria-label="Schliessen"><i class="ph-bold ph-x"  style="font-size:15px;" aria-hidden="true"></i></button>
@@ -12274,7 +12274,7 @@ function vxBuildOperationalRowActions(record, context) {
 
   if (isManual) {
     if (isDone || isArchived) {
-      menuActions.push({ action:'schedule-callback', title:'Rückruf planen' });
+      menuActions.push({ action:'schedule-callback', title:'Folgeaktion planen' });
       if (!isArchived) menuActions.push({ action:'archive', title:'Archivieren' });
     } else {
       menuActions.push({ action:'done', title:'Erledigen' });
@@ -12286,12 +12286,12 @@ function vxBuildOperationalRowActions(record, context) {
   }
 
   if (isDone || isArchived) {
-    menuActions.push({ action:'followup', title:'Rückruf planen' });
+    menuActions.push({ action:'followup', title:'Folgeaktion planen' });
     if (!isArchived) menuActions.push({ action:'archive', title:'Archivieren' });
     return { primaryAction: primaryAction, menuActions: menuActions };
   }
 
-  menuActions.push({ action:'followup', title:'Rückruf planen' });
+  menuActions.push({ action:'followup', title:'Folgeaktion planen' });
   if (isPlanned) menuActions.push({ action:'followup', title:'Fälligkeit ändern' });
   menuActions.push({ action:'fulldetail', title:'Details öffnen' });
   menuActions.push({ action:'archive', title:'Archivieren' });
@@ -12455,6 +12455,13 @@ const FOLLOW_UP_ACTION_PLANNED_LABELS = Object.freeze({
 // Zuordnung Aktion → manuelle Aufgabe, wenn aus einem bereits erledigten
 // Eintrag heraus nachgefasst wird (dort entsteht ein neuer Task statt eines
 // Updates am abgeschlossenen Eintrag).
+//
+// Die Titel hier heissen bewusst weiter "Rückruf …" / "Nachfassen …" und
+// nicht "Folgeaktion …": sie benennen die EINE gewählte Aktion, die als
+// Aufgabe entsteht — neben "Termin bestätigen" und "Offerte senden", die
+// ihren spezifischen Namen ebenfalls behalten. "Folgeaktion" ist der
+// Oberbegriff für die Auswahl und steht deshalb nur am Auslöser (Button,
+// Zeilenmenü) und am Modal-Titel.
 const FOLLOW_UP_ACTION_TASK_SPEC = Object.freeze({
   'Zurückrufen': { type: 'callback', title: 'Rückruf für ', fallbackTitle: 'Rückruf planen', toast: 'Rückruf als neue Aufgabe geplant' },
   'Termin bestätigen': { type: 'termin', title: 'Termin bestätigen für ', fallbackTitle: 'Termin bestätigen', toast: 'Terminbestätigung als neue Aufgabe geplant' },
@@ -21801,7 +21808,7 @@ window.confirmArchiveInquiry = confirmArchiveInquiry;
     }
 
     items.push({
-      label: 'Rückruf planen',
+      label: 'Folgeaktion planen',
       icon: 'phone-outgoing',
       action: function() { if (typeof openFollowupDirect === 'function') openFollowupDirect(id); }
     });
@@ -21862,7 +21869,7 @@ window.confirmArchiveInquiry = confirmArchiveInquiry;
 
     if (isDone || isArchived) {
       items.push({
-        label: 'Rückruf planen',
+        label: 'Folgeaktion planen',
         icon: 'phone-outgoing',
         action: function() { if (typeof openFollowupDirect === 'function') openFollowupDirect(id); }
       });
@@ -24000,7 +24007,7 @@ function openFollowup(recordId, callerName, existingNotiz, currentStatus, nextAc
   const done = isClosedStatus(currentStatus);
   var hasExistingDue = !!String(followUpAt || '').trim();
   var titleEl = document.getElementById('followup-title');
-  if (titleEl) titleEl.textContent = (mode === 'due') ? (hasExistingDue ? 'Fälligkeit ändern' : 'Fälligkeit setzen') : 'Nachfassen planen';
+  if (titleEl) titleEl.textContent = (mode === 'due') ? (hasExistingDue ? 'Fälligkeit ändern' : 'Fälligkeit setzen') : 'Folgeaktion planen';
   var subtitleEl = document.getElementById('followup-sub');
   if (subtitleEl) {
     subtitleEl.textContent = (mode === 'due')
@@ -38164,8 +38171,8 @@ body:has(#tab-archiv.active) .content{
       }
       if (actionName === 'followup' || actionName === 'schedule-callback') {
         var mode = context.isTask ? 'due' : 'callback';
-        var text = context.followupLabel || (context.isTask ? 'Fälligkeit ändern' : 'Rückruf planen');
-        if (actionName === 'schedule-callback') { mode = 'callback'; text = context.followupLabel || 'Rückruf planen'; }
+        var text = context.followupLabel || (context.isTask ? 'Fälligkeit ändern' : 'Folgeaktion planen');
+        if (actionName === 'schedule-callback') { mode = 'callback'; text = context.followupLabel || 'Folgeaktion planen'; }
         return '<button type="button" class="'+cls+'" onclick="vxCallDetailFaelligkeit({ mode: \''+mode+'\' })"><i class="ph-bold ph-calendar-plus"></i>' + esc(text) + '</button>';
       }
       if (actionName === 'edit-due' || actionName === 'due') {
@@ -38420,7 +38427,7 @@ body:has(#tab-archiv.active) .content{
       isTask: task,
       done: done,
       allowTaskEdit: task && !done,
-      followupLabel: task ? (done ? 'Rückruf planen' : 'Fälligkeit ändern') : 'Rückruf planen'
+      followupLabel: task ? (done ? 'Folgeaktion planen' : 'Fälligkeit ändern') : 'Folgeaktion planen'
     }) + '</div>';
     html += task ? buildTaskBodyHtml(display) : buildCallBodyHtml(display);
     html += '</div>';
