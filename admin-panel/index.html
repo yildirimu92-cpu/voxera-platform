@@ -7242,6 +7242,7 @@ const WIZARD_BRANCH_EXTRA_FIELDS = {
 // _lib/prompt-builder-v2.js und die beiden customer-dashboard-Funktionen.
 const CORE_FIELD_COLUMN_MAP = {
   coverage_mode: 'sprechstunden_modus',
+  opening_hours: 'ai_opening_hours',
   appointment_mode: 'ai_appointment_mode',
   online_booking_url: 'ai_online_booking_url'
 };
@@ -7257,7 +7258,15 @@ function coreWizardValues(customer){
 function coreWizardPatch(data){
   const patch = {};
   Object.entries(CORE_FIELD_COLUMN_MAP).forEach(([key, column]) => {
-    patch[column] = String(data?.[key] || '').trim() || null;
+    const raw = data?.[key];
+    // Das Wochenraster ist ein Objekt und darf nicht durch String() — daraus
+    // wuerde "[object Object]" in einer jsonb-Spalte.
+    if(raw && typeof raw === 'object'){
+      const hasAny = Object.values(raw).some(list => Array.isArray(list) && list.length);
+      patch[column] = hasAny ? raw : null;
+      return;
+    }
+    patch[column] = String(raw || '').trim() || null;
   });
   return patch;
 }
@@ -7359,6 +7368,52 @@ function getWizardSteps(templateId){
 }
 
 // ── Dynamic step renderer (driven by template.extra_steps JSON) ──
+// J5: Wochenraster im Wizard. Derselbe Feldtyp und dieselbe Struktur wie im
+// Kunden-Dashboard — die Frage steht seit J4 in einer Quelle, also darf sie
+// nicht an zwei Orten unterschiedlich aussehen.
+const WIZARD_HOURS_DAYS = [
+  ['mon','Montag'],['tue','Dienstag'],['wed','Mittwoch'],['thu','Donnerstag'],
+  ['fri','Freitag'],['sat','Samstag'],['sun','Sonntag']
+];
+
+function renderWizardHoursField(stepDef, f, data){
+  const week = (data[f.key] && typeof data[f.key] === 'object') ? data[f.key] : {};
+  const rows = WIZARD_HOURS_DAYS.map(([day,label])=>{
+    const intervals = Array.isArray(week[day]) ? week[day] : [];
+    const slots = [0,1].map(i=>{
+      const pair = intervals[i] || ['',''];
+      const base = 'wz-hours-'+esc(stepDef.id)+'-'+day+'-'+i;
+      return `<input type="time" class="input" style="max-width:120px" id="${base}-from" data-wz-hours="${day}" data-wz-slot="${i}" data-wz-edge="from" value="${esc(pair[0]||'')}">`
+        + `<span style="opacity:.6">–</span>`
+        + `<input type="time" class="input" style="max-width:120px" id="${base}-to" data-wz-hours="${day}" data-wz-slot="${i}" data-wz-edge="to" value="${esc(pair[1]||'')}">`;
+    }).join(' ');
+    return `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px">
+      <div style="min-width:110px;font-size:13px">${esc(label)}</div>
+      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">${slots}</div>
+      <div style="font-size:12px;opacity:.65">${intervals.length?'':'geschlossen'}</div>
+    </div>`;
+  }).join('');
+  return `<div class="wizard-field">
+    <label>${esc(f.label||f.key)}</label>
+    ${rows}
+    <div class="wizard-hint">Ein leeres Feldpaar bedeutet geschlossen.${f.hint?' '+esc(f.hint):''}</div>
+  </div>`;
+}
+
+function collectWizardHoursField(data, key){
+  const week = {};
+  WIZARD_HOURS_DAYS.forEach(([day])=>{ week[day]=[]; });
+  document.querySelectorAll('[data-wz-hours]').forEach(node=>{
+    const day=node.dataset.wzHours, slot=Number(node.dataset.wzSlot);
+    if(!week[day]) return;
+    week[day][slot]=week[day][slot]||['',''];
+    week[day][slot][node.dataset.wzEdge==='from'?0:1]=String(node.value||'').trim();
+  });
+  // Halbe Zeitspannen sind keine Aussage und werden verworfen, nicht gespeichert.
+  WIZARD_HOURS_DAYS.forEach(([day])=>{ week[day]=(week[day]||[]).filter(p=>p&&p[0]&&p[1]); });
+  data[key]=week;
+}
+
 function renderWizardDynamicStep(stepDef, data){
   const fields = Array.isArray(stepDef.fields) ? stepDef.fields : [];
   const _wNl=(v)=>(v||'').replace(/\\n/g,'\n');
@@ -7366,6 +7421,9 @@ function renderWizardDynamicStep(stepDef, data){
     const key = f.key || '';
     const val = data[key] ?? '';
     const inputId = 'wz-dyn-'+esc(stepDef.id)+'-'+esc(key);
+    if(f.type === 'hours'){
+      return renderWizardHoursField(stepDef, f, data);
+    }
     if(f.type === 'radio'){
       const opts = Array.isArray(f.options) ? f.options : [];
       return `<div class="wizard-field">
@@ -7400,6 +7458,10 @@ function collectWizardDynamicStep(stepDef, data){
     const key = f.key || '';
     if(!key) return;
     const inputId = 'wz-dyn-'+stepDef.id+'-'+key;
+    if(f.type === 'hours'){
+      collectWizardHoursField(data, key);
+      return;
+    }
     if(f.type === 'radio'){
       const sel = document.querySelector(`input[name="${inputId}"]:checked`);
       if(sel) data[key] = sel.value;

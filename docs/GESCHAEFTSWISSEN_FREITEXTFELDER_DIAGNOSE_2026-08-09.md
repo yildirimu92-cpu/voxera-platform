@@ -1,7 +1,7 @@
 # Geschäftswissen — die vier Freitextfelder: Diagnose und Zielbild
 
 **Datum:** 09.08.2026 · **Nachtrag 09.08.** nach Freigabe (Abschnitt 11)
-**Status:** Diagnose abgeschlossen. J1, J2 und J10 sind umgesetzt. **J4 ist im Code umgesetzt, seine Migration aber angehalten** — der Staging-Lauf hat einen Konflikt mit einer bestehenden Spalte gefunden (Abschnitt 11.8). J5–J9 stehen aus.
+**Status:** Diagnose abgeschlossen. **J1, J2, J10 und J4 sind gemergt und auf Produktion** (PR #876, Migration `20260809145741`). **J5 ist im Code umgesetzt, seine Migration gegen Staging geprüft und noch nicht auf Produktion** (Abschnitt 11.12). J6–J9 stehen aus; J3 ist als eigener Auftrag nach J5 eingeplant.
 **Prüfstand:** `main` @ `f21187e`, Produktionsdatenbank `ulcofbgrovgcvowdjrge` (Live-Abfragen, nicht aus Dokumenten übernommen). Staging (`hzqiyyqfchvfcmmbemvd`) enthält aktuell 0 Kunden.
 **Grundlage:** Auftrag „Freitextfelder im Geschäftswissen — Diagnose zuerst" (09.08.), Live-Test-Fund #3 aus PR #859, `docs/ASSISTENT_TAB_IA_DIAGNOSE_2026-08-09.md` (Abschnitte 5 und 11).
 
@@ -585,11 +585,49 @@ Die Felder je Vorlage stimmen exakt mit dem `SELECT`-Trockenlauf und beiden Stag
 
 > **Der Deploy muss jetzt folgen, und zwar zeitnah.** Es entsteht keine Störung — die aktuell ausgelieferte Anwendung liest die neuen Spalten nicht. Aber der ausgelieferte Admin-Wizard schreibt `sprechstunden_modus` noch mit `|| 'rund_um_die_uhr'`. **Jeder Wizard-Speichervorgang vor dem Deploy setzt den gerade zurückgesetzten Default für diesen Kunden wieder.** Der Wert bliebe gültig (die Constraint lässt ihn zu), aber die Frage gälte wieder als beantwortet, ohne dass jemand sie beantwortet hat. Das ist der einzige zeitkritische Punkt.
 
-### 11.9 Was nach J1, J2, J10 und J4 unbewiesen bleibt
+### 11.12 J5 — Öffnungszeiten sind maschinenlesbar
+
+**Umgesetzt, Migration gegen Staging geprüft, nicht auf Produktion angewendet.**
+
+**Zielstruktur.** `customers.ai_opening_hours` (jsonb), Form **identisch mit `calendar_settings.business_hours`**: `{"mon":[["08:30","12:00"],["13:30","17:30"]],…,"sun":[]}`. Mehrere Paare pro Tag bilden die Mittagspause ab, die in den Vorlagentexten der Normalfall ist. Leere Liste heisst geschlossen, `NULL` heisst „noch nicht bestätigt". Die Gleichheit mit `business_hours` ist der Punkt: J3/F5 (Buchung gegen Öffnungszeiten prüfen) setzt darauf auf, ohne dass die Struktur nochmal wechselt.
+
+**Damit ist auch die Lücke aus Abschnitt 4.2 geschlossen:** `sprechstunden_modus = ausserhalb_sprechstunde` hat zum ersten Mal Zeiten, auf die es sich beziehen kann.
+
+**Entscheid F3 ist im Code getrennt umgesetzt** — das ist der Kern:
+- `parseOpeningHours()` **darf raten**. Er liest aus dem Freitext einen Vorschlag und meldet ausdrücklich, welche Zeilen mit Zeitangaben er *nicht* zuordnen konnte. Ohne diese Liste suggerierte der Vorschlag eine Vollständigkeit, die er nicht hat.
+- `sanitizeOpeningHours()` **darf nicht raten**. Ungültiges wird abgewiesen, nicht zurechtgebogen: Zeitformat, Ende nach Beginn, keine Überschneidungen. Überschneidungen sind kein Schönheitsfehler — aus ihnen ist „ausserhalb der Öffnungszeiten" nicht eindeutig bestimmbar.
+- Der Vorschlag wird **nie gespeichert**. Er reist im Lesepfad mit, füllt auf Knopfdruck das Formular, und erst das Speichern schreibt. Bis dahin führt der Freitext.
+
+**Im Prompt** erscheint der Abschnitt `## REGULÄRE ÖFFNUNGSZEITEN` erst, wenn bestätigte Zeiten vorliegen, und sagt seinen Vorrang ausdrücklich an: weichen Zeitangaben im Standort-Freitext ab, gelten die strukturierten. Die alten Zeiten aus dem Freitext zu entfernen wäre die Alternative gewesen — das hiesse, den Text eines Kunden ungefragt umzuschreiben.
+
+**Der Parser ist gegen die echten Vorlagentexte geprüft**, nicht gegen erfundene Beispiele. Zwei Fehler kamen dabei heraus, die an konstruierten Fällen nie aufgefallen wären:
+1. **`\b` bricht an Umlauten.** JavaScript zählt ohne `/u` Umlaute nicht als Wortzeichen, also sah `\bfr\b` in „Frühstück" eine Wortgrenze — die Frühstückszeiten eines Hotels wurden zu Freitags-Öffnungszeiten. Die Wortgrenze wird jetzt ausdrücklich über die deutschen Buchstaben gebildet.
+2. **`Samstag [Zeiten oder "geschlossen"]` wurde als „Samstag geschlossen" gelesen.** Eine Behauptung, die im Vorlagentext gerade nicht steht. Unausgefüllte Markierungen werden vor dem Parsen entfernt — dieselbe Behandlung wie im Prompt seit J2.
+
+Ausserdem gelöst: ein Komma trennt mal Segmente („Mo–Fr 08:00–12:00, Sa 09:00–13:00"), mal nur Tage, die sich eine Zeitspanne teilen („Dienstag, Mittwoch 09:00–17:00"). Unterscheidungsmerkmal ist, ob das Segment selbst eine Zeit nennt.
+
+**Staging-Lauf.** Ein Formulierungsfehler ist dabei aufgefallen: **CHECK-Constraints dürfen in PostgreSQL keine Unterabfrage enthalten** (0A000). Die Formprüfung ist jetzt mengenwertig formuliert — nach Entfernen der sieben Tagesschlüssel muss ein leeres Objekt übrig bleiben. Geprüft und danach vollständig zurückgebaut:
+
+| Prüfung | Ergebnis |
+|---|---|
+| Spalte, Constraint, Schema-Eintrag | angelegt |
+| Gültiges Wochenraster | akzeptiert |
+| `{"montag":…}` (falscher Schlüssel) | abgewiesen (23514) |
+| `{"mon":"08:00-12:00"}` (kein Array) | abgewiesen (23514) |
+| Schema-Ergänzung dreimal ausgeführt | Feld genau einmal vorhanden |
+| Rückbau | Kunden 0, Schema-Zeile 0, Testspalten 0, Default wiederhergestellt |
+
+**Ein Nebenbefund, der gemeldet gehört:** `customer-assistant-components.css` steht mit meiner Ergänzung bei **exakt 1300 Zeilen — dem Budget aus `verify-customer-design-foundation`**. Ich habe meinen Block dafür gestrafft. Die nächste UI-Ergänzung sprengt das Budget, und dann ist zu entscheiden, ob die Datei aufgeteilt oder das Budget angehoben wird. Das ist keine Sache, die nebenbei im nächsten Auftrag mitlaufen sollte.
+
+**Ebenfalls gefangen, und zwar von der Prüfung aus PR #878:** `ai_opening_hours` fehlte zunächst in `PROMPT_RELEVANT_FIELDS`. Ohne diesen Eintrag hätte das Dashboard neue Zeiten angezeigt, während der Agent weiter die alten spricht — dieselbe Fehlerklasse wie N6. Der Wächter hat das sofort gemeldet.
+
+### 11.13 Was nach J1–J5 unbewiesen bleibt
 
 - **Kein Live-Anruf.** Dass die 23 Felder jetzt *wirken*, ist am gebauten Prompt geprüft, nicht am Telefon. Der Prompt enthält die Angaben nachweislich — ob das Modell sie befolgt, ist damit nicht gezeigt.
 - **Kein Kunde hat heute Branchenantworten.** `ai_branch_extra` ist bei allen 4 Kunden `null`. J1 ist also an Fixtures geprüft, die den Vorlagen nachgebaut sind, nicht an echten Antworten. Der erste Kunde mit ausgefüllten Branchenfeldern ist der eigentliche Test.
 - **G1 bleibt latent.** Kein heutiger Kunde trägt Vorlagen-Defaults mit `[…]`. J2 ist damit eine Vorsorge, die im Moment nichts sichtbar repariert — ihr Wert entsteht mit A3.
+- **J5 ist nicht auf Produktion angewendet** und die neue Oberfläche nicht im Browser bedient. Der Parser ist an den echten Vorlagentexten geprüft, das Wochenraster nur an Quelltext- und Syntaxprüfungen. Wie es sich auf einem Telefon anfühlt, ist ungeprüft.
+- **Kein Kunde hat bestätigte Öffnungszeiten.** Die Vorrangregel im Prompt ist an Fixtures belegt, nicht an einem echten Datensatz.
 - **J4 ist nicht an einer laufenden Datenbank erprobt.** Die Migration ist geschrieben und ihr heikelster Teil — die Vorlagenbereinigung — als `SELECT` gegen die Produktionsdaten geprüft. Angewendet ist sie nicht. Dass Lese- und Schreibpfad gegen die neuen Spalten tatsächlich funktionieren, ist an Fixtures und Sandbox-Tests belegt, nicht an einem echten Request.
 - **Das Kunden-UI und der Admin-Wizard sind nicht im Browser geklickt.** Die neue Karte „Ihr Betrieb" und der neue Wizard-Schritt sind über Quelltextprüfungen und die Syntaxprüfung aller vier Inline-Skriptblöcke abgesichert. Wie sie aussehen, ist nicht gesehen worden.
 - **Der Regex-Zuschnitt ist an 31 Vorlagen-Markierungen kalibriert, nicht an Kundentexten.** Schreibt ein Kunde eckige Klammern regulär und kurz, werden sie ersetzt. Ich halte das für den richtigen Kompromiss, es ist aber eine Abwägung und keine bewiesene Nebenwirkungsfreiheit.

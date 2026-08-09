@@ -166,7 +166,7 @@ for (const forbidden of [
   if (source.statusRuntime.includes(forbidden)) failures.push(`status runtime exposes protected field: ${forbidden}`);
 }
 
-assert.match(source.loader, /customer-runtime-assistant-profile\.js\?v=20260809-3/);
+assert.match(source.loader, /customer-runtime-assistant-profile\.js\?v=20260809-4/);
 assert.match(source.loader, /customer-runtime-assistant-status\.js\?v=20260809-1/);
 assert.doesNotMatch(source.loader, /customer-runtime-assistant-business-menu\.js/);
 assert.doesNotMatch(source.loader, /customer-runtime-voice-preview-fallback\.js/);
@@ -264,6 +264,10 @@ function loadFunctionModule(path) {
     '@supabase/supabase-js': { createClient: () => ({}) },
     './_lib/require-customer': { requireCustomerCaller: async () => ({ ok: false, statusCode: 401, body: {} }) },
     './_lib/assistant-greeting': { buildGreetingView: () => ({}) },
+    // Kein Stub: das Modul ist abhaengigkeitsfrei und traegt die Pruefung der
+    // Oeffnungszeiten. Gestubbt wuerde der Test genau die Stelle auslassen,
+    // die er absichern soll.
+    './_lib/opening-hours': require('../customer-dashboard/netlify/functions/_lib/opening-hours.js'),
     // N6: diese beiden sind echte Repo-Module ohne externe Abhaengigkeiten und
     // werden deshalb echt geladen statt gestubbt — die Sync-Klassifikation und
     // die Nummernpruefung sollen im Test dieselben sein wie in Produktion.
@@ -330,6 +334,16 @@ try {
 } catch (error) {
   failures.push(`core field write path: ${error.message}`);
 }
+
+// J5: Öffnungszeiten
+assert.match(source.profile, /opening_hours/);
+assert.match(source.profile, /unparsed_lines/);
+assert.match(source.update, /sanitizeOpeningHours/);
+assert.match(source.runtime, /data-vx-hours/);
+assert.match(source.runtime, /payload\.opening_hours = collectHours\(\)/);
+// Der Vorschlag darf nur ins Formular, nie direkt in die Daten (Entscheid F3).
+assert.doesNotMatch(source.profile, /ai_opening_hours:\s*openingHoursSuggestion/);
+assert.match(source.runtime, /function applyHoursSuggestion/);
 
 assert.match(source.update, /core_field_not_in_schema/);
 assert.match(source.profile, /core_sections/);
