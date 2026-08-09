@@ -64,12 +64,42 @@
       const [label, cls] = map[status] || map.never;
       const last = customer?.last_sync_at ? new Date(customer.last_sync_at).toLocaleString('de-CH') : '—';
       const agent = customer?.agent_id || 'Nicht angelegt';
+      // S4 / Stufe 1: "Erfolgreich synchronisiert" und "auf dem aktuellen Stand"
+      // sind zwei verschiedene Aussagen. Ein Kunde kann gruen dastehen und
+      // trotzdem auf einem Prompt von vor drei Deploys laufen -- genau das war
+      // am 09.08. der Fall. Der Hinweis steht deshalb neben dem Status, nicht
+      // statt ihm.
+      // Drei Zustaende: veraltet (gemessen), unbekannt (noch nie gemessen) und
+      // aktuell. "Unbekannt" ist kein Fehler, sondern eine fehlende Messung --
+      // direkt nach der Einfuehrung stehen alle Bestandskunden so da. Es wird
+      // deshalb ruhiger dargestellt, zieht aber denselben Sync nach sich.
+      const promptState = customer?.prompt_state
+        || (customer?.prompt_outdated === true ? 'outdated' : null);
+      const stale = promptState === 'outdated' || promptState === 'unknown';
+      const staleCopy = {
+        outdated: ['Prompt veraltet',
+          'Der Agent laeuft auf einem aelteren Stand von Master-Prompt, Branchenvorlage oder Prompt-Builder. Ein Sync zieht ihn nach.'],
+        unknown: ['Stand unbekannt',
+          'Fuer diesen Agenten ist noch kein Prompt-Stand festgehalten. Der naechste Sync haelt ihn fest.']
+      };
+      const [staleLabel, staleText] = staleCopy[promptState] || [];
+      const outdatedBlock = stale
+        ? `<div style="margin-top:9px;padding:8px 10px;border-radius:9px;background:#FEF3C7;border:1px solid #FCD34D">
+            <div style="font-size:12px;color:#92400E;font-weight:600">${esc(staleLabel)}</div>
+            <div style="font-size:11px;color:#92400E;margin-top:3px">${esc(staleText)}</div>
+            <div style="font-size:10px;color:#B45309;margin-top:4px;font-family:ui-monospace,monospace">ist: ${esc(customer?.prompt_fingerprint || '—')} · soll: ${esc(customer?.expected_prompt_fingerprint || '—')}</div>
+          </div>`
+        : '';
       return `<div style="border:1px solid var(--line);border-radius:12px;background:#F8FAFC;padding:12px 14px;margin-bottom:12px">
         <div style="display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap">
-          <div><span class="badge badge-${cls}">${esc(label)}</span><div style="font-size:11px;color:var(--slate2);margin-top:5px">Letzter Versuch: ${esc(last)} · Agent: ${esc(agent)}</div></div>
+          <div>
+            <span class="badge badge-${cls}">${esc(label)}</span>${stale ? ` <span class="badge badge-amber">${esc(staleLabel)}</span>` : ''}
+            <div style="font-size:11px;color:var(--slate2);margin-top:5px">Letzter Versuch: ${esc(last)} · Agent: ${esc(agent)}</div>
+          </div>
           <button class="btn btn-secondary btn-sm" id="vox-sync-now" ${loading || !customer?.agent_id ? 'disabled' : ''}>${loading ? 'Synchronisiere…' : 'Jetzt synchronisieren'}</button>
         </div>
         ${customer?.sync_error ? `<div style="margin-top:9px;font-size:12px;color:var(--red);white-space:pre-wrap">${esc(customer.sync_error)}</div>` : ''}
+        ${outdatedBlock}
       </div>`;
     }
 

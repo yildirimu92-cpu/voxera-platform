@@ -10,6 +10,7 @@ const {
   calendarPromptBlock
 } = require('./_lib/elevenlabs-calendar-tool');
 const { ensureAgentPhoneNumber } = require('./_lib/elevenlabs-phone-number');
+const { promptFingerprint } = require('./_lib/prompt-fingerprint');
 
 const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
 const SUPABASE_URL = process.env.SUPABASE_URL;
@@ -180,9 +181,16 @@ exports.handler = async (event) => {
   let phoneNumberStatus = 'not_attempted';
   let phoneNumberId = null;
   let phoneNumber = null;
+  let fingerprint = null;
 
   try {
     const inputs = await loadPromptInputs(sb, customer_id, customer);
+    // S4 / Stufe 1: aus genau den Eingaben berechnet, die gerade in den Prompt
+    // gehen -- kein zweiter Ladeweg, der auseinanderlaufen koennte.
+    fingerprint = promptFingerprint({
+      masterPrompt: inputs.masterPrompt,
+      industryPrompt: inputs.industryPrompt
+    });
     compiled = buildPromptV2({
       customer,
       masterPrompt: inputs.masterPrompt,
@@ -259,15 +267,27 @@ exports.handler = async (event) => {
     error_message: syncError,
     changed_fields: Object.keys(changedFields).length ? changedFields : null,
     prev_values: Object.keys(prev_values || {}).length ? prev_values : null,
+    prompt_fingerprint: fingerprint,
     created_at: new Date().toISOString()
   };
   const { error: syncLogError } = await sb.from('elevenlabs_sync_log').insert(syncLogRow);
   if (syncLogError) {
-    // Falls `prev_values` in dieser Umgebung (noch) keine Spalte ist, darf das
-    // Log selbst nicht verloren gehen -- ein zweiter Versuch ohne die neuen
-    // Felder haelt zumindest status/triggered_by/prompt_snapshot fest.
+    // Fehlt eine der neueren Spalten in dieser Umgebung, darf das Log selbst
+    // nicht verloren gehen -- ein zweiter Versuch ohne sie haelt zumindest
+    // status/triggered_by/prompt_snapshot fest.
+    //
+    // WICHTIG: hier muss JEDE spaeter hinzugekommene Spalte stehen. Genau
+    // dieser Fallback hat den S9-Fix monatelang verdeckt: prev_values fehlte
+    // in der DB, der primaere Insert schlug bei jedem Sync fehl, und der
+    // Fallback verwarf changed_fields stillschweigend gleich mit. Wer hier
+    // eine Spalte vergisst, baut denselben Fehler noch einmal.
     console.warn('[trigger-elevenlabs-sync] sync_log_insert_failed', syncLogError.message);
-    const { changed_fields: _cf, prev_values: _pv, ...fallbackRow } = syncLogRow;
+    const {
+      changed_fields: _cf,
+      prev_values: _pv,
+      prompt_fingerprint: _fp,
+      ...fallbackRow
+    } = syncLogRow;
     const { error: fallbackError } = await sb.from('elevenlabs_sync_log').insert(fallbackRow);
     if (fallbackError) {
       console.warn('[trigger-elevenlabs-sync] sync_log_fallback_insert_failed', fallbackError.message);
@@ -286,6 +306,12 @@ exports.handler = async (event) => {
   // nur nach einem erfolgreichen Sync festgehalten.
   if (syncStatus === 'success' && compiled?.firstMessage) {
     customerPatch.ai_effective_greeting = compiled.firstMessage;
+  }
+  // S4 / Stufe 1: Der Ist-Fingerprint darf nur nach einem erfolgreichen Sync
+  // fortgeschrieben werden -- sonst gaelte ein Kunde als aktuell, obwohl der
+  // Agent den neuen Prompt nie bekommen hat, und der Fan-out uebersaehe ihn.
+  if (syncStatus === 'success' && fingerprint) {
+    customerPatch.prompt_fingerprint = fingerprint;
   }
   const { error: customerPatchError } = await sb.from('customers')
     .update(customerPatch)
@@ -315,6 +341,7 @@ exports.handler = async (event) => {
     agent_id,
     promptLength: fullPrompt.length,
     promptVersion: compiled?.version,
+    promptFingerprint: fingerprint,
     quality: compiled?.quality,
     calendar_tool_status: calendarToolStatus,
     calendar_tool_id: calendarToolId,
