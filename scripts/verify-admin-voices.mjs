@@ -48,7 +48,16 @@ assert.match(source.errorRuntime, /name === 'admin-voices'/);
 assert.match(source.errorRuntime, /root\.callAdminFunction = async function/);
 
 assert.match(source.endpoint, /requireAdminCaller/);
-assert.match(source.endpoint, /requiredCapability: 'plan:write'/);
+// admin-voices.js gates capability per action: catalog management (list/update/preview)
+// stays plan:write, the customer-scoped voice picker read (Admin-Zugriff Fix) is
+// customer:write so support/admin can serve the wizard without plan-edit rights.
+assert.match(source.endpoint, /list:\s*'plan:write'/);
+assert.match(source.endpoint, /update:\s*'plan:write'/);
+assert.match(source.endpoint, /test_preview:\s*'plan:write'/);
+assert.match(source.endpoint, /generate_preview:\s*'plan:write'/);
+assert.match(source.endpoint, /list_for_customer:\s*'customer:write'/);
+assert.match(source.endpoint, /const requiredCapability = ACTION_CAPABILITIES\[action\]/);
+assert.match(source.endpoint, /action === 'list_for_customer'/);
 assert.match(source.endpoint, /from\('voxera_voices'\)/);
 assert.match(source.endpoint, /from\('customers'\)/);
 assert.match(source.endpoint, /storage\s*\.from\(BUCKET\)\s*\.upload/);

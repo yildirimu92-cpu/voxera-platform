@@ -7598,17 +7598,12 @@ async function openAiWizard(customerId){
   const planFeatures = getCustomerAiFeatures(c);
   const planCode = String(c?.plan || c?.plan_code || 'starter').toLowerCase();
   let availableVoices = [];
-  if (authClient) {
-    const planTiers = { starter: 1, business: 2, professional: 3 };
-    const currentTier = planTiers[planCode] || 1;
-    const eligiblePlans = Object.entries(planTiers).filter(([, tier]) => tier <= currentTier).map(([plan]) => plan);
-    const { data: voicesData } = await authClient
-      .from('voxera_voices')
-      .select('*')
-      .in('available_from_plan', eligiblePlans)
-      .eq('is_active', true)
-      .order('sort_order', { ascending: true });
-    availableVoices = Array.isArray(voicesData) ? voicesData : [];
+  try {
+    const voicesResp = await callAdminFunction('admin-voices', { action: 'list_for_customer', customer_id: customerId });
+    availableVoices = Array.isArray(voicesResp?.voices) ? voicesResp.voices : [];
+  } catch (error) {
+    console.warn('[openAiWizard] voices_load_failed', error?.message || error);
+    if (typeof showToast === 'function') showToast('Stimmen konnten nicht geladen werden: ' + (error?.message || ''));
   }
   const data = {
     templateId,
@@ -16496,16 +16491,10 @@ async function loadSyncLog(customerId) {
   el.innerHTML = '<div style="font-size:12px;color:var(--slate2);padding:8px 0;">Wird geladen…</div>';
 
   try {
-    const { data, error } = await authClient
-      .from('elevenlabs_sync_log')
-      .select('*')
-      .eq('customer_id', customerId)
-      .order('created_at', { ascending: false })
-      .limit(10);
+    const resp = await callAdminFunction('elevenlabs-sync-status', { action: 'status', customer_id: customerId });
+    const data = Array.isArray(resp?.logs) ? resp.logs.slice(0, 10) : [];
 
-    if (error) throw error;
-
-    if (!data || data.length === 0) {
+    if (!data.length) {
       el.innerHTML = '<div style="font-size:12px;color:var(--slate2);padding:8px 0;">Noch kein Sync durchgeführt.</div>';
       return;
     }
@@ -16529,9 +16518,7 @@ async function loadSyncLog(customerId) {
       const errorHtml = r.error_message
         ? `<div style="margin-top:4px;font-size:11px;color:var(--red);">Fehler: ${esc(r.error_message)}</div>`
         : '';
-      const promptBtn = r.prompt_snapshot
-        ? `<button onclick="showPromptSnapshot('${r.id}')" class="btn btn-quiet btn-sm" style="font-size:10px;margin-top:6px;">Prompt anzeigen</button>`
-        : '';
+      const promptBtn = `<button onclick="showPromptSnapshot('${r.id}')" class="btn btn-quiet btn-sm" style="font-size:10px;margin-top:6px;">Prompt anzeigen</button>`;
 
       return `<div style="padding:10px 0;border-bottom:1px solid var(--line);" id="sync-log-${r.id}">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
@@ -16554,19 +16541,21 @@ async function loadSyncLog(customerId) {
   }
 }
 
-function showPromptSnapshot(logId) {
-  authClient.from('elevenlabs_sync_log').select('prompt_snapshot, created_at')
-    .eq('id', logId).maybeSingle().then(({ data }) => {
-      if (!data?.prompt_snapshot) return;
-      const date = new Date(data.created_at).toLocaleString('de-CH');
-      openConfirmModal({
-        title: 'Prompt Snapshot — ' + date,
-        text: `<pre style="white-space:pre-wrap;font-size:11px;max-height:400px;overflow-y:auto;background:var(--surface);padding:12px;border-radius:8px;">${esc(data.prompt_snapshot)}</pre>`,
-        confirmLabel: 'Schliessen',
-        tone: 'primary',
-        onConfirm: async () => true
-      });
+async function showPromptSnapshot(logId) {
+  try {
+    const resp = await callAdminFunction('elevenlabs-sync-status', { action: 'snapshot', log_id: logId });
+    if (!resp?.prompt_snapshot) return;
+    const date = new Date(resp.created_at).toLocaleString('de-CH');
+    openConfirmModal({
+      title: 'Prompt Snapshot — ' + date,
+      text: `<pre style="white-space:pre-wrap;font-size:11px;max-height:400px;overflow-y:auto;background:var(--surface);padding:12px;border-radius:8px;">${esc(resp.prompt_snapshot)}</pre>`,
+      confirmLabel: 'Schliessen',
+      tone: 'primary',
+      onConfirm: async () => true
     });
+  } catch(e) {
+    showToast('Fehler: ' + (e.message||''));
+  }
 }
 // ── End Admin: ElevenLabs Sync Log ───────────────────────────────────────────
 
@@ -16685,12 +16674,16 @@ async function loadAiChangesHistory() {
       .order('updated_at', { ascending: false })
       .limit(6);
 
-    // Load last ElevenLabs syncs (no join - customer_id is text, no FK relation)
-    const { data: syncLogs } = await authClient
-      .from('elevenlabs_sync_log')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .limit(6);
+    // Load last ElevenLabs syncs across all customers (no join - customer_id is text,
+    // no FK relation). elevenlabs_sync_log has no anon/authenticated grant, the browser
+    // cannot query it directly — read via Service-Role-Function statt Direktzugriff.
+    let syncLogs = [];
+    try {
+      const syncResp = await callAdminFunction('elevenlabs-sync-status', { action: 'recent' });
+      syncLogs = Array.isArray(syncResp?.logs) ? syncResp.logs : [];
+    } catch (error) {
+      console.warn('[loadAiChangesHistory] sync_log_load_failed', error?.message || error);
+    }
 
     // Merge and sort
     const items = [];

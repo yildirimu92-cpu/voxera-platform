@@ -16,6 +16,29 @@ const headers = {
 };
 const response = (statusCode, payload) => ({ statusCode, headers, body: JSON.stringify(payload) });
 
+async function recentSyncLogs(sb) {
+  const { data, error } = await sb
+    .from('elevenlabs_sync_log')
+    .select('id, customer_id, status, triggered_by, prompt_length, created_at')
+    .order('created_at', { ascending: false })
+    .limit(6);
+  if (error) return response(500, { error: 'Sync-Historie konnte nicht geladen werden.' });
+  return response(200, { success: true, logs: data || [] });
+}
+
+async function syncLogSnapshot(sb, body) {
+  const logId = String(body.log_id || '').trim();
+  if (!logId) return response(400, { error: 'Log-ID fehlt.' });
+  const { data, error } = await sb
+    .from('elevenlabs_sync_log')
+    .select('prompt_snapshot, created_at')
+    .eq('id', logId)
+    .maybeSingle();
+  if (error) return response(500, { error: 'Snapshot konnte nicht geladen werden.' });
+  if (!data) return response(404, { error: 'Eintrag nicht gefunden.' });
+  return response(200, { success: true, prompt_snapshot: data.prompt_snapshot || null, created_at: data.created_at });
+}
+
 exports.handler = async event => {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers, body: '' };
   if (event.httpMethod !== 'POST') return response(405, { error: 'Method not allowed' });
@@ -27,8 +50,10 @@ exports.handler = async event => {
   try { body = JSON.parse(event.body || '{}'); }
   catch (_error) { return response(400, { error: 'Ungültiger Request Body.' }); }
 
-  const customerId = String(body.customer_id || '').trim();
-  if (!customerId) return response(400, { error: 'Kunde fehlt.' });
+  const action = String(body.action || 'status').trim().toLowerCase();
+  if (!['status', 'recent', 'snapshot'].includes(action)) {
+    return response(400, { error: 'Unbekannte Aktion.' });
+  }
 
   const sb = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
     auth: { autoRefreshToken: false, persistSession: false }
@@ -41,6 +66,12 @@ exports.handler = async event => {
     requiredCapability: 'customer:write'
   });
   if (!guard.ok) return response(guard.statusCode, guard.body);
+
+  if (action === 'recent') return recentSyncLogs(sb);
+  if (action === 'snapshot') return syncLogSnapshot(sb, body);
+
+  const customerId = String(body.customer_id || '').trim();
+  if (!customerId) return response(400, { error: 'Kunde fehlt.' });
 
   const [{ data: customer, error: customerError }, { data: logs, error: logError }] = await Promise.all([
     sb.from('customers')
