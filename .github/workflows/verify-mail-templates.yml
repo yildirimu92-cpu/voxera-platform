@@ -1,0 +1,30 @@
+name: Verify Mail Templates
+
+on:
+  pull_request:
+    paths:
+      - 'docs/email-templates/**'
+      - 'scripts/verify-mail-templates.mjs'
+      - '.github/workflows/verify-mail-templates.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'docs/email-templates/**'
+      - 'scripts/verify-mail-templates.mjs'
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Verify mail templates
+        run: node scripts/verify-mail-templates.mjs

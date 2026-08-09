@@ -1,6 +1,6 @@
 # E-Mail-Vorlagen: Neubau im aktuellen Design-System — Konzept + Referenz
 
-**Stand:** 09.08.2026 · **Status:** Konzept zur Freigabe, eine Referenz-Vorlage gebaut, die restlichen dreizehn warten auf das „Ja“
+**Stand:** 09.08.2026 · **Status:** freigegeben (E1–E4 entschieden), **alle zwölf Vorlagen gebaut**, Wächter läuft in der CI
 **Quelle der Inventarisierung:** Make-Blueprint Szenario 09 (ID 5239089, `lastEdit` 2026-08-09T17:16Z) und Szenario 01 (ID 5109958), beide über `scenarios_get` gezogen und vollständig ausgewertet.
 
 ---
@@ -8,12 +8,12 @@
 ## 0. Was in diesem Dokument steht
 
 1. [Inventar](#1-inventar) — was tatsächlich in Make liegt, in welcher Design-Generation, mit welchen Feldern
-2. [Drei Befunde, die vor dem Neubau eine Entscheidung brauchen](#2-drei-befunde-die-eine-entscheidung-brauchen) — darunter beide beauftragten Bugfixes, einer davon anders als vermutet
+2. [Fünf Befunde](#2-fünf-befunde) — beide beauftragten Bugfixes (einer anders als vermutet) und drei ungefragte Funde
 3. [Empfehlung Make vs. Repo](#3-empfehlung-make-oder-repo)
 4. [Das Grundgerüst](#4-das-grundgerüst) — ein Kopf, ein Fuss, sieben Bausteine
 5. [Technische Regeln für E-Mail-HTML](#5-technische-regeln)
 6. [Referenz-Vorlage](#6-referenz-vorlage-offer_email) und wie sie zu prüfen ist
-7. [Was nach der Freigabe passiert](#7-nach-der-freigabe)
+7. [Stand nach der Freigabe](#7-stand-nach-der-freigabe)
 
 ---
 
@@ -63,7 +63,7 @@ interne Alarm-Mail.
 
 ---
 
-## 2. Drei Befunde, die eine Entscheidung brauchen
+## 2. Fünf Befunde
 
 ### Befund 1 — `lead_quality`-Gross-/Kleinschreibung: **bestätigt, wie beschrieben**
 
@@ -184,6 +184,30 @@ Kein Eingriff in den Versand-Code — nur in der Vorlage.
 
 ---
 
+### Befund 4 — Doppelte Anrede in der Rechnungs-Mail (nicht beauftragt, gefunden)
+
+`invoice-mail-copy.js` beginnt `body_text` mit `recipientGreeting(customer)` — also bereits mit
+„Guten Tag Marc Schneider“. Die Vorlage stellte dem eine eigene Zeile „Guten Tag, {{1.recipient.name}}“
+voran. Jede Rechnung und jede Mahnung grüsst den Empfänger damit zweimal hintereinander.
+
+Behoben ohne Eingriff in den Versand-Code: die Vorlage hat keine eigene Anrede mehr, `body_text` trägt
+sie. Das gilt nur für diese eine Vorlage — alle anderen bekommen keinen fertigen Fliesstext geliefert
+und behalten ihre Anrede.
+
+---
+
+### Befund 5 — Kategorie als Rohwert in der Anruf-Mail (nicht beauftragt, gefunden)
+
+Die Anruf-Vorlagen geben `{{1.category}}` unverändert aus. Das Feld trägt den Enum-Wert, den der
+Assistent setzt (`elevenlabs-provision-agent.js:105`): der Kunde liest also `rueckrufanfrage` oder
+`aenderung_kuendigung` in seiner E-Mail. Derselbe Fehlertyp wie beim Rohwert `hot` im Lead-Abzeichen.
+
+Behoben mit der Zuordnung, die im Produkt bereits existiert — `CATEGORY_LABELS` in
+`customer-dashboard/index.html:13217`, dieselben acht Werte wie im Assistenten-Enum. Nicht erfunden,
+übernommen, samt Rückfall auf den Rohwert bei einem unbekannten Wert (`CATEGORY_LABELS[raw] || raw`).
+
+---
+
 ## 3. Empfehlung: Make oder Repo
 
 **Empfehlung: Variante 1,5 — Vorlagen im Repo als Quelle der Wahrheit, Versand weiterhin über Make.
@@ -218,8 +242,9 @@ wieder ohne Netz ablegen heisst, in zwölf Monaten dasselbe Briefing nochmal zu 
    Beispieldaten. Die lässt sich im Browser öffnen, ohne Make, ohne Testversand.
 3. Der User kopiert den Inhalt der Datei in die zugehörige Make-Route. Die Zuordnung Datei → Route steht
    in `docs/email-templates/README.md`, mit Modul-ID.
-4. Ein Wächter (`scripts/verify-mail-templates.mjs`, **noch nicht gebaut** — Vorschlag für den Schritt
-   nach der Freigabe) prüft bei jedem PR die Regeln aus Abschnitt 5 gegen die Repo-Dateien: kein
+4. Ein Wächter (`scripts/verify-mail-templates.mjs`, **gebaut und in der CI**, Workflow
+   `.github/workflows/verify-mail-templates.yml`) prüft bei jedem PR die Regeln aus Abschnitt 5 gegen
+   die Repo-Dateien: kein
    `display:flex`, kein `display:grid`, kein `<style>`-Block ausser dem erlaubten Media-Query-Block,
    `max-width:600px` vorhanden, keine Hex-Werte ausserhalb der Palette, `lead_quality` nur
    kleingeschrieben verglichen. So wandert kein bekannter Fehler ein zweites Mal ein.
@@ -343,7 +368,7 @@ Stufen sind Produktwerte.
 Die Fusszeile war im Bestand `#94A3B8` bei 11,5 px — **2,56:1**, deutlich unter jeder Schwelle. Das ist
 mit dem Neubau behoben, ohne dass es beauftragt war.
 
-### Farbpalette der Vorlagen (vollständig, 19 Werte)
+### Farbpalette der Vorlagen (vollständig, 31 Werte)
 
 Alle Werte stammen aus `customer-dashboard/shared/customer-design-tokens.css`. Die einzige Ausnahme ist
 `#3D4A60`, und die ist keine neue Farbe: es ist Night bei 80 % Deckkraft über Weiss, ausgerechnet, weil
@@ -441,38 +466,67 @@ nicht den Vertrag.
 
 ### Wie zu prüfen ist
 
-1. `docs/email-templates/vorschau/offer_email.vorschau.html` im Browser öffnen — Desktop, dann
-   Fenster auf ~390 px verschmälern.
+1. Die Vorschaudateien unter `docs/email-templates/vorschau/` im Browser öffnen — Desktop, dann
+   Fenster auf ~390 px verschmälern. `offer_email` und `contract_signed_email` sind die dichtesten.
 2. `docs/email-templates/bausteine.html` öffnen — stimmt das Vokabular? Besonders: Hinweisbox-Tonalitäten
    (Entscheidung E2) und Lead-Abzeichen in Gold statt Rot.
-3. Optional, näher an der Wahrheit: den Inhalt von `offer_email.html` in Make-Modul 10 einsetzen und eine
-   Testmail an sich selbst schicken. Nur so sieht man Outlook und Gmail wirklich.
+3. Näher an der Wahrheit, und durch nichts zu ersetzen: eine Vorlage in ihr Make-Modul einsetzen und
+   eine Testmail an sich selbst schicken. Outlook und Gmail lassen sich im Browser nicht beurteilen.
 
 ---
 
-## 7. Nach der Freigabe
+## 7. Stand nach der Freigabe
 
-In dieser Reihenfolge, jeweils nach demselben Muster wie die Referenz:
+Alle zwölf Vorlagen sind gebaut, jede mit Vorschaudatei, jede vom Wächter geprüft. Die Zuordnung
+Datei → Route → Modul steht in [`email-templates/README.md`](email-templates/README.md), dort auch die
+vier zu ändernden Betreffzeilen.
 
-1. **Kundenmails, hohe Frequenz:** `invoice_email`/`reminder_email`/`reminder_final_email` (eine Datei,
-   drei Eyebrow-Zweige über `mail_type`), `welcome`, `contract_signed_email`
-2. **Kundenmails, niedrige Frequenz:** `contract_expired_email`, `password_changed_email`,
-   `password_reset`, `assistant_updated_email`
-3. **Anruf-Mails:** abhängig von Entscheidung E1
-4. **Interne Mails:** `ai_change_request`, Fallback-Alarm
-5. **Übersichtstabelle** Datei → Route → Modul-ID in `docs/email-templates/README.md` vervollständigen
-6. **Wächter** `scripts/verify-mail-templates.mjs` gegen die Regeln aus Abschnitt 5
+| Datei | Bausteine | Besonderheit |
+|---|---|---|
+| `offer_email.html` | B1, B2, B3, B5 | Rabattzeile erscheint nur bei `discount_amount > 0` |
+| `invoice_email.html` | B1, B2 | drei `mail_type` in einer Datei; Befund 3 und 4 behoben |
+| `contract_expired_email.html` | B1, B2, B3 | Akzent Rot |
+| `password_changed_email.html` | B1, B2, B3 | Akzent Grün |
+| `password_reset.html` | B1, B2, B3 | Akzent Neutral |
+| `assistant_updated_email.html` | B1, B2, B3 | Freitextfelder einspaltig |
+| `welcome.html` | B1, B2, B3, B6 | zwei Schritte, Weiterleitungscode als Kennzahl-Block |
+| `contract_signed_email.html` | B1, B2, B3, B4 | geht in Modul 54 **und** 55 |
+| `ai_change_request.html` | B1, B3 | intern |
+| `fallback_alarm.html` | B1, B2 | intern |
+| `call_notification_email.html` | B1, B3, B7 | Szenario 09 **und** 01; Befund 1 und 5 behoben |
+| `callback_request_email.html` | B1, B2, B3, B7 | Szenario 09 **und** 01; Befund 1, 2 und 5 behoben |
 
-Nicht enthalten, bewusst: Änderungen an `_lib/mail-delivery.js`, an der Routing-Logik, an
+### Der Wächter
+
+`scripts/verify-mail-templates.mjs`, Workflow `.github/workflows/verify-mail-templates.yml`. Prüft die
+Regeln aus Abschnitt 5 plus die Palette und die beiden Bugfix-Regeln. Mit Gegenprobe gebaut: die sechs
+Regeln, die einem Fund aus Abschnitt 2 entsprechen, wurden einzeln verletzt und schlagen einzeln an —
+`display:flex`, `white-space:pre-line`, eine Farbe ausserhalb der Palette, `lead_quality = "Hot"`, eine
+Bedingung auf `callback_requested`, fehlende Vorschaudatei.
+
+Was der Wächter **nicht** kann: er sieht den Make-Blueprint nicht und merkt deshalb nicht, wenn jemand
+direkt im Make-Editor ändert. Das bleibt die offene Flanke von Variante 1,5 und hängt an der Regel
+„nie direkt in Make editieren“.
+
+### Offen
+
+- Die vier Betreffzeilen in Make ändern (Tabelle im README) — nur der User kann das.
+- Zwölf Dateien in die Module einsetzen und je einen Testlauf fahren; Outlook und Gmail lassen sich nur
+  am echten Versand beurteilen, nicht im Browser.
+- Die zwei Anruf-Vorlagen greifen in Szenario 09 erst, wenn der Szenario-01-Migrations-Branch gemergt
+  und deployed ist. Bis dahin zählt die Kopie in Szenario 01 — und die läuft erst wieder, wenn Szenario
+  01 aktiviert ist. Das ist eine Routing-Frage und bleibt ausserhalb dieses Auftrags.
+
+Nicht angefasst, wie vereinbart: `_lib/mail-delivery.js`, die Routing-Logik,
 `config/mail-engine-contracts.json`, und keine neuen Mail-Typen.
 
 ---
 
-## Offene Entscheidungen auf einen Blick
+## Entscheidungen
 
-| | Frage | Meine Empfehlung |
+| | Frage | Entschieden am 09.08.2026 |
 |---|---|---|
-| **E1** | Anruf-Vorlagen: Szenario 09, Szenario 01, oder beide? | Beide beliefern (identischer Code), Routing-Frage separat klären — die Vorlagen sind so gebaut, dass das geht |
-| **E2** | Vier Hinweisbox-Tonalitäten als funktionale Kategorie zulässig? | Ja, analog zur F7-Auflösung für Blau |
-| **E3** | Make oder Repo? | Variante 1,5: Repo als Quelle, Make als Versandweg, Regel „nie direkt in Make editieren“ |
-| **E4** | Fliesstext 16 px statt Produkt-15 px? | Ja, wegen Grundsatz 15 — einzige Grössenabweichung |
+| **E1** | Anruf-Vorlagen: Szenario 09, 01 oder beide? | **Beide.** Solange der Szenario-01-Branch nicht gemergt ist, versendet 01; danach 09. Eine Datei bedient beide. |
+| **E2** | Vier Hinweisbox-Tonalitäten als funktionale Kategorie? | **Ja**, konsistent zur F7-Auflösung für Blau. |
+| **E3** | Make oder Repo? | **Variante 1,5** — Repo als Quelle, Make als Versandweg, Regel „nie direkt in Make editieren“. |
+| **E4** | Fliesstext 16 px statt Produkt-15 px? | **Ja**, Grundsatz 15. Einzige Grössenabweichung. |
