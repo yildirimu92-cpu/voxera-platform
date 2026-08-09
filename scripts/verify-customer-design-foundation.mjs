@@ -661,6 +661,19 @@ for (const [label, source, selectors] of [
   }
 }
 
+// Die Leiter gilt erst, wenn sie niemand mit hoeherer Spezifitaet ueberstimmt.
+// customer-runtime-settings-polish.js injizierte ein <style> mit
+// "#mehr-sub-profil .vx-settings-card-title, #tab-hilfe .vx-settings-card-title
+// {font-size:19px;font-weight:760}" — ID-Selektoren schlagen die Modulregel,
+// und ausgerechnet Profil und Hilfe standen damit ausserhalb der geteilten
+// Stufe, waehrend der Datei-Waechter oben gruen meldete. Ein Waechter, der nur
+// die Modulregel liest, prueft die falsche Ebene.
+{
+  const polish = fs.readFileSync('customer-dashboard/shared/customer-runtime-settings-polish.js', 'utf8');
+  assert.ok(!/vx-settings-card-title/.test(polish),
+    'settings-polish runtime overrides the shared title step again (ID selectors beat the module rule)');
+}
+
 // Verboten ist die DEKLARATION, nicht das Wort: die Kommentare, die den
 // Wechsel erklären, nennen die abgelöste Serife im Fliesstext und sollen
 // stehen bleiben dürfen. Ein Kommentar schreibt "Newsreader-Serife", eine
