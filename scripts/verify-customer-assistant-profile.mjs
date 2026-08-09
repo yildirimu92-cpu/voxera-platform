@@ -166,7 +166,7 @@ for (const forbidden of [
   if (source.statusRuntime.includes(forbidden)) failures.push(`status runtime exposes protected field: ${forbidden}`);
 }
 
-assert.match(source.loader, /customer-runtime-assistant-profile\.js\?v=20260809-6/);
+assert.match(source.loader, /customer-runtime-assistant-profile\.js\?v=20260809-7/);
 assert.match(source.loader, /customer-runtime-assistant-status\.js\?v=20260809-1/);
 assert.doesNotMatch(source.loader, /customer-runtime-assistant-business-menu\.js/);
 assert.doesNotMatch(source.loader, /customer-runtime-voice-preview-fallback\.js/);
@@ -365,6 +365,71 @@ assert.match(source.update, /core_field_not_in_schema/);
 assert.match(source.profile, /core_sections/);
 assert.match(source.runtime, /data-vx-core-key/);
 assert.match(source.runtime, /core_fields: payload/);
+
+// ── J6: die restlichen Schicht-A-Felder ─────────────────────────────────────
+// Der erste Block prueft den Lesepfad an der Funktion selbst und nicht am
+// Quelltext. Er deckt den Fehler ab, den J5 hinterlassen hat: der Feldtyp
+// `hours` stand nicht in der Typenliste von buildBranchSections und wurde
+// deshalb auf `text` heruntergestuft. Die Oberflaeche zeigte statt des
+// Wochenrasters ein leeres Textfeld, dessen Inhalt der Schreibpfad
+// anschliessend als ungueltiges Raster abwies — sichtbar wurde das nie, weil
+// noch kein Kunde bestaetigte Zeiten hatte.
+try {
+  const profileModule = loadFunctionModule(files.profile);
+  const { buildBranchSections } = profileModule._test;
+
+  const sections = buildBranchSections({ extra_steps: [{ id: 's', fields: [
+    { key: 'opening_hours', column: 'ai_opening_hours', type: 'hours', label: 'Öffnungszeiten' },
+    { key: 'public_address', column: 'ai_public_address', type: 'text', label: 'Adresse', suggestion: 'public_address' },
+    { key: 'pricing_amount', column: 'ai_pricing_amount', type: 'text', label: 'Betrag',
+      show_if: { key: 'pricing_mode', in: ['ab_preis', 'fixpreis'] } }
+  ] }] }, { opening_hours: { mon: [['08:00', '12:00']] }, public_address: 'Bahnhofstrasse 1' });
+
+  const [hoursField, addressField, amountField] = sections[0].fields;
+  assert.equal(hoursField.type, 'hours', 'Der Feldtyp hours wird wieder auf text heruntergestuft');
+  assert.equal(typeof hoursField.value, 'object', 'Das Wochenraster wird zu "[object Object]" verflacht');
+  assert.equal(JSON.stringify(hoursField.value.mon), JSON.stringify([['08:00', '12:00']]));
+  assert.equal(addressField.value, 'Bahnhofstrasse 1');
+  assert.equal(addressField.suggestion, 'public_address');
+  assert.equal(JSON.stringify(amountField.show_if), JSON.stringify({ key: 'pricing_mode', in: ['ab_preis', 'fixpreis'] }));
+
+  // Die Bedingung ist bewusst nicht ausdrucksstark: alles ausser Schluessel und
+  // Werteliste faellt weg, damit aus einer system_config-Zeile keine Logik wird.
+  const loose = buildBranchSections({ extra_steps: [{ id: 's', fields: [
+    { key: 'a', column: 'ai_service_area', type: 'text', label: 'A', show_if: { key: 'x' } },
+    { key: 'b', column: 'ai_service_area', type: 'text', label: 'B', show_if: 'pricing_mode' },
+    { key: 'c', column: 'ai_service_area', type: 'text', label: 'C', suggestion: { evil: true } }
+  ] }] }, {});
+  assert.equal(loose[0].fields[0].show_if, null, 'Eine Bedingung ohne Werteliste wird durchgereicht');
+  assert.equal(loose[0].fields[1].show_if, null, 'Eine Bedingung ohne Objektform wird durchgereicht');
+  assert.equal(loose[0].fields[2].suggestion, null, 'Ein Vorschlagsmarker beliebiger Form wird durchgereicht');
+} catch (error) {
+  failures.push(`core field read path: ${error.message}`);
+}
+
+// Der Adressvorschlag ist ein Vorschlag und keine Auskunft: street/zip/city
+// stammen aus Offerte und Vertrag. Er darf nur mitreisen, nie gespeichert
+// werden — dieselbe Regel wie beim Öffnungszeiten-Vorschlag (Entscheid F3).
+assert.match(source.profile, /core_suggestions/);
+assert.match(source.profile, /function addressSuggestion/);
+assert.doesNotMatch(source.profile, /ai_public_address:\s*addressSuggestion/);
+assert.match(source.runtime, /data-vx-suggest-value/);
+assert.match(source.runtime, /function applyFieldVisibility/);
+
+// Ein ausgeblendetes Feld behält seinen gespeicherten Wert. saveCore sammelt
+// weiterhin alle Kernfelder ein; würde es die versteckten überspringen, wäre
+// ein kurzer Blick auf „keine Termine“ genug, um den Buchungslink zu verlieren.
+assert.doesNotMatch(source.runtime, /data-vx-core-key\]:not\(\[hidden\]\)/);
+
+// Für dieselbe Spalte darf es nur einen Schreiber geben. ai_short_description
+// hatte bis J6 zwei: das eigene Wizard-Feld und Schicht A.
+const adminIndexSource = fs.readFileSync('admin-panel/index.html', 'utf8');
+assert.doesNotMatch(adminIndexSource, /ai_short_description:\s*d\.shortDescription/);
+assert.doesNotMatch(adminIndexSource, /id="wz-short-description"/);
+for (const column of ['ai_public_address', 'ai_target_groups', 'ai_pricing_mode', 'ai_pricing_amount']) {
+  assert.ok(source.profile.includes(column), `Lesepfad kennt ${column} nicht`);
+  assert.ok(source.update.includes(column), `Schreibpfad kennt ${column} nicht`);
+}
 
 if (failures.length) {
   console.error(failures.join('\n'));

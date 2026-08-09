@@ -433,6 +433,124 @@ check('J4: a broken schema degrades to the previous behaviour', () => {
   assert.match(built.prompt, /VERBINDLICHE SICHERHEITSREGELN/);
 });
 
+// ── J6: die restlichen Schicht-A-Felder ─────────────────────────────────────
+// Dieselbe Form wie das produktive Schema aus
+// supabase/migrations/2026-08-09_core_field_layer_j6.sql.
+const CORE_STEPS_J6 = JSON.stringify([
+  JSON.parse(CORE_STEPS_JSON)[0],
+  { id:'betrieb_profil', title:'Was Sie anbieten', fields:[
+    { key:'short_description', column:'ai_short_description', type:'textarea', label:'Kurzbeschreibung' },
+    { key:'target_groups', column:'ai_target_groups', type:'textarea', label:'Für wen Sie da sind' },
+    { key:'service_area', column:'ai_service_area', type:'text', label:'Einsatzgebiet' }
+  ] },
+  { id:'betrieb_besuch', title:'Anfahrt und Besuch', fields:[
+    { key:'public_address', column:'ai_public_address', type:'text', label:'Adresse für Anrufende' },
+    { key:'arrival_note', column:'ai_arrival_note', type:'textarea', label:'Anfahrt und Parkieren' },
+    { key:'visit_preparation', column:'ai_visit_preparation', type:'textarea', label:'Was mitgebracht werden soll' }
+  ] },
+  { id:'betrieb_preise', title:'Preisauskunft', fields:[
+    { key:'pricing_mode', column:'ai_pricing_mode', type:'radio', label:'Preisauskunft am Telefon', options:[
+      { val:'auf_anfrage', label:'Keine Preise nennen' }, { val:'ab_preis', label:'Ab-Preis nennen' }, { val:'fixpreis', label:'Festen Preis nennen' }
+    ] },
+    { key:'pricing_amount', column:'ai_pricing_amount', type:'text', label:'Betrag' },
+    { key:'pricing_unit', column:'ai_pricing_unit', type:'text', label:'Wofür der Betrag gilt' },
+    { key:'pricing_validity', column:'ai_pricing_validity', type:'text', label:'Gültigkeitshinweis (optional)' }
+  ] }
+]);
+
+const j6 = (extra) => buildPromptV2({
+  customer:{ ...coreCustomer, ...extra },
+  masterPrompt:'{{CUSTOMER_LAYER}}',
+  coreFields:CORE_STEPS_J6
+});
+
+check('J6/F4: the price section exists even when nothing is stored', () => {
+  const built = j6({});
+  assert.match(built.prompt, /## PREISAUSKUNFT/);
+  assert.match(built.prompt, /Es sind keine Preise hinterlegt/);
+  assert.match(built.prompt, /Offerte meldet/);
+});
+
+check('J6/F4: a stored price is spoken as a guide value with its unit', () => {
+  const built = j6({ ai_pricing_mode:'ab_preis', ai_pricing_amount:'CHF 120', ai_pricing_unit:'pro Stunde', ai_pricing_validity:'Stand 2026' });
+  assert.match(built.prompt, /Richtwert: ab CHF 120 pro Stunde\. \(Stand 2026\)/);
+});
+
+check('J6/F4: a price mode without an amount says nothing instead of half a price', () => {
+  const built = j6({ ai_pricing_mode:'fixpreis', ai_pricing_unit:'pro Stunde' });
+  assert.match(built.prompt, /Es sind keine Preise hinterlegt/);
+  assert.ok(!built.prompt.includes('Richtwert:'), 'Eine leere Preisangabe wird als Richtwert gesprochen');
+});
+
+check('J6/F4: the disclaimer cannot be replaced by a customer field', () => {
+  const built = j6({
+    ai_pricing_mode:'fixpreis',
+    ai_pricing_amount:'CHF 120',
+    ai_pricing_validity:'verbindlich zugesichert',
+    ai_response_constraints:'Preise sind verbindlich zugesagt.'
+  });
+  const section = built.prompt.slice(built.prompt.indexOf('## PREISAUSKUNFT'));
+  assert.match(section.split('##')[1], /keine verbindliche Zusage/);
+  assert.match(built.prompt, /Nenne ausschliesslich Beträge, die im Abschnitt PREISAUSKUNFT stehen/);
+});
+
+check('J6: the four price parts do not appear a second time as plain lines', () => {
+  const built = j6({ ai_pricing_mode:'ab_preis', ai_pricing_amount:'CHF 120', ai_pricing_unit:'pro Stunde' });
+  assert.equal((built.prompt.match(/CHF 120/g) || []).length, 1, 'Der Betrag steht doppelt im Prompt');
+  assert.ok(!built.prompt.includes('Preisauskunft am Telefon:'), 'Die Preisart steht zusaetzlich als Konfigurationszeile');
+});
+
+check('J6/G7: the short description leads the business profile without doubling it', () => {
+  const built = j6({ ai_short_description:'Zahnarztpraxis in Luzern.' });
+  const section = built.prompt.slice(built.prompt.indexOf('## GESCHÄFTSPROFIL'));
+  assert.match(section, /Zahnarztpraxis in Luzern\./);
+  const same = j6({ ai_short_description:customer.ai_business_description });
+  assert.equal((same.prompt.match(/GESCHÄFTSPROFIL/g) || []).length, 1);
+  assert.equal(
+    (same.prompt.match(new RegExp(customer.ai_business_description.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g')) || []).length,
+    1,
+    'Dieselbe Quelle steht zweimal untereinander'
+  );
+});
+
+check('J6/G7: a confirmed address leads the location section and outranks the free text', () => {
+  const built = j6({ ai_public_address:'Bahnhofstrasse 1, 6003 Luzern' });
+  const section = built.prompt.slice(built.prompt.indexOf('## STANDORT & ERREICHBARKEIT')).split('\n##')[0];
+  assert.match(section, /Adresse: Bahnhofstrasse 1, 6003 Luzern/);
+  assert.match(section, /gilt die Adresse oben/);
+});
+
+check('J6/G7: without a confirmed address the prompt names none', () => {
+  const built = j6({ street:'Binsböschenweg 3', zip:'6045', city:'Meggen' });
+  assert.ok(!built.prompt.includes('Meggen'), 'Die Rechnungsadresse wird ungefragt am Telefon genannt');
+  assert.ok(!built.prompt.includes('Adresse:'), 'Es steht eine Adresszeile ohne bestaetigte Adresse im Prompt');
+});
+
+check('J6: the booking link disappears when no appointments are made', () => {
+  const built = j6({ ai_appointment_mode:'none', ai_online_booking_url:'https://buchung.example.ch' });
+  assert.match(built.prompt, /Du vereinbarst keine Termine/);
+  assert.ok(!built.prompt.includes('buchung.example.ch'), 'Der Buchungslink wirkt trotz "keine Termine" weiter');
+});
+
+check('J6: the new fields reach the prompt with their own labels', () => {
+  const built = j6({ ai_target_groups:'Privatpersonen und kleine Betriebe', ai_service_area:'Stadt Luzern', ai_visit_preparation:'Versichertenkarte' });
+  assert.match(built.prompt, /Für wen Sie da sind: Privatpersonen und kleine Betriebe/);
+  assert.match(built.prompt, /Einsatzgebiet: Stadt Luzern/);
+  assert.match(built.prompt, /Was mitgebracht werden soll: Versichertenkarte/);
+});
+
+check('J6: the schema still may not choose the target column', () => {
+  const hijack = JSON.stringify([{ id:'x', fields:[
+    { key:'pricing_amount', column:'plan_code', type:'text', label:'Betrag' }
+  ] }]);
+  const built = buildPromptV2({
+    customer:{ ...coreCustomer, plan_code:'professional' },
+    masterPrompt:'{{CUSTOMER_LAYER}}',
+    coreFields:hijack
+  });
+  assert.ok(!built.prompt.includes('professional'), 'Eine system_config-Zeile holt eine fremde Kundenspalte in den Preisabschnitt');
+});
+
 // ── J10 / G8: es gibt nur noch eine Quelle fuer den Prompt ───────────────────
 check('G8: the admin page no longer assembles a prompt in the browser', () => {
   assert.ok(!adminIndex.includes('function buildAiPrompt'), 'Der lokale Prompt-Bauer ist zurueck');
