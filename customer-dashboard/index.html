@@ -160,7 +160,6 @@
      beschrieben die Realität nicht mehr. --z-vx-overlay:9001 hatte keinen
      einzigen Nutzer. */
   --z-mobile-nav:50;
-  --z-login:999;
   --z-onboarding:9000;
   --z-commercial:9800;
   --z-tour:10000;
@@ -171,6 +170,16 @@
   --z-row-menu-floating:13050;
   --z-context-menu:13055;
   --z-support:13058;
+  /* Der Login-Screen ist kein Screen unter anderen, sondern das Tor davor:
+     ist er sichtbar, darf von der App nichts mehr durchscheinen. Er stand auf
+     999 und lag damit unter fast allem, was die App aufbaut. Sichtbar wurde
+     das an der Bottom-Nav, die der Force-Block #vx-force-mobile-nav auf mobil
+     per !important auf 9500 hebt: waren beide Ebenen gleichzeitig
+     eingeblendet, schwebte die Nav ueber der Login-Karte. Die Ursache dafuer
+     ist behoben (abbrechbare showApp-Ladekette); diese Stufe ist das
+     Sicherheitsnetz, damit ein halb angemeldeter Zwischenzustand nie wieder so
+     aussieht. Unter dem Toast, damit eine Fehlermeldung lesbar bleibt. */
+  --z-login:13059;
   /* Der Toast liegt über allem: er bestätigt Aktionen, die aus jeder dieser
      Ebenen ausgelöst werden. Vorher lag er auf 9000 und damit unter der
      Detail-Vollansicht und der Support-Anfrage — die Bestätigung war dort
@@ -11053,6 +11062,16 @@ let incomingBannerTimer = null;
 let hasCompletedInitialDashboardLoad = false;
 let currentUser = null;
 let showAppInProgress = false;
+// showApp() startet eine asynchrone Ladekette, die die App erst gut eine
+// Sekunde spaeter einblendet. Faellt die Sitzung in dieser Zeit weg, muss die
+// Kette abbrechbar sein: showApp() merkt sich die Generation beim Start,
+// vxInvalidateAppBoot() zaehlt hoch, und jeder spaete Callback prueft, ob er
+// noch zur aktuellen Generation gehoert.
+let vxAppBootGeneration = 0;
+function vxInvalidateAppBoot() {
+  vxAppBootGeneration++;
+  showAppInProgress = false;
+}
 let forceDashboardOnNextRestore = false;
 window._vxForceDashboardAfterLogin = false;
 let isLogoutInProgress = false;
@@ -28745,7 +28764,13 @@ async function getCurrentSessionUser() {
 
 async function doLogin() {
   const sb = getSupabaseAuthClient();
-  if (!sb) return;
+  if (!sb) {
+    // getSupabaseAuthClient() zeigt ueber showConfigError() nur dann etwas an,
+    // wenn bereits ein Nutzer geladen war — beim Anmelden ist currentUser noch
+    // null, der Klick blieb also folgenlos und stumm.
+    vxSetLoginFeedback(systemUnavailableMessage, { disabled: true, buttonText: 'Nicht verfügbar' });
+    return;
+  }
   const email = document.getElementById('login-email').value.trim();
   const password = document.getElementById('login-password').value;
   const btn = document.getElementById('login-btn');
@@ -28916,14 +28941,52 @@ function setLogoutButtonsLoading(isLoading) {
   });
 }
 
-function showLogin() {
+// supabase-js verteilt Auth-Ereignisse per BroadcastChannel an alle Tabs
+// derselben Origin, waehrend die Sitzung hier in sessionStorage liegt und
+// damit pro Tab getrennt ist. Ein SIGNED_OUT aus einem fremden Tab — alter
+// Tab meldet sich ab, dessen Refresh-Token laeuft aus — sagt deshalb nichts
+// ueber die Sitzung dieses Tabs aus. Vorher wurde es blind uebernommen und
+// riss eine gerade erfolgreiche Anmeldung wortlos zurueck auf das Formular.
+async function vxHandleSignedOut() {
+  var sb = (_sb && _sb.auth) ? _sb : null;
+  if (sb && !isLogoutInProgress) {
+    try {
+      var res = await sb.auth.getSession();
+      if (res && res.data && res.data.session) return; // fremder Tab, eigene Sitzung lebt
+    } catch (e) {
+      console.warn('[voxera-dashboard] Sitzungspruefung nach SIGNED_OUT fehlgeschlagen', e);
+    }
+  }
+  var wasOwnLogout = isLogoutInProgress;
+  isAuthTransition = false;
+  currentUser = null;
+  if (autoRefreshTimer) clearInterval(autoRefreshTimer);
+  teardownDashboardRealtime();
+  showLogin(wasOwnLogout ? '' : 'Ihre Sitzung wurde beendet. Bitte melden Sie sich erneut an.');
+}
+
+// reason: Text, der im Login-Fehlerfeld erscheint. Jeder Rueckfall auf den
+// Login, den der Nutzer nicht selbst ausgeloest hat, muss einen Grund nennen —
+// vorher endeten Sitzungsabbrueche wortlos auf dem Formular.
+function showLogin(reason) {
   isLogoutInProgress = false;
   isAuthTransition = false;
+  // Eine noch laufende showApp()-Ladekette gehoert zu einer Sitzung, die es
+  // gerade nicht mehr gibt. Ohne die Invalidierung blendet ihr .then() #app
+  // gleich wieder ein — dann stehen Login-Karte und App zusammen auf dem
+  // Schirm — und showAppInProgress bleibt haengen, sodass der naechste
+  // Anmeldeversuch in showApp() sofort wieder abbricht.
+  vxInvalidateAppBoot();
   setLogoutButtonsLoading(false);
   var app = document.getElementById('app');
   if (app) app.style.display = 'none';
   var login = document.getElementById('login-screen');
   if (login) login.style.display = 'flex';
+  var errEl = document.getElementById('login-error');
+  if (errEl && reason) {
+    errEl.textContent = String(reason);
+    errEl.style.display = 'block';
+  }
   var btn = document.getElementById('login-btn');
   if (btn) {
     btn.disabled = false;
@@ -29021,6 +29084,7 @@ async function runInitialLoader(loadPromise, options) {
 function showApp(user) {
   if (showAppInProgress) return;
   showAppInProgress = true;
+  var bootGeneration = ++vxAppBootGeneration;
   isLogoutInProgress = false;
   isAuthTransition = false;
   setLogoutButtonsLoading(false);
@@ -29054,6 +29118,7 @@ function showApp(user) {
   selectSound(savedSound, true);
 
   var initialLoadSequence = loadData().then(function() {
+    if (bootGeneration !== vxAppBootGeneration) return;
     hasCompletedInitialDashboardLoad = true;
     var firstName = customerMeta.contactFirstName || (customerMeta.customerName ? customerMeta.customerName.split(' ')[0] : '') || fallbackName;
     if (greetingMain) {
@@ -29071,11 +29136,17 @@ function showApp(user) {
       }
     }, 300);
   }).catch(function(err) {
+    if (bootGeneration !== vxAppBootGeneration) return;
     showAppInProgress = false; // Guard freigeben bei Fehler
     console.error('[voxera-dashboard] initial load failed', err);
   });
 
   runInitialLoader(initialLoadSequence, { minVisibleMs: 1050 }).then(function() {
+    // Abgemeldet, waehrend der Loader lief: #app hier trotzdem einzublenden
+    // hiess Login-Karte und Bottom-Nav gleichzeitig auf dem Schirm. Die
+    // Sichtbarkeit der App gehoert an eine gueltige Sitzung, nicht an das
+    // Ende eines Timers.
+    if (bootGeneration !== vxAppBootGeneration) return;
     document.getElementById('app').style.display = 'flex';
     window._vxRefreshIntervalMs = 12000;
     autoRefreshTimer = setInterval(function() { safeLoadData({ periodic: true }); }, 12000);
@@ -29086,6 +29157,9 @@ function showApp(user) {
     // "nur Splash weg, App bleibt display:none" haengen bleiben - sonst
     // sieht der Nutzer nur noch den aeusserhalb von #app liegenden
     // .mobile-header (Logo/Glocke/Avatar) ohne jede Navigation.
+    // Fail-open gilt nur fuer die noch gueltige Sitzung — nach einem
+    // Abmelden waere es ein Fail-open in den ausgeloggten Zustand hinein.
+    if (bootGeneration !== vxAppBootGeneration) return;
     console.error('[voxera-dashboard] runInitialLoader failed, showing app anyway', err);
     var appEl = document.getElementById('app');
     if (appEl) appEl.style.display = 'flex';
@@ -29205,7 +29279,10 @@ async function doReset() {
 }
 
 // Keyboard shortcuts
-document.getElementById('login-password').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
+// Ueber denselben Einstiegspunkt wie Klick und Submit: vxCustomerLoginSubmit
+// entprellt den Doppelabsenden-Fall und faengt Fehler ab, die ein direkter
+// doLogin()-Aufruf als unbehandelte Promise-Rejection verloren haette.
+document.getElementById('login-password').addEventListener('keydown', e => { if(e.key==='Enter') window.vxCustomerLoginSubmit(e); });
 document.getElementById('login-email').addEventListener('keydown', e => { if(e.key==='Enter') document.getElementById('login-password').focus(); });
 
 // ═══════════════════════════════════════════
@@ -29259,7 +29336,8 @@ if (!_sb || !_sb.auth) {
         showConfigError('Supabase API-Key ungültig. Bitte aktuellen Anon Key eintragen.');
         return;
       }
-      showLogin();
+      console.error('[voxera-dashboard] getSession beim Start fehlgeschlagen', err);
+      showLogin('Ihre Sitzung konnte nicht geprüft werden. Bitte melden Sie sich erneut an.');
       initNetworkCanvas();
     });
   }
@@ -29268,11 +29346,7 @@ if (!_sb || !_sb.auth) {
 if (_sb && _sb.auth) {
   _sb.auth.onAuthStateChange((event, session) => {
     if (event === 'SIGNED_OUT') {
-      isAuthTransition = false;
-      currentUser = null;
-      if (autoRefreshTimer) clearInterval(autoRefreshTimer);
-      teardownDashboardRealtime();
-      showLogin();
+      vxHandleSignedOut();
     }
     if (event === 'SIGNED_IN' && session && session.user && document.getElementById('app').style.display === 'none') {
       isLogoutInProgress = false;
