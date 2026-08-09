@@ -112,6 +112,29 @@ raus darf.
 > Ausnahmeliste der Fallback-Route eintragen. Sonst geht pro Vorgang eine
 > Alarmmail an info@voxera.ch — und ein Alarmkanal, der bei jedem normalen
 > Vorgang anschlägt, wird nach kurzer Zeit ignoriert.
+>
+> Für die zwei Anruf-Typen ist beides erledigt und am 09.08.2026 verifiziert:
+> nach dem gespeicherten Ausschluss fielen beide Läufe von drei auf **zwei**
+> Operationen, der Transfer um exakt 67 Bytes je Lauf, keine Alarmmail mehr.
+
+### Prüfen, ob eine Route greift — ohne Make-Oberfläche
+
+Makes API liefert zu einer Ausführung nur `{"status":"SUCCESS"}`, keine
+Modul-Details. Die Operationen-Zahl aus `executions_list` ersetzt sie:
+
+| Operationen | Bedeutung |
+|---|---|
+| 1 | nur der Webhook — keine Route hat gegriffen |
+| 2 | Webhook + ein E-Mail-Modul — **richtig** für Mails ohne Anhang |
+| 3, kleiner Transfer | Webhook + zwei E-Mail-Module — eine Route *und* der Fallback |
+| 3, Transfer ~54 KB | Webhook + PDF-Abruf + E-Mail — richtig für Rechnungen/Offerten |
+
+Ebenso nützlich: die `modify`-Einträge in derselben Liste. Fehlt zwischen zwei
+Testläufen ein `modify`, wurde die Änderung in Make nicht gespeichert — genau
+das war am 09.08.2026 die Ursache dafür, dass eine korrekt gebaute
+Fallback-Bedingung scheinbar wirkungslos blieb. Erst der Blick auf die
+Ereignisliste hat es gezeigt; aus der Operationen-Zahl allein sah es wie ein
+Filterproblem aus.
 
 Mapping der Routen:
 
