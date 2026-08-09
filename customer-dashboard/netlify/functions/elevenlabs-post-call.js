@@ -1,17 +1,18 @@
 const crypto = require('crypto');
 const { createClient } = require('@supabase/supabase-js');
 const { normalizePhoneE164 } = require('./_lib/phone-normalize'); // [PATCH 2a] Import hinzugefügt
+const { sendCallNotification } = require('./_lib/call-notification');
 
 const WEBHOOK_SECRET = process.env.ELEVENLABS_WEBHOOK_SECRET || '';
-// Call-Intake, nicht Mail-Engine: die Payloads hier tragen bewusst keinen
-// mail_type, sondern die Gespraechsdaten fuer Make-Szenario 01. Frueher lief
-// das ueber MAKE_MAIL_WEBHOOK - derselbe Variablenname, den die Admin-Site
-// fuer die Mail-Engine benutzt. Auf der Dashboard-Site zeigte die Variable
-// deshalb auf den Call-Intake-Hook, und jede Admin-Benachrichtigung landete
-// unbemerkt in dessen Queue. Getrennte Namen, damit das nicht wiederkommt;
-// bewusst ohne Fallback auf MAKE_MAIL_WEBHOOK, weil ein Fallback exakt die
-// Vermischung zurueckholen wuerde, die den Fehler verursacht hat.
-const MAKE_CALL_INTAKE_WEBHOOK = process.env.MAKE_CALL_INTAKE_WEBHOOK || '';
+// Die Anruf-Benachrichtigung geht seit dem 09.08.2026 ueber
+// _lib/call-notification.js und damit ueber dieselbe Mail-Engine wie jeder
+// andere Mailtyp - mit Outbox-Protokoll und Retry.
+//
+// Vorher stand hier MAKE_CALL_INTAKE_WEBHOOK, der Hook von Make-Szenario 01.
+// Dieses Szenario bestand ausschliesslich aus Kunden-Aufloesung und zwei
+// SMTP-Modulen; es schrieb nichts und loeste nichts weiter aus. Mit der
+// Migration ist es ersatzlos abgeloest, deshalb faellt die Variable hier weg
+// statt als zweiter Versandweg stehen zu bleiben.
 const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY || '';
 
 // Zeitfenster für den Stub-Match (caller_phone + called_number + recency).
@@ -463,7 +464,7 @@ async function handleToolCall(body, event) {
         .eq('voxera_number', calledNumber).maybeSingle();
       customerId = c?.id || null;
     }
-    const { error: insertError } = await sbAdmin.from('calls').insert({
+    const { data: insertedRow, error: insertError } = await sbAdmin.from('calls').insert({
       caller_phone: callerPhone || null,
       called_number: calledNumber || null,
       voxera_number: calledNumber || null,
@@ -471,45 +472,25 @@ async function handleToolCall(body, event) {
       direction: 'inbound',
       created_at: new Date().toISOString(),
       ...updatePayload
-    });
+    }).select('id').single();
     if (insertError) {
       console.error('[elevenlabs-post-call] tool-call insert failed', { error: insertError.message });
       return response(500, { error: 'Insert failed' });
     }
     console.log('[elevenlabs-post-call] tool-call insert ok');
+    // Die angelegte Zeile traegt den Dedupe-Schluessel der Benachrichtigung.
+    // Ohne sie wuerde der Post-Call-Webhook, der gleich darauf dieselbe Zeile
+    // trifft, eine zweite Mail fuer dasselbe Gespraech ausloesen.
+    matchedId = insertedRow?.id || null;
     matchStrategy = 'insert';
   }
 
-  // Trigger Make call-intake webhook
-  if (MAKE_CALL_INTAKE_WEBHOOK) {
-    try {
-      await fetch(MAKE_CALL_INTAKE_WEBHOOK, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          elevenlabs_conversation_id: elevenLabsConvId,
-          called_number: calledNumber,
-          caller_name: updatePayload.caller_name || '',
-          caller_phone: callerPhone,
-          call_summary: updatePayload.call_summary || '',
-          call_summary_short: updatePayload.call_summary_short || '',
-          callback_requested: updatePayload.callback_requested === true,
-          category: updatePayload.category || '',
-          lead_quality: updatePayload.lead_quality || '',
-          next_action: updatePayload.next_action || '',
-          priority: updatePayload.priority || '',
-          duration_seconds: updatePayload.duration_seconds || null
-        })
-      });
-    } catch (e) {
-      console.warn('[elevenlabs-post-call] call-intake webhook failed', { error: e.message });
-    }
-  }
-
-  // ── Notification in Supabase anlegen ──────────────────────────────────────
+  // ── Glocke im Dashboard + Benachrichtigungsmail ───────────────────────────
+  // Bewusst getrennte try-Bloecke: die Mail darf nicht ausfallen, weil das
+  // Anlegen des Glocken-Eintrags gescheitert ist. Beide haengen an derselben
+  // customer_id, also wird die einmal aufgeloest.
+  let notifCustomerId = null;
   try {
-    // customer_id aus gematchtem Record oder via calledNumber
-    let notifCustomerId = null;
     if (matchedId) {
       const { data: matchedRec } = await sbAdmin.from('calls').select('customer_id').eq('id', matchedId).maybeSingle();
       notifCustomerId = matchedRec?.customer_id || null;
@@ -533,6 +514,30 @@ async function handleToolCall(body, event) {
   } catch (e) {
     console.warn('[elevenlabs-post-call] tool-call notification error', e.message);
   }
+
+  // Die Mail haengt an der Datenbankzeile, nicht an calledNumber: im
+  // Tool-Call-Pfad kommt called_number aus den Argumenten des Agenten und ist
+  // dort praktisch immer leer. Genau daran scheiterte Szenario 01 mit HTTP 400
+  // im Resolver. Ist notifCustomerId oben ausgefallen, liest
+  // sendCallNotification den Kunden selbst aus der calls-Zeile nach.
+  await sendCallNotification(sbAdmin, {
+    callRowId: matchedId,
+    customerId: notifCustomerId,
+    calledNumber,
+    call: {
+      caller_name: updatePayload.caller_name,
+      caller_phone: callerPhone,
+      call_summary: updatePayload.call_summary,
+      call_summary_short: updatePayload.call_summary_short,
+      callback_requested: updatePayload.callback_requested === true,
+      category: updatePayload.category,
+      lead_quality: updatePayload.lead_quality,
+      next_action: updatePayload.next_action,
+      priority: updatePayload.priority,
+      duration_seconds: updatePayload.duration_seconds,
+      elevenlabs_conversation_id: elevenLabsConvId
+    }
+  });
 
   return response(200, { success: true, message: 'Das Anliegen wurde erfolgreich aufgenommen.' });
 }
@@ -1017,38 +1022,11 @@ exports.handler = async (event) => {
     }
   }
 
-  // ─── Trigger Call-Intake via Make.com (mit den finalen Daten) ──────────
-  if (initialUpdateOk && MAKE_CALL_INTAKE_WEBHOOK) {
-    try {
-      await fetch(MAKE_CALL_INTAKE_WEBHOOK, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          elevenlabs_conversation_id: elevenLabsConvId,
-          called_number: calledNumber,
-          caller_name: finalPayload.caller_name || '',
-          caller_phone: callerPhone,
-          call_summary: finalPayload.call_summary || '',
-          call_summary_short: finalPayload.call_summary_short || '',
-          callback_requested: finalPayload.callback_requested === true,
-          category: finalPayload.category || '',
-          lead_quality: finalPayload.lead_quality || '',
-          next_action: finalPayload.next_action || '',
-          priority: finalPayload.priority || '',
-          duration_seconds: finalPayload.duration_seconds || null
-        })
-      });
-      console.log('[elevenlabs-post-call] call-intake webhook triggered', { elevenLabsConvId });
-    } catch (e) {
-      console.warn('[elevenlabs-post-call] call-intake webhook failed', { error: e.message });
-    }
-  }
-
-  // ── Notification in Supabase anlegen (Post-Call Webhook) ──────────────────
+  // ── Notification in Supabase + Benachrichtigungsmail (Post-Call Webhook) ──
   if (initialUpdateOk && recordId) {
     try {
       // customer_id aus gematchtem Record laden
-      const { data: callRec } = await sbAdmin.from('calls').select('customer_id, caller_name, caller_phone, company_name, category, lead_quality').eq('id', recordId).maybeSingle();
+      const { data: callRec } = await sbAdmin.from('calls').select('customer_id, caller_name, caller_phone, company_name, category, lead_quality, called_number').eq('id', recordId).maybeSingle();
       if (callRec && callRec.customer_id) {
         const isHot = String(callRec.lead_quality || '').toLowerCase() === 'hot';
         const callerDisplay = callRec.caller_name || callRec.caller_phone || 'Unbekannte Nummer';
@@ -1063,6 +1041,33 @@ exports.handler = async (event) => {
           callId: recordId
         });
       }
+
+      // Die Benachrichtigungsmail (frueher Make-Szenario 01, eigenes
+      // SMTP-Modul) laeuft jetzt ueber die zentrale Mail-Engine.
+      //
+      // Der Kunde kommt aus der Datenbankzeile, nicht aus dem Webhook-Payload:
+      // calledNumber stammt aus metadata.phone_call und kann leer sein, waehrend
+      // die Zeile ueber den Twilio-Stub laengst eine Nummer und einen Kunden
+      // traegt. Genau diese Luecke erzeugte die HTTP-400-Serie im alten
+      // Resolver-Aufruf. calledNumber bleibt nur noch Rueckfallweg.
+      await sendCallNotification(sbAdmin, {
+        callRowId: recordId,
+        customerId: callRec?.customer_id || null,
+        calledNumber: calledNumber || callRec?.called_number || '',
+        call: {
+          caller_name: finalPayload.caller_name,
+          caller_phone: callerPhone || callRec?.caller_phone,
+          call_summary: finalPayload.call_summary,
+          call_summary_short: finalPayload.call_summary_short,
+          callback_requested: finalPayload.callback_requested === true,
+          category: finalPayload.category,
+          lead_quality: finalPayload.lead_quality,
+          next_action: finalPayload.next_action,
+          priority: finalPayload.priority,
+          duration_seconds: finalPayload.duration_seconds,
+          elevenlabs_conversation_id: elevenLabsConvId
+        }
+      });
     } catch (e) {
       console.warn('[elevenlabs-post-call] post-call notification error', e.message);
     }
