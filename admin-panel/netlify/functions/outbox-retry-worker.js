@@ -2,6 +2,7 @@
 
 const { createClient } = require('@supabase/supabase-js');
 const { markOutboxSent, markOutboxFailed, markOutboxTerminal } = require('./_lib/webhook-outbox');
+const { isMailEngineType, resolveMailWebhook } = require('./_lib/mail-delivery');
 
 function log(level, event, payload = {}) {
   console.log(JSON.stringify({ level, event, ...payload }));
@@ -111,10 +112,15 @@ async function dispatchOutboxEvent(sbAdmin, outboxRow) {
     return postJson(webhookUrl, payload);
   }
 
-  if (outboxRow.event_type === 'offer_email' || outboxRow.event_type === 'subscription_payment_email') {
-    const webhookUrl = process.env.MAKE_MAIL_WEBHOOK;
-    if (!webhookUrl) return { ok: false, error: 'MAKE_MAIL_WEBHOOK not configured' };
-    return postJson(webhookUrl, payload);
+  // Alles, was ueber _lib/mail-delivery.js rausgeht, traegt seinen mail_type als
+  // event_type. Frueher stand hier eine Zweierliste (offer_email,
+  // subscription_payment_email) und jeder neue Mailtyp fiel stillschweigend in
+  // "unsupported event_type" - die Outbox-Zeile blieb liegen, ohne dass jemand
+  // es merkte. Jetzt entscheidet die Typliste der Mail-Engine.
+  if (isMailEngineType(outboxRow.event_type)) {
+    const { url, error } = resolveMailWebhook();
+    if (!url) return { ok: false, error };
+    return postJson(url, payload);
   }
 
 
@@ -235,9 +241,33 @@ exports.handler = async () => {
       previous_status: candidate.status
     });
 
-    const delivery = await dispatchOutboxEvent(sbAdmin, claimed);
+    // postJson() setzt einen nackten fetch ab: eine Netzwerkabweisung (DNS,
+    // Timeout, ECONNREFUSED) wirft, statt { ok: false } zu liefern. Ohne
+    // diesen Fang verlaesst die Ausnahme die Schleife, der gesamte Rest des
+    // Batches bleibt unbearbeitet, und jede bereits beanspruchte Zeile bleibt
+    // auf 'retrying' stehen - ein Status, den die Kandidatenabfrage oben
+    // (pending/failed) nie wieder einsammelt. Die Zeile waere damit dauerhaft
+    // gestrandet. Ein Fehlschlag gehoert zurueck auf 'failed', damit der
+    // naechste Lauf ihn erneut versucht.
+    let delivery;
+    try {
+      delivery = await dispatchOutboxEvent(sbAdmin, claimed);
+    } catch (dispatchError) {
+      delivery = { ok: false, error: dispatchError?.message || 'retry dispatch threw' };
+    }
+
     if (delivery.ok) {
-      await markOutboxSent(sbAdmin, claimed.id);
+      try {
+        await markOutboxSent(sbAdmin, claimed.id);
+      } catch (stateError) {
+        // Zugestellt, aber der Status blieb liegen. Nicht auf 'failed'
+        // zuruecksetzen - das wuerde einen Doppelversand ausloesen.
+        log('error', 'retry_state_write_failed', {
+          outbox_id: claimed.id,
+          event_type: claimed.event_type,
+          error: stateError?.message || 'unknown error'
+        });
+      }
       succeeded += 1;
       log('info', 'retry_success', {
         outbox_id: claimed.id,
@@ -247,7 +277,6 @@ exports.handler = async () => {
     }
 
     const failureMessage = String(delivery.error || 'retry delivery failed');
-    await markOutboxFailed(sbAdmin, claimed.id, failureMessage);
     failed += 1;
     log('error', 'retry_failed', {
       outbox_id: claimed.id,
@@ -255,19 +284,32 @@ exports.handler = async () => {
       error: failureMessage
     });
 
-    const { data: postFailure } = await sbAdmin
-      .from('outbox_events')
-      .select('retry_count')
-      .eq('id', claimed.id)
-      .maybeSingle();
+    // Auch die Buchhaltung nach einem Fehlschlag darf den Batch nicht
+    // abbrechen: sonst strandet nicht nur diese Zeile auf 'retrying', sondern
+    // auch jede noch nicht bearbeitete danach.
+    try {
+      await markOutboxFailed(sbAdmin, claimed.id, failureMessage);
 
-    if (postFailure && Number(postFailure.retry_count || 0) >= maxRetries) {
-      await markOutboxTerminal(sbAdmin, claimed.id, `retry limit reached (${maxRetries})`);
-      movedToDead += 1;
-      log('warn', 'moved_to_terminal_state', {
+      const { data: postFailure } = await sbAdmin
+        .from('outbox_events')
+        .select('retry_count')
+        .eq('id', claimed.id)
+        .maybeSingle();
+
+      if (postFailure && Number(postFailure.retry_count || 0) >= maxRetries) {
+        await markOutboxTerminal(sbAdmin, claimed.id, `retry limit reached (${maxRetries})`);
+        movedToDead += 1;
+        log('warn', 'moved_to_terminal_state', {
+          outbox_id: claimed.id,
+          event_type: claimed.event_type,
+          terminal_status: 'dead'
+        });
+      }
+    } catch (stateError) {
+      log('error', 'retry_state_write_failed', {
         outbox_id: claimed.id,
         event_type: claimed.event_type,
-        terminal_status: 'dead'
+        error: stateError?.message || 'unknown error'
       });
     }
   }

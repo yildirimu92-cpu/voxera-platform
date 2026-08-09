@@ -6,6 +6,8 @@
 // einer einzigen serverseitigen Kette). Gates/Verhalten bleiben unverändert -
 // nur der Aufrufer ändert sich.
 
+const { deliverMail, mailDeliveryResult } = require('./mail-delivery');
+
 function trimOrNull(value) {
   const normalized = String(value == null ? '' : value).trim();
   return normalized || null;
@@ -38,48 +40,17 @@ function contractFilename(contract) {
   return `Voxera-Vertrag-${safeName}.pdf`;
 }
 
-async function dispatchContractMail({ webhookUrl, payload }) {
-  if (!webhookUrl) {
-    return {
-      attempted: false,
-      accepted: false,
-      status: null,
-      error: 'MAKE_MAIL_WEBHOOK ist nicht konfiguriert.'
-    };
-  }
-
-  try {
-    const webhookResponse = await fetch(webhookUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-
-    if (!webhookResponse.ok) {
-      const responseText = await webhookResponse.text().catch(() => '');
-      return {
-        attempted: true,
-        accepted: false,
-        status: webhookResponse.status,
-        error: `Make webhook failed: ${webhookResponse.status}`,
-        response_excerpt: responseText.slice(0, 300) || null
-      };
-    }
-
-    return {
-      attempted: true,
-      accepted: true,
-      status: webhookResponse.status,
-      error: null
-    };
-  } catch (error) {
-    return {
-      attempted: true,
-      accepted: false,
-      status: null,
-      error: error?.message || 'Make webhook request failed.'
-    };
-  }
+// Frueher ein eigener, outbox-loser fetch mit eigenem Ergebnisformat. Jetzt nur
+// noch eine duenne Huelle um den gemeinsamen Versandweg, damit ein
+// fehlgeschlagener Vertragsmailversand genau wie jeder andere nachlieferbar
+// ist und im UI dasselbe Ergebnisobjekt ankommt.
+async function dispatchContractMail(sbAdmin, { payload, contractId }) {
+  return deliverMail(sbAdmin, {
+    mailType: 'contract_signed_email',
+    payload,
+    payloadSummary: `contract_signed_email -> ${payload?.recipient?.email || 'unbekannt'}`,
+    dedupeKey: contractId ? `contract_signed_email:${contractId}` : null
+  });
 }
 
 class CountersignError extends Error {
@@ -207,17 +178,12 @@ async function countersignContract({ sbAdmin, contractId, countersignName, count
     }
   };
 
-  let mailDelivery = {
-    attempted: false,
-    accepted: false,
-    status: null,
+  let mailDelivery = mailDeliveryResult({
     error: customerEmail ? null : 'Kunden-E-Mail fehlt.'
-  };
+  });
 
   if (customerEmail) {
-    const webhookUrl = process.env.MAKE_MAIL_WEBHOOK
-      || process.env.MAKE_COUNTERSIGN_WEBHOOK;
-    mailDelivery = await dispatchContractMail({ webhookUrl, payload });
+    mailDelivery = await dispatchContractMail(sbAdmin, { payload, contractId });
   }
 
   if (!mailDelivery.accepted) {

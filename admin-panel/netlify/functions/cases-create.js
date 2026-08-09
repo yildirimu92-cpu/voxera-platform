@@ -1,6 +1,9 @@
 const { createClient } = require('@supabase/supabase-js');
 const { requireAdminCaller } = require('./_lib/require-admin');
 const { createOutboxEvent, markOutboxSent, markOutboxFailed } = require('./_lib/webhook-outbox');
+// Eigener Make-Hook (MAKE_CASE_WEBHOOK), aber dasselbe Ergebnisformat wie die
+// Mail-Engine - sonst kann das UI den Zustellstatus nicht generisch pruefen.
+const { mailDeliveryResult } = require('./_lib/mail-delivery');
 const {
   mapManualTaskUiStatusToDb,
   DB_CASE_STATUS_VALUES,
@@ -191,11 +194,11 @@ exports.handler = async (event) => {
         const errMsg = `Case webhook failed: HTTP ${webhookRes.status}`;
         await markOutboxFailed(sbAdmin, outboxId, errMsg);
         console.error(JSON.stringify({ level: 'error', event: 'webhook_send_failed', event_type: 'case_mail_notification', outbox_id: outboxId, status: webhookRes.status }));
-        mailDelivery = { sent: false, outbox_id: outboxId, error: errMsg };
+        mailDelivery = mailDeliveryResult({ attempted: true, status: webhookRes.status, outboxId, error: errMsg });
       } else {
         await markOutboxSent(sbAdmin, outboxId);
         console.log(JSON.stringify({ level: 'info', event: 'webhook_send_succeeded', event_type: 'case_mail_notification', outbox_id: outboxId }));
-        mailDelivery = { sent: true, outbox_id: outboxId };
+        mailDelivery = mailDeliveryResult({ attempted: true, accepted: true, status: webhookRes.status, outboxId });
       }
     } catch (webhookErr) {
       const errMsg = webhookErr && webhookErr.message ? webhookErr.message : 'Case webhook failed';
@@ -203,7 +206,7 @@ exports.handler = async (event) => {
         await markOutboxFailed(sbAdmin, outboxId, errMsg);
       }
       console.warn('Case webhook failed (non-fatal):', errMsg);
-      mailDelivery = { sent: false, outbox_id: outboxId, error: errMsg };
+      mailDelivery = mailDeliveryResult({ attempted: true, outboxId, error: errMsg });
     }
   } else if (validTemplate !== 'none') {
     try {
@@ -214,11 +217,11 @@ exports.handler = async (event) => {
       });
       await markOutboxFailed(sbAdmin, outbox.id, 'MAKE_CASE_WEBHOOK not configured');
       console.error(JSON.stringify({ level: 'error', event: 'webhook_send_failed', event_type: 'case_mail_notification', outbox_id: outbox.id, reason: 'missing_webhook_env' }));
-      mailDelivery = { sent: false, outbox_id: outbox.id, error: 'MAKE_CASE_WEBHOOK not configured' };
+      mailDelivery = mailDeliveryResult({ outboxId: outbox.id, error: 'MAKE_CASE_WEBHOOK ist nicht konfiguriert.' });
     } catch (outboxErr) {
       const msg = outboxErr && outboxErr.message ? outboxErr.message : 'outbox insert failed';
       console.error(JSON.stringify({ level: 'error', event: 'outbox_insert_failed', event_type: 'case_mail_notification', customer_id: customerId, error: msg }));
-      mailDelivery = { sent: false, outbox_id: null, error: `Webhook-Outbox Fehler: ${msg}` };
+      mailDelivery = mailDeliveryResult({ error: `Webhook-Outbox Fehler: ${msg}` });
     }
   }
 
