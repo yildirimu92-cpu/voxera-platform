@@ -95,6 +95,7 @@ function buildCapabilities(customer, profile, calendarReady, calendarAttention) 
     || customer.new_log_email_active === true
     || customer.missed_call_email_active === true
     || Boolean(text(customer.phone_notification_to));
+  const faqConfigured = Boolean(text(customer.ai_booking_faq));
 
   let calls;
   if (lifecycle === 'paused') calls = status('attention', 'Pausiert', 'Der Assistent ist vorübergehend pausiert.');
@@ -144,6 +145,13 @@ function buildCapabilities(customer, profile, calendarReady, calendarAttention) 
       ...(notificationConfigured
         ? status('active', 'Aktiv', notificationDetail(customer))
         : status('inactive', 'Nicht eingerichtet', 'Benachrichtigungen können in den Einstellungen aktiviert werden.'))
+    },
+    {
+      id: 'faq',
+      title: 'Häufige Fragen beantworten',
+      ...(faqConfigured
+        ? status('active', 'Aktiv', 'Beantwortet häufige Fragen basierend auf Ihren hinterlegten Informationen.')
+        : status('inactive', 'Noch nicht hinterlegt', 'Es sind noch keine häufigen Fragen und Buchungshinweise hinterlegt.'))
     }
   ];
 }
