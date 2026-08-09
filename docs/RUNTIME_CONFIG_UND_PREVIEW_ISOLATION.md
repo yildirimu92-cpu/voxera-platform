@@ -108,10 +108,31 @@ Bleibt die Liste leer, zeigt die Variable weiterhin auf den falschen Hook.
 
 | | Erwartung |
 | --- | --- |
-| Produktion (`voxera.ch`, Admin) | unverändert; kein Hinweis-Overlay |
-| Beliebige Deploy-Preview | Overlay „Vorschau ohne Datenverbindung", Oberfläche dahinter sichtbar |
+| Produktion (`voxera.ch`, Admin) | unverändert; kein Hinweis |
+| Beliebige Deploy-Preview | Hinweiskarte „Vorschau ohne Datenverbindung" unten links, schliessbar; Oberfläche, Navigation und Tab-Leiste bleiben bedienbar |
 | Preview, DevTools-Konsole | `[vx-runtime-config] Keine Supabase-Zugangsdaten fuer diesen Kontext.` |
 | Preview, `window.__VX_RUNTIME_CONFIG__` | `{ configured: false, supabaseUrl: null, … }` |
+
+> **Korrektur 09.08. — zwei Zustände, bewusst verschieden.**
+>
+> Bis heute war der Hinweis in *jedem* Kontext ein deckendes Vollbild
+> (`position:fixed; inset:0; background:#0d1b2a`, kein Schliessen) — die
+> Oberfläche dahinter war *nicht* sichtbar, obwohl dieser Abschnitt und der
+> Hinweistext selbst das versprachen.
+>
+> **In der Preview** ist das Fehlen der Zugangsdaten der gewünschte Zustand.
+> Dort ist der Hinweis jetzt eine schliessbare Karte neben der Oberfläche:
+> Previews haben genau einen verbliebenen Zweck, nämlich Layout und Design zu
+> beurteilen, und ein Blocker macht ihn unmöglich.
+>
+> **Überall sonst ist es ein Defekt.** Der Supabase-Client bleibt `null`, und
+> `admin-panel/login.html` ruft in `doLogin()` ungeprüft `sb.auth` auf — wer
+> den Hinweis wegklickt, stünde vor einem Formular, das beim ersten Klick
+> stirbt. Dort bleibt es beim Blocker. Welche Fassung erzeugt wird, entscheidet
+> `CONTEXT` zur Build-Zeit; es landet immer nur eine von beiden im File.
+>
+> `scripts/verify-runtime-config-isolation.mjs` hält **beide** Hälften fest
+> (Abschnitt 6a/6b dort) und wurde in beide Richtungen gegengeprüft.
 
 ---
 
