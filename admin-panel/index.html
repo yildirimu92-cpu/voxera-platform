@@ -7244,7 +7244,21 @@ const CORE_FIELD_COLUMN_MAP = {
   coverage_mode: 'sprechstunden_modus',
   opening_hours: 'ai_opening_hours',
   appointment_mode: 'ai_appointment_mode',
-  online_booking_url: 'ai_online_booking_url'
+  online_booking_url: 'ai_online_booking_url',
+  // J6. ai_short_description gab es schon; sie wurde bisher an einer eigenen
+  // Stelle im Wizard gepflegt (d.shortDescription) und wird jetzt von Schicht A
+  // geschrieben. Ein zweiter Schreiber auf dieselbe Spalte stuende sonst
+  // daneben — derselbe Fall wie sprechstunden_modus bei J4.
+  short_description: 'ai_short_description',
+  public_address: 'ai_public_address',
+  target_groups: 'ai_target_groups',
+  service_area: 'ai_service_area',
+  arrival_note: 'ai_arrival_note',
+  visit_preparation: 'ai_visit_preparation',
+  pricing_mode: 'ai_pricing_mode',
+  pricing_amount: 'ai_pricing_amount',
+  pricing_unit: 'ai_pricing_unit',
+  pricing_validity: 'ai_pricing_validity'
 };
 
 function coreWizardValues(customer){
@@ -7593,7 +7607,6 @@ async function openAiWizard(customerId){
     greeting:        c?.ai_greeting       || '',
     voiceId:         c?.voice_id || '',
     websiteUrl:      c?.ai_website_url || '',
-    shortDescription:c?.ai_short_description || '',
     branchExtra:     c?.ai_branch_extra || {},
     // Schicht A: die Antworten liegen in typisierten Spalten, der Wizard
     // arbeitet aber mit den Schema-Schluesseln. Die Zuordnung steht in
@@ -7830,7 +7843,6 @@ async function wizardFinish(){
         ai_location_hours: d.locationHours||null,
         ai_booking_faq: d.bookingFaq||null,
         ai_website_url: d.websiteUrl || null,
-        ai_short_description: d.shortDescription || null,
         ai_branch_extra: d.branchExtra && Object.keys(d.branchExtra).length ? d.branchExtra : null,
         ...coreWizardPatch(d),
         ai_forwarding_1_name: d.forwarding1Name || null,
@@ -8064,11 +8076,15 @@ function renderWizardStepWebsite(data){
     </div>`:''; 
   return `${analysisCard}<div class="wizard-field"><label>Website URL</label><input class="input" id="wz-website-url" value="${esc(data.websiteUrl||'')}" placeholder="https://...">
   <div style="margin-top:8px;"><button type="button" class="btn btn-secondary btn-sm" onclick="wizardScrapeWebsite()" id="wz-scrape-btn">Automatisch auslesen</button><span id="wz-scrape-feedback" style="margin-left:8px;font-size:12px;color:var(--slate2);"></span></div></div>
-  <div class="wizard-field"><label>Kurzbeschreibung</label><textarea class="textarea" id="wz-short-description">${escNl(data.shortDescription||'')}</textarea></div>`;
+  `;
 }
+// J6: Die Kurzbeschreibung stand hier als eigenes Feld und schrieb ueber
+// praxisPatch nach ai_short_description. Dieselbe Spalte gehoert seit J6 zu
+// Schicht A und wird dort erfragt (Schritt "Was Sie anbieten"). Zwei Felder auf
+// eine Spalte waeren derselbe Fall wie sprechstunden_modus bei J4 -- wer welchen
+// Wert gewinnt, haenge dann an der Reihenfolge im Patch-Objekt.
 function collectWizardStepWebsite(data){
   data.websiteUrl=document.getElementById('wz-website-url')?.value.trim()||'';
-  data.shortDescription=document.getElementById('wz-short-description')?.value.trim()||'';
 }
 function getBranchExtraFields(templateId){ return WIZARD_BRANCH_EXTRA_FIELDS[templateId] || []; }
 function renderWizardStepBrancheExtra(data){
@@ -16651,8 +16667,12 @@ async function wizardScrapeWebsite(){
     const scraped=json.data||{};
     // Nur leere Felder befüllen (nie überschreiben) + _scrapedFields tracken
     d._scrapedFields = d._scrapedFields || [];
+    // Getrennte Ziele, getrennte Bedingungen: die Kurzbeschreibung gehoert seit
+    // J6 zu Schicht A und darf nicht daran haengen, ob die ausfuehrliche
+    // Beschreibung schon gefuellt ist.
+    if(scraped.short_description && !d.short_description) d.short_description=scraped.short_description;
+    if(scraped.target_groups && !d.target_groups) d.target_groups=scraped.target_groups;
     if(scraped.short_description && !d.businessDescription){
-      d.shortDescription=scraped.short_description;
       d.businessDescription=scraped.short_description;
       d._scrapedFields.push('businessDescription');
     }

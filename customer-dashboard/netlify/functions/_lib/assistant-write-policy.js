@@ -66,7 +66,20 @@ const PROMPT_RELEVANT_FIELDS = new Set([
   // J5: bestaetigte Oeffnungszeiten. Sie stehen als eigener Prompt-Abschnitt
   // mit Vorrang vor dem Freitext -- ohne Sync spraeche der Agent weiter die
   // alten Zeiten aus, waehrend das Dashboard die neuen zeigt.
-  'ai_opening_hours'
+  'ai_opening_hours',
+  // J6: die uebrigen Schicht-A-Felder. `ai_short_description` steht seit J6 im
+  // Abschnitt GESCHÄFTSPROFIL, die vier Preisteile im Abschnitt PREISAUSKUNFT --
+  // sie sind damit genauso prompt-wirksam wie die Felder darueber.
+  'ai_short_description',
+  'ai_public_address',
+  'ai_target_groups',
+  'ai_service_area',
+  'ai_arrival_note',
+  'ai_visit_preparation',
+  'ai_pricing_mode',
+  'ai_pricing_amount',
+  'ai_pricing_unit',
+  'ai_pricing_validity'
 ]);
 
 // Die sieben Spalten, die der Kunde ueber den Weiterleitungs-Editor bearbeitet.

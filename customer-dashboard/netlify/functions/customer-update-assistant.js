@@ -43,7 +43,13 @@ const BRANCH_TEXT_LIMIT = 400;
 // Schreibberechtigung auf plan_code, status oder elevenlabs_agent_id.
 // Dieselbe Liste steht in _lib/prompt-builder-v2.js und in
 // customer-assistant-profile.js; die drei gehoeren zusammen gepflegt.
-const CORE_FIELD_COLUMNS = new Set(['sprechstunden_modus', 'ai_appointment_mode', 'ai_online_booking_url', 'ai_opening_hours']);
+const CORE_FIELD_COLUMNS = new Set([
+  'sprechstunden_modus', 'ai_appointment_mode', 'ai_online_booking_url', 'ai_opening_hours',
+  // J6
+  'ai_short_description', 'ai_public_address', 'ai_target_groups', 'ai_service_area',
+  'ai_arrival_note', 'ai_visit_preparation',
+  'ai_pricing_mode', 'ai_pricing_amount', 'ai_pricing_unit', 'ai_pricing_validity'
+]);
 const CORE_TEXT_LIMIT = 400;
 
 // Alle Spalten, die dieser Endpoint schreiben kann. Sie werden vor dem Patch

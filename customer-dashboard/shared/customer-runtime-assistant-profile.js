@@ -699,6 +699,18 @@
     document.getElementById('vx-business-profile-save')?.addEventListener('click', saveBusiness);
     document.getElementById('vx-core-save')?.addEventListener('click', saveCore);
     document.getElementById('vx-hours-apply')?.addEventListener('click', applyHoursSuggestion);
+    // J6: bedingte Felder folgen der Auswahl sofort, nicht erst nach dem
+    // Speichern. Ein Feld, das erst nach einem Neuladen verschwindet, wirkt wie
+    // ein Fehler und wird trotzdem ausgefüllt.
+    document.querySelectorAll('[data-vx-core-key], [data-vx-branch-key]').forEach((node) => {
+      node.addEventListener('change', applyFieldVisibility);
+    });
+    document.querySelectorAll('[data-vx-suggest]').forEach((node) => node.addEventListener('click', () => {
+      const field = document.querySelector('[data-vx-core-key="' + node.dataset.vxSuggest + '"]');
+      if (!field || !node.dataset.vxSuggestValue) return;
+      field.value = node.dataset.vxSuggestValue;
+      field.focus();
+    }));
     document.getElementById('vx-branch-save')?.addEventListener('click', saveBranch);
     restoreStatus('business');
   }
@@ -770,6 +782,48 @@
     return week;
   }
 
+  // J6: Ein Feld kann an der Antwort eines anderen haengen — der Buchungslink an
+  // der Terminbefugnis, Betrag und Einheit an der Preisart. Ausgewertet wird die
+  // Bedingung hier und nur fuer die Darstellung. Was gespeichert werden darf,
+  // entscheidet weiterhin allein der Schreibpfad; ein ausgeblendetes Feld
+  // behaelt seinen gespeicherten Wert, statt ihn stillschweigend zu verlieren.
+  // Beim Aufbau der Zeichenkette steht das steuernde Feld noch nicht im
+  // Dokument — hier zaehlt deshalb der gespeicherte Wert. Was der Kunde
+  // waehrend der Bearbeitung umstellt, faengt applyFieldVisibility() ab.
+  function fieldVisible(field, scope) {
+    if (!field.show_if) return true;
+    return field.show_if.in.indexOf(String(storedValue(field.show_if.key, scope) || '')) >= 0;
+  }
+
+  function storedValue(key, scope) {
+    const sections = (scope === 'core' ? profile?.core_sections : profile?.branch_sections) || [];
+    for (const section of sections) {
+      const match = (section.fields || []).find((item) => item.key === key);
+      if (match) return match.value;
+    }
+    return '';
+  }
+
+  function applyFieldVisibility() {
+    document.querySelectorAll('[data-vx-showif-key]').forEach((node) => {
+      const control = document.querySelector('[data-vx-' + node.dataset.vxShowifScope + '-key="' + node.dataset.vxShowifKey + '"]');
+      const current = control ? String(control.value || '') : '';
+      node.hidden = String(node.dataset.vxShowifIn || '').split('|').indexOf(current) < 0;
+    });
+  }
+
+  // Der Vorschlag fuellt das Feld, speichert aber nicht. Gleiche Regel wie beim
+  // Oeffnungszeiten-Vorschlag aus J5: uebernommen ist noch nicht bestaetigt.
+  function suggestionRow(field) {
+    const value = profile?.core_suggestions?.[field.suggestion];
+    if (!field.suggestion || !value || field.value) return '';
+    return '<div class="vx-ap-field-suggest">'
+      + '<span>Aus Ihren Stammdaten: ' + esc(value) + '</span>'
+      + '<button type="button" class="vx-ap-btn vx-ap-btn--ghost" data-vx-suggest="' + esc(field.key) + '"'
+      + ' data-vx-suggest-value="' + esc(value) + '"' + (busy ? ' disabled' : '') + '>Übernehmen</button>'
+      + '</div>';
+  }
+
   function schemaField(field, scope) {
     if (field.type === 'hours') return hoursField(field);
     const id = 'vx-' + scope + '-' + field.key;
@@ -790,7 +844,12 @@
       control = '<input id="' + esc(id) + '" ' + attr + '="' + esc(field.key) + '" maxlength="400" value="' + esc(field.value) + '" placeholder="' + esc(field.placeholder) + '"'
         + (busy ? ' disabled' : '') + '>';
     }
-    return '<div class="vx-ap-field"><label for="' + esc(id) + '">' + esc(field.label) + '</label>' + control + hint + '</div>';
+    const gate = field.show_if
+      ? ' data-vx-showif-key="' + esc(field.show_if.key) + '" data-vx-showif-in="' + esc(field.show_if.in.join('|')) + '"'
+        + ' data-vx-showif-scope="' + esc(scope) + '"' + (fieldVisible(field, scope) ? '' : ' hidden')
+      : '';
+    return '<div class="vx-ap-field"' + gate + '><label for="' + esc(id) + '">' + esc(field.label) + '</label>'
+      + control + hint + suggestionRow(field) + '</div>';
   }
 
   function branchField(field) { return schemaField(field, 'branch'); }
@@ -833,7 +892,7 @@
     const sections = profile?.core_sections || [];
     if (!sections.length) return '';
     return '<div class="vx-ap-card"><div class="vx-ap-head"><div><div class="vx-ap-title">Ihr Betrieb</div>'
-      + '<div class="vx-ap-meta">Grundangaben zur Erreichbarkeit und zu Terminen. '
+      + '<div class="vx-ap-meta">Erreichbarkeit, Termine, Anfahrt und Preisauskunft. '
       + 'Sie gelten unabhängig von Ihrer Branche; was leer bleibt, erwähnt Ihr Assistent nicht.</div></div></div>'
       + sections.map((section) => (
         '<div class="vx-ap-subsection">'

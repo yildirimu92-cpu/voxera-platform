@@ -959,6 +959,10 @@ body.vx-customer-design-foundation .vx-ap-hours-dash { opacity: .6; padding: 0 2
 body.vx-customer-design-foundation .vx-ap-hours-state { font-size: 12px; opacity: .7; white-space: nowrap; }
 body.vx-customer-design-foundation .vx-ap-suggestion { margin-top: var(--vx-space-4, 16px); padding: var(--vx-space-3, 12px); border: 1px dashed var(--vx-color-border, currentColor); border-radius: var(--vx-radius-md, 10px); display: grid; gap: 6px; }
 body.vx-customer-design-foundation .vx-ap-suggestion-title { font-size: 13px; font-weight: 600; }
+/* J6 — Vorschlag an einem einzelnen Feld, nicht an der ganzen Karte. Deshalb
+   eine Zeile unter dem Eingabefeld statt eines zweiten Kastens: der Bezug zum
+   Feld darüber muss ohne Überschrift erkennbar bleiben. */
+body.vx-customer-design-foundation .vx-ap-field-suggest { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--vx-space-2, 8px); margin-top: 6px; font-size: 12px; opacity: .85; }
 @media (max-width: 560px) {
   body.vx-customer-design-foundation .vx-ap-hours-row { grid-template-columns: 1fr auto; }
   body.vx-customer-design-foundation .vx-ap-hours-slots { grid-column: 1 / -1; }

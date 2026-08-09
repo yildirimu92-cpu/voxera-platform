@@ -90,10 +90,14 @@
     });
   }
 
+  // J6 / Abschnitt 3.1 der Diagnose: Bis hierher klebte die Website-Analyse die
+  // Zielgruppen als Zeile "Zielgruppen: …" in die Unternehmensbeschreibung. Der
+  // Kunde sah danach einen Absatz, in dem zwei verschiedene Angaben steckten,
+  // und konnte die eine nicht aendern, ohne die andere anzufassen. Die
+  // Zielgruppen haben seit J6 ein eigenes Feld (Schicht A, ai_target_groups) und
+  // werden dort uebernommen.
   function websiteBusinessDescription(scraped) {
-    const description = wizardText(scraped?.short_description);
-    const targetGroups = wizardText(scraped?.target_groups);
-    return [description, targetGroups ? 'Zielgruppen: ' + targetGroups : ''].filter(Boolean).join('\n');
+    return wizardText(scraped?.short_description);
   }
 
   function websitePromptFunctions(scraped) {
@@ -110,7 +114,8 @@
       : {};
     const candidates = [
       ['businessDescription', websiteBusinessDescription(scraped), config.businessDescription, defaults],
-      ['shortDescription', scraped.short_description, customer.ai_short_description, { shortDescription:'' }],
+      ['short_description', scraped.short_description, customer.ai_short_description, { short_description:'' }],
+      ['target_groups', scraped.target_groups, customer.ai_target_groups, { target_groups:'' }],
       ['services', scraped.services, config.services, defaults],
       ['locationHours', (data.customerType || 'company') === 'company' ? scraped.location_hours : '', config.locationHours, defaults],
       ['bookingFaq', scraped.frequent_questions, config.bookingFaq, defaults]
@@ -167,7 +172,8 @@
     };
 
     apply('businessDescription', websiteBusinessDescription(scraped), config.businessDescription);
-    apply('shortDescription', scraped.short_description, customer.ai_short_description, { shortDescription:'' });
+    apply('short_description', scraped.short_description, customer.ai_short_description, { short_description:'' });
+    apply('target_groups', scraped.target_groups, customer.ai_target_groups, { target_groups:'' });
     apply('services', scraped.services, config.services);
     if ((data.customerType || 'company') === 'company') {
       apply('locationHours', scraped.location_hours, config.locationHours);

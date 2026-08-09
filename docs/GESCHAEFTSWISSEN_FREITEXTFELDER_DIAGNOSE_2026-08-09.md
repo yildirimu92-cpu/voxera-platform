@@ -1,7 +1,7 @@
 # Geschäftswissen — die vier Freitextfelder: Diagnose und Zielbild
 
 **Datum:** 09.08.2026 · **Nachtrag 09.08.** nach Freigabe (Abschnitt 11)
-**Status:** Diagnose abgeschlossen. **J1, J2, J10 und J4 sind gemergt und auf Produktion** (PR #876, Migration `20260809145741`). **J5 ist im Code umgesetzt, seine Migration gegen Staging geprüft und noch nicht auf Produktion** (Abschnitt 11.12). J6–J9 stehen aus; J3 ist als eigener Auftrag nach J5 eingeplant.
+**Status:** Diagnose abgeschlossen. **J1, J2, J10, J4 und J5 sind gemergt und auf Produktion.** **J6 ist im Code umgesetzt und gegen Staging geprüft, seine Migration ist noch nicht auf Produktion** (Abschnitt 11.14). J7–J9 stehen aus; J3/F5 ist als eigener Auftrag nach J6 eingeplant, G9 danach.
 **Prüfstand:** `main` @ `f21187e`, Produktionsdatenbank `ulcofbgrovgcvowdjrge` (Live-Abfragen, nicht aus Dokumenten übernommen). Staging (`hzqiyyqfchvfcmmbemvd`) enthält aktuell 0 Kunden.
 **Grundlage:** Auftrag „Freitextfelder im Geschäftswissen — Diagnose zuerst" (09.08.), Live-Test-Fund #3 aus PR #859, `docs/ASSISTENT_TAB_IA_DIAGNOSE_2026-08-09.md` (Abschnitte 5 und 11).
 
@@ -631,3 +631,43 @@ Ausserdem gelöst: ein Komma trennt mal Segmente („Mo–Fr 08:00–12:00, Sa 0
 - **J4 ist nicht an einer laufenden Datenbank erprobt.** Die Migration ist geschrieben und ihr heikelster Teil — die Vorlagenbereinigung — als `SELECT` gegen die Produktionsdaten geprüft. Angewendet ist sie nicht. Dass Lese- und Schreibpfad gegen die neuen Spalten tatsächlich funktionieren, ist an Fixtures und Sandbox-Tests belegt, nicht an einem echten Request.
 - **Das Kunden-UI und der Admin-Wizard sind nicht im Browser geklickt.** Die neue Karte „Ihr Betrieb" und der neue Wizard-Schritt sind über Quelltextprüfungen und die Syntaxprüfung aller vier Inline-Skriptblöcke abgesichert. Wie sie aussehen, ist nicht gesehen worden.
 - **Der Regex-Zuschnitt ist an 31 Vorlagen-Markierungen kalibriert, nicht an Kundentexten.** Schreibt ein Kunde eckige Klammern regulär und kurz, werden sie ersetzt. Ich halte das für den richtigen Kompromiss, es ist aber eine Abwägung und keine bewiesene Nebenwirkungsfreiheit.
+
+### 11.14 J6 — die restlichen Schicht-A-Felder, das Preisfeld und ein Fehler aus J5
+
+**Was dazugekommen ist.** Neun neue Spalten und eine angeschlossene bestehende, alle über denselben Mechanismus wie J4/J5 (Schema in `system_config.core_field_steps`, Spalten-Allowlist im Code):
+
+| Schlüssel | Spalte | Form |
+|---|---|---|
+| `short_description` | `ai_short_description` (bestand bereits) | Textfeld |
+| `target_groups` | `ai_target_groups` | Textfeld |
+| `service_area` | `ai_service_area` | Zeile |
+| `public_address` | `ai_public_address` | Zeile mit Vorschlag |
+| `arrival_note` | `ai_arrival_note` | Textfeld |
+| `visit_preparation` | `ai_visit_preparation` | Textfeld |
+| `pricing_mode` | `ai_pricing_mode` | Auswahl, DB-Constraint |
+| `pricing_amount` / `pricing_unit` / `pricing_validity` | `ai_pricing_amount` / `_unit` / `_validity` | Zeilen, nur bei Preisart sichtbar |
+
+**Das Preisfeld (Entscheid F4).** Vier typisierte Teile statt eines Freitextfelds; der Builder formuliert den Satz („Richtwert: ab CHF 120 pro Stunde. (Stand 2026)") und hängt einen Baustein an, den kein Kundenfeld erreicht: „Preise sind Richtwerte und keine verbindliche Zusage." Dazu eine neue Zeile in den `VERBINDLICHE SICHERHEITSREGELN`. Der Abschnitt `## PREISAUSKUNFT` steht **immer** im Prompt, auch leer — dann mit der Anweisung, keine Beträge zu nennen und eine Offerte anzubieten. Vorher gab es zur Preisfrage gar keine Regel, das Modell entschied selbst.
+
+**Gegen den ursprünglichen Entwurf abgewichen:** Vier Spalten statt einem `jsonb`. Ein zusammengesetzter Feldtyp hätte in beiden Oberflächen einen neuen Renderer gebraucht, ohne die Angabe besser zu speichern.
+
+**Die Rechtsfrage bleibt offen und ist nicht durch diese Umsetzung beantwortet.** Das Feld ist technisch da und die Voreinstellung ist „keine Preise nennen". Ob eine so gesprochene Angabe unter OR als Antrag gilt, gehört zur juristischen Prüfung, an der auch der Launch-Blocker „Haftung/Versicherung" hängt.
+
+**Die Adresse (G7) wird vorgeschlagen, nicht übernommen.** `street`/`zip`/`city` sind bei allen vier Kunden gefüllt — sie stammen aber aus Offerte und Vertrag (`offer-street`, `ow-street`) und sind damit die Rechnungsadresse. Sie ungefragt als Betriebsadresse zu sprechen wäre derselbe Fehler wie der unbestätigte Default in `sprechstunden_modus`, den J4 zurücknehmen musste. Die Oberfläche bietet sie mit einem Knopf an; gespeichert wird nur, was der Kunde abschickt.
+
+**Eine Doppelung aufgelöst.** `ai_short_description` hatte zwei Schreiber: das eigene Wizard-Feld („Kurzbeschreibung" im Website-Schritt) und ab J6 Schicht A. Welcher gewinnt, hing an der Reihenfolge im Patch-Objekt. Das alte Feld ist entfallen. Ausserdem klebte `websiteBusinessDescription()` die Zielgruppen als Zeile „Zielgruppen: …" in die Unternehmensbeschreibung (Abschnitt 3.1) — sie gehen jetzt in ihr eigenes Feld.
+
+**Neuer Befund, im Zuge von J6 gefunden und behoben: J5 war in der Kundenoberfläche wirkungslos.** `buildBranchSections()` in `customer-assistant-profile.js` liess den Feldtyp `hours` nicht durch — die Typenliste kannte nur `radio`, `text` und `textarea`, alles andere wurde auf `text` heruntergestuft. Die Geschäftsprofil-Seite zeigte deshalb statt des Wochenrasters ein leeres Textfeld, dessen Inhalt der Schreibpfad anschliessend als ungültiges Raster abgewiesen hätte; ein gespeichertes Raster wäre als `[object Object]` erschienen. Sichtbar wurde das nicht, weil kein Kunde bestätigte Zeiten hat und die Prüfskripte den Endpoint nie mit einem Wochenraster-Feld aufgerufen haben. Der Test dazu ruft jetzt `buildBranchSections()` selbst auf statt den Quelltext zu lesen.
+
+**Bedingte Felder.** Der Buchungslink wird nur noch gefragt, wenn überhaupt Termine vergeben werden; Betrag und Einheit nur bei gewählter Preisart. Die Bedingung (`show_if`) ist bewusst schmal — ein Schlüssel und eine Werteliste, sonst nichts — und entscheidet ausschliesslich über die Darstellung. Ein ausgeblendetes Feld behält seinen gespeicherten Wert; der Builder unterdrückt den Buchungslink zusätzlich bei Terminbefugnis „none", damit eine alte Antwort nicht durch die Hintertür weiterwirkt.
+
+**Staging-Lauf (09.08.).** Staging trug die J4/J5-Änderungen nicht mehr (`ai_appointment_mode` und `ai_opening_hours` fehlten, `core_field_steps` war leer). Der Ausgangszustand wurde erst hergestellt, dann J6 angewendet: 4 Schritte, 14 Felder, kein Feld ausserhalb der Spalten-Allowlist, Struktur deckungsgleich mit der Migrationsdatei. Verhaltensprobe an einer Wegwerfzeile: gültige Preisangabe angenommen, `ai_pricing_mode = 'verhandelbar'` von der Constraint abgewiesen, die übrigen Spalten nehmen Text; die Probezeile wurde wieder gelöscht.
+
+### 11.15 Was nach J6 unbewiesen bleibt
+
+- Alles aus 11.13 gilt weiter, soweit es nicht ausdrücklich erledigt ist.
+- **Der Preisbaustein ist nicht juristisch geprüft.** Das ist keine technische Lücke, sondern eine bewusst offene Frage.
+- **Die neuen Felder sind nicht im Browser bedient.** Vier Unterabschnitte in einer Karte, drei davon neu — wie das auf einem Telefon wirkt, ist ungesehen.
+- **Der Adressvorschlag ist an keinem echten Klick geprüft.** Dass er das Feld füllt und nichts speichert, ist an der Verdrahtung belegt.
+- **`sprechstunden_zeiten` bleibt liegen.** Die Spalte existiert (jsonb, überall `null`, an genau einer Stelle im Admin gelesen) und ist damit ein viertes Zuhause für Öffnungszeiten neben `ai_opening_hours`, `ai_location_hours` und `calendar_settings.business_hours`. Gehört zu G9.
+- **`ai_business_description` und `ai_short_description` bleiben zwei Felder mit derselben Quelle.** Die Website-Analyse schreibt denselben Text in beide. Der Builder fängt das ab (er stellt den Absatz nicht zweimal untereinander), die Frage, ob es beide Felder braucht, gehört zu J7.

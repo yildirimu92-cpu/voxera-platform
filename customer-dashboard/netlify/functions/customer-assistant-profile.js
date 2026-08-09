@@ -24,7 +24,24 @@ const text = (value) => String(value == null ? '' : value).trim();
 // der ueberhaupt zulaessigen Spalten gehoert in den Code, sonst waere eine
 // Zeile in system_config eine Leseberechtigung auf beliebige Kundenspalten.
 // Aenderungen hier und in _lib/prompt-builder-v2.js gehoeren zusammen.
-const CORE_FIELD_COLUMNS = new Set(['sprechstunden_modus', 'ai_appointment_mode', 'ai_online_booking_url', 'ai_opening_hours']);
+const CORE_FIELD_COLUMNS = new Set([
+  'sprechstunden_modus', 'ai_appointment_mode', 'ai_online_booking_url', 'ai_opening_hours',
+  // J6
+  'ai_short_description', 'ai_public_address', 'ai_target_groups', 'ai_service_area',
+  'ai_arrival_note', 'ai_visit_preparation',
+  'ai_pricing_mode', 'ai_pricing_amount', 'ai_pricing_unit', 'ai_pricing_validity'
+]);
+
+// J6 / G7: street, zip und city sind gefuellt, stammen aber aus Offerte und
+// Vertrag und sind damit die Rechnungsadresse. Sie werden deshalb
+// vorgeschlagen und nicht uebernommen -- dieselbe Trennung wie beim
+// Oeffnungszeiten-Vorschlag aus J5: was der Agent am Telefon sagt, hat der
+// Kunde bestaetigt. Der Vorschlag wird nie gespeichert, er reist nur mit.
+function addressSuggestion(customer) {
+  const street = text(customer?.street);
+  const place = [text(customer?.zip), text(customer?.city)].filter(Boolean).join(' ');
+  return [street, place].filter(Boolean).join(', ');
+}
 
 function parseCoreSteps(value) {
   if (Array.isArray(value)) return value;
@@ -295,6 +312,22 @@ const VOXERA_RULES = Object.freeze([
 // (industry_templates.extra_steps), die Werte aus dem Kunden. Der Renderer
 // erfindet keine Felder — gibt es keine Vorlage oder keine extra_steps, ist die
 // Liste leer und das UI sagt genau das.
+function objectOrText(raw) {
+  if (raw && typeof raw === 'object' && !Array.isArray(raw)) return raw;
+  return text(raw);
+}
+
+// Eng gefasst: ein Schluessel und eine Werteliste, sonst nichts. Damit ist die
+// Bedingung nicht ausdrucksstark genug, um aus einer Zeile in system_config
+// eine Logik zu bauen, die die Oberflaeche ueberrascht.
+function showCondition(raw) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const key = text(raw.key);
+  const values = (Array.isArray(raw.in) ? raw.in : []).map((item) => text(item)).filter(Boolean);
+  if (!key || !values.length) return null;
+  return { key, in: values };
+}
+
 function buildBranchSections(template, values) {
   const steps = Array.isArray(template?.extra_steps) ? template.extra_steps : [];
   return steps.map((step) => ({
@@ -308,11 +341,26 @@ function buildBranchSections(template, values) {
         label: text(field.label) || text(field.key),
         hint: text(field.hint),
         placeholder: text(field.placeholder),
-        type: ['radio', 'text', 'textarea'].includes(text(field.type)) ? text(field.type) : 'text',
+        // `hours` fehlte hier bis J6. Der Typ wurde damit auf `text`
+        // heruntergestuft, und die Oberflaeche zeigte statt des Wochenrasters
+        // ein leeres Textfeld — beim Speichern wies der Schreibpfad die Zeile
+        // dann als ungueltiges Raster ab. Der Fehler stammt aus J5 (PR #882)
+        // und war dort nicht sichtbar, weil kein Kunde bestaetigte Zeiten
+        // hatte und die Pruefskripte den Endpoint nicht mit einem
+        // Wochenraster-Feld aufgerufen haben.
+        type: ['radio', 'text', 'textarea', 'hours'].includes(text(field.type)) ? text(field.type) : 'text',
         options: (Array.isArray(field.options) ? field.options : [])
           .filter((option) => text(option?.val))
           .map((option) => ({ value: text(option.val), label: text(option.label) || text(option.val), hint: text(option.sub) })),
-        value: text(values?.[text(field.key)])
+        // J6: Bedingte Sichtbarkeit. Die Bedingung wird hier nur durchgereicht
+        // und in der Oberflaeche ausgewertet — sie entscheidet ueber die
+        // Darstellung, nie darueber, was gespeichert werden darf. Diese Frage
+        // beantwortet allein CORE_FIELD_COLUMNS im Schreibpfad.
+        show_if: showCondition(field.show_if),
+        suggestion: typeof field.suggestion === 'string' ? (text(field.suggestion) || null) : null,
+        // Ein Wochenraster ist ein Objekt und darf nicht durch text() — daraus
+        // wuerde "[object Object]" im Formular.
+        value: objectOrText(values?.[text(field.key)])
       }))
   })).filter((step) => step.fields.length > 0);
 }
@@ -404,7 +452,12 @@ exports.handler = async (event) => {
       'ai_emergency_number', 'ai_forwarding_1_name', 'ai_forwarding_1_number', 'ai_forwarding_1_trigger',
       'ai_forwarding_2_name', 'ai_forwarding_2_number', 'ai_forwarding_2_trigger',
       'ai_response_constraints', 'ai_language', 'ai_branch_extra', 'industry_template_id',
-      'sprechstunden_modus', 'ai_appointment_mode', 'ai_online_booking_url', 'ai_opening_hours'
+      'sprechstunden_modus', 'ai_appointment_mode', 'ai_online_booking_url', 'ai_opening_hours',
+      'ai_short_description', 'ai_public_address', 'ai_target_groups', 'ai_service_area',
+      'ai_arrival_note', 'ai_visit_preparation',
+      'ai_pricing_mode', 'ai_pricing_amount', 'ai_pricing_unit', 'ai_pricing_validity',
+      // Nur als Quelle fuer den Adressvorschlag, siehe addressSuggestion().
+      'street', 'zip', 'city'
     ].join(','))
     .eq('id', caller.customerId)
     .maybeSingle();
@@ -584,6 +637,12 @@ exports.handler = async (event) => {
       suggestion: coreValueMap.opening_hours ? null : openingHoursSuggestion.hours,
       unparsed_lines: coreValueMap.opening_hours ? [] : openingHoursSuggestion.ignored,
       source_text: text(customer.ai_location_hours) || null
+    },
+    // J6: Vorschlagswerte fuer einzelne Schicht-A-Felder. Der Schluessel ist der
+    // Schema-Schluessel; die Oberflaeche bietet den Wert nur an, wenn das Feld
+    // noch leer ist. Gespeichert wird ausschliesslich, was der Kunde abschickt.
+    core_suggestions: {
+      public_address: coreValueMap.public_address ? null : (addressSuggestion(customer) || null)
     },
     branch_sections: buildBranchSections(industryResult.data, branchValues(customer)),
     operational_updates: {
