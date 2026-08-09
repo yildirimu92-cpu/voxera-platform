@@ -17,6 +17,20 @@ create table if not exists public.telephony_number_assignment_audit (
 );
 alter table public.telephony_numbers enable row level security;
 alter table public.telephony_number_assignment_audit enable row level security;
+
+-- Nachgetragen 2026-08-09: RLS stand hier, die Grants nicht. Beide Tabellen
+-- tragen deshalb in Produktion weiterhin die Default-Privileges fuer anon und
+-- authenticated. Das ist kein offener Zugriff -- RLS ist an und es gibt keine
+-- einzige Policy, anon bekommt also keine Zeile -, aber es ist der Guertel,
+-- der bei der Sicherungstabelle aus 2026-08-09_notification_mode_gating.sql
+-- gefehlt hat, wo RLS eben NICHT an war.
+--
+-- Auf Produktion sind die Grants damit nicht entfernt: diese Migration ist dort
+-- bereits gelaufen, und beide Tabellen gehoeren einem anderen Arbeitsstrang.
+-- Der Nachtrag haelt die Absicht fest; das Nachziehen auf Produktion ist als
+-- Befund gemeldet und bewusst nicht im Vorbeigehen gemacht worden.
+revoke all on public.telephony_numbers from anon, authenticated;
+revoke all on public.telephony_number_assignment_audit from anon, authenticated;
 create or replace function public.assign_twilio_number(p_customer_id text,p_number_sid text,p_phone_e164 text,p_actor_id text default null,p_voice_url text default null)
 returns setof public.telephony_numbers language plpgsql security definer set search_path=public as $$
 declare v_other text;v_previous_customer text;v_previous_number text;v_now timestamptz:=now();

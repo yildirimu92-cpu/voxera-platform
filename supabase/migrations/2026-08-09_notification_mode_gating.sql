@@ -51,6 +51,32 @@ select
   now() as backed_up_at
 from public.customers;
 
+-- Eine Sicherungstabelle ist eine Kopie der Kundendaten und muss genauso
+-- geschuetzt sein wie das Original.
+--
+-- Das stand hier zunaechst NICHT, und das war ein echter Fehler mit Wirkung in
+-- Produktion: CREATE TABLE AS legt in public an, RLS ist fuer neue Tabellen
+-- aus, und die Default-Privileges des Projekts geben anon und authenticated
+-- dort ALL. Die Kopie war ueber die oeffentliche API les- und schreibbar,
+-- bis sie nachtraeglich gehaertet wurde.
+--
+-- Bitterer Beleg dafuer, dass die Regel nicht von selbst mitkommt: die
+-- Admin-Migration derselben Nacht (2026-08-09_admin_notification_settings.sql)
+-- begruendet genau diese Haertung ausdruecklich und verweist dabei auf den
+-- notifications-Vorfall vom 08.08. Zwei Dateien weiter fehlte sie trotzdem --
+-- weil eine Sicherungstabelle nicht wie ein Feature aussieht.
+--
+-- Gelesen wird sie ausschliesslich vom Rueckbau-Skript, das als Service-Role
+-- laeuft. anon und authenticated brauchen hier nichts.
+alter table public.customers_notification_backup_20260809 enable row level security;
+revoke all on public.customers_notification_backup_20260809 from anon;
+revoke all on public.customers_notification_backup_20260809 from authenticated;
+
+comment on table public.customers_notification_backup_20260809 is
+  'Sicherung vor dem Gating-Wechsel. Enthaelt Kundendaten. Nur ueber Service-Role '
+  'erreichbar (RLS an, keine Policy, keine Grants fuer anon/authenticated). '
+  'Kann geloescht werden, sobald der Rueckbau nicht mehr in Frage kommt.';
+
 -- ── 1. Werksstandard festschreiben ──────────────────────────────────────────
 --
 -- Drift, die dabei auffiel (Befund B6): supabase/sql/2026-04-07_notification_

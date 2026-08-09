@@ -422,3 +422,30 @@ Defaults korrigiert: `notification_mode` bleibt `callback_only`, `new_log_email_
 2. **Diesen Branch mergen und deployen** — danach.
 
 Ein Fund am Rande: PR #857 ist auf `main` (`deliverMail` in `ai-change-request-create.js`), trotzdem steht `outbox_events` bei null `ai_change_request`-Zeilen. Entweder ist seit dem Merge keine Änderungsanfrage eingegangen, oder der Pfad kommt noch nicht durch. Beim nächsten Testlauf mitprüfen.
+
+
+---
+
+# Nachtrag 3: Ungeschützte Sicherungstabelle (09.08.)
+
+**Mein Fehler, mit Wirkung in Produktion.** Die Sicherung in `2026-08-09_notification_mode_gating.sql` wurde per `CREATE TABLE AS` angelegt — und nur die Kopie, nicht ihr Schutz. `CREATE TABLE AS` erzeugt eine Tabelle mit RLS aus, und die Default-Privileges des Projekts geben `anon` und `authenticated` in `public` **ALL**. Die Kopie enthielt `id` und die Benachrichtigungseinstellungen aller vier Produktionskunden und war über die öffentliche API nicht nur les-, sondern auch schreibbar (`SELECT, INSERT, UPDATE, DELETE` für `anon`).
+
+**Was besonders ärgerlich ist:** die Admin-Migration derselben Nacht begründet genau diese Härtung ausdrücklich und verweist dabei auf den `notifications`-Vorfall vom 08.08. Die Regel war bekannt und zwei Dateien weiter trotzdem nicht angewandt — weil eine Sicherungstabelle nicht wie ein Feature aussieht und die Aufmerksamkeit am Zweck der Migration hing, nicht an ihrem Nebenprodukt.
+
+## Korrektur
+
+- **Produktion geschlossen:** RLS an, `revoke all` für `anon` und `authenticated`. Nachher-Zustand verifiziert: RLS aktiv, null Policies, keine Browser-Grants.
+- **Migrationsdatei nachgezogen**, damit ein Replay auf Staging oder ein Restore das Loch nicht neu aufreisst.
+- **Gesamtscan Produktion:** keine weitere Tabelle in `public` ohne RLS, die für `anon`/`authenticated` erreichbar wäre.
+
+## Der Guard
+
+`scripts/verify-migration-table-hardening.mjs` prüft jede Migration in `supabase/migrations/`: jede dort angelegte Tabelle in `public` muss in derselben Datei RLS einschalten und den Browser-Zugriff regeln (Revoke für beide Rollen oder eine ausdrückliche Policy). Bewusste Ausnahmen sind möglich, müssen sich aber mit `-- HARDENING-AUSNAHME: <Begründung>` erklären.
+
+Gegenprobe bestanden: entfernt man die Härtung aus der Gating-Migration wieder, meldet der Guard beide Verstösse.
+
+Zwei Fehlalarme des Guards unterwegs gefangen und behoben — er kannte anfangs nur `revoke ... from anon` einzeln und nicht die Sammelform `from anon, authenticated` bzw. die Schreibweise `on table public.x`, und meldete dadurch acht bzw. eine Migration fälschlich als ungehärtet. Ein Wächter, der falsch Alarm schlägt, wird genauso ignoriert wie einer, der schweigt.
+
+## Ein Befund am Rande, nicht von mir angefasst
+
+`telephony_numbers` und `telephony_number_assignment_audit` tragen in Produktion weiterhin die Default-Grants für `anon`/`authenticated`. **Das ist kein offener Zugriff** — RLS ist an und es gibt keine einzige Policy, `anon` bekommt dort keine Zeile. Es fehlt nur der Gürtel zum Hosenträger. Die Migrationsdatei ist nachgezogen; das Nachziehen auf Produktion habe ich **nicht** im Vorbeigehen gemacht, weil beide Tabellen einem anderen Arbeitsstrang gehören. Ein `revoke all ... from anon, authenticated` auf beiden wäre der Abschluss — deine Entscheidung.
