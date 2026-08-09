@@ -161,7 +161,7 @@
   }
 
   function bind() {
-    document.querySelectorAll('[data-calendar-connect]').forEach((node) => node.addEventListener('click', () => connect(node.dataset.calendarConnect)));
+    document.querySelectorAll('[data-calendar-connect]').forEach((node) => node.addEventListener('click', () => connect(node.dataset.calendarConnect, node)));
     document.querySelectorAll('[data-calendar-test]').forEach((node) => node.addEventListener('click', () => test(node.dataset.calendarTest, node)));
     document.querySelectorAll('[data-calendar-disconnect]').forEach((node) => node.addEventListener('click', () => disconnect(node.dataset.calendarDisconnect, node)));
     document.querySelectorAll('[data-calendar-select]').forEach((node) => node.addEventListener('change', () => selectCalendar(node.dataset.calendarSelect, node.value)));
@@ -206,25 +206,20 @@
     }
   }
 
-  async function connect(provider) {
+  async function connect(provider, button) {
     if (busy) return;
+    busy = true;
     try {
-      busy = true;
-      render();
-      setStatus(providerLabels[provider] + ' wird vorbereitet …', 'loading');
-      const result = await call({ action: 'oauth_start', provider });
-      const popup = root.open(result.authorize_url, 'voxera-calendar-oauth', 'width=620,height=760,resizable=yes,scrollbars=yes');
-      if (!popup) throw new Error('Popup wurde blockiert. Bitte Popups für Voxera erlauben.');
-      setStatus('Anmeldung wurde in einem neuen Fenster geöffnet.', 'loading');
+      await root.vxInlineSaveStatus(button, async () => {
+        const result = await call({ action: 'oauth_start', provider });
+        const popup = root.open(result.authorize_url, 'voxera-calendar-oauth', 'width=620,height=760,resizable=yes,scrollbars=yes');
+        if (!popup) throw new Error('Popup wurde blockiert. Bitte Popups für Voxera erlauben.');
+      }, { savingLabel: 'Verbindet …', doneLabel: 'Fenster geöffnet ✓' });
     } catch (error) {
-      busy = false;
-      render();
       setStatus(error?.message || 'Verbindung konnte nicht gestartet werden.', 'error');
-      return;
+    } finally {
+      busy = false;
     }
-    busy = false;
-    render();
-    setStatus('Anmeldung wurde in einem neuen Fenster geöffnet.', 'loading');
   }
 
   function test(provider, button) {

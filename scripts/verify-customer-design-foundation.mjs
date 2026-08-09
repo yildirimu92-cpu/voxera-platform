@@ -532,7 +532,7 @@ for (const [name, css] of [
 }
 
 assert.match(loader, /customer-runtime-case-intake\.js\?v=20260808-1/);
-assert.match(loader, /customer-runtime-calendar-settings\.js\?v=20260808-1/);
+assert.match(loader, /customer-runtime-calendar-settings\.js\?v=20260809-1/);
 assert.match(loader, /customer-runtime-assistant-status\.js\?v=20260803-1/);
 assert.match(loader, /customer-runtime-design-foundation\.js\?v=20260808-1/);
 assert.match(loader, /__voxeraCustomerCaseIntakeLoaded/);
