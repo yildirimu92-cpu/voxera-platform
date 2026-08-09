@@ -2705,7 +2705,9 @@ body.vx-detail-v2-open #confirm-overlay.open {
   height:100%;width:0%;
   background:linear-gradient(90deg,#4B9FFF 0%,var(--blue) 68%,#1560C8 100%);
   border-radius:999px;
-  transition:width 1.3s cubic-bezier(0.4,0,0.2,1);
+  /* Kurz genug, um jedem echten Boot-Meilenstein (30/60/90/100%) einzeln
+     hinterherzukommen, statt einmal lang von 0 auf 100 durchzulaufen. */
+  transition:width .45s cubic-bezier(0.4,0,0.2,1);
 }
 @keyframes splashPulse{
   0%,100%{transform:translateY(0);box-shadow:0 12px 32px rgba(13,31,60,.18);}
@@ -19742,7 +19744,11 @@ function handleIncomingBannerClick() {
 // ═══════════════════════════════════════════
 //  LOAD DATA
 // ═══════════════════════════════════════════
-async function loadData() {
+// onMilestone(pct): optionaler Callback fuer den Login-Splash-Balken
+// (siehe showApp/runInitialLoader) - meldet echte Ladeschritte (60% nach
+// Datenabruf, 90% nach Rendering). Bei den vielen anderen loadData()-Aufrufen
+// (Polling, Realtime, nach Save-Aktionen) bleibt der Parameter einfach weg.
+async function loadData(onMilestone) {
   // ── Concurrency Guard ─────────────────────────────────────────────────────
   // Verhindert parallele loadData-Laeufe (Realtime + Polling + focus + confirm
   // koennen gleichzeitig feuern). Ohne Guard ueberschreibt der langsamere Lauf
@@ -19787,6 +19793,7 @@ async function loadData() {
     allManualTaskRecords = manualTasks;
     window.allRecords = allRecords;
     window.allManualTaskRecords = allManualTaskRecords;
+    if (typeof onMilestone === 'function') onMilestone(60); // erste Daten geladen
     _vxNotifDataReady = true;
     if (_vxNotifLoaded) {
       vxBellUpdateBadge();
@@ -19823,6 +19830,7 @@ async function loadData() {
     // Loader erst nach allen Render-Operationen verstecken – atomar
     var loadingEl = document.getElementById('dash-loading');
     if (loadingEl) loadingEl.style.display = 'none';
+    if (typeof onMilestone === 'function') onMilestone(90); // Rendering fertig
 
   } catch(e) {
     const rawMsg = String((e && e.message) || 'Unbekannter Fehler');
@@ -28978,6 +28986,14 @@ function showLogin(reason) {
   // Anmeldeversuch in showApp() sofort wieder abbricht.
   vxInvalidateAppBoot();
   setLogoutButtonsLoading(false);
+  // Ein Boot-Abbruch (z.B. Sitzung waehrend des Ladens ungueltig geworden)
+  // darf den Balken nicht einfach zu Ende laufen lassen, waehrend die
+  // Fehlermeldung schon dahinter wartet - der Splash weicht sofort.
+  var splash = document.getElementById('splash-screen');
+  if (splash && splash.classList.contains('visible')) {
+    splash.classList.remove('visible', 'fading');
+    vxSetSplashProgress(0);
+  }
   var app = document.getElementById('app');
   if (app) app.style.display = 'none';
   var login = document.getElementById('login-screen');
@@ -29021,16 +29037,24 @@ async function handleLogout(triggerEl, beforeLogout) {
   }
 }
 
+// Setzt den Splash-Balken auf einen echten Boot-Meilenstein (30/60/90/100),
+// statt ihn per fester Animationsdauer unabhaengig vom tatsaechlichen
+// Ladefortschritt durchlaufen zu lassen. Einzige Stelle, die die Bar-Breite
+// anfasst - showSplash/runInitialLoader/showLogin rufen nur noch das hier.
+function vxSetSplashProgress(pct) {
+  var bar = document.getElementById('splash-bar');
+  if (bar) bar.style.width = Math.max(0, Math.min(100, Number(pct) || 0)) + '%';
+}
+
 function showSplash(onDone) {
   var splash = document.getElementById('splash-screen');
-  var bar = document.getElementById('splash-bar');
   if (!splash) { onDone && onDone(); return; }
   // Show
   splash.classList.add('visible');
   // Animate bar
   requestAnimationFrame(function() {
     requestAnimationFrame(function() {
-      if (bar) bar.style.width = '100%';
+      vxSetSplashProgress(100);
     });
   });
   // After 1.4s fade out
@@ -29038,7 +29062,7 @@ function showSplash(onDone) {
     splash.classList.add('fading');
     setTimeout(function() {
       splash.classList.remove('visible','fading');
-      if (bar) bar.style.width = '0%';
+      vxSetSplashProgress(0);
       onDone && onDone();
     }, 300);
   }, 1400);
@@ -29050,17 +29074,21 @@ function delay(ms) {
   });
 }
 
+// loadPromise darf optional Fortschritts-Meilensteine ueber onMilestone(pct)
+// melden (siehe loadData()). Der Balken haengt so an echten Ladeschritten
+// statt an einer festen Animationsdauer - und wird im finally IMMER auf
+// 100% gebracht, egal ob loadPromise erfolgreich war oder fehlgeschlagen
+// ist, damit er nie auf einem Zwischenstand haengen bleibt.
 async function runInitialLoader(loadPromise, options) {
   var opts = options || {};
   var minVisibleMs = Number(opts.minVisibleMs || 1000);
   var splash = document.getElementById('splash-screen');
-  var bar = document.getElementById('splash-bar');
   var startedAt = Date.now();
   if (splash) {
     splash.classList.add('visible');
     requestAnimationFrame(function() {
       requestAnimationFrame(function() {
-        if (bar) bar.style.width = '100%';
+        vxSetSplashProgress(30); // Skript geladen, Auth-Check bestanden
       });
     });
   }
@@ -29068,6 +29096,7 @@ async function runInitialLoader(loadPromise, options) {
   try {
     await loadPromise;
   } finally {
+    vxSetSplashProgress(100);
     var elapsed = Date.now() - startedAt;
     if (elapsed < minVisibleMs) {
       await delay(minVisibleMs - elapsed);
@@ -29077,7 +29106,7 @@ async function runInitialLoader(loadPromise, options) {
       await delay(300);
       splash.classList.remove('visible', 'fading');
     }
-    if (bar) bar.style.width = '0%';
+    vxSetSplashProgress(0);
   }
 }
 
@@ -29117,7 +29146,10 @@ function showApp(user) {
   var savedSound = localStorage.getItem('voxera_sound_type') || 'warm';
   selectSound(savedSound, true);
 
-  var initialLoadSequence = loadData().then(function() {
+  var initialLoadSequence = loadData(function(pct) {
+    if (bootGeneration !== vxAppBootGeneration) return;
+    vxSetSplashProgress(pct);
+  }).then(function() {
     if (bootGeneration !== vxAppBootGeneration) return;
     hasCompletedInitialDashboardLoad = true;
     var firstName = customerMeta.contactFirstName || (customerMeta.customerName ? customerMeta.customerName.split(' ')[0] : '') || fallbackName;
