@@ -1,7 +1,7 @@
 # Geschäftswissen — die vier Freitextfelder: Diagnose und Zielbild
 
 **Datum:** 09.08.2026 · **Nachtrag 09.08.** nach Freigabe (Abschnitt 11)
-**Status:** Diagnose abgeschlossen. **J1, J2, J10 und J4 sind freigegeben und umgesetzt** (Abschnitt 11). J5–J9 stehen aus; J3 ist als eigener Auftrag nach J5 entschieden.
+**Status:** Diagnose abgeschlossen. J1, J2 und J10 sind umgesetzt. **J4 ist im Code umgesetzt, seine Migration aber angehalten** — der Staging-Lauf hat einen Konflikt mit einer bestehenden Spalte gefunden (Abschnitt 11.8). J5–J9 stehen aus.
 **Prüfstand:** `main` @ `f21187e`, Produktionsdatenbank `ulcofbgrovgcvowdjrge` (Live-Abfragen, nicht aus Dokumenten übernommen). Staging (`hzqiyyqfchvfcmmbemvd`) enthält aktuell 0 Kunden.
 **Grundlage:** Auftrag „Freitextfelder im Geschäftswissen — Diagnose zuerst" (09.08.), Live-Test-Fund #3 aus PR #859, `docs/ASSISTENT_TAB_IA_DIAGNOSE_2026-08-09.md` (Abschnitte 5 und 11).
 
@@ -445,7 +445,9 @@ Entfernt wurden `resolvePromptVariables()`, `buildCustomerLayer()`, `buildAiProm
 
 `openAiPreview()` baut nichts mehr, sondern zeigt eine ausdrückliche Nicht-Verfügbarkeit. Der Rückfallpfad in `admin-runtime-prompt-builder-v2.js` ruft nicht mehr den lokalen Bauer auf, sondern setzt denselben Text und entfernt die Qualitätsanzeige, damit keine Restanzeige einen geladenen Zustand vortäuscht. Der Toast lautet neu „Vorschau nicht verfügbar" statt „lokale Vorschau angezeigt".
 
-**Beim Entfernen zusätzlich gefunden:** Der Client-Bauer setzte bei fehlender Notfallnummer **`112` als Standard** ein (`index.html:16027` alt) — und las dafür `customer.notfallnummer_lebensgefahr`, ein Feld, das es auf `customers` gar nicht gibt. Der Wert war also immer der erfundene Standard. Der Server macht das ausdrücklich nicht: `PLACEHOLDER_FALLBACKS` verweist auf den allgemeinen Notruf, statt eine Nummer zu setzen. Das ist genau der Fehlertyp, den die Sicherheitsregeln verbieten — er lag im Rückfallpfad und ist mit dessen Entfernung weg.
+**Beim Entfernen zusätzlich gefunden:** Der Client-Bauer setzte bei fehlender Notfallnummer **`112` als Standard** ein (`index.html:16027` alt), gelesen aus `customer.notfallnummer_lebensgefahr`.
+
+> **Korrektur (09.08., beim Staging-Lauf geprüft).** Ich hatte hier geschrieben, dieses Feld gebe es auf `customers` gar nicht und der Wert sei „immer der erfundene Standard" gewesen. **Beides war falsch.** `customers.notfallnummer_lebensgefahr` existiert, mit Spalten-Default `'144'`, und trägt bei allen vier Kunden `144`. Der `112`-Rückfall hätte also nur bei einem ausdrücklich auf `NULL` gesetzten Wert gegriffen — bei keinem heutigen Kunden. Richtig bleibt: im entfernten Pfad stand eine fest verdrahtete Ersatznummer, die niemand konfiguriert hatte. Die Schwere hatte ich überzeichnet; der Befund selbst bleibt bestehen und ist mit dem Entfernen erledigt. Der Server macht es weiterhin ausdrücklich anders: `PLACEHOLDER_FALLBACKS` verweist auf den allgemeinen Notruf, statt eine Nummer zu setzen.
 
 **Aufgeräumt:** `state.promptMasterL1` war nach dem Entfernen ohne Leser und ist samt seiner beiden Zuweisungen entfallen. Der L1-Master-Prompt wird nur noch serverseitig gelesen.
 
@@ -494,9 +496,49 @@ Entfernt wurden `resolvePromptVariables()`, `buildCustomerLayer()`, `buildAiProm
 
 **Zwei J1-Tests wurden ersetzt, nicht gelöscht:** Sie prüften das kuratierte Verhalten von `termin_modus`/`booking_url`, das es so nicht mehr gibt. An ihre Stelle treten Tests der neuen Regel, einschliesslich der konservativen Abbildung des Altvokabulars.
 
-> **Zum Ausrollen — bitte lesen.** Die Migration `supabase/migrations/2026-08-09_core_field_layer.sql` ist **geschrieben, aber nicht angewendet**. Ich habe sie bewusst nicht gegen die Produktionsdatenbank ausgeführt: sie legt Spalten an, ändert Vorlagendaten und ist damit kein Schritt, den ich ohne ausdrückliche Freigabe gehe. **Reihenfolge zwingend: erst Migration, dann Deploy.** Umgekehrt lesen die Netlify-Funktionen Spalten, die es noch nicht gibt, und `customers`-Abfragen schlagen fehl. Der einzige Teil, der ohne Migration weiterläuft, ist das fehlende Schema: dann bleibt der generische Abschnitt leer und der Screen zeigt genau das, was er vor J4 zeigte.
+> **Angehalten — siehe 11.8.** Der Staging-Lauf hat gezeigt, dass `customers.sprechstunden_modus` bereits existiert; `ai_coverage_mode` wäre eine Doppelung. Die Migration wird vor dem Anwenden überarbeitet. Der übrige Absatz gilt unverändert. Die Migration `supabase/migrations/2026-08-09_core_field_layer.sql` ist **geschrieben, aber nicht angewendet**. Ich habe sie bewusst nicht gegen die Produktionsdatenbank ausgeführt: sie legt Spalten an, ändert Vorlagendaten und ist damit kein Schritt, den ich ohne ausdrückliche Freigabe gehe. **Reihenfolge zwingend: erst Migration, dann Deploy.** Umgekehrt lesen die Netlify-Funktionen Spalten, die es noch nicht gibt, und `customers`-Abfragen schlagen fehl. Der einzige Teil, der ohne Migration weiterläuft, ist das fehlende Schema: dann bleibt der generische Abschnitt leer und der Screen zeigt genau das, was er vor J4 zeigte.
 
-### 11.8 Was nach J1, J2, J10 und J4 unbewiesen bleibt
+### 11.8 Staging-Lauf der J4-Migration — mechanisch sauber, inhaltlich blockiert
+
+**Gegen `hzqiyyqfchvfcmmbemvd` ausgeführt, danach vollständig zurückgebaut** (Testkunde, Testvorlagen, Schema-Zeile, beide Spalten und beide Constraints entfernt; Staging steht wieder bei 0 Kunden, 0 Vorlagen, 0 Testspalten).
+
+Staging hatte weder Kunden noch Vorlagen. Ein blosser Durchlauf hätte deshalb den heikelsten Teil — die Vorlagenbereinigung — gegen nichts laufen lassen. Ich habe stattdessen sechs Testvorlagen angelegt, die gezielt die Grenzfälle abbilden. Das Ergebnis der Echtdaten kannte ich bereits aus dem `SELECT`-Trockenlauf gegen die Produktion.
+
+| Prüfung | Ergebnis |
+|---|---|
+| Spalten, Constraints, Kommentare | angelegt wie geschrieben |
+| Schema-Zeile in `system_config` | gültiges JSON, 1 Schritt, 3 Felder, Ziele `ai_coverage_mode`, `ai_appointment_mode`, `ai_online_booking_url` |
+| Schritt nur mit Kernfeldern | verschwindet vollständig (1 → 0 Schritte) |
+| Schritt gemischt | Kernfelder raus, `spezialgebiet` bleibt, Schritt überlebt |
+| Vorlage ohne Kernfelder | unverändert |
+| `extra_steps = '[]'` und `= null` | unverändert, kein Fehler |
+| Feld ohne `key` | bleibt erhalten, `termin_modus` daneben entfernt |
+| **Zweiter Lauf derselben Migration** | identisches Ergebnis, kein Fehler — wiederholbar |
+| Gültige Werte (`backup`, `direct`) | akzeptiert |
+| Ungültiger Wert (`immer_alles`) | von `customers_ai_coverage_mode_check` abgewiesen (23514) |
+
+Zusätzlich vorab geprüft und bestätigt: `system_config.key` ist Primärschlüssel, `on conflict (key)` also gültig. Das war eine ungeprüfte Annahme in meiner Migration.
+
+**Der blockierende Fund.** Die Fehlermeldung des Constraint-Tests zeigte im Zeileninhalt einen Wert `rund_um_die_uhr` in einer Spalte, die ich nicht angelegt hatte. Nachgeprüft:
+
+**`customers.sprechstunden_modus` existiert bereits** — `text`, Spalten-Default `'rund_um_die_uhr'`, bei allen vier Kunden auf genau diesem Default. Der Admin-Wizard liest sie vor (`index.html:7567`, `knownCustomerKeys`) und schreibt sie zurück (`:7736`, `praxisPatch`). Mein `ai_coverage_mode` wäre damit ein **zweites Zuhause für dieselbe Angabe** — genau die Doppelung, die dieser Auftrag beseitigt.
+
+Das erklärt zugleich G3 genauer, als die Diagnose es konnte: `sprechstunden_modus` erreichte den Prompt nicht, weil der Wizard die Antwort in eine **eigene Spalte** schrieb, während der Builder `ai_branch_extra` und die `[WIZARD]`-Zeile liest. Geschrieben wurde sie also durchaus — nur an einen Ort, den niemand liest.
+
+**Neuer Befund G9 — vier weitere Schlüssel haben zwei bis drei Speicherorte.** `notfallnummer_lebensgefahr`, `notfallnummer_dringend`, `notfall_service_name` und `spezialgebiet` existieren **gleichzeitig** als `customers`-Spalten (vom Admin-Wizard geschrieben) und als Felder in `extra_steps` von `facharzt`, `garage`, `versicherung` und `kosmetik` (vom Kundendashboard nach `ai_branch_extra` geschrieben). Der Prompt-Builder liest nur `ai_branch_extra`/`[WIZARD]`. Zwei Schreiber, zwei Speicher, ein Leser — dieselbe Familie wie G3 und D4. Bei der Notfallnummer sind es sogar drei Orte: `customers.notfallnummer_lebensgefahr` (bei allen vier Kunden `144`), `customers.ai_emergency_number` (ebenfalls `144`, und die einzige, die der Builder liest) und das Vorlagenfeld gleichen Namens.
+
+**Was das für J4 bedeutet.** Der Code steht und ist getestet; nur die Spaltenwahl für ein Feld ist falsch. Zwei Wege:
+
+| | Vorgehen | Bewertung |
+|---|---|---|
+| **A (Empfehlung)** | `coverage_mode` zielt auf die bestehende `sprechstunden_modus` statt auf eine neue Spalte; `ai_coverage_mode` entfällt. Zusätzlich den Spalten-Default entfernen, damit „nicht beantwortet" überhaupt darstellbar ist. | Keine Doppelung, nutzt was da ist — dieselbe Linie wie bei `ai_online_booking_url`. Eine Änderung an Migration, drei Codestellen und den Fixtures. |
+| B | `ai_coverage_mode` behalten, `sprechstunden_modus` später stilllegen | Erzeugt genau die Doppelung, gegen die dieser Auftrag angetreten ist, und verschiebt die Arbeit. |
+
+**Eine Nebenfrage, die dabei entsteht und die ich nicht allein entscheide:** Der Default `rund_um_die_uhr` steht bei allen vier Kunden. Ob ihn jemand gewählt hat oder ob er nie angefasst wurde, lässt sich am Wert nicht unterscheiden — der Wizard schreibt bei unveränderter Vorauswahl denselben Wert. Rendert Schicht A ihn in den Prompt, behauptet der Agent eine Erreichbarkeitsregel, die möglicherweise niemand gewählt hat. Sauber wäre, die vier Werte auf `NULL` zu setzen und die Frage neu stellen zu lassen; das ist aber eine Änderung an Kundendaten und deshalb eine Entscheidung des Users, keine von mir.
+
+**Die Migration ist deshalb angehalten und nicht auf Produktion angewendet.** Auf Produktion wurde in dieser Runde ausschliesslich gelesen.
+
+### 11.9 Was nach J1, J2, J10 und J4 unbewiesen bleibt
 
 - **Kein Live-Anruf.** Dass die 23 Felder jetzt *wirken*, ist am gebauten Prompt geprüft, nicht am Telefon. Der Prompt enthält die Angaben nachweislich — ob das Modell sie befolgt, ist damit nicht gezeigt.
 - **Kein Kunde hat heute Branchenantworten.** `ai_branch_extra` ist bei allen 4 Kunden `null`. J1 ist also an Fixtures geprüft, die den Vorlagen nachgebaut sind, nicht an echten Antworten. Der erste Kunde mit ausgefüllten Branchenfeldern ist der eigentliche Test.
