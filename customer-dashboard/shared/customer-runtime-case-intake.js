@@ -87,7 +87,7 @@
         });
         setFeedback(feedback, '✓ Anfrage wurde als Support-Case erfasst.', 'success');
         overlay.querySelector('#vox-support-message').value = '';
-        if (typeof w.toast === 'function') w.toast('Support-Anfrage erfasst');
+        if (typeof w.toast === 'function') w.toast('Support-Anfrage erfasst', 'success');
         setTimeout(close, 1100);
       } catch (error) {
         setFeedback(feedback, `Fehler: ${error.message}`, 'error');

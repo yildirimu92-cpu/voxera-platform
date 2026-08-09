@@ -284,7 +284,7 @@
       s.submitting = false;
       s.submitted = true;
       render();
-      if (typeof root.toast === 'function') root.toast(s.type === 'extra_minutes' ? 'Bestellung erhalten.' : 'Anfrage erhalten.');
+      if (typeof root.toast === 'function') root.toast(s.type === 'extra_minutes' ? 'Bestellung erhalten.' : 'Anfrage erhalten.', 'success');
     } catch (error) {
       s.submitting = false;
       render();

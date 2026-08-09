@@ -71,7 +71,7 @@
 
       opening = false;
       if (!openSupportFallback() && typeof root.toast === 'function') {
-        root.toast('Hilfe konnte nicht geöffnet werden.');
+        root.toast('Hilfe konnte nicht geöffnet werden.', 'error');
       }
     };
 

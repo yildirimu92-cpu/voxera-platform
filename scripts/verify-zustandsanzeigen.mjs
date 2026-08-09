@@ -123,7 +123,10 @@ function fnBody(signature) {
     't-success': '--vx-color-success',
     't-info': '--vx-color-info',
     't-warning': '--vx-color-warning',
-    't-error': '--vx-color-danger'
+    't-error': '--vx-color-danger',
+    // Fünfte Klasse, aber keine fünfte Bedeutung: "keine Tonalität angegeben"
+    // ist Night, also Marke.
+    't-neutral': '--vx-color-night'
   };
   for (const [cls, token] of Object.entries(roles)) {
     const rule = block(`.toast.${cls}`);
@@ -131,18 +134,128 @@ function fnBody(signature) {
       `.toast.${cls} zeigt nicht mehr auf ${token} — Tonalität eingeebnet oder hartkodiert`);
   }
 
-  // Die vier SVG-Icons dürfen keine eigenen Farbwerte mehr mitbringen: sonst
-  // gäbe es wieder zwei Quellen für dieselbe Entscheidung.
-  const icons = source.slice(source.indexOf('var icons = {'), source.indexOf('var icons = {') + 1600);
+  // Die SVG-Icons dürfen keine eigenen Farbwerte mehr mitbringen: sonst gäbe
+  // es wieder zwei Quellen für dieselbe Entscheidung.
+  const icons = source.slice(source.indexOf('var icons = {'), source.indexOf('var icons = {') + 2200);
   assert.ok(!/stroke="#/.test(icons),
     'die Toast-Icons tragen wieder feste Hexwerte statt currentColor');
-  assert.equal((icons.match(/stroke="currentColor"/g) || []).length, 4,
-    'es sind nicht mehr genau vier Toast-Icons auf currentColor — eine Tonalität fehlt oder ist hartkodiert');
+  assert.equal((icons.match(/stroke="currentColor"/g) || []).length, 5,
+    'es sind nicht mehr genau fünf Toast-Icons auf currentColor (vier Tonalitäten + neutral)');
 
   // Der Container muss die Tonalitätsklasse bekommen, sonst greifen weder
   // Kante noch Kachel.
   assert.ok(source.includes("el.className = 'toast t-' + t;"),
     'toast() setzt die Tonalitätsklasse nicht mehr am Container');
+}
+
+// ── 3b. Die Tonalität wird nie mehr aus dem Meldungstext geraten ────────────
+{
+  const fn = fnBody('function toast(msg, type)');
+
+  // Die alte Ableitung entschied über zwei Drittel aller Farbrollen und lag
+  // systematisch daneben: "kein/keine" kommt in keinem ihrer Muster vor, also
+  // wurden "Keine Telefonnummer vorhanden" und "Kein Code verfügbar" grün.
+  assert.ok(!/inferredType/.test(fn) && !/\.test\(rawMsg\)/.test(fn),
+    'toast() rät die Tonalität wieder aus dem Meldungstext — genau die Heuristik, die "Keine Nummer vorhanden" grün gefärbt hat');
+  assert.ok(/TOAST_TONES\[type\] \? type : 'neutral'/.test(fn),
+    'toast() faellt bei fehlender Tonalität nicht mehr auf neutral zurück');
+  assert.ok(/icons\[t\] \|\| icons\.neutral/.test(fn),
+    'der Icon-Rückfall behauptet wieder eine Tonalität (frueher icons.success) statt neutral zu bleiben');
+}
+
+// ── 3c. Wächter: jeder Aufruf nennt seine Tonalität ─────────────────────────
+{
+  // Der eigentliche Schutz gegen den Rückfall. Ohne ihn schreibt der nächste
+  // Aufruf wieder toast('Keine Nummer vorhanden') — nur dass die Meldung
+  // jetzt nicht mehr grün, sondern still tonlos wäre. Beides ist eine
+  // vergessene Entscheidung, und die soll auffallen.
+  //
+  // Die Obergrenze ist bewusst eine Zahl und keine Null-Toleranz-Regel: sie
+  // darf sinken, nie steigen. Steht sie auf 0, ist der Zustand erreicht und
+  // die Regel wird zur Null-Toleranz-Regel, ohne dass jemand sie umschreiben
+  // muss.
+  const ERLAUBT_OHNE_TONALITAET = 0;
+
+  const files = [
+    ['customer-dashboard/index.html', source],
+    ...['customer-runtime-commercial-controller.js', 'customer-runtime-case-intake.js', 'customer-runtime-help-route.js']
+      .map((f) => [`customer-dashboard/shared/${f}`, fs.readFileSync(`customer-dashboard/shared/${f}`, 'utf8')])
+  ];
+
+  function splitArgs(inner) {
+    const out = [];
+    let depth = 0, cur = '', quote = null;
+    for (const ch of inner) {
+      if (quote) { cur += ch; if (ch === quote) quote = null; continue; }
+      if (ch === '"' || ch === "'" || ch === '`') { quote = ch; cur += ch; continue; }
+      if ('([{'.includes(ch)) depth += 1;
+      if (')]}'.includes(ch)) depth -= 1;
+      if (ch === ',' && depth === 0) { out.push(cur.trim()); cur = ''; continue; }
+      cur += ch;
+    }
+    if (cur.trim()) out.push(cur.trim());
+    return out;
+  }
+
+  const offenders = [];
+  for (const [name, text] of files) {
+    // Kommentare ausblenden, ohne Offsets zu verschieben — sonst zählt eine
+    // Erwähnung wie "laeuft NICHT ueber toast()" als Aufrufstelle. HTML-
+    // Kommentare gehören dazu: der erste Lauf dieses Wächters meldete
+    // prompt seinen eigenen Erklärtext neben dem Toast-Markup.
+    const masked = text
+      .replace(/<!--[\s\S]*?-->/g, (m) => m.replace(/[^\n]/g, ' '))
+      .replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, ' '))
+      .split('\n').map((l) => l.replace(/\/\/.*$/, (m) => ' '.repeat(m.length))).join('\n');
+
+    // Der Empfänger muss mitgelesen werden: die Shared-Module rufen defensiv
+    // über root.toast() / w.toast() auf. Eine reine /(?<![\w.$])toast\(/-Suche
+    // übersieht sie vollständig — die Gegenprobe hat genau das aufgedeckt,
+    // nachdem der Wächter für index.html längst grün war.
+    for (const m of masked.matchAll(/(?<![\w$])((?:root|w|window|globalThis)\.)?(showToast|toast)\s*\(/g)) {
+      // Ohne bekannten Empfänger darf kein Punkt davorstehen — sonst zählt
+      // jede fremde .toast()-Methode mit.
+      if (!m[1] && m.index > 0 && text[m.index - 1] === '.') continue;
+      let depth = 0, end = -1;
+      for (let i = m.index + m[0].length - 1; i < text.length; i += 1) {
+        if (text[i] === '(') depth += 1;
+        else if (text[i] === ')') { depth -= 1; if (depth === 0) { end = i; break; } }
+      }
+      if (end === -1) continue;
+      const call = text.slice(m.index, end + 1);
+      // Der showToast()-Adapter reicht den Typ durch und ist selbst keine
+      // Aufrufstelle.
+      if (call.startsWith("toast(String(msg")) continue;
+      if (splitArgs(text.slice(m.index + m[0].length, end)).length >= 2) continue;
+      offenders.push(`${name}:${text.slice(0, m.index).split('\n').length} ${call.slice(0, 80)}`);
+    }
+  }
+
+  assert.ok(
+    offenders.length <= ERLAUBT_OHNE_TONALITAET,
+    `${offenders.length} Toast-Aufruf(e) ohne explizite Tonalität (erlaubt: ${ERLAUBT_OHNE_TONALITAET}).\n`
+    + 'Die Farbrolle entscheidet sonst niemand — sie fällt still auf neutral.\n'
+    + 'Einordnung: success = Aktion abgeschlossen · error = Aktion fehlgeschlagen ·\n'
+    + 'warning = Eingabe/Entscheidung fehlt oder Voraussetzung nicht erfüllt ·\n'
+    + 'info = nichts fehlgeschlagen, nichts erreicht (reine Zustandsauskunft).\n'
+    + offenders.map((o) => '  ' + o).join('\n')
+  );
+
+  // Und in die Gegenrichtung: die Obergrenze darf nicht heimlich angehoben
+  // werden, um einen neuen untypisierten Aufruf durchzulassen.
+  assert.ok(ERLAUBT_OHNE_TONALITAET === 0,
+    'die Obergrenze für untypisierte Toast-Aufrufe wurde wieder angehoben — sie darf nur sinken');
+}
+
+// ── 3d. Kein Emoji mehr als dritter Tonalitäts-Träger ───────────────────────
+{
+  // Das Emoji war der Behelf einer Zeit, in der die vier Tonalitäten praktisch
+  // gleich aussahen. Neben einem Icon derselben Bedeutung ist es Doppelung —
+  // und in mehreren Fällen widersprach es sogar der gesetzten Rolle.
+  const offenders = [...source.matchAll(/(?<![\w.$])(showToast|toast)\s*\(\s*['"](⚠️|⚠|✓|✗)/g)]
+    .map((m) => source.slice(0, m.index).split('\n').length);
+  assert.equal(offenders.length, 0,
+    `Toast-Meldung beginnt wieder mit einem Zustands-Emoji (Zeile ${offenders.join(', ')}) — die Tonalität trägt bereits die Icon-Kachel`);
 }
 
 // ── 4. #incoming-banner: dieselbe Familie, dieselbe Rot-Rolle ───────────────
