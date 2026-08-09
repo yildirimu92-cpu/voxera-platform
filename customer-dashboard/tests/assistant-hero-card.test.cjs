@@ -54,6 +54,8 @@ function renderHero(profile, voices, options) {
     previewLoading: false,
     busy: false,
     toneEditorOpen: Boolean(options && options.toneEditorOpen),
+    voiceFilter: 'all',
+    voiceDetailsOpen: false,
     // Bewusst ein eigener, minimaler Escaper: laeuft ein Wert nicht durch esc(),
     // taucht er hier unveraendert auf und der Test schlaegt an.
     esc: (value) => String(value == null ? '' : value).replace(/[&<>"']/g, (char) => ({
@@ -67,14 +69,22 @@ function renderHero(profile, voices, options) {
   const code = [
     extractConst('ADDRESS_OPTIONS'),
     extractConst('TONE_OPTIONS'),
+    extractConst('STATUS_AREAS'),
     extractFunction('toneLabel'),
+    extractFunction('addressLabel'),
+    extractFunction('genderKey'),
+    extractFunction('genderLabel'),
     extractFunction('selectedVoice'),
     extractFunction('formatDay'),
     extractFunction('statusSummary'),
     extractFunction('optionList'),
     extractFunction('toneEditor'),
-    extractFunction('heroCard'),
-    'result = heroCard();'
+    extractFunction('identityRow'),
+    extractFunction('voiceCard'),
+    extractFunction('voiceBlock'),
+    extractFunction('originChip'),
+    extractFunction('identityCard'),
+    'result = identityCard();'
   ].join('\n');
   vm.createContext(context);
   vm.runInContext(code, context);
@@ -100,7 +110,7 @@ test('die uebertragene Begruessung erscheint in Anfuehrungszeichen', () => {
   });
   assert.match(html, /„Hoi, hier ist Lara\."/);
   assert.doesNotMatch(html, /Noch nicht an den Assistenten übertragen/);
-  assert.match(html, /Du-Form/);
+  assert.match(html, /vx-ap-summary-key">Ansprache<\/span><span class="vx-ap-summary-value">Du</);
   assert.match(html, /locker und direkt/);
 });
 
@@ -148,7 +158,7 @@ test('die Statuszeile bleibt ohne Abweichung ruhig und faerbt sich sonst', () =>
     }
   });
   assert.match(loud, /vx-ap-hero-status error/);
-  assert.match(loud, /nicht betriebsbereit/);
+  assert.match(loud, /Telefonie: Einrichtung noch nicht abgeschlossen/);
 });
 
 test('der Anhoeren-Button erscheint nur mit ausgewaehlter Stimme', () => {
@@ -158,7 +168,7 @@ test('der Anhoeren-Button erscheint nur mit ausgewaehlter Stimme', () => {
     technical_status: {}
   });
   assert.doesNotMatch(withoutVoice, /data-vx-preview/);
-  assert.match(withoutVoice, /Stimme von Voxera eingerichtet/);
+  assert.match(withoutVoice, /vx-ap-summary-key">Stimme<\/span><span class="vx-ap-summary-value">Von Voxera eingerichtet/);
 
   const withVoice = renderHero(
     {
@@ -169,7 +179,7 @@ test('der Anhoeren-Button erscheint nur mit ausgewaehlter Stimme', () => {
     [{ voice_id: 'v-1', display_name: 'Sofia' }]
   );
   assert.match(withVoice, /data-vx-preview="v-1"/);
-  assert.match(withVoice, /Stimme Sofia/);
+  assert.match(withVoice, /vx-ap-summary-key">Stimme<\/span><span class="vx-ap-summary-value">Sofia/);
 });
 
 test('das Datum des letzten Syncs wird angehaengt, wenn vorhanden', () => {
@@ -197,12 +207,15 @@ const baseProfile = (permissions) => ({
 test('geschlossen ist der Editor nur eine Zeile', () => {
   const html = renderHero(baseProfile({ can_change_tone: true }));
   assert.match(html, /data-vx-tone-edit/);
-  assert.match(html, /Ansprache und Ton anpassen/);
+  assert.match(html, />Anpassen<\/button>/);
   assert.doesNotMatch(html, /vx-hero-tune-save/);
 });
 
 test('freigeschaltet sind beide Felder bedienbar', () => {
-  const html = renderHero(baseProfile({ can_change_tone: true }), [], { toneEditorOpen: true });
+  // Der Name traegt seit I1 eine eigene Sperre (can_change_name) und ist nicht
+  // mehr Teil der Ansprache/Ton-Freischaltung — fuer "kein Plan-Badge" muss er
+  // hier separat mitfreigeschaltet werden.
+  const html = renderHero(baseProfile({ can_change_tone: true, can_change_name: true }), [], { toneEditorOpen: true });
   assert.match(html, /<select id="vx-hero-address"[^>]*>/);
   assert.match(html, /<select id="vx-hero-tone">/);
   assert.doesNotMatch(html, /vx-ap-plan-badge/);
