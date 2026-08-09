@@ -117,8 +117,17 @@ const ACTIVE_CUSTOMER = {
   missed_call_email_active: true
 };
 
-// ─── Gating: Paritaet zu den beiden Router-Filtern in Szenario 01 ───────────
-console.log('\nGating (Paritaet zu Make-Szenario 01):');
+// ─── Gating ─────────────────────────────────────────────────────────────────
+// Diese Gruppe pinnt einen ZWISCHENSTAND fest, keinen Zielzustand: das Gating
+// bildet vorerst die beiden Router-Filter aus Szenario 01 nach, damit die
+// Migration das Verhalten nicht nebenbei mitaendert.
+//
+// Der Auftrag "Benachrichtigungseinstellungen" stellt decideMail() danach auf
+// notification_mode um. Diese Pruefungen werden dabei rot - das ist der
+// erwartete Verlauf und keine Regression. Sie sind dann mit dem neuen Gating
+// neu zu schreiben, nicht zu loeschen: was hier zaehlt, ist dass ueberhaupt
+// jemand die Schalterwirkung festhaelt.
+console.log('\nGating (Zwischenstand: Paritaet zu Make-Szenario 01):');
 
 check('Rueckruf + notification_active -> callback_request_email', () => {
   assert.equal(decideMail(ACTIVE_CUSTOMER, true).mailType, CALLBACK_MAIL_TYPE);
@@ -140,7 +149,7 @@ check('Normaler Anruf bei new_log_email_active=false wird nicht verschickt', () 
   assert.equal(result.reason, 'new_log_email_active_off');
 });
 
-check('Die beiden Schalter sind nicht vertauscht', () => {
+check('Die beiden Legacy-Schalter sind nicht vertauscht', () => {
   // Szenario 01 gated den Rueckruf ueber notification_active und den normalen
   // Anruf ueber new_log_email_active. Ein Vertauschen faellt sonst nicht auf,
   // weil beim Testkunden beide Schalter an sind.

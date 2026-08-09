@@ -31,8 +31,12 @@ const CALLBACK_MAIL_TYPE = 'callback_request_email';
 const CALL_MAIL_TYPE = 'call_notification_email';
 
 // Die Spalten, die ueber Empfaenger und Gating entscheiden. Identisch zu dem,
-// was call-intake-resolve-customer.js an Make lieferte - das Gating bleibt
-// damit Bit fuer Bit das von Szenario 01, nur ohne den HTTP-Hop.
+// was call-intake-resolve-customer.js an Make lieferte, damit die Migration
+// das Verhalten nicht nebenbei mitaendert.
+//
+// notification_mode wird bewusst schon mitgeladen, obwohl decideMail() es
+// heute nicht auswertet - der Auftrag "Benachrichtigungseinstellungen" stellt
+// das Gating als naechsten Schritt darauf um.
 const CUSTOMER_COLUMNS = 'id, customer_name, contact_name, email, voxera_number, '
   + 'notification_active, notification_mode, new_log_email_active, missed_call_email_active';
 
@@ -131,11 +135,26 @@ async function loadCustomer(sbAdmin, { customerId, callRowId, calledNumber }) {
   return resolveCustomerByNumber(sbAdmin, calledNumber);
 }
 
-// Welche Mail, und darf sie ueberhaupt raus. Parität zu den beiden
-// Router-Filtern in Szenario 01:
+// Welche Mail, und darf sie ueberhaupt raus.
+//
+// ── ZWISCHENSTAND, NICHT DER ZIELZUSTAND ───────────────────────────────────
+// Die Bedingungen unten bilden die beiden Router-Filter aus Szenario 01 exakt
+// nach:
 //   Route "Callback TRUE":  callback_requested = true  + notification_active
 //   Route "Normal Call":    callback_requested = false + new_log_email_active
 // Beide zusaetzlich: customer_email vorhanden, customer_id vorhanden.
+//
+// Das ist hier Absicht, aber nur, weil eine Migration das Verhalten nicht
+// nebenbei mitaendern soll: wer nach dem Umzug keine Mail mehr bekommt, soll
+// sie auch vorher nicht bekommen haben. Es ist ausdruecklich KEINE Aussage
+// darueber, dass diese Legacy-Booleans das richtige Gating waeren.
+//
+// Der Auftrag "Benachrichtigungseinstellungen" stellt diese Funktion als
+// naechsten, eigens benannten Verhaltenswechsel auf notification_mode um
+// (bereits in CUSTOMER_COLUMNS geladen). Die Reihenfolge ist abgestimmt:
+// erst diese Migration, dann der Wechsel. Wer hier etwas anpasst, sollte sich
+// vorher mit jenem Auftrag abgleichen - sonst wird derselbe Schalter zweimal
+// verschieden umgebaut.
 function decideMail(customer, callbackRequested) {
   if (!customer || !toStr(customer.id)) {
     return { mailType: null, reason: 'customer_not_resolved' };

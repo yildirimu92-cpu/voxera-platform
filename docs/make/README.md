@@ -74,7 +74,7 @@ Function `call-intake-resolve-customer` und deren Secret
 
 Zwei `mail_type`-Werte, passend zu den zwei Vorlagen aus Szenario 01:
 
-| `mail_type` | Vorlage aus Szenario 01 | Kundenschalter |
+| `mail_type` | Vorlage aus Szenario 01 | Kundenschalter (Zwischenstand) |
 |---|---|---|
 | `callback_request_email` | Modul 6, „Rückruf angefordert" (rot, `#DC2626`) | `notification_active` |
 | `call_notification_email` | Modul 14, „Neuer Anruf" (blau, `#1A6FE8`) | `new_log_email_active` |
@@ -83,6 +83,18 @@ Das Gating sitzt jetzt im Code (`decideMail()` in `_lib/call-notification.js`),
 nicht mehr im Router-Filter. Die Make-Routen filtern nur noch auf den
 `mail_type` — erreicht eine Mail Szenario 09, ist bereits entschieden, dass sie
 raus darf.
+
+> **Die Spalte „Kundenschalter" ist ein Zwischenstand.** Die beiden
+> Legacy-Booleans stehen hier nur, damit die Migration das Verhalten nicht
+> nebenbei mitändert — sie sind keine Aussage darüber, dass sie das richtige
+> Gating wären. Der Auftrag „Benachrichtigungseinstellungen" stellt
+> `decideMail()` nach dem Merge dieser Migration auf `notification_mode` um,
+> als eigener benannter Verhaltenswechsel. Die Reihenfolge ist abgestimmt:
+> erst diese Migration, dann der Wechsel.
+>
+> Die Make-Routen sind davon **nicht** betroffen. Sie filtern nur auf den
+> `mail_type`; wer welche Mail bekommt, entscheidet ausschliesslich der Code.
+> Der Schalterwechsel braucht später also keine erneute Make-Änderung.
 
 Mapping der Routen:
 
