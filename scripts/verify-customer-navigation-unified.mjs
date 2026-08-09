@@ -71,7 +71,7 @@ assert.match(source.navigation, /function showAssistantView[\s\S]*mountManagedPa
 assert.match(source.assistant, /vx-nav-voice-details/);
 assert.doesNotMatch(source.navigation, /vx-nav-voice-details/);
 assert.match(source.operational, /root\.vxOperationalUpdatesOpen=open/);
-assert.match(source.loader, /customer-runtime-calendar-settings\.js\?v=20260808-1/);
+assert.match(source.loader, /customer-runtime-calendar-settings\.js\?v=20260809-1/);
 assert.match(source.loader, /customer-runtime-operational-updates\.js\?v=20260809-1/);
 assert.match(source.loader, /customer-runtime-assistant-profile\.js\?v=20260809-2/);
 assert.match(source.loader, /customer-runtime-assistant-status\.js\?v=20260809-1/);
