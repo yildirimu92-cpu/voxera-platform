@@ -457,6 +457,19 @@ assert.match(source.runtime, /function replacedByListNote/);
 // Kunde ein Feld ohne Wirkung.
 assert.match(source.runtime, /Dieser Text wird nicht mehr verwendet/);
 
+// ── J9 / G5: Beschriftung und Prompt-Ueberschrift sagen dasselbe ───────────
+// Der Befund war nicht kosmetisch: das Feld hiess fuer den Kunden anders, als
+// es beim Agenten wirkt -- "Buchungshinweise" fuer einen Abschnitt, der im
+// Prompt TERMINLOGIK hiess. Terminregeln landeten deshalb im FAQ-Feld.
+for (const label of ['<label>Leistungen</label>', '<label>Standort und Erreichbarkeit</label>',
+  '<label>Terminregeln und häufige Fragen</label>', '<label>Unternehmensbeschreibung</label>']) {
+  if (!source.runtime.includes(label)) failures.push(`J9 label missing: ${label}`);
+}
+for (const stale of ['Leistungen und Angebote', 'Standort und reguläre Öffnungszeiten',
+  'Häufige Fragen und Buchungshinweise']) {
+  if (source.runtime.includes(stale)) failures.push(`J9 stale label: ${stale}`);
+}
+
 // Der Adressvorschlag ist ein Vorschlag und keine Auskunft: street/zip/city
 // stammen aus Offerte und Vertrag. Er darf nur mitreisen, nie gespeichert
 // werden — dieselbe Regel wie beim Öffnungszeiten-Vorschlag (Entscheid F3).

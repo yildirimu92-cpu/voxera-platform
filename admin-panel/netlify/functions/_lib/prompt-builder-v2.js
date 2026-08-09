@@ -20,7 +20,13 @@
 // LEISTUNGEN und TERMINLOGIK & FAQ. Betrifft nur Kunden mit bestaetigter
 // Liste -- der Bump gehoert trotzdem dazu, weil der Fan-out sonst genau bei
 // diesen Kunden nichts nachzieht.
-const PROMPT_BUILDER_VERSION = '2.5';
+// 2.6 (J8/J9): Die Aufnahme-Checkliste kommt aus einer Quelle mit Rangfolge
+// (Kundenantwort vor Branchenvorlage), und drei Ueberschriften heissen jetzt
+// so, wie das zugehoerige Feld in der Kundenoberflaeche heisst:
+// GESCHÄFTSPROFIL -> UNTERNEHMENSBESCHREIBUNG, TERMINLOGIK & FAQ ->
+// TERMINREGELN & HÄUFIGE FRAGEN, STANDORT & ERREICHBARKEIT -> STANDORT UND
+// ERREICHBARKEIT.
+const PROMPT_BUILDER_VERSION = '2.6';
 const PROFILE_MARKER = 'PROMPT_V2';
 const WIZARD_MARKER = 'WIZARD';
 
@@ -526,7 +532,7 @@ function branchSchemaLines(wizard, schema, skipKeys, assistantName) {
   return lines;
 }
 
-function buildPromptProfileSections(profile, appointmentMode, bookingUrl) {
+function buildPromptProfileSections(profile, appointmentMode, bookingUrl, templateRequiredInformation) {
   const parts = [];
   if (profile.functions.length) {
     const success = profile.successDefinition || 'Das Anliegen ist geklärt, die nötigen Angaben sind erfasst und der nächste Schritt wurde korrekt zusammengefasst.';
@@ -534,8 +540,14 @@ function buildPromptProfileSections(profile, appointmentMode, bookingUrl) {
     const instructions = profile.functionInstructions ? `\n\nKundenspezifische Regeln für diese Funktionen:\n${profile.functionInstructions}` : '';
     parts.push(`## AUFGABEN & ERFOLGSKRITERIUM\nDu kombinierst je nach Anliegen die folgenden freigegebenen Funktionen:\n${capabilities}${instructions}\n\nErfolgreich ist das Gespräch, wenn: ${success}`);
   }
-  if (profile.requiredInformation) {
-    parts.push(`## PFLICHTINFORMATIONEN\nErfrage die folgenden Angaben nur soweit sie für das konkrete Anliegen relevant sind. Stelle kurze Fragen einzeln und bestätige kritische Angaben:\n${profile.requiredInformation}`);
+  // J8 / G6: Eine Quelle mit klarer Rangfolge. Die Antwort des Kunden fuehrt,
+  // die Branchenvorlage ist Rueckfall -- nie beides. Bis hierher stand die
+  // Checkliste zusaetzlich als erste Zeile im FAQ-Freitext jeder der 19
+  // Vorlagen und landete von dort im Abschnitt TERMINLOGIK & FAQ. Der Agent
+  // bekam sie damit moeglicherweise zweimal, mit abweichendem Wortlaut.
+  const requiredInformation = profile.requiredInformation || text(templateRequiredInformation);
+  if (requiredInformation) {
+    parts.push(`## PFLICHTINFORMATIONEN\nErfrage die folgenden Angaben nur soweit sie für das konkrete Anliegen relevant sind. Stelle kurze Fragen einzeln und bestätige kritische Angaben:\n${neutralizePlaceholders(requiredInformation)}`);
   }
   // Der Online-Buchungslink haengt an der Terminbefugnis, statt als eigene
   // Zeile daneben zu stehen: er ist kein Betriebsfakt, sondern ein moeglicher
@@ -582,7 +594,7 @@ function qualityReport(customer, profile, industryPrompt, appointmentMode) {
   };
 }
 
-function buildPromptV2({ customer = {}, masterPrompt = '', industryPrompt = '', industryFields = [], coreFields = [], assistantRole = 'die Assistentin', operationalUpdates = [] } = {}) {
+function buildPromptV2({ customer = {}, masterPrompt = '', industryPrompt = '', industryFields = [], industryRequiredInformation = '', coreFields = [], assistantRole = 'die Assistentin', operationalUpdates = [] } = {}) {
   const profile = parsePromptProfile(customer.ai_internal_notes);
   const wizard = branchAnswers(customer);
   const coreSteps = parseCoreSteps(coreFields);
@@ -651,7 +663,7 @@ function buildPromptV2({ customer = {}, masterPrompt = '', industryPrompt = '', 
   // derselbe Absatz zweimal untereinander.
   const shortDescription = text(core[CORE_KEY_SHORT_DESCRIPTION]);
   const businessDescription = text(customer.ai_business_description);
-  add('GESCHÄFTSPROFIL', shortDescription && shortDescription !== businessDescription
+  add('UNTERNEHMENSBESCHREIBUNG', shortDescription && shortDescription !== businessDescription
     ? [shortDescription, businessDescription].filter(Boolean).join('\n\n')
     : businessDescription || shortDescription);
   // J7: Die bestaetigte Liste ERSETZT den Freitext, sie steht nicht daneben.
@@ -674,7 +686,7 @@ function buildPromptV2({ customer = {}, masterPrompt = '', industryPrompt = '', 
       publicAddress && locationText ? 'Weicht eine Adresse im folgenden Text davon ab, gilt die Adresse oben.' : '',
       locationText
     ].filter(Boolean).join('\n');
-    customerParts.push(`## STANDORT & ERREICHBARKEIT\n${locationBody}`);
+    customerParts.push(`## STANDORT UND ERREICHBARKEIT\n${locationBody}`);
   }
   // J5 / Entscheid F3: Solange keine bestaetigten Oeffnungszeiten vorliegen,
   // fuehrt der Freitext -- dann steht hier nichts und der Abschnitt darueber
@@ -687,13 +699,13 @@ function buildPromptV2({ customer = {}, masterPrompt = '', industryPrompt = '', 
     customerParts.push(
       '## REGULÄRE ÖFFNUNGSZEITEN\n'
       + 'Diese Zeiten sind die verbindliche Auskunft. Weichen Zeitangaben im Abschnitt '
-      + 'STANDORT & ERREICHBARKEIT davon ab, gelten die Zeiten hier.\n'
+      + 'STANDORT UND ERREICHBARKEIT davon ab, gelten die Zeiten hier.\n'
       + openingHours
       + '\nNenne ausserhalb dieser Zeiten keine Verfügbarkeit, die hier nicht steht.'
     );
   }
   const faqList = formatFaqList(core[CORE_KEY_FAQ_LIST]);
-  add('TERMINLOGIK & FAQ', faqList || customer.ai_booking_faq);
+  add('TERMINREGELN & HÄUFIGE FRAGEN', faqList || customer.ai_booking_faq);
   // Entscheid F4: Der Abschnitt steht immer da, auch wenn nichts hinterlegt ist.
   // Ein Prompt ohne Preisregel ueberliess die Preisfrage bisher dem Modell; die
   // Voreinstellung ist ausdruecklich "keine Betraege nennen, Offerte anbieten"
@@ -701,7 +713,7 @@ function buildPromptV2({ customer = {}, masterPrompt = '', industryPrompt = '', 
   customerParts.push(`## PREISAUSKUNFT\n${formatPricing(core)}\n${PRICING_DISCLAIMER}`);
   const currentOperations = formatOperationalUpdates(operationalUpdates);
   if (currentOperations) customerParts.push(`## AKTUELLE BETRIEBSINFORMATIONEN\n${currentOperations}`);
-  customerParts.push(...buildPromptProfileSections(profile, appointmentMode, core[CORE_KEY_BOOKING_URL]));
+  customerParts.push(...buildPromptProfileSections(profile, appointmentMode, core[CORE_KEY_BOOKING_URL], industryRequiredInformation));
   // Reihenfolge: erst die kuratierten Saetze, dann alles Weitere aus dem
   // Vorlagenschema. Uebersprungen wird, was die Vorlage selbst als
   // {{schluessel}} in ihrem prompt_block platziert — dort steht die Angabe

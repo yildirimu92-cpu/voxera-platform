@@ -40,10 +40,12 @@ exports.handler = async event => {
   // J1: dieselben Eingaben wie im Sync — die Vorschau muss zeigen, was der
   // Agent bekommt, nicht eine um die Branchenantworten aermere Fassung.
   let industryFields = [];
+  let industryRequiredInformation = '';
   if (customer.industry_template_id) {
-    const { data:templateRow } = await sb.from('industry_templates').select('prompt_block,extra_steps').eq('id', customer.industry_template_id).maybeSingle();
+    const { data:templateRow } = await sb.from('industry_templates').select('prompt_block,extra_steps,default_required_information').eq('id', customer.industry_template_id).maybeSingle();
     industryPrompt = templateRow?.prompt_block || '';
     industryFields = Array.isArray(templateRow?.extra_steps) ? templateRow.extra_steps : [];
+    industryRequiredInformation = templateRow?.default_required_information || '';
   }
   let assistantRole = 'die Assistentin';
   if (customer.voice_id) {
@@ -56,6 +58,7 @@ exports.handler = async event => {
     masterPrompt:masterRow?.value || '',
     industryPrompt,
     industryFields,
+    industryRequiredInformation,
     coreFields: coreRow?.value || '',
     assistantRole
   });

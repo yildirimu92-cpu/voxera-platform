@@ -7025,7 +7025,7 @@ async function loadIndustryTemplates(){
   try{
     const {data,error}=await authClient
       .from('industry_templates')
-      .select('id,name,default_business_description,default_services,default_location_hours,default_booking_faq,default_instructions,default_fallback_escalation,default_response_constraints,prompt_block,required_fields,extra_steps,sort_order,active')
+      .select('id,name,default_business_description,default_services,default_location_hours,default_booking_faq,default_required_information,default_instructions,default_fallback_escalation,default_response_constraints,prompt_block,required_fields,extra_steps,sort_order,active')
       .eq('active', true)
       .order('sort_order',{ascending:true})
       .order('name');
@@ -7054,6 +7054,10 @@ function getTemplateDefaults(templateId){
     services:            tpl.default_services || '',
     locationHours:       tpl.default_location_hours || '',
     bookingFaq:          tpl.default_booking_faq || '',
+    // J8 / G6: die Aufnahme-Checkliste der Branche. Sie ist Rueckfall fuer
+    // [PROMPT_V2].requiredInformation und stand bis hierher zusaetzlich als
+    // erste Zeile in default_booking_faq.
+    requiredInformation: tpl.default_required_information || '',
     instructions:        tpl.default_instructions || '',
     fallbackEscalation:  tpl.default_fallback_escalation || '',
     responseConstraints: tpl.default_response_constraints || '',

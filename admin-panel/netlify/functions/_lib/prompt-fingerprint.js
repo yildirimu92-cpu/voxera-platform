@@ -35,7 +35,12 @@ const { PROMPT_BUILDER_VERSION } = require('./prompt-builder-v2');
 // Der Praefix-Wechsel macht alle gespeicherten Werte bewusst ungleich: es laeuft
 // einmal ein Fan-out ueber alle Agenten, statt still Aepfel mit Birnen zu
 // vergleichen.
-const FINGERPRINT_SCHEMA = 'v2';
+// v3 (J8): eine fuenfte Eingabe -- die Aufnahme-Checkliste der Branche. Der
+// Praefix wird mit angehoben, weil sich damit die ZUSAMMENSETZUNG aendert und
+// nicht nur ein Wert. Alte und neue Fingerprints bedeuten Verschiedenes und
+// duerfen nicht still miteinander verglichen werden; jeder gespeicherte Wert
+// gilt ab hier als veraltet, was er sachlich auch ist.
+const FINGERPRINT_SCHEMA = 'v3';
 const MASTER_PROMPT_KEY = 'prompt_master_l1';
 const CORE_FIELD_KEY = 'core_field_steps';
 
@@ -59,7 +64,12 @@ function promptFingerprint({
   masterPrompt = '',
   industryPrompt = '',
   coreFields = '',
-  industryFields = null
+  industryFields = null,
+  // J8: Die Aufnahme-Checkliste der Branche geht in den Prompt jedes Kunden
+  // ein, der keine eigene hinterlegt hat. Aendert eine Vorlage sie, muessen
+  // genau diese Agenten nachgezogen werden -- ohne diese Eingabe bliebe der
+  // Fingerprint gleich und der Planer hielte sie fuer aktuell.
+  industryRequiredInformation = ''
 } = {}) {
   return [
     FINGERPRINT_SCHEMA,
@@ -67,7 +77,8 @@ function promptFingerprint({
     digest(masterPrompt),
     digest(industryPrompt),
     digest(serialize(coreFields)),
-    digest(serialize(industryFields))
+    digest(serialize(industryFields)),
+    digest(serialize(industryRequiredInformation))
   ].join('.');
 }
 
@@ -78,7 +89,7 @@ async function loadFingerprintContext(sb) {
   const [masterResult, coreResult, templateResult] = await Promise.all([
     sb.from('system_config').select('value').eq('key', MASTER_PROMPT_KEY).maybeSingle(),
     sb.from('system_config').select('value').eq('key', CORE_FIELD_KEY).maybeSingle(),
-    sb.from('industry_templates').select('id, prompt_block, extra_steps')
+    sb.from('industry_templates').select('id, prompt_block, extra_steps, default_required_information')
   ]);
   if (masterResult.error) throw masterResult.error;
   if (coreResult.error) throw coreResult.error;
@@ -88,7 +99,8 @@ async function loadFingerprintContext(sb) {
   for (const row of templateResult.data || []) {
     industryTemplates.set(String(row.id), {
       promptBlock: row.prompt_block || '',
-      extraSteps: Array.isArray(row.extra_steps) ? row.extra_steps : []
+      extraSteps: Array.isArray(row.extra_steps) ? row.extra_steps : [],
+      requiredInformation: row.default_required_information || ''
     });
   }
   return {
@@ -110,7 +122,8 @@ function fingerprintFor(context, customer) {
     masterPrompt: context.masterPrompt,
     industryPrompt: template?.promptBlock || '',
     coreFields: context.coreFields,
-    industryFields: template?.extraSteps || []
+    industryFields: template?.extraSteps || [],
+    industryRequiredInformation: template?.requiredInformation || ''
   });
 }
 
