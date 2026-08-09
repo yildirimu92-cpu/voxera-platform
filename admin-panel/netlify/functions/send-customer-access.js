@@ -3,6 +3,7 @@ const { requireAdminCaller } = require('./_lib/require-admin');
 const { createOutboxEvent, markOutboxSent, markOutboxFailed } = require('./_lib/webhook-outbox');
 const { STATUS, normalizeCustomerStatus, normalizeOnboardingStatus } = require('./_lib/status-model');
 const { normalizePlanCode } = require('./_lib/plan-config');
+const { resolveDashboardUrl, logActivationTarget } = require('./_lib/activation-url');
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -328,7 +329,7 @@ async function sendViaWebhook({ sbAdmin, customer, activationLink, isPasswordRes
     customer_email: customer.email,
     plan: customerPlanCode || null,
     voxera_number: customer.voxera_number || null,
-    dashboard_url: process.env.DASHBOARD_URL || 'https://dashboard.voxera.ch',
+    dashboard_url: resolveDashboardUrl(),
     activation_link_present: Boolean(activationLink),
     mail_type: isPasswordReset ? 'password_reset' : 'welcome'
   };
@@ -378,7 +379,7 @@ async function sendViaWebhook({ sbAdmin, customer, activationLink, isPasswordRes
         plan: customerPlanCode || null,
         voxera_number: customer.voxera_number || null,
         customer_id: customer.id,
-        dashboard_url: process.env.DASHBOARD_URL || 'https://dashboard.voxera.ch',
+        dashboard_url: resolveDashboardUrl(),
         // Make kann damit unterscheiden ob Welcome- oder Passwort-Reset-Mail
         mail_type: isPasswordReset ? 'password_reset' : 'welcome',
         ai_business_description: customer.ai_business_description || null,
@@ -535,7 +536,7 @@ exports.handler = async (event) => {
       });
     }
 
-    const redirectUrl = process.env.DASHBOARD_URL || 'https://dashboard.voxera.ch';
+    const redirectUrl = resolveDashboardUrl();
     const { data: linkData, error: linkErr } = await sbAdmin.auth.admin.generateLink({
       type: 'recovery',
       email: customer.email,
@@ -749,7 +750,9 @@ exports.handler = async (event) => {
     });
   }
 
-  const activateUrl = process.env.ACTIVATE_URL || 'https://dashboard.voxera.ch';
+  // Der Einladungslink muss auf die Aktivierungsseite zeigen, nicht auf die
+  // Dashboard-Wurzel — siehe _lib/activation-url.js.
+  const activateUrl = logActivationTarget({ customerId, event: 'send_customer_access_link_target' }).url;
   const authProvision = await ensureAuthAndUserMapping({ sbAdmin, customer });
   if (!authProvision.ok) {
     await sbAdmin

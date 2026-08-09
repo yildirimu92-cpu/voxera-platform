@@ -3,6 +3,7 @@
 const { createClient } = require('@supabase/supabase-js');
 const { markOutboxSent, markOutboxFailed, markOutboxTerminal } = require('./_lib/webhook-outbox');
 const { isMailEngineType, resolveMailWebhook } = require('./_lib/mail-delivery');
+const { resolveDashboardUrl, logActivationTarget } = require('./_lib/activation-url');
 
 function log(level, event, payload = {}) {
   console.log(JSON.stringify({ level, event, ...payload }));
@@ -131,7 +132,15 @@ async function dispatchOutboxEvent(sbAdmin, outboxRow) {
     const customerEmail = String(payload.customer_email || '').trim();
     if (!customerEmail) return { ok: false, error: 'customer_email missing in outbox payload' };
 
-    const redirectTo = process.env.ACTIVATE_URL || process.env.DASHBOARD_URL || 'https://dashboard.voxera.ch';
+    // Einladung und Passwort-Reset teilen sich diesen Retry-Pfad, brauchen aber
+    // verschiedene Ziele: die Einladung gehoert auf die Aktivierungsseite, der
+    // Reset auf die Dashboard-Wurzel zum Recovery-Formular in index.html.
+    // Vorher bekamen beide dasselbe Ziel — ein gesetztes ACTIVATE_URL haette
+    // damit auch Reset-Mails auf die Aktivierungsseite geschickt.
+    const isPasswordReset = outboxRow.event_type === 'customer_password_reset_email';
+    const redirectTo = isPasswordReset
+      ? resolveDashboardUrl()
+      : logActivationTarget({ customerId: payload.customer_id, event: 'outbox_retry_activation_link_target' }).url;
     const link = await generateRecoveryLink(sbAdmin, customerEmail, redirectTo);
     if (!link.ok) return link;
 
@@ -142,7 +151,7 @@ async function dispatchOutboxEvent(sbAdmin, outboxRow) {
       plan: payload.plan || null,
       voxera_number: payload.voxera_number || null,
       customer_id: payload.customer_id || null,
-      dashboard_url: process.env.DASHBOARD_URL || 'https://dashboard.voxera.ch',
+      dashboard_url: resolveDashboardUrl(),
       mail_type: payload.mail_type || (outboxRow.event_type === 'customer_password_reset_email' ? 'password_reset' : 'welcome')
     };
 
