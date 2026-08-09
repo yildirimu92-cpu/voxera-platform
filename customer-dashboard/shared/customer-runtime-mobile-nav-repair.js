@@ -25,8 +25,22 @@
       // hier, weil dieses Stylesheet die Leiste aus dem Layoutfluss nimmt;
       // alles Weitere (Eintragsfarben, Icon-Chip, Aktiv-Zustand) gehoert
       // shared/customer-navigation-components.css.
+      //
+      // Die Desktop-Ausblendung nimmt den Querformat-Fall aus (PR #866):
+      // auf iPhone Safari im Querformat ist die Breite meist groesser als
+      // 768px, waehrend die Leiste dort trotzdem gebraucht wird. Seit diese
+      // Reparatur die Leiste selbst fixiert statt der Knopfreihe darin,
+      // trifft die Regel dasselbe Element wie das dortige Sicherheitsnetz —
+      // ohne die Ausnahme haetten zwei !important-Regeln um die Sichtbarkeit
+      // derselben Leiste gestritten. Die Spezifitaet haette das
+      // Sicherheitsnetz zwar gewinnen lassen (div.mobile-nav schlaegt ein
+      // Attribut), aber auf einen Zufall der Kaskade soll sich das nicht
+      // stuetzen.
       style.textContent = `
-        @media (min-width:769px){
+        @media (min-width:769px) and (min-height:501px){
+          [data-vx-mobile-navigation="1"]{display:none!important;}
+        }
+        @media (min-width:769px) and (orientation:portrait){
           [data-vx-mobile-navigation="1"]{display:none!important;}
         }
         @media (max-width:768px){
