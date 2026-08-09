@@ -433,9 +433,27 @@ Beim Nachziehen der Aufrufer gefunden, **nicht angefasst**, weil nicht freigegeb
 
 **Bewertung:** eigenständiger Befund derselben Familie wie G3 (die Oberfläche zeigt etwas anderes, als produktiv gilt), aber im Rückfallpfad und mit Warnhinweis, also nicht dringlich. **Vorschlag J10:** den Client-Bauer entfernen und im Fehlerfall ehrlich „Vorschau nicht verfügbar" anzeigen, statt eine unvollständige Fassung. Nicht Teil von J1/J2.
 
+> **Nachtrag: J10 ist umgesetzt.** Der User hat G8 als eigenen kleinen Auftrag eingeordnet und vorgezogen — begründet damit, dass fehlende Sicherheitsregeln im Rückfall-Prompt ohne entsprechenden Hinweis ein zu reales Risiko sind. Siehe 11.6.
+
 **Anmerkung zu J1:** Der Client-Bauer kennt die neuen schemagetriebenen Zeilen nicht. Die Abweichung zwischen ihm und dem Server wächst damit — sie war aber schon vorher deutlich grösser (ganze Abschnitte fehlen), und der produktive Prompt für den Agenten kommt ausschliesslich aus `trigger-elevenlabs-sync.js`.
 
-### 11.6 Was auch nach J1/J2 unbewiesen bleibt
+### 11.6 J10 — der zweite Prompt-Bauer im Browser ist entfernt
+
+**Freigegeben und umgesetzt** als eigener kleiner Auftrag, vorgezogen vor J3–J9.
+
+Entfernt wurden `resolvePromptVariables()`, `buildCustomerLayer()`, `buildAiPrompt()` und `buildAiGreeting()` aus `admin-panel/index.html` — 159 Zeilen, ein in sich geschlossener Cluster, der nur sich selbst und `openAiPreview()` bediente. Damit gibt es genau **eine** Quelle für den Prompt: `buildPromptV2()` auf dem Server, dieselbe Funktion, die auch der Sync benutzt.
+
+`openAiPreview()` baut nichts mehr, sondern zeigt eine ausdrückliche Nicht-Verfügbarkeit. Der Rückfallpfad in `admin-runtime-prompt-builder-v2.js` ruft nicht mehr den lokalen Bauer auf, sondern setzt denselben Text und entfernt die Qualitätsanzeige, damit keine Restanzeige einen geladenen Zustand vortäuscht. Der Toast lautet neu „Vorschau nicht verfügbar" statt „lokale Vorschau angezeigt".
+
+**Beim Entfernen zusätzlich gefunden:** Der Client-Bauer setzte bei fehlender Notfallnummer **`112` als Standard** ein (`index.html:16027` alt) — und las dafür `customer.notfallnummer_lebensgefahr`, ein Feld, das es auf `customers` gar nicht gibt. Der Wert war also immer der erfundene Standard. Der Server macht das ausdrücklich nicht: `PLACEHOLDER_FALLBACKS` verweist auf den allgemeinen Notruf, statt eine Nummer zu setzen. Das ist genau der Fehlertyp, den die Sicherheitsregeln verbieten — er lag im Rückfallpfad und ist mit dessen Entfernung weg.
+
+**Aufgeräumt:** `state.promptMasterL1` war nach dem Entfernen ohne Leser und ist samt seiner beiden Zuweisungen entfallen. Der L1-Master-Prompt wird nur noch serverseitig gelesen.
+
+**Abnahme:** zwei neue Prüfungen (kein lokaler Prompt-Bau in `index.html`, kein Rückfall auf ihn im Fehlerpfad), alle vier Inline-Skriptblöcke der Seite parsen syntaktisch sauber, und `verify-admin-runtime-patches`, `verify-admin-design-system-v2`, `verify-admin-operations-v3`, `verify-ai-setup-identity-preservation`, `verify-admin-customer-write-integrity` sind grün.
+
+**Nicht geprüft:** Die Oberfläche ist nicht im Browser aufgerufen worden. Dass die Vorschau im Normalfall weiterhin den Serverprompt zeigt, ist am Code belegt (der Wrapper ist unverändert, nur sein Fehlerpfad ist ersetzt), nicht klickend verifiziert.
+
+### 11.7 Was auch nach J1/J2 und J10 unbewiesen bleibt
 
 - **Kein Live-Anruf.** Dass die 23 Felder jetzt *wirken*, ist am gebauten Prompt geprüft, nicht am Telefon. Der Prompt enthält die Angaben nachweislich — ob das Modell sie befolgt, ist damit nicht gezeigt.
 - **Kein Kunde hat heute Branchenantworten.** `ai_branch_extra` ist bei allen 4 Kunden `null`. J1 ist also an Fixtures geprüft, die den Vorlagen nachgebaut sind, nicht an echten Antworten. Der erste Kunde mit ausgefüllten Branchenfeldern ist der eigentliche Test.

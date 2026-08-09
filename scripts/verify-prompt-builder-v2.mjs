@@ -328,6 +328,21 @@ check('unfilled bracket markers degrade to a do-not-mention instruction', () => 
   assert.equal(neutralizePlaceholders('Ein [sehr langer Text, der ganz bewusst deutlich mehr als achtzig Zeichen umfasst und deshalb keine Ausfuellmarkierung ist] bleibt'), 'Ein [sehr langer Text, der ganz bewusst deutlich mehr als achtzig Zeichen umfasst und deshalb keine Ausfuellmarkierung ist] bleibt');
 });
 
+// ── J10 / G8: es gibt nur noch eine Quelle fuer den Prompt ───────────────────
+check('G8: the admin page no longer assembles a prompt in the browser', () => {
+  assert.ok(!adminIndex.includes('function buildAiPrompt'), 'Der lokale Prompt-Bauer ist zurueck');
+  assert.ok(!adminIndex.includes('function buildCustomerLayer'), 'Der lokale Kunden-Layer ist zurueck');
+  assert.ok(!adminIndex.includes('function resolvePromptVariables'), 'Die lokale Variablenaufloesung ist zurueck');
+  assert.ok(!adminIndex.includes('## BETRIEBLICHE KONFIGURATION'), 'Im Browser wird wieder ein Prompt-Abschnitt gebaut');
+});
+
+check('G8: a failed preview says so instead of showing an unusable prompt', () => {
+  assert.match(adminIndex, /window\.AI_PREVIEW_UNAVAILABLE/);
+  assert.match(source.runtime, /AI_PREVIEW_UNAVAILABLE/);
+  const catchBlock = source.runtime.slice(source.runtime.indexOf('} catch (error) {', source.runtime.indexOf('installExactPreview')));
+  assert.ok(!/^\s*original\.apply/m.test(catchBlock.slice(0, catchBlock.indexOf('}'))), 'Der Fehlerpfad faellt wieder auf den lokalen Bauer zurueck');
+});
+
 check('sync and preview pass the same template inputs', () => {
   assert.match(source.trigger, /prompt_block,extra_steps/);
   assert.match(source.preview, /prompt_block,extra_steps/);
