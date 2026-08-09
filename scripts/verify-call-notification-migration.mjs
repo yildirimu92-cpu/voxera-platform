@@ -16,6 +16,7 @@
  */
 
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -198,6 +199,23 @@ check('Payload traegt die Feldnamen der Szenario-01-Vorlagen', () => {
   assert.equal(payload.recipient_email, ACTIVE_CUSTOMER.email);
   assert.equal(payload.customer_id, ACTIVE_CUSTOMER.id);
   assert.equal(payload.duration_seconds, 21);
+});
+
+check('Der Rauchtest schickt dieselben Felder wie die Produktion', () => {
+  // live-check-call-notification-mail.mjs prueft die Make-Routen mit einem
+  // handgeschriebenen Payload. Waechst buildPayload() um ein Feld, das dort
+  // fehlt, prueft der Rauchtest etwas anderes als das, was spaeter wirklich
+  // rausgeht - und bescheinigt einer Route Funktionsfaehigkeit, die sie im
+  // Ernstfall nicht hat.
+  const smokeTest = fs.readFileSync(
+    path.join(root, 'scripts', 'live-check-call-notification-mail.mjs'),
+    'utf8'
+  );
+  const produced = Object.keys(buildPayload({
+    customer: ACTIVE_CUSTOMER, call: {}, calledNumber: '', callbackRequested: false
+  }));
+  const absent = produced.filter(field => !new RegExp(`\\b${field}:`).test(smokeTest));
+  assert.deepEqual(absent, [], `Im Rauchtest fehlen: ${absent.join(', ')}`);
 });
 
 check('Fehlende Dauer wird zu null, nicht zu NaN', () => {
