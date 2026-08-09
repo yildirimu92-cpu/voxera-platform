@@ -108,10 +108,20 @@ Bleibt die Liste leer, zeigt die Variable weiterhin auf den falschen Hook.
 
 | | Erwartung |
 | --- | --- |
-| Produktion (`voxera.ch`, Admin) | unverändert; kein Hinweis-Overlay |
-| Beliebige Deploy-Preview | Overlay „Vorschau ohne Datenverbindung", Oberfläche dahinter sichtbar |
+| Produktion (`voxera.ch`, Admin) | unverändert; kein Hinweis |
+| Beliebige Deploy-Preview | Hinweiskarte „Vorschau ohne Datenverbindung" unten links, schliessbar; Oberfläche, Navigation und Tab-Leiste bleiben bedienbar |
 | Preview, DevTools-Konsole | `[vx-runtime-config] Keine Supabase-Zugangsdaten fuer diesen Kontext.` |
 | Preview, `window.__VX_RUNTIME_CONFIG__` | `{ configured: false, supabaseUrl: null, … }` |
+
+> **Korrektur 09.08.** Bis heute war der Hinweis ein deckendes Vollbild
+> (`position:fixed; inset:0; background:#0d1b2a`, kein Schliessen) — die
+> Oberfläche dahinter war *nicht* sichtbar, obwohl dieser Abschnitt und der
+> Hinweistext selbst das versprachen. Aufgelöst zugunsten des Textes: Previews
+> ohne Zugangsdaten haben genau einen verbliebenen Zweck, nämlich Layout und
+> Design zu beurteilen, und ein Blocker macht ihn unmöglich.
+> `scripts/verify-runtime-config-isolation.mjs` prüft seither am erzeugten File,
+> dass das Vollbild nicht zurückkommt (Abschnitt 6 dort), inklusive
+> Schliessen-Knopf und Abstand über der mobilen Tab-Leiste.
 
 ---
 

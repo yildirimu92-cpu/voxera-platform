@@ -150,6 +150,51 @@ for (const [label, args] of [
   }
 }
 
+// ── 6. Der Hinweis blockiert die Oberflaeche nicht ─────────────────────────
+// Entstanden aus einem Fund am 09.08.: Der Hinweis war ein deckendes Vollbild
+// (position:fixed, inset:0, background:#0d1b2a, kein Schliessen). Von der
+// Oberflaeche war nichts zu sehen — waehrend sein eigener Text und die Doku
+// versprachen, sie bleibe sichtbar. Damit war der einzige verbliebene Zweck
+// einer Preview ohne Zugangsdaten (Layout und Design beurteilen) unmoeglich.
+//
+// Geprueft wird das erzeugte File, nicht der Generator-Quelltext: nur was im
+// Browser landet, kann etwas verdecken. Kommentare im Generator duerfen die
+// alten Werte deshalb weiterhin nennen.
+const previewNotice = renderRuntimeConfig({
+  supabaseUrl: null, supabaseAnonKey: null,
+  context: 'deploy-preview', branch: 'x', site: 'customer-dashboard'
+});
+
+const BLOCKING_PATTERNS = [
+  { name: 'inset:0 (Vollbild-Flaeche)', re: /inset\s*:\s*0/ },
+  { name: 'deckender Vollbild-Hintergrund', re: /background\s*:\s*#0d1b2a/i },
+  { name: 'aufgespannte Kanten (top+left+right+bottom je 0)', re: /top\s*:\s*0[^}]*left\s*:\s*0[^}]*right\s*:\s*0[^}]*bottom\s*:\s*0/ }
+];
+
+let noticeClean = true;
+for (const { name, re } of BLOCKING_PATTERNS) {
+  if (re.test(previewNotice)) {
+    noticeClean = false;
+    fail(
+      `vx-runtime-config.js: der Hinweis verdeckt die Oberflaeche wieder (${name})`,
+      'Er soll neben der Oberflaeche liegen, nicht darueber — sonst laesst sich auf einer ' +
+      'Preview ohne Zugangsdaten weder Layout noch Design beurteilen. Siehe scripts/runtime-config.mjs.'
+    );
+  }
+}
+if (noticeClean) ok('vx-runtime-config.js: Hinweis verdeckt die Oberflaeche nicht');
+
+// Schliessbar und nicht-unterbrechend: ohne beides waere er zwar kleiner,
+// aber immer noch im Weg.
+for (const [label, re, detail] of [
+  ['Schliessen-Knopf', /Hinweis schliessen/, 'Ohne ihn bleibt der Hinweis dauerhaft im Bild.'],
+  ["role='status' statt 'alert'", /setAttribute\('role', 'status'\)/, 'Der Hinweis unterbricht nichts mehr; alert waere fuer Screenreader eine falsche Dringlichkeit.'],
+  ['Abstand ueber der mobilen Tab-Leiste', /@media \(max-width:768px\)/, 'Ohne die Media Query verdeckt der Hinweis auf Mobile die Navigation.']
+]) {
+  if (re.test(previewNotice)) ok(`vx-runtime-config.js: ${label}`);
+  else fail(`vx-runtime-config.js: ${label} fehlt`, detail);
+}
+
 // ── Bericht ────────────────────────────────────────────────────────────────
 console.log(`\nLaufzeit-Konfiguration — Isolation der Zugangsdaten\n`);
 for (const label of checks) console.log(`  PASS  ${label}`);
