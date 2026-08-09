@@ -1,0 +1,94 @@
+# Voxera-Plattform — was nicht ins Repo gehoert.
+#
+# Angelegt 2026-08-09. Bis dahin hatte das Repo gar keine .gitignore: eine
+# versehentlich angelegte .env waere von nichts aufgehalten worden. Der Anlass
+# war die Frage nach dem offengelegten CALL_INTAKE_RESOLVER_SECRET -- im Repo
+# lag es nicht, aber es gab auch nichts, das es aufgehalten haette.
+#
+# Stand beim Anlegen: nichts hiervon war getrackt und nichts lag untracked im
+# Arbeitsbaum. Diese Datei nimmt also nichts weg, sie beugt nur vor. Wichtig,
+# weil eine .gitignore bereits getrackte Dateien NICHT nachtraeglich entfernt --
+# wer hier spaeter etwas ergaenzt, muss betroffene Dateien zusaetzlich mit
+# `git rm --cached` aus der Verfolgung nehmen.
+
+# ── Geheimnisse ─────────────────────────────────────────────────────────────
+# Der eigentliche Grund fuer diese Datei. Alle Zugangsdaten dieses Projekts
+# leben in Netlify-Umgebungsvariablen und in Supabase, nie im Repo.
+.env
+.env.*
+!.env.example
+*.env
+secrets.json
+service-account*.json
+*.pem
+*.key
+!**/swiss-qr*.key
+
+# Make-Exporte: Blueprints tragen Header-Werte im Klartext, also auch die
+# Secrets, die als Header gesetzt werden (X-Call-Intake-Secret war genau so
+# offengelegt). Blueprints gehoeren deshalb nicht ins Repo -- der Ablageort
+# dafuer ist docs/make/, dort aber als Beschreibung, nicht als Rohexport.
+*blueprint*.json
+*.blueprint.json
+
+# ── Abhaengigkeiten ─────────────────────────────────────────────────────────
+# Lockfiles gehoeren ausdruecklich NICHT hierher: sie sollen mitgeliefert
+# werden. Nur die installierten Baeume bleiben draussen.
+node_modules/
+.pnp
+.pnp.js
+.yarn/
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ── Netlify ─────────────────────────────────────────────────────────────────
+# Lokaler Zustand von `netlify dev` und der Function-Bundler.
+.netlify/
+.netlify-cache/
+
+# Achtung, bewusst NICHT ignoriert: customer-dashboard/vx-runtime-config.js und
+# admin-panel/vx-runtime-config.js. Beide werden zur Build-Zeit aus den
+# Netlify-Variablen neu erzeugt, die committete Fassung traegt bewusst nulls
+# und dient als sichtbarer "keine Datenverbindung"-Hinweis. Sie zu ignorieren
+# wuerde diesen Fallback aus dem Repo nehmen. Wer die Datei lokal erzeugt,
+# committet die erzeugte Fassung bitte nicht mit.
+
+# ── Supabase-CLI ────────────────────────────────────────────────────────────
+# Nur lokaler Werkzeugzustand. supabase/migrations, /sql und /verification sind
+# Quelltext und bleiben getrackt.
+supabase/.branches/
+supabase/.temp/
+supabase/.env
+
+# ── Tests und Werkzeuge ─────────────────────────────────────────────────────
+# Playwright wird fuer die Browser-Gegenproben benutzt
+# (scripts/browser-check-notification-triggers.mjs), ist aber keine
+# Repo-Abhaengigkeit -- seine Ausgaben gehoeren nirgends hin.
+test-results/
+playwright-report/
+blob-report/
+.playwright/
+coverage/
+*.lcov
+
+# ── Betriebssystem und Editoren ─────────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# ── Temporaeres ─────────────────────────────────────────────────────────────
+*.log
+*.tmp
+*.bak
+*.orig
+*.rej
