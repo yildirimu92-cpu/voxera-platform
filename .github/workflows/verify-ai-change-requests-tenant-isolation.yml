@@ -1,0 +1,28 @@
+# Mandantentrennung der AI-Change-Requests.
+#
+# BEWUSST OHNE PFAD-FILTER. Die uebrigen Verify-Workflows im Repo filtern auf
+# die Dateien, die der jeweilige Check liest. Fuer die Sicherheitschecks ist das
+# eine zusaetzliche Stelle, an der Abdeckung still verlorengehen kann: wer eine
+# Datei anfasst, die der Check liest, sie aber nicht in die Liste eingetragen
+# hat, bekommt einen uebersprungenen statt eines bestandenen Laufs. Der Check
+# liest nur Repo-Dateien und braucht keine halbe Sekunde -- der Filter spart
+# nichts, was das Risiko rechtfertigt.
+name: Verify AI Change Requests Tenant Isolation
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: node scripts/verify-ai-change-requests-tenant-isolation.mjs

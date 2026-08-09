@@ -1,0 +1,24 @@
+# RLS-Haertung der Benachrichtigungen (current_customer_id statt Mandanten-Join).
+#
+# Bewusst ohne Pfad-Filter, siehe verify-ai-change-requests-tenant-isolation.yml:
+# bei einem Sicherheitscheck ist ein unvollstaendiger Filter eine stille Luecke,
+# und der Lauf kostet weniger als eine Sekunde.
+name: Verify Notifications RLS Hardening
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: node scripts/verify-notifications-rls-hardening.mjs
