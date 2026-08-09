@@ -189,7 +189,9 @@ async function syncCustomerToElevenLabs({
     // gehen -- kein zweiter Ladeweg, der auseinanderlaufen koennte.
     fingerprint = promptFingerprint({
       masterPrompt: inputs.masterPrompt,
-      industryPrompt: inputs.industryPrompt
+      industryPrompt: inputs.industryPrompt,
+      coreFields: inputs.coreFields,
+      industryFields: inputs.industryFields
     });
     compiled = buildPromptV2({
       customer,
@@ -327,7 +329,16 @@ async function syncCustomerToElevenLabs({
     .update(customerPatch)
     .eq('id', customerId);
   // Der Sync selbst gilt weiterhin als erfolgreich: der Agent ist bereits
-  // aktualisiert. Ein fehlgeschlagener Patch darf das nicht umdeuten.
+  // aktualisiert. Ein fehlgeschlagener Patch darf das nicht umdeuten -- ein
+  // `ok: false` wuerde einen Wiederholungsversuch ausloesen, der denselben
+  // Prompt ein zweites Mal an ElevenLabs schickt, ohne dass das irgendetwas
+  // repariert.
+  //
+  // Verschwiegen wird er trotzdem nicht: statePersisted sagt dem Aufrufer, dass
+  // der Agent zwar steht, der Ist-Fingerprint aber NICHT fortgeschrieben wurde.
+  // Der Kunde bleibt damit 'unknown' und wird vom naechsten Planungslauf erneut
+  // eingeplant -- die Schleife schliesst sich also von selbst, aber sichtbar
+  // statt still.
   if (customerPatchError) {
     console.warn('[elevenlabs-sync] customer_patch_failed', {
       customer_id: customerId,
@@ -339,6 +350,8 @@ async function syncCustomerToElevenLabs({
     ok: syncStatus === 'success',
     status: syncStatus,
     error: syncError,
+    statePersisted: !customerPatchError,
+    stateError: customerPatchError ? customerPatchError.message : null,
     promptLength: fullPrompt.length,
     promptVersion: compiled?.version,
     promptFingerprint: fingerprint,

@@ -123,34 +123,50 @@ async function enqueueFanout(sb, { runId, customers, canarySize = CANARY_WAVE_SI
     return { run_id: runId, enqueued: 0, skipped: 0, waves: 0 };
   }
 
-  const rows = customers.map((entry, index) => ({
-    run_id: runId,
-    customer_id: entry.customer_id,
-    agent_id: entry.agent_id || null,
-    status: 'pending',
-    reason: entry.reason || 'manual',
-    wave: index < canarySize ? 1 : 2,
-    expected_fingerprint: entry.expected_fingerprint || null
-  }));
-
-  // Der partielle Unique-Index laesst einen Kunden nicht zweimal offen stehen.
-  // Ein Konflikt ist deshalb kein Fehler, sondern die richtige Antwort: der
-  // Kunde ist bereits eingeplant. Zeile fuer Zeile, damit ein Konflikt nicht
-  // den ganzen Stapel verwirft.
+  // Die Welle wird NICHT vorab nach Position vergeben, sondern danach, was
+  // tatsaechlich in der Warteschlange landet.
+  //
+  // Warum das der Unterschied zwischen Canary und kein Canary ist: der partielle
+  // Unique-Index laesst einen Kunden nicht zweimal offen stehen. Steht der erste
+  // Kunde der Liste schon aus einem anderen Lauf an, wird genau seine Zeile
+  // uebersprungen. Bei Vorab-Vergabe haette der neue Lauf dann ausschliesslich
+  // Welle-2-Zeilen -- und waveIsClear() haelt eine leere Vorwelle fuer erledigt,
+  // gibt also den ganzen Stapel auf einmal frei. Genau der Fall tritt ein, wenn
+  // ein manueller Knopfdruck und der naechtliche Planer sich ueberschneiden.
+  //
+  // Ein Konflikt ist kein Fehler, sondern die richtige Antwort: der Kunde ist
+  // bereits eingeplant. Zeile fuer Zeile, damit ein Konflikt nicht den ganzen
+  // Stapel verwirft.
   let enqueued = 0;
   let skipped = 0;
-  for (const row of rows) {
-    const { error } = await sb.from('elevenlabs_sync_queue').insert(row);
-    if (!error) { enqueued += 1; continue; }
-    if (isUniqueViolation(error)) { skipped += 1; continue; }
-    throw error;
+  let canaryLanded = 0;
+  let secondWave = 0;
+
+  for (const entry of customers) {
+    const wave = canaryLanded < canarySize ? 1 : 2;
+    const { error } = await sb.from('elevenlabs_sync_queue').insert({
+      run_id: runId,
+      customer_id: entry.customer_id,
+      agent_id: entry.agent_id || null,
+      status: 'pending',
+      reason: entry.reason || 'manual',
+      wave,
+      expected_fingerprint: entry.expected_fingerprint || null
+    });
+    if (error) {
+      if (isUniqueViolation(error)) { skipped += 1; continue; }
+      throw error;
+    }
+    enqueued += 1;
+    if (wave === 1) canaryLanded += 1;
+    else secondWave += 1;
   }
 
   return {
     run_id: runId,
     enqueued,
     skipped,
-    waves: rows.some((row) => row.wave === 2) ? 2 : 1
+    waves: secondWave > 0 ? 2 : (enqueued > 0 ? 1 : 0)
   };
 }
 
@@ -204,6 +220,12 @@ async function abortIfFailing(sb, runId, threshold, minSample) {
   const bad = rows.filter((row) => row.status === 'dead' || row.status === 'failed').length;
   if (bad / rows.length < threshold) return false;
 
+  // 'failed' muss mit storniert werden, nicht nur 'pending': der Worker holt
+  // fehlgeschlagene Zeilen bewusst zum Wiederholen zurueck. Wuerde hier nur
+  // 'pending' storniert, griffe der naechste Tick eine 'failed'-Zeile desselben
+  // Laufs und synchronisierte weiter -- obwohl der Lauf bereits als abgebrochen
+  // gilt. Die Blast-Radius-Begrenzung waere dann nur so lange wirksam, bis jede
+  // Zeile ihre Versuche aufgebraucht hat.
   const { data: cancelled, error: cancelError } = await sb.from('elevenlabs_sync_queue')
     .update({
       status: 'cancelled',
@@ -211,7 +233,7 @@ async function abortIfFailing(sb, runId, threshold, minSample) {
       updated_at: new Date().toISOString()
     })
     .eq('run_id', runId)
-    .eq('status', 'pending')
+    .in('status', ['pending', 'failed'])
     .select('id');
   if (cancelError) {
     console.warn('[elevenlabs-fanout] abort_cancel_failed', cancelError.message);

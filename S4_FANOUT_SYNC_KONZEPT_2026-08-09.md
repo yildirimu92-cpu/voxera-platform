@@ -357,7 +357,7 @@ inzwischen ausgeliefert.
 
 ### Stufe 1 — Sichtbarkeit
 
-`_lib/prompt-fingerprint.js` bildet `v1.<builder>.<hash master>.<hash branche>`.
+`_lib/prompt-fingerprint.js` bildet `v2.<builder>.<hash master>.<hash branche>.<hash core_field_steps>.<hash extra_steps>` — ein Hash je gemeinsamer Eingabe, die der Builder verarbeitet.
 Der Soll-Wert wird zur Laufzeit berechnet und **nirgends gespeichert** — ein
 gespeicherter Soll-Wert könnte selbst veralten. Der Ist-Wert steht auf
 `customers.prompt_fingerprint` und wird nur nach einem erfolgreichen Sync
@@ -408,6 +408,7 @@ Kosten: null ElevenLabs-Aufrufe. Verhaltensänderung: keine.
 | `FANOUT_ABORT_THRESHOLD` | 0.5 | Fehlerquote, ab der ein Lauf abbricht |
 | `FANOUT_ABORT_MIN_SAMPLE` | 2 | Mindeststichprobe für den Abbruch |
 | `FANOUT_MAX_PER_RUN` | 25 | Obergrenze je Planungslauf (Überhang wird geloggt, nicht verschwiegen) |
+| `FANOUT_STALE_RUNNING_MINUTES` | 15 | Ab wann eine in `running` steckengebliebene Zeile zurückgeholt wird |
 | `FANOUT_DEPLOY_SECRET` | — | Ohne Wert ist der Deploy-Auslöser nicht benutzbar |
 
 ### Prüfung
@@ -422,6 +423,16 @@ Sechs bestehende Guards lasen den Sync-Kern an seiner alten Stelle und wurden
 nachgezogen — Aussage identisch, Pfad neu. Der P0-Security-Guard unterscheidet
 jetzt bewusst Handler (Auth) und Kern (Retention), statt beide zu vermengen. Alle
 50 `verify-*.mjs` laufen grün.
+
+### Nachträge aus dem Review (Codex, PR #881)
+
+Fünf Befunde, alle bestätigt und behoben:
+
+* **Fingerprint war unvollständig (P1).** Seit dem Merge verarbeitet der Builder zwei weitere gemeinsame Eingaben (`core_field_steps`, `extra_steps`), die nicht im Fingerprint standen. Eine Änderung daran hätte den Prompt verändert, während jeder Agent weiter als aktuell gilt — exakt die Blindstelle, gegen die S4 gebaut ist. Schema auf `v2` gehoben; dass dabei alle gespeicherten Werte ungleich werden, ist der dokumentierte Zweck des Präfixes (in Produktion folgenlos, dort steht noch kein einziger Fingerprint).
+* **Canary ging bei übersprungenen Inserts verloren (P1).** Die Welle wurde nach Listenposition vergeben. Scheiterte der erste Insert am Unique-Index — was passiert, wenn Knopf und Planer sich überschneiden —, hatte der Lauf nur Welle-2-Zeilen, und `waveIsClear()` hält eine leere Vorwelle für erledigt. Die Welle richtet sich jetzt danach, was tatsächlich in der Warteschlange landet.
+* **Zeilen konnten dauerhaft in `running` stranden (P1).** Bricht eine Invocation nach `claim()` ab, sah keine spätere Abfrage die Zeile wieder, und der partielle Unique-Index verhinderte gleichzeitig eine Neueinplanung. Der Worker holt solche Zeilen jetzt vor dem Kandidatenlesen zurück (`FANOUT_STALE_RUNNING_MINUTES`), und zwar auf `failed`, damit die Versuchsgrenze greift.
+* **Abbruch stornierte nur `pending` (P2).** Der Worker holt `failed`-Zeilen bewusst zum Wiederholen zurück — ein abgebrochener Lauf hätte also weitersynchronisiert. Jetzt werden beide Status storniert.
+* **Fehlgeschlagene Zustandsspeicherung war unsichtbar (P2).** Steht der Agent, schlägt aber der `customers`-Patch fehl, bleibt der Sync bewusst `ok: true` — ein Wiederholungsversuch würde denselben Prompt ein zweites Mal senden und nichts reparieren. Neu ist `statePersisted`: die Warteschlangenzeile trägt den Grund, der Worker zählt die Fälle, und der Kunde bleibt `unknown` und wird vom nächsten Planungslauf erneut eingeplant. Die Schleife schliesst sich also weiterhin von selbst, aber sichtbar statt still.
 
 ### Was bewusst offen blieb
 

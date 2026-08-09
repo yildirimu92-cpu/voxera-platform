@@ -30,8 +30,15 @@ const check = (name, passed, detail) => {
   if (!passed) failed += 1;
 };
 
+// Die Builder-Version enthaelt selbst einen Punkt ('2.2'), eine Zerlegung nach
+// Index waere deshalb falsch. Geprueft wird die Struktur als Ganzes: Schema,
+// Builder-Version, und ein Hash je gemeinsamer Eingabe.
+const SHAPE = /^v(\d+)\.(.+?)\.([0-9a-f]{12})\.([0-9a-f]{12})\.([0-9a-f]{12})\.([0-9a-f]{12})$/;
+
 const MASTER = '# Master Layer 1\r\n\r\n---\r\n\r\n## ROLLE\r\nDu bist {{ASSISTANT_NAME}}.';
 const INDUSTRY = '## BRANCHE\nIT-Support.';
+const CORE = '[{"key":"oeffnungszeiten"}]';
+const EXTRA = [{ key: 'notdienst', label: 'Notdienst' }];
 
 // ── Stabilitaet: gleiche Eingaben, gleicher Wert ─────────────────────────────
 {
@@ -56,8 +63,17 @@ const INDUSTRY = '## BRANCHE\nIT-Support.';
 {
   const fp = promptFingerprint({ masterPrompt: MASTER, industryPrompt: INDUSTRY });
   check('Builder-Version ist Teil des Fingerprints',
-    fp.split('.').slice(1, -2).join('.') === PROMPT_BUILDER_VERSION,
+    SHAPE.exec(fp)?.[2] === PROMPT_BUILDER_VERSION,
     `${fp} enthaelt ${PROMPT_BUILDER_VERSION}`);
+}
+
+// Der Schema-Praefix macht eine geaenderte Zusammensetzung sichtbar: sonst
+// wuerden alte und neue Werte still verglichen, obwohl sie Verschiedenes
+// bedeuten.
+{
+  const fp = promptFingerprint({ masterPrompt: MASTER, industryPrompt: INDUSTRY });
+  check('Fingerprint traegt Schema, Builder-Version und vier Eingabe-Hashes',
+    SHAPE.test(fp), fp);
 }
 
 // ── Leere Eingaben sind ein definierter Zustand, kein Absturz ────────────────
@@ -73,7 +89,11 @@ const INDUSTRY = '## BRANCHE\nIT-Support.';
 // Sync-Funktion ergibt bei fehlender Vorlagenzeile ebenfalls '' -- laufen die
 // beiden Seiten hier auseinander, gilt der Kunde fuer immer als veraltet.
 {
-  const context = { masterPrompt: MASTER, industryPrompts: new Map([['it-support', INDUSTRY]]) };
+  const context = {
+    masterPrompt: MASTER,
+    coreFields: CORE,
+    industryTemplates: new Map([['it-support', { promptBlock: INDUSTRY, extraSteps: EXTRA }]])
+  };
   const ohneBranche = fingerprintFor(context, { industry_template_id: null });
   const fehlendeVorlage = fingerprintFor(context, { industry_template_id: 'gibt-es-nicht' });
   const leererString = fingerprintFor(context, { industry_template_id: '  ' });
@@ -83,7 +103,9 @@ const INDUSTRY = '## BRANCHE\nIT-Support.';
   const mitBranche = fingerprintFor(context, { industry_template_id: 'it-support' });
   check('Kunde mit vorhandener Vorlage unterscheidet sich davon', mitBranche !== ohneBranche);
   check('fingerprintFor deckt sich mit promptFingerprint',
-    mitBranche === promptFingerprint({ masterPrompt: MASTER, industryPrompt: INDUSTRY }));
+    mitBranche === promptFingerprint({
+      masterPrompt: MASTER, industryPrompt: INDUSTRY, coreFields: CORE, industryFields: EXTRA
+    }));
   check('fingerprintFor vertraegt einen leeren Kunden', typeof fingerprintFor(context, null) === 'string');
 }
 
@@ -93,6 +115,16 @@ const status = fs.readFileSync(STATUS, 'utf8');
 
 check('Sync-Funktion berechnet den Fingerprint aus den geladenen Eingaben',
   /promptFingerprint\(\{\s*masterPrompt: inputs\.masterPrompt/.test(trigger));
+
+// Codex P1 (#881): jede gemeinsame Eingabe, die der Builder verarbeitet, muss
+// auch in den Fingerprint. Sonst veraendert eine Vorlagenaenderung den Prompt,
+// waehrend jeder Agent weiter als aktuell gilt.
+for (const feld of ['coreFields: inputs.coreFields', 'industryFields: inputs.industryFields']) {
+  check(`Sync-Funktion reicht ${feld.split(':')[0]} in den Fingerprint`, trigger.includes(feld));
+}
+check('Builder und Fingerprint sehen dieselben gemeinsamen Eingaben',
+  ['masterPrompt', 'industryPrompt', 'coreFields', 'industryFields']
+    .every((feld) => new RegExp(`${feld}: inputs\\.${feld}`).test(trigger)));
 check('Sync-Funktion schreibt ihn ins Log', /prompt_fingerprint: fingerprint/.test(trigger));
 
 // Der Ist-Wert darf nur nach Erfolg fortgeschrieben werden -- sonst gilt ein

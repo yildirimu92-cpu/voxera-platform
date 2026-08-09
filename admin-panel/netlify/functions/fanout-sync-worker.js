@@ -100,6 +100,38 @@ exports.handler = async () => {
   });
 
   const startedAt = Date.now();
+
+  // Steckengebliebene Zeilen zurueckholen, BEVOR Kandidaten gelesen werden.
+  //
+  // claim() setzt 'running'. Bricht die Invocation danach ab -- Netlify-Timeout,
+  // Prozessende, unbehandelter Fehler --, bleibt die Zeile fuer immer so stehen:
+  // die Kandidatenabfrage liest nur 'pending' und 'failed', und der partielle
+  // Unique-Index verhindert gleichzeitig, dass derselbe Kunde neu eingeplant
+  // wird. Eine einzige abgebrochene Invocation wuerde den Kunden also dauerhaft
+  // stranden -- genau den, den der Fan-out nachziehen sollte.
+  //
+  // Zurueck auf 'failed' statt 'pending': attempts wurde beim Claim schon
+  // hochgezaehlt, damit greift die normale Versuchsgrenze und eine Zeile, die
+  // den Worker reproduzierbar umbringt, laeuft nicht endlos im Kreis.
+  const staleAfterMs = intEnv('FANOUT_STALE_RUNNING_MINUTES', 15) * 60_000;
+  const staleCutoff = new Date(Date.now() - staleAfterMs).toISOString();
+  const { data: reclaimed, error: reclaimError } = await sb.from('elevenlabs_sync_queue')
+    .update({
+      status: 'failed',
+      error_message: 'Worker-Invocation abgebrochen, Zeile zurueckgestellt.',
+      updated_at: new Date().toISOString()
+    })
+    .eq('status', 'running')
+    .lt('last_attempt_at', staleCutoff)
+    .select('id, customer_id');
+  if (reclaimError) log('warn', 'reclaim_failed', { error: reclaimError.message });
+  else if (reclaimed?.length) {
+    log('warn', 'reclaimed_stale_running', {
+      count: reclaimed.length,
+      customers: reclaimed.map((row) => row.customer_id)
+    });
+  }
+
   const { data: candidates, error: candidateError } = await sb.from('elevenlabs_sync_queue')
     .select('id, run_id, customer_id, agent_id, status, wave, attempts, reason')
     .in('status', ['pending', 'failed'])
@@ -117,6 +149,7 @@ exports.handler = async () => {
   let succeeded = 0;
   let failed = 0;
   let held = 0;
+  let statePersistFailures = 0;
   const abortedRuns = new Set();
 
   for (const candidate of candidates || []) {
@@ -160,13 +193,25 @@ exports.handler = async () => {
 
     if (result.ok) {
       succeeded += 1;
-      await finish(sb, claimed.id, { status: 'done', error_message: null });
-      log('info', 'sync_done', {
+      // Der Agent steht, aber der Ist-Fingerprint konnte nicht geschrieben
+      // werden: die Zeile ist erledigt (ein zweiter PATCH repariert nichts),
+      // der Grund steht aber in der Zeile statt nur im Log. Der Kunde bleibt
+      // 'unknown' und wird vom naechsten Planungslauf erneut eingeplant.
+      const statePersisted = result.statePersisted !== false;
+      if (!statePersisted) statePersistFailures += 1;
+      await finish(sb, claimed.id, {
+        status: 'done',
+        error_message: statePersisted
+          ? null
+          : `Agent aktualisiert, Zustand nicht gespeichert: ${String(result.stateError || 'unbekannt').slice(0, 300)}`
+      });
+      log(statePersisted ? 'info' : 'warn', 'sync_done', {
         run_id: claimed.run_id,
         customer_id: claimed.customer_id,
         wave: claimed.wave,
         reason: claimed.reason,
-        fingerprint: result.promptFingerprint
+        fingerprint: result.promptFingerprint,
+        state_persisted: statePersisted
       });
     } else {
       failed += 1;
@@ -195,6 +240,7 @@ exports.handler = async () => {
     succeeded,
     failed,
     held_for_canary: held,
+    state_persist_failures: statePersistFailures,
     aborted_runs: [...abortedRuns],
     duration_ms: Date.now() - startedAt
   };
