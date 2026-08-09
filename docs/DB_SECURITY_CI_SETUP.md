@@ -135,7 +135,7 @@ die elf Migrationen ohne Ledger-Eintrag — jeweils mit Begründung im Bericht).
 | D2 | ein Nicht-Admin ändert keine fremden Zeilen (RLS auf UPDATE und DELETE) | Verhalten |
 | E | `is_admin()` löst eindeutig auf, `current_customer_id()` löst korrekt auf, `anon` kommt an keine der Funktionen | Verhalten |
 | F | Policies, Grants, Spalten-Allowlists, `search_path`-Pinning, Funktionssignaturen | Katalog |
-| G | Migrations-Ledger ↔ `supabase/migrations/` in beide Richtungen | Katalog |
+| G | Migrations-Ledger ↔ Repo in beide Richtungen (Richtung „angewandt?" gegen `supabase/migrations/`, Richtung „Repo-Datei vorhanden?" zusätzlich gegen `supabase/sql/`) | Katalog |
 | H | keine neuen `anon`/`authenticated`-Grants, keine neue Tabelle ohne RLS | Baseline-Diff |
 
 ### Warum jede Probe eine Gegenkontrolle hat
@@ -224,7 +224,17 @@ der Job aufgibt.
 der Datenbank. Das ist der P0-Fehler in seiner Reinform. Migration anwenden.
 
 **Gruppe G, „nur auf der DB"** — jemand hat am Repo vorbei geändert. Die
-Änderung als Migrationsdatei nachdokumentieren, damit sie reproduzierbar wird.
+Änderung als SQL-Datei nachdokumentieren, damit sie reproduzierbar wird;
+`supabase/sql/` genügt, das Verzeichnis wird für diese Richtung mitgelesen.
+
+Häufigster Auslöser ist nicht der böse Eingriff, sondern **Anwenden vor dem
+Merge**: eine Migration wird auf einem Feature-Branch auf Produktion
+eingespielt und der Branch merged erst später. Bis dahin kennt `main` die
+Datei nicht, und der Check meldet zutreffend eine Waise — die Datenbank trägt
+Schema, das aus `main` nicht reproduzierbar ist. Auflösung ist entweder der
+Merge oder, wenn der Feature-Code noch nicht so weit ist, die SQL-Datei allein
+unter demselben Pfad nach `main` zu ziehen. Der Ledger bildet den Stand der
+Produktions-Datenbank ab, nicht den Fortschritt eines Branches.
 
 **Gruppe H** — `anon` oder `authenticated` hat neue Tabellenrechte bekommen.
 Meist ein Supabase-Default auf einer neu angelegten Tabelle. Entweder zurück-

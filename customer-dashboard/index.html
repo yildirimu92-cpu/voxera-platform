@@ -15029,17 +15029,15 @@ async function vxSubmitCancellationRequest() {
       });
       const cancelJson = await cancelRes.json().catch(function(){ return {}; });
       if (!cancelRes.ok) throw new Error(cancelJson.error || 'Kündigung konnte nicht eingereicht werden.');
-      await fetch('/.netlify/functions/ai-change-notify', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
-        body: JSON.stringify({
-          mail_type: 'cancellation_request',
-          customer_id: customerMeta.customerId || null,
-          customer_name: customerMeta.customerName || null,
-          plan: customerMeta.plan || null,
-          cancellation_notice: ct.cancellation_notice || '30 Tage'
-        })
-      });
+      // Hier stand ein Aufruf auf ai-change-notify, der nie funktioniert hat:
+      // die Funktion verlangt ein Feld `message`, das dieser Aufruf nie
+      // mitgeschickt hat, und antwortete daher immer mit HTTP 400 - unbemerkt,
+      // weil das Ergebnis nie geprueft wurde. Ihr mail_type wurde ausserdem
+      // ignoriert, sie versendete alles als ai_change_request. Eine Kuendigung
+      // hat also noch nie eine Admin-Benachrichtigung ausgeloest. Der Aufruf
+      // ist entfernt statt repariert, weil "Kuendigung eingereicht" als
+      // Benachrichtigungs-Event noch nicht entschieden ist und in der
+      // Mail-Engine keine Route dafuer existiert.
       ct.cancellation_date = cancellationDate.toISOString();
       ct.termination_reason = reasonText;
       ct.termination_type = 'customer_request';
@@ -16168,6 +16166,8 @@ async function loadCustomerContractMeta(customerId, subscriptionId) {
       customerContractState.hasActiveContract = resolveHasActiveContractFromState(customerContractState);
       customerContractMeta = customerContractState.effectiveContract || customerContractState.latestContract || null;
       renderVertrag();
+      vxRenderContractDetails();
+      vxRenderCancellationSection();
       vxDebugInfo('[plan-card-debug] contract-state-source', {
         serverState: {
           status: serverState.status,
@@ -16205,6 +16205,8 @@ async function loadCustomerContractMeta(customerId, subscriptionId) {
     customerContractState.resolution = 'resolved';
     customerContractMeta = customerContractState.effectiveContract || null;
     renderVertrag();
+    vxRenderContractDetails();
+    vxRenderCancellationSection();
     return customerContractMeta;
   } catch (e) {
     console.warn('[contract-meta] load failed', e);

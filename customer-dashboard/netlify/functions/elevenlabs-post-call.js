@@ -3,7 +3,15 @@ const { createClient } = require('@supabase/supabase-js');
 const { normalizePhoneE164 } = require('./_lib/phone-normalize'); // [PATCH 2a] Import hinzugefügt
 
 const WEBHOOK_SECRET = process.env.ELEVENLABS_WEBHOOK_SECRET || '';
-const MAKE_MAIL_WEBHOOK = process.env.MAKE_MAIL_WEBHOOK || '';
+// Call-Intake, nicht Mail-Engine: die Payloads hier tragen bewusst keinen
+// mail_type, sondern die Gespraechsdaten fuer Make-Szenario 01. Frueher lief
+// das ueber MAKE_MAIL_WEBHOOK - derselbe Variablenname, den die Admin-Site
+// fuer die Mail-Engine benutzt. Auf der Dashboard-Site zeigte die Variable
+// deshalb auf den Call-Intake-Hook, und jede Admin-Benachrichtigung landete
+// unbemerkt in dessen Queue. Getrennte Namen, damit das nicht wiederkommt;
+// bewusst ohne Fallback auf MAKE_MAIL_WEBHOOK, weil ein Fallback exakt die
+// Vermischung zurueckholen wuerde, die den Fehler verursacht hat.
+const MAKE_CALL_INTAKE_WEBHOOK = process.env.MAKE_CALL_INTAKE_WEBHOOK || '';
 const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY || '';
 
 // Zeitfenster für den Stub-Match (caller_phone + called_number + recency).
@@ -472,10 +480,10 @@ async function handleToolCall(body, event) {
     matchStrategy = 'insert';
   }
 
-  // Trigger Make mail webhook
-  if (MAKE_MAIL_WEBHOOK) {
+  // Trigger Make call-intake webhook
+  if (MAKE_CALL_INTAKE_WEBHOOK) {
     try {
-      await fetch(MAKE_MAIL_WEBHOOK, {
+      await fetch(MAKE_CALL_INTAKE_WEBHOOK, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -494,7 +502,7 @@ async function handleToolCall(body, event) {
         })
       });
     } catch (e) {
-      console.warn('[elevenlabs-post-call] tool-call mail webhook failed', { error: e.message });
+      console.warn('[elevenlabs-post-call] call-intake webhook failed', { error: e.message });
     }
   }
 
@@ -1009,10 +1017,10 @@ exports.handler = async (event) => {
     }
   }
 
-  // ─── Trigger Mail via Make.com (mit den finalen Daten) ─────────────────
-  if (initialUpdateOk && MAKE_MAIL_WEBHOOK) {
+  // ─── Trigger Call-Intake via Make.com (mit den finalen Daten) ──────────
+  if (initialUpdateOk && MAKE_CALL_INTAKE_WEBHOOK) {
     try {
-      await fetch(MAKE_MAIL_WEBHOOK, {
+      await fetch(MAKE_CALL_INTAKE_WEBHOOK, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1030,9 +1038,9 @@ exports.handler = async (event) => {
           duration_seconds: finalPayload.duration_seconds || null
         })
       });
-      console.log('[elevenlabs-post-call] mail webhook triggered', { elevenLabsConvId });
+      console.log('[elevenlabs-post-call] call-intake webhook triggered', { elevenLabsConvId });
     } catch (e) {
-      console.warn('[elevenlabs-post-call] mail webhook failed', { error: e.message });
+      console.warn('[elevenlabs-post-call] call-intake webhook failed', { error: e.message });
     }
   }
 

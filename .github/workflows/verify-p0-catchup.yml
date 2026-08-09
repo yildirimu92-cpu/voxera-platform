@@ -1,0 +1,28 @@
+# Nachzug der P0-Security-Migration (2026-08-08_p0_security_foundation_catchup).
+#
+# Prueft die Migrationsdatei gegen die Vorlage von 2026-07-28 -- also genau die
+# Migration, die der P0-Vorfall betraf. Ein Repo-Check kann nicht sehen, ob sie
+# auf der Datenbank wirksam ist; das leistet nur
+# verify-db-security-invariants.yml gegen die echte Produktions-DB. Die beiden
+# ersetzen einander nicht.
+#
+# Bewusst ohne Pfad-Filter, siehe verify-ai-change-requests-tenant-isolation.yml.
+name: Verify P0 Catchup
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: node scripts/verify-p0-catchup.mjs

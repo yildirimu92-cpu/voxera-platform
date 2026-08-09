@@ -23,7 +23,11 @@ const disallowedApi = sh("rg -n \"api\\.airtable\\.com\" admin-panel admin-panel
 if (disallowedApi.ok && disallowedApi.out.trim()) fail('Admin contains Airtable API endpoint reference', disallowedApi.out.trim());
 else pass('Admin has no Airtable API endpoint reference');
 
-const adminTables = ['customers', 'calls', 'cases'];
+// voxera_cases, nicht cases: die Tabelle wurde Ende April 2026 umbenannt, auf
+// der Produktions-DB existiert nur noch voxera_cases. Der Check lief hier
+// seither ins Leere und meldete "missing Supabase read for cases", obwohl
+// beide Oberflaechen korrekt lesen. Nicht auf 'cases' zurueckstellen.
+const adminTables = ['customers', 'calls', 'voxera_cases'];
 for (const table of adminTables) {
   const res = sh(`rg -n "\\.from\\('${table}'\\)" admin-panel/index.html`);
   if (res.ok && res.out.trim()) pass(`Admin frontend reads ${table} from Supabase`);
