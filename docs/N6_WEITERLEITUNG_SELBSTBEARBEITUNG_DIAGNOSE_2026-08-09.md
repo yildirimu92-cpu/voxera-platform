@@ -223,14 +223,67 @@ Der Testkunde und seine Log-Zeile wurden gelöscht; Produktion steht wieder bei
 
 ### Regressionsschutz
 
-`scripts/verify-forwarding-self-edit-sync.mjs` (44 Prüfungen), eingebunden über
+`scripts/verify-forwarding-self-edit-sync.mjs` (61 Prüfungen), eingebunden über
 `.github/workflows/verify-forwarding-self-edit-sync.yml`. Gegenprobe gegen
-`bb72cd2`: 13 Prüfungen scheitern, darunter alle drei zur Sync-Entscheidung.
+`bb72cd2`: 14 Prüfungen scheitern, darunter alle drei zur Sync-Entscheidung.
 Voller Verifier-Sweep grün (Grundsatz 14); `verify-db-security-invariants`
 scheitert unverändert an fehlenden DB-Zugangsdaten, auch auf `main`.
 `node --test customer-dashboard/tests/`: 142/142.
 
-## Teil F — Ehrlich benannte Grenzen
+## Teil F — Die Oberfläche
+
+Bearbeitbar wird die Weiterleitung in der bestehenden Karte „Grenzen und
+Eskalation" — kein neuer Screen, keine neue Navigation. Sichtbar ist der Editor
+nur bei `permissions.can_change_forwarding`; Starter und Business behalten
+Anzeige plus Meldeweg unverändert.
+
+**Ein Satz statt eines Formulars (Grundsatz 15).** Drei beschriftete Felder,
+die zusammen die Regel ergeben:
+
+```
+In welchem Fall?   [ z. B. Wasserschaden oder Rohrbruch     ]
+Dann anrufen       [ Name, z. B. Pikettdienst Meier         ]
+Nummer             [ z. B. 079 123 45 67                    ]
+```
+
+Ein Ziel ist sichtbar; das zweite erscheint erst auf „+ Zweite Weiterleitung
+hinzufügen" — wer nur eine Weiterleitung hat, sieht auch nur eine. Der
+Auslöser fragt nach dem *Fall* und nicht nach einem Nebensatz, weil er im Prompt
+zu „(bei: …)" wird: „Wenn jemand einen Wasserschaden meldet" ergäbe dort „bei:
+jemand einen Wasserschaden meldet".
+
+Weitere Festlegungen:
+
+- Gesendet wird nur, was auch gerendert ist. Ein nicht aufgeklapptes zweites
+  Ziel ist nicht Teil der Änderung und taucht deshalb nicht in `prev_values`
+  und im Sync-Log auf.
+- Name ohne Nummer (oder umgekehrt) wird vor dem Absenden erklärt statt still
+  gespeichert — der Assistent nutzt ein halbes Ziel nicht, und genau diese
+  Sorte stille Wirkungslosigkeit ist der Kern von N6.
+- Fehlercodes des Endpoints werden übersetzt. „forwarding_number_invalid" ist
+  für die Zielgruppe unbrauchbar.
+- Der Baustein „Weiterleitung einrichten" im Meldeweg entfällt für Kunden, die
+  selbst bearbeiten können — sonst stünde ein zweiter, langsamerer Weg direkt
+  neben dem Editor.
+- Die Kartenbeschreibung trägt die Regel, die tatsächlich gilt: „Die
+  Weiterleitung ändern Sie selbst — sie wirkt sofort. Die Notfallnummer
+  bestätigt Voxera." Für Pläne ohne Berechtigung bleibt der alte Satz stehen.
+
+**Die Notfallnummer bleibt bewusst read-only, auch für Professional.** „Bei
+Lebensgefahr" ist in der Schweiz fast immer 144; wer sie ändern will, geht über
+„Änderung melden". Server und Plan-Sperre könnten das Feld bereits — die
+Zurückhaltung ist eine Produktentscheidung, keine technische Grenze.
+
+**Geprüft.** 15 Funktionsproben in jsdom gegen das echte Modul mit echten
+Klicks und mitgeschnittenem Payload: erstes Ziel speichern (genau drei Felder
+im Request), zweites Ziel aufklappen (sechs Felder, erstes behält seine Werte),
+Name ohne Nummer wird abgefangen und der Editor bleibt offen, ohne Berechtigung
+kein Editor und der Meldeweg bleibt vollständig. Das Modul ist die Vorlage für
+die Vorschau; jsdom ist keine Repo-Abhängigkeit, im Guard stehen deshalb
+statische Prüfungen auf dieselben Eigenschaften (Gegenprobe gegen `bb72cd2`:
+14 Prüfungen scheitern).
+
+## Teil G — Ehrlich benannte Grenzen
 
 - **Kein Live-Anruf.** Nachgewiesen ist, dass der Sync ausgelöst wird und welcher
   Prompt dabei entsteht. Dass ElevenLabs den PATCH annimmt, ist für diesen Pfad

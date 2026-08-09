@@ -26,6 +26,7 @@ const paths = {
   policy: 'customer-dashboard/netlify/functions/_lib/assistant-write-policy.js',
   update: 'customer-dashboard/netlify/functions/customer-update-assistant.js',
   profile: 'customer-dashboard/netlify/functions/customer-assistant-profile.js',
+  runtime: 'customer-dashboard/shared/customer-runtime-assistant-profile.js',
   builder: 'admin-panel/netlify/functions/_lib/prompt-builder-v2.js',
   trigger: 'admin-panel/netlify/functions/trigger-elevenlabs-sync.js',
   dashboard: 'customer-dashboard/index.html'
@@ -156,6 +157,45 @@ check('Sync-Log faellt stufenweise zurueck, nicht alles-oder-nichts',
   && /\{ \.\.\.bareRow, changed_fields: syncLogRow\.changed_fields \}/.test(src.trigger));
 check('Objekt-Spalten erzeugen kein Phantom-Diff',
   /typeof value === 'object'\) return JSON\.stringify\(value\)/.test(src.trigger));
+
+// ── Der Editor im Assistent-Screen ──────────────────────────────────────────
+// Grundsatz 15: drei beschriftete Felder, die zusammen einen Satz ergeben, und
+// ein zweites Ziel erst auf Anforderung. Kein Telefonanlagen-Formular.
+// Der Plan darf im Frontend nur als Wort in einem Hinweistext vorkommen, nie
+// als Bedingung — sonst waere ein Freischalten wieder ein Deploy.
+check('Editor ist an die Berechtigung gebunden, nicht am Plan',
+  /can_change_forwarding === true/.test(src.runtime)
+  && !/\bplan_code\b/.test(src.runtime)
+  && !/profile\??\.\??plan\b/.test(src.runtime));
+check('Editor existiert', /function forwardingEditor/.test(src.runtime) && /async function saveForwarding/.test(src.runtime));
+for (const label of ['In welchem Fall?', 'Dann anrufen', 'Nummer']) {
+  check(`Feldbeschriftung "${label}"`, src.runtime.includes('>' + label + '</label>'));
+}
+check('Beispieltexte statt leerer Felder',
+  /placeholder="z\. B\. Wasserschaden oder Rohrbruch"/.test(src.runtime)
+  && /placeholder="Name, z\. B\. Pikettdienst Meier"/.test(src.runtime)
+  && /placeholder="z\. B\. 079 123 45 67"/.test(src.runtime));
+check('zweites Ziel erst auf Anforderung', /vx-forwarding-add/.test(src.runtime) && /forwardingSecondSlotOpen/.test(src.runtime));
+check('nur gerenderte Felder werden gesendet', /function collectForwardingPayload/.test(src.runtime));
+// Name ohne Nummer speichert der Server klaglos, der Assistent nutzt das Ziel
+// aber nicht -- genau die stille Wirkungslosigkeit, um die es bei N6 ging.
+check('Name ohne Nummer wird erklaert statt still gespeichert',
+  /Name und Telefonnummer gehören zusammen/.test(src.runtime));
+check('Fehlercodes werden uebersetzt',
+  /SAVE_ERROR_TEXT/.test(src.runtime) && /forwarding_number_invalid:/.test(src.runtime));
+check('Statusmeldung hat im offenen Editor einen Anker',
+  /forwardingEditorOpen \? 'vx-forwarding-status'/.test(src.runtime));
+check('Editor schliesst erst nach erfolgreichem Speichern',
+  /const saved = await updateAssistant\(payload, 'assistant', document\.getElementById\('vx-forwarding-save'\)\);[\s\S]{0,400}if \(saved\) \{\s*\n\s*forwardingEditorOpen = false;/.test(src.runtime));
+check('Kartenbeschreibung behauptet keinen Bestaetigungsweg mehr, den es nicht gibt',
+  /Die Weiterleitung ändern Sie selbst/.test(src.runtime)
+  && /Änderungen an Weiterleitung und Notfallnummer bestätigt Voxera/.test(src.runtime));
+// Die Notfallnummer bleibt bewusst ausserhalb des Editors: "bei Lebensgefahr"
+// ist fast immer 144. Aenderungen laufen weiter ueber den Meldeweg.
+check('Notfallnummer ist kein Editorfeld', !/vx-fwd-\d-emergency|ai_emergency_number/.test(src.runtime));
+check('Meldeweg bleibt fuer alle Plaene erreichbar', /vx-urgent-change-toggle/.test(src.runtime));
+check('kein doppelter Weg fuer dieselbe Sache',
+  /canEditForwarding && label === 'Weiterleitung einrichten'/.test(src.runtime));
 
 if (failed) process.exit(1);
 console.log('Weiterleitungs-Selbstbearbeitung / Sync verified.');

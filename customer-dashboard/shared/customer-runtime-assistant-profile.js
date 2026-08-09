@@ -15,6 +15,8 @@
   let bootAttempts = 0;
   let activeView = 'assistant';
   let toneEditorOpen = false;
+  let forwardingEditorOpen = false;
+  let forwardingSecondSlotOpen = false;
   let voiceDetailsOpen = false;
   let loadPromise = null;
   let loadSequence = 0;
@@ -144,7 +146,7 @@
       // Ohne Anker schreibt setStatus an den Seitenknoten.
       anchorId: page === 'business'
         ? 'vx-business-save-status'
-        : (toneEditorOpen ? 'vx-hero-tune-status' : '')
+        : (toneEditorOpen ? 'vx-hero-tune-status' : (forwardingEditorOpen ? 'vx-forwarding-status' : ''))
     };
   }
 
@@ -234,6 +236,57 @@
     return originChip('branch', 'Noch keine Branche zugeordnet');
   }
 
+  // N6 — die Weiterleitung ist wieder selbst bearbeitbar. Der Editor ist
+  // bewusst ein Satz und kein Telefonanlagen-Formular (Grundsatz 15): drei
+  // Felder, die zusammen "Wenn X, dann anrufen: Name unter Nummer" ergeben. Das
+  // zweite Ziel erscheint erst, wenn es gebraucht wird — wer nur eine
+  // Weiterleitung hat, sieht auch nur eine.
+  function forwardingSlotFields(index, slot) {
+    const prefix = 'vx-fwd-' + index;
+    return '<div class="vx-ap-subsection">'
+      + '<div class="vx-ap-subtitle">' + (index === 1 ? 'Weiterleitung' : 'Zweite Weiterleitung') + '</div>'
+      + '<div class="vx-ap-fieldlist">'
+      // Der Auslöser wird im Prompt zu „(bei: …)" — deshalb fragt das Feld nach
+      // dem Fall und nicht nach einem Nebensatz. „Wenn jemand einen
+      // Wasserschaden meldet" ergäbe dort „bei: jemand einen Wasserschaden
+      // meldet"; der Assistent liest, was hier getippt wird.
+      + '<div class="vx-ap-field"><label for="' + prefix + '-trigger">In welchem Fall?</label>'
+      + '<input id="' + prefix + '-trigger" maxlength="500" value="' + esc(slot.trigger || '') + '"'
+      + ' placeholder="z. B. Wasserschaden oder Rohrbruch"' + (busy ? ' disabled' : '') + '></div>'
+      + '<div class="vx-ap-field"><label for="' + prefix + '-name">Dann anrufen</label>'
+      + '<input id="' + prefix + '-name" maxlength="120" value="' + esc(slot.name || '') + '"'
+      + ' placeholder="Name, z. B. Pikettdienst Meier"' + (busy ? ' disabled' : '') + '></div>'
+      + '<div class="vx-ap-field"><label for="' + prefix + '-number">Nummer</label>'
+      + '<input id="' + prefix + '-number" type="tel" inputmode="tel" maxlength="40" value="' + esc(slot.number || '') + '"'
+      + ' placeholder="z. B. 079 123 45 67"' + (busy ? ' disabled' : '') + '></div>'
+      + '</div>'
+      + (index === 2
+        ? '<div class="vx-ap-meta">Zum Entfernen die drei Felder leeren und speichern.</div>'
+        : '')
+      + '</div>';
+  }
+
+  function forwardingEditor(slots) {
+    if (!forwardingEditorOpen) {
+      const label = (slots[0].name || slots[0].number) ? 'Weiterleitung ändern' : 'Weiterleitung einrichten';
+      return '<div class="vx-ap-actions"><button type="button" class="vx-ap-btn secondary" id="vx-forwarding-edit">' + label + '</button></div>';
+    }
+    const showSecond = forwardingSecondSlotOpen || Boolean(slots[1].name || slots[1].number || slots[1].trigger);
+    return '<div class="vx-ap-subsection">'
+      + '<div class="vx-ap-meta">Ihr Assistent verbindet nur weiter, wenn Name und Nummer beide hinterlegt sind. '
+      + 'Sonst nimmt er das Anliegen wie gewohnt auf.</div>'
+      + forwardingSlotFields(1, slots[0])
+      + (showSecond
+        ? forwardingSlotFields(2, slots[1])
+        : '<div class="vx-ap-actions"><button type="button" class="vx-ap-linkbtn" id="vx-forwarding-add">+ Zweite Weiterleitung hinzufügen</button></div>')
+      + '<div class="vx-ap-actions">'
+      + '<button type="button" class="vx-ap-btn" id="vx-forwarding-save"' + (busy ? ' disabled' : '') + '>Weiterleitung speichern</button>'
+      + '<button type="button" class="vx-ap-btn ghost" id="vx-forwarding-cancel"' + (busy ? ' disabled' : '') + '>Abbrechen</button>'
+      + '</div>'
+      + '<div id="vx-forwarding-status" class="vx-ap-status vx-ap-status--inline" role="status" aria-live="polite"></div>'
+      + '</div>';
+  }
+
   function boundariesCard() {
     const urgent = profile?.urgent || { emergency_number: '', forwarding: [] };
     const boundaries = profile?.boundaries || {};
@@ -278,16 +331,33 @@
         + rules + originChip('voxera', 'Nicht überschreibbar') + '</details>'
       : '';
 
+    // Die Kartenbeschreibung muss die Schreibregel treffen, die auf der Karte
+    // gilt — sonst behauptet sie einen Bestaetigungsweg, den es fuer die
+    // Weiterleitung nicht mehr gibt.
+    const canEditForwarding = profile?.permissions?.can_change_forwarding === true;
+    const slots = Array.isArray(urgent.slots) && urgent.slots.length === 2
+      ? urgent.slots
+      : [{ name: '', number: '', trigger: '' }, { name: '', number: '', trigger: '' }];
+    const cardMeta = canEditForwarding
+      ? 'Die Weiterleitung ändern Sie selbst — sie wirkt sofort. Die Notfallnummer bestätigt Voxera.'
+      : 'Änderungen an Weiterleitung und Notfallnummer bestätigt Voxera vor der Aktivierung.';
+
     return '<section class="vx-ap-card" id="vx-assistant-urgent-card">'
-      + '<div class="vx-ap-head"><div><div class="vx-ap-title">Grenzen und Eskalation</div><div class="vx-ap-meta">Änderungen an Weiterleitung und Notfallnummer bestätigt Voxera vor der Aktivierung.</div></div></div>'
+      + '<div class="vx-ap-head"><div><div class="vx-ap-title">Grenzen und Eskalation</div><div class="vx-ap-meta">' + esc(cardMeta) + '</div></div></div>'
       + body
+      + (canEditForwarding ? forwardingEditor(slots) : '')
       + limitsBlock
       + escalationBlock
       + industryBlock
       + rulesBlock
       + '<div class="vx-ap-actions"><button type="button" class="vx-ap-btn secondary" id="vx-urgent-change-toggle" aria-expanded="false" aria-controls="vx-urgent-change-panel">Änderung melden</button></div>'
       + '<div id="vx-urgent-change-panel" class="vx-ap-change-panel" hidden>'
-      + '<div class="vx-ap-change-presets">' + CHANGE_PRESETS.map(([label, prefix]) => '<button type="button" class="vx-ap-btn ghost" data-vx-change-preset="' + esc(prefix) + '">' + esc(label) + '</button>').join('') + '</div>'
+      // Wer die Weiterleitung selbst bearbeiten kann, braucht dafuer keinen
+      // Meldeweg — der Baustein stuende sonst als zweiter, langsamerer Weg
+      // direkt neben dem Editor.
+      + '<div class="vx-ap-change-presets">' + CHANGE_PRESETS
+        .filter(([label]) => !(canEditForwarding && label === 'Weiterleitung einrichten'))
+        .map(([label, prefix]) => '<button type="button" class="vx-ap-btn ghost" data-vx-change-preset="' + esc(prefix) + '">' + esc(label) + '</button>').join('') + '</div>'
       + '<div class="vx-ap-field"><label for="vx-urgent-change-msg">Ihre Änderungsanfrage</label><textarea id="vx-urgent-change-msg" maxlength="6000" placeholder="Beschreiben Sie Ihre Wünsche …"></textarea></div>'
       + '<div class="vx-ap-actions"><button type="button" class="vx-ap-btn" id="vx-urgent-change-submit">Anfrage senden</button></div>'
       + '<div id="vx-urgent-change-feedback" class="vx-ap-urgent-feedback" role="status" aria-live="polite" hidden></div>'
@@ -714,6 +784,23 @@
     });
     document.getElementById('vx-hero-tune-save')?.addEventListener('click', saveTune);
     document.getElementById('vx-open-business-profile')?.addEventListener('click', () => root.vxShowAssistantView?.('business', true));
+    document.getElementById('vx-forwarding-edit')?.addEventListener('click', () => {
+      forwardingEditorOpen = true;
+      renderAssistant();
+    });
+    // Gleicher zweiter Riegel wie beim Ton-Editor: ein Klick, der waehrend des
+    // Speicherns durchkommt, darf den Editor nicht schliessen.
+    document.getElementById('vx-forwarding-cancel')?.addEventListener('click', () => {
+      if (busy) return;
+      forwardingEditorOpen = false;
+      forwardingSecondSlotOpen = false;
+      renderAssistant();
+    });
+    document.getElementById('vx-forwarding-add')?.addEventListener('click', () => {
+      forwardingSecondSlotOpen = true;
+      renderAssistant();
+    });
+    document.getElementById('vx-forwarding-save')?.addEventListener('click', saveForwarding);
     document.getElementById('vx-urgent-change-toggle')?.addEventListener('click', toggleUrgentChangePanel);
     document.querySelectorAll('[data-vx-change-preset]').forEach((node) => node.addEventListener('click', () => prefillUrgentChange(node.dataset.vxChangePreset)));
     document.getElementById('vx-urgent-change-submit')?.addEventListener('click', submitUrgentChange);
@@ -765,11 +852,29 @@
     // vx-hero-tune-cancel gehoert dazu: sonst laesst sich der Editor waehrend
     // eines laufenden Speicherns wegklicken und der Zustand ist weg, obwohl der
     // Request noch fehlschlagen kann.
-    ['vx-business-profile-save', 'vx-open-business-profile', 'vx-hero-tune-cancel', 'vx-greeting-reset', 'vx-branch-save'].forEach((id) => {
+    ['vx-business-profile-save', 'vx-open-business-profile', 'vx-hero-tune-cancel', 'vx-greeting-reset', 'vx-branch-save',
+      'vx-forwarding-edit', 'vx-forwarding-cancel', 'vx-forwarding-add'].forEach((id) => {
       const node = document.getElementById(id);
       if (node) node.disabled = disabled;
     });
     document.querySelectorAll('[data-vx-select-voice], [data-vx-preview]').forEach((node) => { node.disabled = disabled; });
+  }
+
+  // request() wirft mit dem Fehlercode des Endpoints im Text. Solange niemand
+  // ihn uebersetzt, liest der Kunde "forwarding_number_invalid" — fuer die
+  // Zielgruppe (Grundsatz 15) unbrauchbar.
+  const SAVE_ERROR_TEXT = {
+    forwarding_number_invalid: 'Diese Telefonnummer können wir nicht wählen. Bitte mit Vorwahl eingeben, z. B. 079 123 45 67.',
+    forwarding_not_allowed_on_plan: 'Die Weiterleitung gehört zum Professional-Paket. Melden Sie uns die gewünschte Änderung, wir richten sie ein.',
+    tone_not_allowed_on_plan: 'Den Ton können Sie ab dem Business-Paket selbst wählen.',
+    assistant_name_not_allowed_on_plan: 'Den Namen können Sie ab dem Business-Paket selbst wählen.',
+    voice_not_allowed_on_plan: 'Die Stimmenauswahl ist in Ihrem Paket nicht freigeschaltet.',
+    voice_not_available_on_plan: 'Diese Stimme ist in Ihrem Paket nicht verfügbar.'
+  };
+
+  function saveErrorMessage(error) {
+    const raw = String(error?.message || '').trim();
+    return SAVE_ERROR_TEXT[raw] || raw || 'Änderung konnte nicht gespeichert werden.';
   }
 
   // button: the save button to animate (Speichert … → Gespeichert ✓ → its
@@ -807,7 +912,7 @@
         finalTone = 'warning';
       }
     } catch (error) {
-      finalMessage = error?.message || 'Änderung konnte nicht gespeichert werden.';
+      finalMessage = saveErrorMessage(error);
       finalTone = 'error';
     } finally {
       busy = false;
@@ -857,6 +962,46 @@
     // nicht nur quittiert.
     if (saved) {
       toneEditorOpen = false;
+      renderAssistant();
+    }
+  }
+
+  // Nur die tatsaechlich gerenderten Felder werden gesendet. Ist das zweite
+  // Ziel gar nicht aufgeklappt, ist es auch nicht Teil der Aenderung — sonst
+  // stuenden bei jedem Speichern drei leere Spalten in prev_values und im
+  // Sync-Log.
+  function collectForwardingPayload() {
+    const payload = {};
+    [1, 2].forEach((index) => {
+      ['name', 'number', 'trigger'].forEach((part) => {
+        const node = document.getElementById('vx-fwd-' + index + '-' + part);
+        if (node) payload['ai_forwarding_' + index + '_' + part] = String(node.value || '').trim();
+      });
+    });
+    return payload;
+  }
+
+  async function saveForwarding() {
+    const payload = collectForwardingPayload();
+    // Name ohne Nummer (oder umgekehrt) speichert der Server klaglos, der
+    // Assistent nutzt das Ziel aber nicht — genau die Sorte stille Wirkungslosigkeit,
+    // um die es bei N6 ging. Deshalb hier gesagt statt hingenommen.
+    for (const index of [1, 2]) {
+      const name = payload['ai_forwarding_' + index + '_name'];
+      const number = payload['ai_forwarding_' + index + '_number'];
+      if (name === undefined) continue;
+      if (Boolean(name) !== Boolean(number)) {
+        setStatus('assistant', 'Name und Telefonnummer gehören zusammen — Ihr Assistent verbindet sonst nicht weiter.', 'warning', true);
+        document.getElementById('vx-fwd-' + index + '-' + (name ? 'number' : 'name'))?.focus();
+        return;
+      }
+    }
+    const saved = await updateAssistant(payload, 'assistant', document.getElementById('vx-forwarding-save'));
+    // Erst schliessen, wenn es wirklich gespeichert ist — die Karte darueber
+    // zeigt danach den neuen Stand.
+    if (saved) {
+      forwardingEditorOpen = false;
+      forwardingSecondSlotOpen = false;
       renderAssistant();
     }
   }
