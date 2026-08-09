@@ -240,6 +240,25 @@ if (fs.existsSync(path.join(root, 'customer-dashboard', 'netlify', 'functions', 
   failures.push('ai-change-notify.js is retired — the change-request mail goes through ai-change-request-create.js.');
 }
 
+// call-intake-resolve-customer.js ist am 09.08.2026 entfallen. Der Endpunkt gab
+// gegen ein geteiltes Secret zu einer beliebigen Telefonnummer die
+// E-Mail-Adresse des Kunden samt Benachrichtigungseinstellungen heraus - und
+// das Secret galt als offengelegt, weil es im exportierten Make-Blueprint im
+// Klartext stand.
+//
+// Sein einziger Aufrufer war Make-Szenario 01. Die Aufloesung laeuft jetzt
+// in-process in _lib/call-notification.js, ohne Netzwerk-Hop und ohne Secret.
+// Diese Pruefung haengt am Waechter mit dem breitesten Pfad-Glob
+// (customer-dashboard/netlify/functions/**), damit ein Wiederanlegen den Lauf
+// ueberhaupt ausloest.
+if (fs.existsSync(path.join(root, 'customer-dashboard', 'netlify', 'functions', 'call-intake-resolve-customer.js'))) {
+  failures.push(
+    'call-intake-resolve-customer.js is retired. It exposed customer email and notification settings '
+    + 'for any phone number behind a shared secret that leaked through the Make blueprint. '
+    + 'Customer resolution belongs in _lib/call-notification.js.'
+  );
+}
+
 console.log(`Mail contract manifest v${manifest.version}`);
 console.log(`Scanned ${occurrences.length} literal mail_type declarations.`);
 console.log(`Recognized types: ${[...new Set(occurrences.map(entry => entry.type))].sort().join(', ') || 'none'}`);
