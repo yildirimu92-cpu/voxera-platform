@@ -174,7 +174,11 @@
   --z-mobile-nav:50;
   --z-onboarding:9000;
   --z-commercial:9800;
-  --z-tour:10000;
+  /* Hiess --z-tour, solange die Spotlight-Tour existierte. Die Tour ist am
+     09.08.2026 entfallen; die Stufe bleibt, weil die mobilen Sortiermenues
+     ueber der Bottom-Nav (Inline-Max 9999) liegen muessen. Der Name folgt
+     jetzt dem einzigen verbliebenen Nutzer. */
+  --z-above-mobile-nav:10000;
   --z-detail-fullscreen:10040;
   --z-overlay:10200;          /* Modalfamilie: alle .overlay-Dialoge */
   --z-overlay-detail:10200;   /* Bestandsname, gleiche Ebene */
@@ -4147,7 +4151,7 @@ body,.main{background:var(--vx-bg);}
       0 12px 32px rgba(13, 31, 60, 0.18),
       0 2px 8px rgba(13, 31, 60, 0.08) !important;
     /* Über jeder mobile-nav (aktuelles Inline-Max ist 9999) */
-    z-index: var(--z-tour) !important;
+    z-index: var(--z-above-mobile-nav) !important;
   }
 
   /* Touch-Targets auf 44px-Niveau (iOS HIG) */
@@ -7962,6 +7966,18 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
                 <li class="vx-help-step"><span>2</span><div><small id="vx-help-step2">Lara ist eingerichtet und übernimmt Ihre Anrufe. Eingehende Anfragen erscheinen sofort im Dashboard.</small></div></li>
                 <li class="vx-help-step"><span>3</span><div><small id="vx-help-step3">Geschäftsnummer anrufen — Lara nimmt ab. Anruf erscheint im Dashboard.</small></div></li>
               </ol>
+              <!-- Der einzige Weg, die Willkommens-Karte erneut zu oeffnen.
+                   Er steht bewusst hier, auf der lebenden Hilfe-Seite
+                   (#mehr-sub-hilfe), und nicht im abgeloesten Alt-Screen
+                   #tab-einstellungen — dort war der frueher einzige Einstieg,
+                   und er war ausserdem als "Tour" beschriftet, obwohl er die
+                   Karte oeffnete. -->
+              <div class="vx-help-restart">
+                <button type="button" class="btn btn--secondary" onclick="vxOnboardingRestart()">
+                  <i class="ph-bold ph-arrow-counter-clockwise" aria-hidden="true"></i>
+                  Willkommens-Hinweise nochmals ansehen
+                </button>
+              </div>
             </section>
 
             <section class="vx-settings-card">
@@ -8290,7 +8306,12 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
               <button class="btn btn--secondary" onclick="openHelpSection('support')">Mehr erfahren</button>
             </div>
 
-            <!-- Hilfe & Tour – prominent für Mobile -->
+            <!-- Hilfe & Support – prominent für Mobile.
+                 Hiess "Hilfe & Tour", solange die Spotlight-Tour existierte.
+                 Der Knopf darunter oeffnete allerdings nie die Tour, sondern
+                 die Willkommens-Karte — die Beschriftung war schon vorher
+                 falsch. Der lebende Wiedereinstieg steht jetzt auf der
+                 Hilfe-Seite selbst (#mehr-sub-hilfe). -->
             <div class="settings-card" style="background:linear-gradient(135deg,#0D1F3C 0%,#1A3060 100%);border:none;">
               <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">
                 <div style="width:38px;height:38px;border-radius:10px;background:rgba(255,255,255,0.12);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
@@ -8298,7 +8319,7 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
                 </div>
                 <div>
                   <div style="font-size:14px;font-weight:700;color:#fff;">Hilfe & Support</div>
-                  <div style="font-size:12px;color:rgba(255,255,255,0.5);margin-top:1px;">Anleitungen, Tour und direkter Kontakt</div>
+                  <div style="font-size:12px;color:rgba(255,255,255,0.5);margin-top:1px;">Anleitungen und direkter Kontakt</div>
                 </div>
               </div>
               <div style="display:grid;gap:8px;">
@@ -8309,7 +8330,7 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
                 </button>
                 <button onclick="vxOnboardingRestart()" style="width:100%;padding:11px 14px;border-radius:10px;border:none;background:rgba(26,111,232,0.35);color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;text-align:left;display:flex;align-items:center;gap:10px;">
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                  Einrichtungs-Assistent starten
+                  Willkommens-Hinweise nochmals ansehen
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="2" stroke-linecap="round" style="margin-left:auto;"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
                 </button>
                 <button onclick="requestSupport()" style="width:100%;padding:11px 14px;border-radius:10px;border:none;background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.75);font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;text-align:left;display:flex;align-items:center;gap:10px;">
@@ -8452,17 +8473,20 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
         <div class="vx-onboarding-icon"><i class="ph-bold ph-sparkle" aria-hidden="true"></i></div>
         <div>
           <h2 id="vx-onboarding-title" class="vx-onboarding-title">Willkommen bei Voxera</h2>
-          <div class="vx-onboarding-sub">Ihr Assistent ist eingerichtet und einsatzbereit.</div>
+          <div id="vx-onboarding-sub" class="vx-onboarding-sub">Ihr Assistent ist eingerichtet und einsatzbereit.</div>
         </div>
       </div>
     </div>
 
     <div class="vx-onboarding-body">
       <p class="vx-onboarding-text" id="vx-onboarding-copy">
-        Lara nimmt Anrufe für Sie entgegen. Anfragen finden Sie unter <strong>Anfragen</strong>,
-        Einstellungen zu Rufumleitung und Benachrichtigungen unter <strong>Mehr</strong>.
+        Ihr Assistent nimmt Anrufe für Sie entgegen. Zwei Bereiche brauchen Sie dafür.
       </p>
-      <button type="button" class="btn btn--primary btn--full" onclick="vxOnboardingFinish()">Verstanden</button>
+      <!-- Inhalt setzt vxOnboardingRenderBody() zur Laufzeit: Assistentenname,
+           Navigationsbeschriftungen und der Zustand der Rufumleitung stehen
+           erst dann fest. -->
+      <ul class="vx-onboarding-list" id="vx-onboarding-list"></ul>
+      <div class="vx-onboarding-actions" id="vx-onboarding-actions"></div>
     </div>
   </div>
 </div>
@@ -9176,6 +9200,26 @@ function vxIsQuotaExceededError(err) {
   var msg = String((err && err.message) || err || '');
   return err.name === 'QuotaExceededError' || err.code === 22 || /quota|kQuotaBytes/i.test(msg);
 }
+// Schluessel, die eine Entscheidung des Kunden festhalten ("gesehen",
+// "abgeschlossen") und nicht neu berechnet werden koennen. Sie duerfen beim
+// Aufraeumen nie mitgehen: ihr Verlust erzeugt keinen neuen Cache-Aufbau,
+// sondern zeigt dem Kunden einen Erstlauf-Dialog erneut, den er laengst
+// weggeklickt hat. Genau das war die Ursache der wiederkehrenden
+// Onboarding-Tour und des wiederkehrenden Einrichtungs-Assistenten: der
+// Aufraeumer loeschte pauschal alles mit Praefix vx_/voxera_ und traf damit
+// auch voxera_tour_v2_done, vx_onboarding_dismissed_<id> und
+// voxera_setup_finished*.
+//
+// Die Liste enthaelt Teilstuecke, keine vollen Schluessel: die Merker tragen
+// die Kundennummer im Namen (getSetupStorageKey(), vxOnboardingDismissedKey()).
+// Bewusst nicht geschuetzt: die Aktivierungs-Fehlerflags. Sie halten keine
+// Entscheidung fest, sondern transienten Fehlerzustand, und werden von
+// clearActivationRunErrorStorage() ohnehin gezielt geraeumt.
+function vxIsProtectedDecisionStorageKey(key) {
+  var k = String(key || '').toLowerCase();
+  return k.indexOf('onboarding') >= 0 || k.indexOf('setup_finished') >= 0;
+}
+
 function vxCleanupNonCriticalVoxeraStorage() {
   try {
     var prefixes = ['vx_', 'voxera_'];
@@ -9185,6 +9229,7 @@ function vxCleanupNonCriticalVoxeraStorage() {
       var key = localStorage.key(i);
       if (!key) continue;
       if (keep.some(function(k){ return key.indexOf(k) === 0 || key.indexOf(k) >= 0; })) continue;
+      if (vxIsProtectedDecisionStorageKey(key)) continue;
       if (prefixes.some(function(p){ return key.indexOf(p) === 0; })) remove.push(key);
     }
     remove.forEach(function(k){ try { localStorage.removeItem(k); } catch(_e) {} });
@@ -15492,14 +15537,98 @@ function vxOnboardingPersistDismissed() {
   try { window.localStorage.setItem(vxOnboardingDismissedKey(), '1'); } catch(e) {}
 }
 
+// Ein anderer Dialog darf nicht ueberdeckt werden. Frueher war das kein
+// Thema, weil das Onboarding als einziger Erstlauf-Dialog automatisch aufging
+// — bis die Spotlight-Tour 600ms spaeter obendrauf kam. Die Tour ist weg, der
+// Waechter bleibt: Aktivierungs-Flow, Bestaetigungen und die Detail-Vollansicht
+// koennen aus laufenden Vorgaengen heraus offen sein, wenn ein Poll das
+// Onboarding oeffnen wuerde.
+function vxOnboardingBlockingDialogOpen() {
+  var ids = ['activation-flow-overlay', 'confirm-overlay', 'vx-commercial-overlay',
+             'setup-help-overlay', 'vox-support-request-overlay', 'vx-detail-v2-fullscreen'];
+  for (var i = 0; i < ids.length; i++) {
+    var el = document.getElementById(ids[i]);
+    if (!el) continue;
+    try {
+      var cs = window.getComputedStyle(el);
+      if (cs.display !== 'none' && cs.visibility !== 'hidden') return true;
+    } catch(e) {}
+  }
+  return false;
+}
+
 function vxOnboardingInit() {
   // Nicht zeigen wenn bereits abgeschlossen (DB-Flag oder lokal gemerkt)
   if (vxOnboardingIsDismissed()) return;
   // Innerhalb dieser Session reicht ein Dismiss aus, egal wie oft
   // vxOnboardingInit() durch nachfolgende Polls erneut aufgerufen wird.
   if (window._vxOnboardingDismissedThisSession) return;
+  // Kein Automatik-Start ueber einem offenen Dialog. Der naechste Poll holt es
+  // nach, sobald der andere Vorgang beendet ist.
+  if (vxOnboardingBlockingDialogOpen()) return;
 
   vxOnboardingShow();
+}
+
+// Baut Ziel-Liste und Aktionen. Zur Laufzeit, weil drei Angaben erst dann
+// feststehen: der Assistentenname, die Beschriftungen der Navigation und ob
+// die Rufumleitung noch offen ist. Es wird bewusst nichts positioniert und auf
+// kein Element gezeigt — genau daran ist die alte Tour gescheitert.
+function vxOnboardingRenderBody() {
+  var list = document.getElementById('vx-onboarding-list');
+  var actions = document.getElementById('vx-onboarding-actions');
+  if (!list || !actions) return;
+
+  var assistantName = String((customerMeta && customerMeta.assistantName) || 'Ihr Assistent').trim() || 'Ihr Assistent';
+  var forwardingOpen = (typeof isForwardingSetupCompleted === 'function') ? !isForwardingSetupCompleted() : false;
+
+  // Anrede nur, wenn ein Vorname vorliegt — "Willkommen bei Voxera," mit
+  // leerem Namen dahinter waere schlechter als die Ueberschrift ohne Anrede.
+  var firstName = String((customerMeta && (customerMeta.contactFirstName
+    || (customerMeta.customerName ? String(customerMeta.customerName).split(' ')[0] : ''))) || '').trim();
+  var titleEl = document.getElementById('vx-onboarding-title');
+  if (titleEl) titleEl.textContent = firstName ? ('Willkommen bei Voxera, ' + firstName) : 'Willkommen bei Voxera';
+  var subEl = document.getElementById('vx-onboarding-sub');
+  if (subEl) subEl.textContent = assistantName + ' ist eingerichtet und einsatzbereit.';
+  var copyEl = document.getElementById('vx-onboarding-copy');
+  if (copyEl) copyEl.textContent = assistantName + ' nimmt Anrufe für Sie entgegen. Zwei Bereiche brauchen Sie dafür.';
+
+  // Die Beschriftungen kommen aus der Navigation selbst, nicht aus einer
+  // zweiten Textquelle: wird ein Bereich umbenannt, wandert der Name mit,
+  // statt hier still zu veralten.
+  function navLabel(id, fallback) {
+    var el = document.getElementById(id);
+    var text = el ? String(el.textContent || '').trim() : '';
+    return text || fallback;
+  }
+
+  var items = [
+    { icon: 'ph-tray', title: navLabel('nav-anrufe', 'Anfragen'),
+      text: 'Hier sehen Sie jeden Anruf, den ' + assistantName + ' für Sie entgegengenommen hat — mit Zusammenfassung und Rückrufnummer.' },
+    { icon: 'ph-robot', title: navLabel('nav-assistent', 'Assistent'),
+      text: 'Was ' + assistantName + ' sagt und über Ihr Unternehmen weiss, ändern Sie hier. Alles ist bereits eingerichtet.' }
+  ];
+  if (forwardingOpen) {
+    items.push({ icon: 'ph-phone-transfer', open: true, title: 'Noch offen: Rufumleitung',
+      text: 'Erst damit landen Ihre Anrufe bei ' + assistantName + '. Wir führen Sie Schritt für Schritt durch.' });
+  }
+
+  list.innerHTML = items.map(function(item) {
+    return '<li class="vx-onboarding-item' + (item.open ? ' vx-onboarding-item--open' : '') + '">'
+      + '<span class="vx-onboarding-item-icon"><i class="ph-bold ' + item.icon + '" aria-hidden="true"></i></span>'
+      + '<span><span class="vx-onboarding-item-title">' + _esc(item.title) + '</span>'
+      + '<span class="vx-onboarding-item-text">' + _esc(item.text) + '</span></span>'
+      + '</li>';
+  }).join('');
+
+  // Grundsatz 13: der einzige gezeigte Zustand ("Rufumleitung offen") hat
+  // seine Handlung direkt daneben. Ist nichts offen, bleibt genau ein Knopf.
+  actions.innerHTML = forwardingOpen
+    ? '<button type="button" class="btn btn--primary btn--full" onclick="vxOnboardingStartForwarding()">Rufumleitung jetzt einrichten</button>'
+      + '<button type="button" class="btn btn--secondary btn--full" onclick="vxOnboardingFinish()">Später</button>'
+    : '<button type="button" class="btn btn--primary btn--full" onclick="vxOnboardingFinish()">Verstanden</button>';
+
+  if (typeof refreshLucideIcons === 'function') refreshLucideIcons();
 }
 
 // Einziger Weg, das Onboarding zu oeffnen. Vorher setzte jeder Einstieg das
@@ -15510,10 +15639,27 @@ function vxOnboardingInit() {
 function vxOnboardingShow() {
   const overlay = document.getElementById('vx-onboarding-overlay');
   if (!overlay) return;
+  vxOnboardingRenderBody();
   rememberOverlayFocusReturn('vx-onboarding-overlay');
   overlay.style.display = 'flex';
   setOverlayAriaHidden('vx-onboarding-overlay', false);
   vxFocusDialog('vx-onboarding-overlay');
+}
+
+// Schliesst die Karte und fuehrt direkt in die Rufumleitung. Der Merker wird
+// dabei gesetzt: wer den Weg einmal genommen hat, soll die Karte beim
+// naechsten Login nicht erneut sehen — unabhaengig davon, ob er die
+// Einrichtung zu Ende gebracht hat. Der offene Zustand steht danach weiterhin
+// im Dashboard, nicht in einem wiederkehrenden Dialog.
+function vxOnboardingStartForwarding() {
+  const overlay = document.getElementById('vx-onboarding-overlay');
+  if (overlay) overlay.style.display = 'none';
+  setOverlayAriaHidden('vx-onboarding-overlay', true);
+  restoreOverlayFocus('vx-onboarding-overlay');
+  vxOnboardingDismissNow();
+  setTimeout(function() {
+    try { openSetupWizardFromCta(null, 's1'); } catch(e) { console.warn('[onboarding] Rufumleitung konnte nicht geoeffnet werden', e); }
+  }, 120);
 }
 
 function vxOnboardingSkip() {
@@ -20629,10 +20775,16 @@ function vxSyncAssistantNameCopy() {
   if (helpFaqLangQ) helpFaqLangQ.textContent = 'Kann ' + assistantName + ' mehrere Sprachen?';
   var settingsFaqLangQ = document.getElementById('vx-settings-faq-lang-q');
   if (settingsFaqLangQ) settingsFaqLangQ.textContent = 'Welche Sprachen erkennt ' + assistantName + '?';
-  var onboardingCopy = document.getElementById('vx-onboarding-copy');
-  if (onboardingCopy) {
-    onboardingCopy.innerHTML = _esc(assistantName) + ' nimmt Anrufe für Sie entgegen. Anfragen finden Sie unter <strong>Anfragen</strong>, '
-      + 'Einstellungen zu Rufumleitung und Benachrichtigungen unter <strong>Mehr</strong>.';
+  // Die Willkommens-Karte setzt ihre Texte nicht mehr hier, sondern in
+  // vxOnboardingRenderBody() — dort stehen ausser dem Namen auch der Zustand
+  // der Rufumleitung und die Beschriftungen der Navigation zur Verfuegung.
+  // Der frueher hier gesetzte Text nannte den Bereich "Mehr", der Eintrag
+  // heisst seit dem Navigations-Redesign "Einstellungen"; genau solche
+  // Zweitquellen sollen nicht wieder entstehen. Nur nachziehen, wenn die
+  // Karte gerade offen ist — sonst waere es Arbeit an unsichtbarem Markup.
+  if (typeof vxOnboardingRenderBody === 'function') {
+    var onboardingOverlay = document.getElementById('vx-onboarding-overlay');
+    if (onboardingOverlay && onboardingOverlay.style.display === 'flex') vxOnboardingRenderBody();
   }
 }
 
@@ -24854,7 +25006,6 @@ document.getElementById('notiz-input').addEventListener('keydown', e => {
     { id: 'vx-commercial-overlay', close: function(){ vxCommercialClose(); } },
     { id: 'setup-help-overlay', close: function(){ closeSetupHelpOverlay(); } },
     { id: 'activation-flow-overlay', close: function(){ closeActivationFlowModal(); } },
-    { id: 'tour-overlay', close: function(){ tourSkip(); } },
     { id: 'vx-onboarding-overlay', close: function(){ vxOnboardingSkip(); } }
   ];
 
@@ -29262,7 +29413,10 @@ function showApp(user) {
     setTimeout(function(){ if (typeof vxEnsureNoOrphanDetailView === 'function') vxEnsureNoOrphanDetailView('showApp:after-restoreTab'); }, 0);
     safeMountActivationV2({ reason: 'showApp', softGate: false });
     setTimeout(injectSortButtons, 100);
-    tourCheckFirstLogin();
+    // Der zweite Erstlauf-Einstieg (tourCheckFirstLogin) stand hier und lief
+    // 600ms nach vxOnboardingInit() los — zwei Willkommens-Ebenen uebereinander.
+    // Die Willkommens-Karte ist jetzt die einzige; sie wird aus dem
+    // customerMeta-Aufbau heraus geoeffnet, nicht von hier.
     setTimeout(function() {
       if (typeof vxPreloadAssistantVoices === 'function') {
         vxPreloadAssistantVoices().catch(function(){});
@@ -29611,32 +29765,27 @@ function toggleCallRow(event, row) {
 
 </script>
 <!-- ═══════════════════════════════════════
-     SPOTLIGHT TOUR
-═══════════════════════════════════════ -->
-<div id="tour-overlay" aria-hidden="true">
-  <canvas id="tour-canvas" aria-hidden="true"></canvas>
-  <!-- top/left setzt tourRender() zur Laufzeit; alles Uebrige kommt aus CSS. -->
-  <div id="tour-card" role="dialog" aria-modal="true" aria-labelledby="tour-title" tabindex="-1">
-    <div class="vx-tour-head">
-      <div id="tour-progress" class="vx-tour-progress">1 / 7</div>
-      <button type="button" class="vx-tour-skip" onclick="tourSkip()">Überspringen</button>
-    </div>
-    <div class="vx-tour-bar"><div id="tour-progress-bar" class="vx-tour-bar-fill"></div></div>
-    <div id="tour-icon" class="vx-tour-icon"></div>
-    <div id="tour-title" class="vx-tour-title"></div>
-    <div id="tour-text" class="vx-tour-text"></div>
-    <div class="vx-tour-actions">
-      <button type="button" id="tour-back-btn" class="btn btn--secondary vx-tour-back" onclick="tourBack()">Zurück</button>
-      <button type="button" id="tour-next-btn" class="btn btn--primary vx-tour-next" onclick="tourNext()">Weiter</button>
-    </div>
-  </div>
-</div>
-<style>
-@keyframes tourCardIn{from{opacity:0;transform:scale(.95)}to{opacity:1;transform:scale(1)}}
+     SPOTLIGHT TOUR — entfernt (09.08.2026)
+     ───────────────────────────────────────
+     Die 7-Schritt-Tour ("Willkommen bei Voxera", #tour-overlay samt Canvas,
+     Positionslogik und eigenem localStorage-Merker) ist ersatzlos entfallen.
+     Grund war nicht nur veralteter Inhalt: der Zeichencode fiel bei fehlendem
+     Ziel-Element auf eine deckende Vollflaeche zurueck, und auf Mobile fehlte
+     das Ziel bei jedem einzelnen Schritt, weil alle mobileTarget-Angaben auf
+     die Sidebar zeigten, die unter 768px display:none traegt. Eine Tour, die
+     sich an Element-IDs und -Positionen haengt, bricht bei jedem UI-Umbau
+     erneut — und zwar still.
 
-/* ── Onboarding und Tour: aus Inline-Stilen auf Klassen und Tokens ──────────
-   Beide Dialoge trugen ihre gesamte Gestaltung im style-Attribut und waren
-   damit die einzigen, die an keinem Token haengen: eigener Button-Radius,
+     Die Einfuehrung laeuft jetzt ueber eine einzige Ebene: die
+     Willkommens-Karte #vx-onboarding-overlay. Sie nennt die Bereiche im
+     Klartext statt mit dem Finger darauf zu zeigen, haengt an keiner
+     Position und wird ueber das DB-Feld customers.onboarding_completed
+     gesteuert (nicht ueber einen rein lokalen Merker).
+═══════════════════════════════════════ -->
+<style>
+/* ── Onboarding-Karte: aus Inline-Stilen auf Klassen und Tokens ────────────
+   Der Dialog trug seine gesamte Gestaltung im style-Attribut und war
+   damit der einzige, der an keinem Token haengt: eigener Button-Radius,
    eigene Hoehen, eigene Farbliterale. Die Werte bleiben, sie stehen nur
    nicht mehr im Markup.
 
@@ -29675,49 +29824,52 @@ function toggleCallRow(event, row) {
 #vx-onboarding-overlay .vx-onboarding-title{margin:0;font-size:18px;font-weight:800;color:#fff;letter-spacing:-.02em;}
 #vx-onboarding-overlay .vx-onboarding-sub{font-size:12px;color:var(--vx-color-text-on-dark-muted);margin-top:1px;}
 #vx-onboarding-overlay .vx-onboarding-body{padding:20px 24px 24px;}
-#vx-onboarding-overlay .vx-onboarding-text{margin:0 0 20px;font-size:14px;line-height:1.6;color:var(--slate2);}
-#vx-onboarding-overlay .btn--full{width:100%;justify-content:center;}
+#vx-onboarding-overlay .vx-onboarding-text{margin:0 0 16px;font-size:14px;line-height:1.6;color:var(--slate2);}
 
-#tour-overlay{display:none;position:fixed;inset:0;z-index:var(--z-tour);pointer-events:none;}
-#tour-overlay #tour-canvas{position:absolute;inset:0;width:100%;height:100%;}
-#tour-overlay #tour-card{
-  position:absolute;background:var(--surface);
-  border-radius:var(--vx-radius-xl,16px);
-  padding:28px 28px 22px;max-width:320px;width:calc(100vw - 40px);
-  box-shadow:var(--vx-shadow-modal);
-  pointer-events:all;
-  transition:top .35s var(--vx-ease),left .35s var(--vx-ease);
-  animation:tourCardIn .3s var(--vx-ease);
+/* Die drei Ziele: eine Liste aus Name + einem Satz, kein Zeigefinger auf ein
+   Element. Genau das macht die Karte unabhaengig von jedem Navigations-Umbau
+   — es gibt keine Position, die veralten koennte. */
+#vx-onboarding-overlay .vx-onboarding-list{
+  list-style:none;margin:0 0 20px;padding:0;
+  display:flex;flex-direction:column;gap:12px;
 }
-#tour-overlay .vx-tour-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;gap:10px;}
-#tour-overlay .vx-tour-progress{font-size:12px;font-weight:700;color:var(--vx-color-text-subtle);line-height:1.2;}
-/* Sieht aus wie ein Textlink, bleibt aber ein Button: die globale
-   44px-Untergrenze wird bewusst nicht ueberschrieben, sonst schrumpft das
-   Tippziel auf Texthoehe. */
-#tour-overlay .vx-tour-skip{
-  display:inline-flex;align-items:center;
-  background:none;border:0;padding:0 2px;
-  font-size:11px;color:var(--vx-color-text-subtle);cursor:pointer;font-family:inherit;
+#vx-onboarding-overlay .vx-onboarding-item{
+  display:flex;align-items:flex-start;gap:12px;
 }
-#tour-overlay .vx-tour-skip:hover{color:var(--vx-color-text-muted);}
-#tour-overlay .vx-tour-bar{height:3px;background:var(--surface-border,#E2E8F0);border-radius:var(--vx-radius-pill);margin-bottom:14px;overflow:hidden;}
-#tour-overlay .vx-tour-bar-fill{height:100%;width:14%;background:var(--vx-color-brand);border-radius:var(--vx-radius-pill);transition:width .25s ease;}
-#tour-overlay .vx-tour-icon{
-  width:48px;height:48px;border-radius:14px;background:var(--vx-color-info-bg);
-  display:flex;align-items:center;justify-content:center;margin-bottom:12px;
+/* Der Textblock ist ein <span> (gueltig innerhalb von <li>) und braucht
+   deshalb display:block — ohne das laufen Titel und Beschreibung in einer
+   Zeile ineinander. min-width:0 laesst lange Woerter umbrechen statt die
+   Karte zu verbreitern. */
+#vx-onboarding-overlay .vx-onboarding-item > span:last-child{
+  display:block;min-width:0;
 }
-#tour-overlay .vx-tour-title{font-size:17px;font-weight:800;color:var(--vx-color-text);letter-spacing:-.02em;margin-bottom:8px;}
-#tour-overlay .vx-tour-text{font-size:14px;color:var(--vx-color-text-subtle);line-height:1.65;margin-bottom:18px;}
-#tour-overlay .vx-tour-actions{display:flex;gap:8px;}
-#tour-overlay .vx-tour-back{flex:0 0 auto;display:none;}
-#tour-overlay .vx-tour-next{flex:1;justify-content:center;}
+#vx-onboarding-overlay .vx-onboarding-item-icon{
+  width:32px;height:32px;flex-shrink:0;border-radius:10px;
+  background:var(--vx-color-info-bg);color:var(--vx-color-brand);
+  display:flex;align-items:center;justify-content:center;font-size:15px;
+}
+/* Der offene Punkt traegt den Warnton der Gold-Familie, nicht Rot: Rot bleibt
+   laut Grundsatz 12/I7 der Notfallnummer vorbehalten. Eine fehlende
+   Rufumleitung ist eine offene Aufgabe, kein Alarm. Vordergrund ist
+   --vx-ui-badge-warning-text und nicht --vx-color-gold: das reine Gold traegt
+   auf dem hellen Warnhintergrund zu wenig Kontrast. */
+#vx-onboarding-overlay .vx-onboarding-item--open .vx-onboarding-item-icon{
+  background:var(--vx-color-warning-bg);color:var(--vx-ui-badge-warning-text,#B45309);
+}
+#vx-onboarding-overlay .vx-onboarding-item-title{
+  display:block;font-size:14px;font-weight:700;color:var(--vx-color-text);line-height:1.35;
+}
+#vx-onboarding-overlay .vx-onboarding-item-text{
+  display:block;font-size:13px;color:var(--slate2);line-height:1.55;margin-top:2px;
+}
+#vx-onboarding-overlay .vx-onboarding-actions{display:flex;flex-direction:column;gap:8px;}
+#vx-onboarding-overlay .btn--full{width:100%;justify-content:center;}
 
 /* Dialog-Container erhalten den Fokus nur programmatisch und sind kein
    Tab-Stopp — ein Fokusring um die ganze Flaeche waere Rauschen. Die
    Bedienelemente darin behalten ihren Ring. */
 .overlay [tabindex="-1"]:focus,
 #vx-onboarding-overlay [tabindex="-1"]:focus,
-#tour-overlay [tabindex="-1"]:focus,
 #vx-detail-v2-fullscreen:focus{outline:none;}
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -30228,7 +30380,7 @@ function toggleCallRow(event, row) {
      G4 — Status Chips & Badges
      G5 — Task Section Headers + Due Pills
      G6 — Followup-Sektion
-     G7 — Tour Tooltip (Inline-Styles via !important)
+     G7 — entfallen (Spotlight-Tour am 09.08.2026 entfernt)
      G8 — Einzelfälle (dash-kpi, btn-icon-done)
      G0 — Gray-Token-Remap (Wurzel-Fix)
    ═══════════════════════════════════════════ */
@@ -30271,7 +30423,7 @@ function toggleCallRow(event, row) {
 /* — G6: Followup-Sektion — */
 
 
-/* — G7: Tour Tooltip — alle Elemente nutzen Inline-Styles → !important nötig — */
+/* — G7: entfallen — das Tour-Tooltip existiert seit dem 09.08.2026 nicht mehr — */
 
 
 /* — G8: Einzelfälle — */
@@ -30328,8 +30480,8 @@ function toggleCallRow(event, row) {
         Inline-Style mit hardcoded #F0F7FF / #BFDBFE / #1E3A5F. Werte
         exklusiv für diese Stelle (verifiziert). Kein Klassen-/ID-Anchor →
         Attribut-Selektor mit !important.
-        Nicht verwechseln mit #tour-card in Stage 6 G7 — das ist das
-        Tooltip-Popup, nicht der Hilfe-Seiten-Banner.
+        Der frueher hier genannte Abgrenzungshinweis gegen #tour-card
+        (Stage 6 G7) ist mit der Spotlight-Tour am 09.08.2026 entfallen.
 
    W6 — dash-glass Container-Header + Card-Trennlinien
         W6.1 .dash-glass-hd background:#FAFCFF (Z.2110, kein !important).
@@ -30903,213 +31055,6 @@ function toggleCallRow(event, row) {
 }
 
 </style>
-<script>
-var TOUR_STORAGE_KEY = 'voxera_tour_v2_done';
-var _tourStep = 0;
-var _tourActive = false;
-
-var TOUR_STEPS = [];
-
-function tourBuildSteps() {
-  var assistantName = String(customerMeta?.assistantName || 'Lara').trim() || 'Lara';
-  var displayName = String(customerMeta?.displayName || customerMeta?.contactFirstName || customerMeta?.customerName || 'Willkommen').trim();
-  var greeting = String(customerMeta?.greeting || '').trim() || vxBuildAutoGreeting();
-  var quoteHtml = '<div style="background:#F8FAFC;border-left:3px solid #1A6FE8;padding:10px 14px;border-radius:0 8px 8px 0;font-style:italic;color:#13284D;margin-top:8px;">„' + greeting.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '“</div>';
-  return [
-    { target:null, position:'center', iconBg:'#0D1F3C', icon:'<i class="ph-bold ph-sparkle" style="color:#fff;"></i>', title:'Willkommen bei Voxera, ' + displayName + '.', text:'Ihr Assistent ' + assistantName + ' ist eingerichtet und bereit für Ihren ersten Anruf. Diese Tour dauert 60 Sekunden.' },
-    { tab:'assistent', target:'nav-assistent', mobileTarget:'nav-assistent', iconBg:'#EEF4FF', icon:'<i class="ph-bold ph-microphone" style="color:#1A6FE8;"></i>', title: assistantName + ' spricht in Ihrem Namen.', text:'Ton, Anrede und Stimme sind bereits konfiguriert. Sie können jederzeit anpassen.' },
-    { tab:'assistent', target:'assistent-greeting-visible', mobileTarget:'assistent-greeting-visible', iconBg:'#EEF4FF', icon:'<i class="ph-bold ph-chat-circle" style="color:#1A6FE8;"></i>', title:'So meldet sich ' + assistantName + ' bei Ihren Kunden.', text:'', htmlText: quoteHtml },
-    { tab:'assistent', target:'vxi-profil-desc', mobileTarget:'vxi-profil-desc', iconBg:'#EEF4FF', icon:'<i class="ph-bold ph-buildings" style="color:#1A6FE8;"></i>', title: assistantName + ' kennt Ihr Unternehmen.', text:'Geschäftsprofil und Leistungen sind hinterlegt. Je mehr Details, desto besser die Antworten.' },
-    { tab:'anrufe', target:'nav-anrufe', mobileTarget:'nav-anrufe', iconBg:'#EEF4FF', icon:'<i class="ph-bold ph-phone" style="color:#1A6FE8;"></i>', title:'Jeder Anruf — vollständig dokumentiert.', text:'KI-Zusammenfassung, Kategorie und Lead-Qualität für jeden eingehenden Anruf. Nachfassaktionen direkt setzen.' },
-    { tab:'heute', target:'nav-heute', mobileTarget:'nav-heute', iconBg:'#EEF4FF', icon:'<i class="ph-bold ph-monitor" style="color:#1A6FE8;"></i>', title:'Ihr Tages-Cockpit.', text:'Offene Anfragen, überfällige Rückrufe und die wichtigsten Anrufe — immer auf einen Blick.' },
-    { target:null, position:'center', iconBg:'#0D1F3C', icon:'<i class="ph-bold ph-check" style="color:#fff;"></i>', title:'Sie sind startklar.', text:'Letzte Aufgabe: Rufumleitung einrichten, damit Voxera Ihre Anrufe entgegennehmen kann.', isLast:true, ctaText:'Rufumleitung einrichten', action:'forwarding' }
-  ];
-}
-
-function tourGetTargetRect(targetId, mobileTargetId) {
-  var isMobile = window.innerWidth < 768;
-  var id = (isMobile && mobileTargetId) ? mobileTargetId : targetId;
-  if (!id) return null;
-  var el = document.getElementById(id);
-  if (!el) return null;
-  var r = el.getBoundingClientRect();
-  if (r.width === 0 && r.height === 0) return null;
-  return { x: r.left - 10, y: r.top - 8, w: r.width + 20, h: r.height + 16 };
-}
-
-function tourDrawOverlay(rect) {
-  var canvas = document.getElementById('tour-canvas');
-  var W = window.innerWidth, H = window.innerHeight;
-  canvas.width = W; canvas.height = H;
-  var ctx = canvas.getContext('2d');
-  ctx.clearRect(0,0,W,H);
-  ctx.fillStyle = 'rgba(13,31,60,0.72)';
-  if (!rect) {
-    ctx.fillRect(0,0,W,H);
-  } else {
-    var r = 10;
-    ctx.beginPath();
-    ctx.rect(0,0,W,H);
-    ctx.moveTo(rect.x + r, rect.y);
-    ctx.lineTo(rect.x + rect.w - r, rect.y);
-    ctx.quadraticCurveTo(rect.x + rect.w, rect.y, rect.x + rect.w, rect.y + r);
-    ctx.lineTo(rect.x + rect.w, rect.y + rect.h - r);
-    ctx.quadraticCurveTo(rect.x + rect.w, rect.y + rect.h, rect.x + rect.w - r, rect.y + rect.h);
-    ctx.lineTo(rect.x + r, rect.y + rect.h);
-    ctx.quadraticCurveTo(rect.x, rect.y + rect.h, rect.x, rect.y + rect.h - r);
-    ctx.lineTo(rect.x, rect.y + r);
-    ctx.quadraticCurveTo(rect.x, rect.y, rect.x + r, rect.y);
-    ctx.closePath();
-    ctx.fill('evenodd');
-    // Glow ring
-    ctx.strokeStyle = 'rgba(26,111,232,0.6)';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(rect.x, rect.y, rect.w, rect.h);
-  }
-}
-
-function tourPositionCard(rect, isMobile) {
-  var card = document.getElementById('tour-card');
-  if (!card) return;
-  var W = window.innerWidth, H = window.innerHeight;
-  isMobile = isMobile || W < 768;
-  var cardW = isMobile ? Math.min(W - 32, 320) : 300;
-  card.style.width = cardW + 'px';
-
-  if (!rect) {
-    card.style.left = Math.max(16, (W - cardW) / 2) + 'px';
-    card.style.top = Math.max(16, (H - 360) / 2) + 'px';
-    return;
-  }
-
-  var margin = 16;
-  var cardH = card.offsetHeight || 300;
-  var left, top;
-
-  if (isMobile) {
-    left = (W - cardW) / 2;
-    if (rect.y > H * 0.65) {
-      top = Math.max(80, rect.y - cardH - margin - 20);
-    } else {
-      top = Math.min(rect.y + rect.h + margin, H - cardH - 80);
-      if (top + cardH > H - 80) top = Math.max(80, rect.y - cardH - margin);
-    }
-  } else {
-    if (W - rect.x - rect.w >= cardW + margin) {
-      left = rect.x + rect.w + margin;
-      top = Math.max(20, Math.min(rect.y, H - cardH - 20));
-    } else if (rect.x >= cardW + margin) {
-      left = rect.x - cardW - margin;
-      top = Math.max(20, Math.min(rect.y, H - cardH - 20));
-    } else {
-      left = (W - cardW) / 2;
-      top = rect.y + rect.h + margin;
-      if (top + cardH > H - 20) top = Math.max(20, rect.y - cardH - margin);
-    }
-  }
-
-  card.style.left = Math.max(16, Math.min(left, W - cardW - 16)) + 'px';
-  card.style.top = Math.max(16, Math.min(top, H - cardH - 16)) + 'px';
-}
-
-function tourNavigate(step) {
-  if (!step.tab) return Promise.resolve();
-  return new Promise(function(resolve) {
-    var navEl = document.getElementById('nav-' + step.tab);
-    showTab(step.tab, navEl, { historyMode: 'none' });
-    setTimeout(resolve, 400);
-  });
-}
-
-function tourRender() {
-  var step = TOUR_STEPS[_tourStep];
-  var isMobile = window.innerWidth < 768;
-  var rect = tourGetTargetRect(step.target, step.mobileTarget);
-
-  tourDrawOverlay(rect);
-  tourPositionCard(rect, isMobile);
-
-  var iconEl = document.getElementById('tour-icon');
-  if (iconEl) { iconEl.innerHTML = step.icon; iconEl.style.background = step.iconBg || 'var(--vx-color-info-bg)'; }
-  if (typeof refreshLucideIcons === 'function') refreshLucideIcons();
-  document.getElementById('tour-title').textContent = step.title;
-  var textEl = document.getElementById('tour-text');
-  if (textEl) {
-    if (step.htmlText) textEl.innerHTML = step.htmlText;
-    else textEl.textContent = step.text || '';
-  }
-  var progressEl = document.getElementById('tour-progress');
-  if (progressEl) progressEl.textContent = (_tourStep + 1) + ' / ' + TOUR_STEPS.length;
-  var barEl = document.getElementById('tour-progress-bar');
-  if (barEl) barEl.style.width = Math.round(((_tourStep + 1) / TOUR_STEPS.length) * 100) + '%';
-  var backBtn = document.getElementById('tour-back-btn');
-  var nextBtn = document.getElementById('tour-next-btn');
-  if (backBtn) backBtn.style.display = _tourStep > 0 ? 'block' : 'none';
-  if (nextBtn) { nextBtn.textContent = step.ctaText || (step.isLast ? 'Fertig' : 'Weiter'); nextBtn.style.background = step.isLast ? '#1A6FE8' : '#0D1F3C'; }
-}
-
-function tourGoToStep(idx) {
-  _tourStep = idx;
-  var step = TOUR_STEPS[idx];
-  var card = document.getElementById('tour-card');
-  if (card) { card.style.animation = 'none'; requestAnimationFrame(function() { card.style.animation = 'tourCardIn .25s cubic-bezier(.16,1,.3,1)'; }); }
-  if (step.tab) {
-    tourNavigate(step).then(function() { tourRender(); });
-  } else {
-    tourRender();
-  }
-}
-
-function tourStart() {
-  TOUR_STEPS = tourBuildSteps();
-  _tourStep = 0;
-  _tourActive = true;
-  // Flag sofort beim Start setzen — Abbrechen = auch "gesehen", nie mehr auto-starten
-  try { vxSafeLocalStorageSet(TOUR_STORAGE_KEY, '1'); } catch(_e) {}
-  rememberOverlayFocusReturn('tour-overlay');
-  var overlay = document.getElementById('tour-overlay');
-  overlay.style.display = 'block';
-  overlay.style.pointerEvents = 'all';
-  setOverlayAriaHidden('tour-overlay', false);
-  tourGoToStep(0);
-  vxFocusDialog('tour-overlay', '#tour-card');
-}
-
-function tourNext() {
-  var step = TOUR_STEPS[_tourStep] || {};
-  if (step.action === 'forwarding') {
-    tourDone();
-    setTimeout(function(){ try { openSetupWizardFromCta(null, 's1'); } catch(_e) {} }, 120);
-    return;
-  }
-  if (_tourStep >= TOUR_STEPS.length - 1) { tourDone(); return; }
-  tourGoToStep(_tourStep + 1);
-}
-
-function tourBack() {
-  if (_tourStep <= 0) return;
-  tourGoToStep(_tourStep - 1);
-}
-
-function tourSkip() { tourDone(); }
-
-function tourDone() {
-  _tourActive = false;
-  var overlay = document.getElementById('tour-overlay');
-  if (overlay) overlay.style.display = 'none';
-  setOverlayAriaHidden('tour-overlay', true);
-  restoreOverlayFocus('tour-overlay');
-  try { vxSafeLocalStorageSet(TOUR_STORAGE_KEY, '1'); } catch(_e) {}
-  var navEl = document.querySelector('.nav-item');
-  showTab('dashboard', navEl, { historyMode: 'none' });
-}
-
-function tourCheckFirstLogin() {
-  try { if (!localStorage.getItem(TOUR_STORAGE_KEY)) setTimeout(tourStart, 1400); } catch(_e) {}
-}
-
-window.addEventListener('resize', function() { if (_tourActive) tourRender(); });
-</script>
 
 <!-- ═══════════════════════════════════════════
      THEME MANAGER (Stage 1)

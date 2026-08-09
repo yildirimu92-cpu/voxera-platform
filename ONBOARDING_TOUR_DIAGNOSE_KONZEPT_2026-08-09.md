@@ -1,7 +1,7 @@
 # Onboarding-Tour — Diagnose und Neukonzept
 
-**Datum:** 09.08.2026 · **Status:** Audit + Zielbild, **keine Code-Änderung** (AGENTS.md: Umsetzung erst nach Freigabe)
-**Betroffene Datei:** `customer-dashboard/index.html` (Zeilenangaben = Stand `2b91179`)
+**Datum:** 09.08.2026 · **Status:** Diagnose + Zielbild freigegeben (Option B) und **umgesetzt** — siehe Teil E
+**Betroffene Datei:** `customer-dashboard/index.html` (Zeilenangaben = Diagnosestand `2b91179`, vor der Umsetzung)
 
 ---
 
@@ -289,15 +289,88 @@ Unabhängig von der gewählten Option, als Teil der Umsetzung:
 
 ---
 
-## Offene Entscheidungen (vor der Umsetzung)
+## Entscheidungen (getroffen)
 
-1. **Welche Option?** — Empfehlung: **B** (eine Willkommens-Karte, Spotlight-Tour ersatzlos entfernen).
-2. **Wortlaut der Karte** — der Entwurf in Teil C nennt drei Ziele. Sollen es drei sein, oder nur
-   die Rufumleitung plus ein Satz?
-3. **„Später"-Knopf** — soll die Karte einen Aufschub anbieten, oder ist „Verstanden" der einzige
-   Ausgang (wie heute)?
-4. **Punkt D.2 (Speicher-Aufräumer)** — im selben Auftrag mitkorrigieren oder als eigener Auftrag
-   führen? Er reicht über das Onboarding hinaus.
+1. **Option B** — eine Willkommens-Karte, Spotlight-Tour ersatzlos entfernen.
+2. **Punkt D.2 (Speicher-Aufräumer)** — im selben Auftrag mitkorrigiert.
+
+---
+
+## Teil E — Umsetzung
+
+### E1 · Spotlight-Tour ersatzlos entfernt
+
+Entfallen sind das Markup (`#tour-overlay`, `#tour-canvas`, `#tour-card`), der gesamte
+JavaScript-Block (~205 Zeilen: `tourBuildSteps`, `tourGetTargetRect`, `tourDrawOverlay`,
+`tourPositionCard`, `tourNavigate`, `tourRender`, `tourGoToStep`, `tourStart/Next/Back/Skip/Done`,
+`tourCheckFirstLogin`, der Resize-Listener), die zugehörigen CSS-Regeln samt `@keyframes tourCardIn`,
+der Eintrag in `ESCAPE_DIALOGS` und der Aufruf im Boot-Pfad von `showApp()`.
+
+Das Token `--z-tour` heisst jetzt `--z-above-mobile-nav`: die Stufe wird weiterhin gebraucht, aber
+nur noch von den mobilen Sortiermenüs über der Bottom-Nav. Der Name folgt dem verbliebenen Nutzer.
+
+Der lokale Merker `voxera_tour_v2_done` wird nicht mehr geschrieben. In Browsern, die ihn schon
+haben, bleibt er als wirkungsloser Rest liegen (~20 Byte) und wird beim nächsten Aufräumlauf
+entfernt — er steht bewusst **nicht** auf der Schutzliste aus E4.
+
+### E2 · Die Willkommens-Karte ist die einzige Erstlauf-Ebene
+
+`#vx-onboarding-overlay` bleibt, bekommt aber Inhalt statt eines festen Satzes.
+`vxOnboardingRenderBody()` baut zur Laufzeit:
+
+- **Anrede** mit Vorname, sofern einer vorliegt — sonst ohne, statt mit leerem Namen dahinter.
+- **Zwei Ziele** (Anfragen, Assistent), jeweils Name plus ein Satz. Die Namen kommen per
+  `navLabel()` **aus der Navigation selbst**, nicht aus einer zweiten Textquelle. Damit kann sich
+  der Fehler „Text sagt *Mehr*, Eintrag heisst *Einstellungen*" nicht wiederholen.
+- **Dritter Punkt nur, wenn die Rufumleitung offen ist** (`isForwardingSetupCompleted()`), mit der
+  Handlung direkt daneben (Grundsatz 13). Ist sie eingerichtet, bleibt genau ein Knopf („Verstanden").
+
+Die Funktion rechnet mit keiner Position und fasst kein `getBoundingClientRect()` an — der
+Verifier prüft das ausdrücklich, weil genau daran die alte Tour gescheitert ist.
+
+### E3 · Auslösung und Wiederholbarkeit
+
+- Automatisch weiterhin nur über das DB-Feld `customers.onboarding_completed`, lokal abgesichert
+  durch den kundenbezogenen Schlüssel. Kein zweiter, rein lokaler Merker.
+- Neu: `vxOnboardingBlockingDialogOpen()` verhindert den Automatik-Start über einem offenen Dialog
+  (Aktivierungs-Flow, Bestätigung, Support, Detail-Vollansicht). Der nächste Poll holt es nach.
+- Wiedereinstieg jetzt auf der **lebenden** Hilfe-Seite `#mehr-sub-hilfe`
+  („Willkommens-Hinweise nochmals ansehen"). Der Eintrag im abgelösten Alt-Screen bleibt
+  funktionsfähig, ist aber nicht mehr als „Tour" beschriftet — er hat nie eine geöffnet.
+
+### E4 · Speicher-Aufräumer
+
+`vxCleanupNonCriticalVoxeraStorage()` fragt vor dem Löschen `vxIsProtectedDecisionStorageKey()`.
+Geschützt sind Schlüssel, die eine Entscheidung des Kunden festhalten und nicht neu berechnet
+werden können: alles mit `onboarding` oder `setup_finished` im Namen (die Merker tragen die
+Kundennummer, deshalb Teilstücke statt voller Schlüssel). Caches (`voxera_ai_report_*`,
+`voxera_seen_calls_*`, `vx_split_w`, `vx_debug`) bleiben löschbar — der Aufräumer kann weiterhin
+Platz schaffen.
+
+Bewusst **nicht** geschützt: die Aktivierungs-Fehlerflags. Sie halten transienten Fehlerzustand
+und werden von `clearActivationRunErrorStorage()` ohnehin gezielt geräumt.
+
+**Damit ist auch der offene Fahrplan-Punkt „Onboarding-Wizard-Wiederholung" adressiert** —
+derselbe Aufräumer traf `vx_onboarding_dismissed_*` und `voxera_setup_finished*`.
+
+### E5 · Abnahme
+
+| Prüfung | Ergebnis |
+|---|---|
+| `scripts/verify-onboarding-welcome.mjs` (neu) | bestanden |
+| `customer-dashboard/tests/onboarding-welcome-card.test.cjs` (neu, 8 Fälle) | 8/8 |
+| Alle Dashboard-Tests (`customer-dashboard/tests/*.test.cjs`) | 150/150 |
+| Voller Verifier-Sweep, 58 Skripte (Grundsatz 14) | 56 bestanden, 2 umgebungsbedingt (s.u.) |
+| Darstellung Desktop 1280×900 und Mobile 390×844 (Grundsatz 11) | geprüft, kein horizontaler Überlauf |
+
+Der Verifier prüft strukturell drei Dinge: dass keine ausführbare Spur der Tour zurückkommt, dass
+`vxOnboardingRenderBody()` positionsfrei bleibt, und — durch tatsächliche Ausführung von
+`vxIsProtectedDecisionStorageKey()` gegen echte Schlüsselnamen — dass Entscheidungs-Merker
+geschützt und Caches löschbar bleiben.
+
+Bei der Sichtprüfung fiel ein echter Layout-Fehler auf und wurde behoben: Titel und Beschreibung
+liefen in einer Zeile ineinander, weil die Textknoten `<span>` sind (gültig innerhalb `<li>`) und
+ohne `display:block` inline bleiben.
 
 ---
 
@@ -306,5 +379,13 @@ Unabhängig von der gewählten Option, als Teil der Umsetzung:
 - Der `localStorage`-Stand des Testgeräts zum Zeitpunkt des „Rolf"-Vorfalls — ohne ihn bleibt A6
   eine begründete Bewertung, kein Beweis.
 - Ob iOS-Safari-ITP im konkreten Testaufbau tatsächlich zugeschlagen hat (A5.3).
-- Kein Live-Test auf `dashboard.voxera.ch` durchgeführt; alle Aussagen stammen aus dem Code auf
-  `2b91179`.
+- **Kein Live-Test gegen `dashboard.voxera.ch` und keine echte Datenbank.** Der DB-Pfad
+  (`onboarding_completed` schreiben/lesen) und das Verhalten eines echten Erstlogins sind damit
+  **nicht verifiziert** — sie gehören in den manuellen Abnahmelauf.
+- Die Sichtprüfung lief gegen eine Attrappe mit den echten Stilen und der echten Renderfunktion,
+  nicht gegen das eingeloggte Dashboard. Die Bereichs-Symbole stammen aus Phosphor und waren in
+  der Attrappe ohne Netzzugriff leer; im Dashboard ist die Schrift eingebunden.
+- Zwei Verifier scheitern umgebungsbedingt und unverändert gegenüber dem Stand vor dieser
+  Änderung: `verify-db-security-invariants.mjs` (keine DB-Zugangsdaten gesetzt) und
+  `verify-prompt-builder-version-bump.mjs` (der flache Klon hat keine gemeinsame Basis mit
+  `origin/main`).
