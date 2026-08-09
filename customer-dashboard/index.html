@@ -2652,7 +2652,7 @@ body.vx-detail-v2-open #confirm-overlay.open {
   gap:14px;padding:24px;
   opacity:0;
   pointer-events:none;
-  transition:opacity 0.36s var(--ease);
+  transition:opacity 0.3s var(--ease);
   overflow:hidden;
 }
 #splash-screen::before{
@@ -29195,6 +29195,13 @@ function delay(ms) {
 // statt an einer festen Animationsdauer - und wird im finally IMMER auf
 // 100% gebracht, egal ob loadPromise erfolgreich war oder fehlgeschlagen
 // ist, damit er nie auf einem Zwischenstand haengen bleibt.
+//
+// opts.onBeforeFade(): wird aufgerufen, BEVOR der Splash zu blenden beginnt
+// (er deckt den dahinterliegenden Inhalt zu diesem Zeitpunkt noch komplett
+// ab, z-index 9999). Das ist die Stelle, an der der aufrufende Code den
+// Zielinhalt (z.B. #app) sichtbar machen soll: der Splash gibt ihn dann
+// waehrend seiner eigenen Opacity-Transition frei, statt dass er danach
+// aus komplettem Leerraum heraus schlagartig aufploppt.
 async function runInitialLoader(loadPromise, options) {
   var opts = options || {};
   var minVisibleMs = Number(opts.minVisibleMs || 1000);
@@ -29217,6 +29224,7 @@ async function runInitialLoader(loadPromise, options) {
     if (elapsed < minVisibleMs) {
       await delay(minVisibleMs - elapsed);
     }
+    if (typeof opts.onBeforeFade === 'function') opts.onBeforeFade();
     if (splash) {
       splash.classList.add('fading');
       await delay(300);
@@ -29289,13 +29297,25 @@ function showApp(user) {
     console.error('[voxera-dashboard] initial load failed', err);
   });
 
-  runInitialLoader(initialLoadSequence, { minVisibleMs: 1050 }).then(function() {
-    // Abgemeldet, waehrend der Loader lief: #app hier trotzdem einzublenden
-    // hiess Login-Karte und Bottom-Nav gleichzeitig auf dem Schirm. Die
-    // Sichtbarkeit der App gehoert an eine gueltige Sitzung, nicht an das
-    // Ende eines Timers.
+  runInitialLoader(initialLoadSequence, {
+    minVisibleMs: 1050,
+    // Blendet #app ein, WAEHREND der Splash ihn noch komplett verdeckt (statt
+    // erst danach): der Splash gibt den fertigen Inhalt dann waehrend seiner
+    // eigenen Opacity-Transition frei. Vorher wurde #app erst nach Ablauf des
+    // Fades gezeigt - dazwischen lag ein Frame reiner Leerraum, gefolgt von
+    // einem unanimierten Sofort-Popup des kompletten Dashboards. Das wirkte,
+    // als waere die Seite noch nicht fertig, obwohl die Daten schon laengst
+    // vollstaendig gerendert waren.
+    onBeforeFade: function() {
+      // Abgemeldet, waehrend der Loader lief: #app hier trotzdem einzublenden
+      // hiess Login-Karte und Bottom-Nav gleichzeitig auf dem Schirm. Die
+      // Sichtbarkeit der App gehoert an eine gueltige Sitzung, nicht an das
+      // Ende eines Timers.
+      if (bootGeneration !== vxAppBootGeneration) return;
+      document.getElementById('app').style.display = 'flex';
+    }
+  }).then(function() {
     if (bootGeneration !== vxAppBootGeneration) return;
-    document.getElementById('app').style.display = 'flex';
     window._vxRefreshIntervalMs = 12000;
     autoRefreshTimer = setInterval(function() { safeLoadData({ periodic: true }); }, 12000);
     showAppInProgress = false;
