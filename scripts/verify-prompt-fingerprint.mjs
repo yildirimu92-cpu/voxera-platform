@@ -100,11 +100,15 @@ check('Sync-Funktion schreibt ihn ins Log', /prompt_fingerprint: fingerprint/.te
 check('Ist-Fingerprint wird nur nach erfolgreichem Sync gesetzt',
   /if \(syncStatus === 'success' && fingerprint\) \{\s*customerPatch\.prompt_fingerprint = fingerprint;/.test(trigger));
 
-// Der Fallback-Insert muss die neue Spalte mit entfernen. Fehlt sie dort,
-// wiederholt sich der S9-Fehler: primaerer Insert schlaegt fehl, Fallback
-// schlaegt aus demselben Grund fehl, das Log bleibt leer.
-check('Fallback-Insert entfernt prompt_fingerprint mit',
-  /prompt_fingerprint: _fp/.test(trigger));
+// Die Stufenleiter aus N6 (#878) gibt "am wenigsten wertvoll zuerst" auf.
+// prompt_fingerprint muss changed_fields ueberleben -- an ihm haengt der ganze
+// Fan-out, changed_fields ist nur Audit.
+check('Fallback-Leiter kennt prompt_fingerprint',
+  /prompt_fingerprint: _fingerprintColumn/.test(trigger)
+  && /const logAttempts = \[/.test(trigger));
+check('prompt_fingerprint wird spaeter aufgegeben als changed_fields',
+  trigger.lastIndexOf('changed_fields: syncLogRow.changed_fields')
+    < trigger.lastIndexOf('prompt_fingerprint: syncLogRow.prompt_fingerprint'));
 
 check('Status-Endpunkt berechnet den Soll-Wert', /loadFingerprintContext\(sb\)/.test(status));
 check('Status-Endpunkt liefert prompt_outdated aus', /prompt_outdated: promptOutdated/.test(status));

@@ -1,0 +1,24 @@
+name: Verify forwarding self-edit sync
+
+on:
+  pull_request:
+    paths:
+      - 'customer-dashboard/netlify/functions/_lib/assistant-write-policy.js'
+      - 'customer-dashboard/netlify/functions/customer-update-assistant.js'
+      - 'customer-dashboard/netlify/functions/customer-assistant-profile.js'
+      - 'customer-dashboard/shared/customer-runtime-assistant-profile.js'
+      - 'customer-dashboard/index.html'
+      - 'admin-panel/netlify/functions/_lib/prompt-builder-v2.js'
+      - 'admin-panel/netlify/functions/trigger-elevenlabs-sync.js'
+      - 'scripts/verify-forwarding-self-edit-sync.mjs'
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: node scripts/verify-forwarding-self-edit-sync.mjs
