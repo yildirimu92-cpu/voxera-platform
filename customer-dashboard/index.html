@@ -160,7 +160,6 @@
      beschrieben die Realität nicht mehr. --z-vx-overlay:9001 hatte keinen
      einzigen Nutzer. */
   --z-mobile-nav:50;
-  --z-login:999;
   --z-onboarding:9000;
   --z-commercial:9800;
   --z-tour:10000;
@@ -171,6 +170,16 @@
   --z-row-menu-floating:13050;
   --z-context-menu:13055;
   --z-support:13058;
+  /* Der Login-Screen ist kein Screen unter anderen, sondern das Tor davor:
+     ist er sichtbar, darf von der App nichts mehr durchscheinen. Er stand auf
+     999 und lag damit unter fast allem, was die App aufbaut. Sichtbar wurde
+     das an der Bottom-Nav, die der Force-Block #vx-force-mobile-nav auf mobil
+     per !important auf 9500 hebt: waren beide Ebenen gleichzeitig
+     eingeblendet, schwebte die Nav ueber der Login-Karte. Die Ursache dafuer
+     ist behoben (abbrechbare showApp-Ladekette); diese Stufe ist das
+     Sicherheitsnetz, damit ein halb angemeldeter Zwischenzustand nie wieder so
+     aussieht. Unter dem Toast, damit eine Fehlermeldung lesbar bleibt. */
+  --z-login:13059;
   /* Der Toast liegt über allem: er bestätigt Aktionen, die aus jeder dieser
      Ebenen ausgelöst werden. Vorher lag er auf 9000 und damit unter der
      Detail-Vollansicht und der Support-Anfrage — die Bestätigung war dort
