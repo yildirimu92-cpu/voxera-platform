@@ -370,32 +370,29 @@
   cursor:default;position:relative;
   animation:liveRowEnter .3s cubic-bezier(.16,1,.3,1) both;
 }
-.vx-live-avatar{width:34px;height:34px;border-radius:var(--vx-radius-md);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--vx-color-text-on-dark);background:var(--vx-color-night);flex-shrink:0;}
+/* Absenderzeichen der Karte. War hier vollstaendig definiert, wurde vom
+   Renderer aber nie ausgegeben — die Live-Karte war damit die einzige
+   Zustandsflaeche auf Heute ohne Absenderzeichen, obwohl sie von genau der
+   Instanz berichtet, die die Lara-Uebergabekarte mit ihrem Avatar kennzeichnet.
+   Night, nicht Gold: derselbe Absenderton wie .vx-lara-avatar und
+   .vx-dv2-avatar. Gold traegt im System ausschliesslich Lead-Qualitaet.
+   36px/10px statt vorher 34px — das war die einzige Abweichung zur globalen
+   Avatar-Harmonisierung (".vx-detail-avatar, .vx-live-avatar"), die die
+   Groesse ohnehin per !important auf 36px zog. Jetzt sagen beide dasselbe. */
+.vx-live-avatar{width:36px;height:36px;border-radius:var(--vx-radius-md);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;font-family:var(--vx-ui-row-font);color:var(--vx-color-text-on-dark);background:var(--vx-color-night);flex-shrink:0;}
 .vx-live-body{flex:1;min-width:0;}
 .vx-live-name{font-size:13px;font-weight:var(--vx-ui-row-title-weight);color:var(--vx-ui-row-title-color);line-height:1.3;}
 .vx-live-sub{font-size:var(--vx-ui-row-time-size);color:var(--vx-ui-meta-color);margin-top:1px;}
 .vx-live-badge{display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:700;letter-spacing:.04em;padding:3px 9px;border-radius:var(--vx-radius-pill);background:var(--vx-color-danger-bg);color:var(--vx-color-danger);flex-shrink:0;}
 .vx-live-badge-dot{width:5px;height:5px;border-radius:50%;background:var(--vx-color-danger);animation:liveDotPulse 1.4s ease-in-out infinite;flex-shrink:0;}
 
-/* ══════════════════════════════════════════
-   IN-APP TOAST v3.0 (Voxera CI)
-══════════════════════════════════════════ */
-#vx-toast-container{position:fixed;bottom:20px;right:16px;display:flex;flex-direction:column;gap:8px;z-index:9100;pointer-events:none;max-width:320px;width:calc(100vw - 32px);}
-.vx-toast{display:flex;align-items:flex-start;gap:10px;padding:11px 13px;border-radius:12px;background:#0D1F3C;color:#fff;box-shadow:0 8px 28px rgba(0,0,0,.2);border-left:3px solid #1A6FE8;pointer-events:all;cursor:pointer;animation:vxToastIn .22s cubic-bezier(.16,1,.3,1) both;}
-.vx-toast.t-call{border-left-color:#1A6FE8;}
-.vx-toast.t-warning{border-left-color:#DC2626;}
-.vx-toast.t-success{border-left-color:#059669;}
-.vx-toast.t-task{border-left-color:#E8C547;}
-.vx-toast.vx-toast-out{opacity:0;transform:translateX(16px);transition:opacity .18s,transform .18s;}
-@keyframes vxToastIn{from{opacity:0;transform:translateX(16px);}to{opacity:1;transform:none;}}
-.vx-toast-icon{width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;}
-.vx-toast-icon.call{background:rgba(26,111,232,.2);color:#93C5FD;}
-.vx-toast-icon.warning{background:rgba(220,38,38,.2);color:#F87171;}
-.vx-toast-icon.success{background:rgba(5,150,105,.2);color:#34D399;}
-.vx-toast-icon.task{background:rgba(232,197,71,.15);color:#FCD34D;}
-.vx-toast-body{flex:1;min-width:0;}
-.vx-toast-title{font-size:12px;font-weight:700;color:rgba(255,255,255,.9);margin-bottom:1px;}
-.vx-toast-sub{font-size:11px;color:rgba(255,255,255,.45);line-height:1.4;}
+/* Der frueher hier stehende Block "IN-APP TOAST v3.0" ist entfallen. Er war
+   das Stylesheet eines zweiten Toast-Systems (#vx-toast-container / .vx-toast),
+   dessen Renderer vxToast() im Repo nie existiert hat — siehe den Kommentar
+   bei vxAnnounceLivePhaseCalls(), der das schon 2026-08 festgestellt und die
+   dortigen Aufrufe entfernt hatte. Markup, CSS und die drei uebrig
+   gebliebenen Aufrufe sind jetzt mit entfernt, statt eine tote dunkle
+   Vollton-Variante neben dem umgestellten Toast stehen zu lassen. */
 
 
 .vx-heute-row{display:grid;grid-template-columns:42px minmax(0,1fr) auto;column-gap:12px;align-items:center;padding:10px 12px;border:none;border-bottom:0.5px solid var(--vx-border);border-radius:0;background:#fff;cursor:pointer;transition:background .12s;position:relative;}
@@ -1333,16 +1330,27 @@ body{
    der Sidebar) und unterhalb des Appbars verankert; die beiden Breakpoints
    unten, in denen die Sidebar durch den Mobile-Header ersetzt wird, docken
    entsprechend um. */
+/* Zweite Zustandsflaeche derselben Familie wie der Toast: eigenes Markup,
+   eigener Timer, laeuft NICHT ueber toast() — sah aber genauso aus (dunkles
+   Glas, weisse Schrift). Da sie oben ueber der Content-Spalte sitzt, ist sie
+   die auffaelligste dunkle Flaeche im hellen Produkt. Jetzt dieselbe helle
+   Karte und dieselbe Rot-Rolle wie die Live-Anruf-Karte.
+
+   Der Puls-Punkt war #22c55e — Gruen. Nach der Vier-Familien-Regel gehoert
+   Gruen zu Abschluss-Aktionen; ein eingehender Anruf ist kein Abschluss. Die
+   Live-Anruf-Karte loest denselben Sachverhalt bereits ueber
+   --vx-color-danger (Rot = Dringlichkeit). Zwei Anzeigen fuer "es passiert
+   gerade etwas" tragen damit wieder dieselbe Farbe. */
 .incoming-banner{
   display:none;position:fixed;top:96px;
   left:calc(232px + (100vw - 232px) / 2);transform:translateX(-50%);
   z-index:9990;
-  background:rgba(17,24,39,0.92);
-  border:0.5px solid rgba(255,255,255,0.12);
-  border-radius:var(--r-xl);
-  padding:13px 20px;
-  backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
-  box-shadow:0 8px 32px rgba(0,0,0,0.28);
+  background:var(--vx-ui-card-bg);
+  border:var(--vx-ui-card-border-width) solid var(--vx-ui-card-border-color);
+  border-left:3px solid var(--vx-color-danger);
+  border-radius:var(--vx-ui-card-radius);
+  padding:13px 18px;
+  box-shadow:var(--vx-shadow-lg);
   min-width:260px;max-width:380px;
   pointer-events:auto;
   cursor:pointer;
@@ -1354,15 +1362,16 @@ body{
 }
 .incoming-banner-dot{
   width:10px;height:10px;border-radius:50%;
-  background:#22c55e;flex-shrink:0;
+  background:var(--vx-color-danger);flex-shrink:0;
   animation:dotPulse 1.2s ease-in-out infinite;
 }
 .incoming-banner-text{
-  font-size:13px;font-weight:600;color:#fff;
-  font-family:var(--font-display);
+  font-size:13px;font-weight:var(--vx-ui-row-title-weight);
+  color:var(--vx-ui-row-title-color);
+  font-family:var(--vx-ui-row-font);
 }
 .incoming-banner-sub{
-  font-size:11px;color:rgba(255,255,255,0.5);
+  font-size:var(--vx-ui-row-time-size);color:var(--vx-ui-meta-color);
   margin-top:1px;
 }
 @keyframes bannerSlideDown{
@@ -1942,35 +1951,64 @@ body.vx-detail-v2-open #confirm-overlay.open {
 /* ═══════════════════════════════════════════
    TOAST — V1
 ═══════════════════════════════════════════ */
+/* Vorher: dunkle Glas-Pille (rgba(15,23,42,.88), weisse Schrift, Blur). Sie
+   war die letzte Vollton-Flaeche im sonst hellen Produkt — und sie trug ihre
+   vier Tonalitaeten allein ueber einen 18px-Kreis: Flaeche, Rahmen und
+   Textfarbe waren bei allen vier identisch.
+
+   Jetzt dieselbe Karte wie jede andere Flaeche im Produkt (--vx-ui-card-*),
+   Text in Night. Die Tonalitaet liegt auf ZWEI Traegern statt einem — linke
+   Kante und Icon-Kachel, beide aus derselben Rollenvariable. Die
+   Unterscheidung wird damit deutlicher als vorher, nicht eingeebnet (das war
+   die ausdrueckliche Vorgabe des Auftrags).
+
+   Rollenzuordnung gegen die Vier-Familien-Regel geprueft, nicht angenommen:
+   success = Gruen (Abschluss-Aktion), error = Rot (Dringlichkeit),
+   warning = Amber (Hinweis, gleiche Rolle wie die Banner aus PR #886),
+   info = Blau (funktionale Kategorie "interaktiv"/Hinweis seit F7).
+   Ein Toast ohne erkannte Tonalitaet faellt auf Night zurueck — Marke, keine
+   fuenfte Bedeutung. */
 .toast{
+  --vx-toast-role: var(--vx-color-night);
+  --vx-toast-role-bg: var(--vx-color-surface-soft);
   position:fixed;bottom:100px;left:50%;
   transform:translateX(-50%) translateY(8px);
-  background:rgba(15,23,42,0.88);
-  border:1px solid rgba(255,255,255,0.16);
-  color:#fff;
-  font-size:13px;font-weight:500;
-  padding:11px 20px;
-  border-radius:var(--r-xl);
+  background:var(--vx-ui-card-bg);
+  border:var(--vx-ui-card-border-width) solid var(--vx-ui-card-border-color);
+  border-left:3px solid var(--vx-toast-role);
+  color:var(--vx-color-text);
+  font-family:var(--vx-ui-row-font);
+  font-size:13px;font-weight:600;
+  padding:11px 16px;
+  border-radius:var(--vx-ui-card-radius);
   z-index:var(--z-toast);
   opacity:0;
   transition:opacity 0.22s ease, transform 0.28s var(--ease);
   pointer-events:none;white-space:nowrap;
-  backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
-  box-shadow:0 4px 24px rgba(0,0,0,0.22),0 1px 0 rgba(255,255,255,0.06) inset;
-  display:flex;align-items:center;gap:8px;
+  box-shadow:var(--vx-shadow-lg);
+  display:flex;align-items:center;gap:10px;
 }
+.toast.t-success{--vx-toast-role:var(--vx-color-success);--vx-toast-role-bg:var(--vx-color-success-bg);}
+.toast.t-info{--vx-toast-role:var(--vx-color-info);--vx-toast-role-bg:var(--vx-color-info-bg);}
+.toast.t-warning{--vx-toast-role:var(--vx-color-warning);--vx-toast-role-bg:var(--vx-color-warning-bg);}
+.toast.t-error{--vx-toast-role:var(--vx-color-danger);--vx-toast-role-bg:var(--vx-color-danger-bg);}
+/* Ohne angegebene Tonalitaet: Night. Ausdruecklich keine der vier
+   Bedeutungen — die Regel steht hier nur, damit der Fall benannt ist und
+   nicht als vergessene Zuordnung gelesen wird. */
+.toast.t-neutral{--vx-toast-role:var(--vx-color-night);--vx-toast-role-bg:var(--vx-color-surface-soft);}
 .toast.show{
   opacity:1;
   transform:translateX(-50%) translateY(0);
 }
+/* Die Icons erben ihre Strichfarbe ueber currentColor aus der Kachel — damit
+   gibt es genau eine Farbquelle pro Tonalitaet statt einer im CSS und einer
+   im SVG-Attribut. */
 .toast-icon{
-  width:18px;height:18px;border-radius:50%;
+  width:20px;height:20px;border-radius:50%;
   display:flex;align-items:center;justify-content:center;flex-shrink:0;
+  background:var(--vx-toast-role-bg);
+  color:var(--vx-toast-role);
 }
-.toast-icon.success{background:rgba(34,197,94,0.25);}
-.toast-icon.info{background:rgba(99,130,246,0.25);}
-.toast-icon.warning{background:rgba(251,191,36,0.25);}
-.toast-icon.error{background:rgba(248,113,113,0.28);}
 .sr-only{position:absolute !important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;}
 
 
@@ -4213,7 +4251,7 @@ body,.main{background:var(--vx-bg);}
     width:auto!important;
     transform:translateY(8px)!important;
     font-size:13px;
-    border-radius:12px;
+    border-radius:var(--vx-ui-card-radius);
     white-space:normal!important;
     word-break:break-word;
   }
@@ -7360,7 +7398,7 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
     <div class="incoming-banner-text" id="incoming-banner-text">Neuer Anruf</div>
     <div class="incoming-banner-sub" id="incoming-banner-sub">Voxera hat einen Anruf entgegengenommen</div>
   </div>
-  <div id="incoming-banner-arrow" style="color:rgba(255,255,255,0.5);font-size:16px;flex-shrink:0;margin-left:4px;">→</div>
+  <div id="incoming-banner-arrow" style="color:var(--vx-ui-meta-color);font-size:16px;flex-shrink:0;margin-left:4px;">→</div>
 </div>
 
         <!-- DASHBOARD TAB -->
@@ -8011,7 +8049,7 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
                 <label class="vx-settings-field"><span class="vx-settings-field-label">Portalsprache</span><select id="profil-lang-select" disabled><option value="de">Deutsch</option><option value="fr">Français</option><option value="it">Italiano</option><option value="en">English</option></select><span class="vx-settings-field-help">Weitere Portalsprachen werden schrittweise freigeschaltet.</span></label>
               </div>
             </section>
-            <div class="vx-settings-actions"><button type="button" onclick="vxSaveProfil()" class="btn vx-abo-btn">Profil speichern</button></div>
+            <div class="vx-settings-actions"><button type="button" id="profil-save-btn" onclick="vxSaveProfil()" class="btn vx-abo-btn">Profil speichern</button></div>
             <div id="fb-profil-page" class="vx-settings-feedback" role="status" aria-live="polite"></div>
 
             <section class="vx-settings-card">
@@ -8021,7 +8059,7 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
                 <label class="vx-settings-field"><span class="vx-settings-field-label">Passwort bestätigen</span><input id="profil-pw-confirm" type="password" autocomplete="new-password" placeholder="Passwort wiederholen"></label>
               </div>
             </section>
-            <div class="vx-settings-actions"><button type="button" onclick="vxSavePassword()" class="btn vx-abo-btn secondary">Passwort speichern</button></div>
+            <div class="vx-settings-actions"><button type="button" id="profil-password-save-btn" onclick="vxSavePassword()" class="btn vx-abo-btn secondary">Passwort speichern</button></div>
             <div id="fb-password" class="vx-settings-feedback" role="status" aria-live="polite"></div>
           </div>
 
@@ -8406,8 +8444,6 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
   </div>
 </div>
 <div id="vx-notif-backdrop" style="display:none;position:fixed;inset:0;z-index:10019;" onclick="vxBellClose()"></div>
-<!-- ═══ TOAST CONTAINER ═══ -->
-<div id="vx-toast-container"></div>
 
 <!-- COMMERCIAL REQUEST MODAL -->
     <div class="overlay overlay--sheet vx-commercial-overlay" id="vx-commercial-overlay" aria-hidden="true">
@@ -8712,7 +8748,8 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
 <!-- COMMERCIAL LEGACY MODALS REMOVED -->
 
         <!-- TOAST -->
-<div class="toast" id="toast"><div class="toast-icon success" id="toast-icon"><svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="#22C55E" stroke-width="1.8" stroke-linecap="round"><path d="M1.5 5l2.5 2.5L8.5 2"/></svg></div><span id="toast-text"></span></div>
+<!-- Startzustand neutral, nicht success: der Knoten ist bis zum ersten Aufruf leer und unsichtbar, eine Erfolgs-Tonalitaet waere hier eine Aussage ueber nichts. toast() setzt Klasse und Icon bei jedem Aufruf neu. -->
+<div class="toast t-neutral" id="toast"><div class="toast-icon neutral" id="toast-icon"><svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="5" cy="5" r="2.2"/></svg></div><span id="toast-text"></span></div>
 <div id="copy-feedback-live" class="sr-only" aria-live="polite" aria-atomic="true"></div>
 
 <script>
@@ -10088,7 +10125,7 @@ function vxHandleDprButtonClick(e) {
   var phone = (btn.dataset && btn.dataset.phone) || (menuPortal && menuPortal.dataset && menuPortal.dataset.phone) || (exp && exp.dataset.phone) || (card && card.dataset.phone) || (vxRow && vxRow.dataset && vxRow.dataset.phone) || '';
   if (!recId) {
     if (typeof toast === 'function') toast('Aktion konnte nicht ausgeführt werden: fehlende Referenz.', 'warning');
-    else if (typeof showToast === 'function') showToast('⚠️ Aktion konnte nicht ausgeführt werden: fehlende Referenz.');
+    else if (typeof showToast === 'function') showToast('Aktion konnte nicht ausgeführt werden: fehlende Referenz.', 'error');
     return;
   }
   if (typeof dprAction === 'function') dprAction(action, recId, phone);
@@ -10097,8 +10134,6 @@ window.vxHandleDprButtonClick = vxHandleDprButtonClick;
 
 /* ══════════════════════════════════════════════════════════
    VOXERA NOTIFICATION SYSTEM v1.0
-   - vxToast(opts)      — In-App Toast unten rechts
-   - vxBellAdd(opts)    — Eintrag im Panel + Badge
    - vxBellToggle()     — Panel öffnen/schliessen
    - vxBellMarkAll()    — Alle als gelesen markieren
    - vxBellClose()      — Panel schliessen
@@ -10368,10 +10403,17 @@ function vxNotifSubscribe() {
         _vxNotifCache.unshift(item);
         _vxNotifCache = _vxNotifCache.slice(0, 80);
         vxBellUpdateBadge();
-        // Shake + Toast
+        // Kurzes Aufleuchten der Glocke. Der frueher hier stehende
+        // vxToast()-Aufruf ist entfernt: die Funktion existierte nie, der
+        // ReferenceError brach diesen Callback ab — und damit lief die Zeile
+        // darunter nicht mehr. Sichtbare Folge: bei GEOEFFNETEM Popover
+        // erschien eine neu eintreffende Benachrichtigung nicht in der
+        // offenen Liste, sondern erst beim naechsten Oeffnen. Das try/catch
+        // von vxNotifSubscribe() umschliesst nur den Aufbau der Subscription,
+        // nicht diesen spaeter laufenden Callback, hat den Fehler also nie
+        // aufgefangen.
         var btn = document.getElementById('vx-sidebar-bell-item');
         if (btn) { btn.style.background = 'rgba(26,111,232,.2)'; setTimeout(function(){ btn.style.background = ''; }, 800); }
-        vxToast({ type: item.type, title: item.title, sub: item.sub });
         if (_vxBellOpen) { vxBellRender(); vxBellPageRender(); }
       })
       .subscribe();
@@ -10395,12 +10437,11 @@ function vxBellUpdateBadge() {
   }
 }
 
-// ── Bell Add (für lokale Live-Call Events) ─────────────────
-// Wird weiterhin für Live-Calls genutzt (Realtime kommt erst nach Gesprächsende)
-function vxBellAdd(opts) {
-  // Nur visuell — kein DB-Insert hier (macht die Netlify Function)
-  vxToast({ type: opts.type || 'call', title: opts.title || '', sub: opts.sub || '' });
-}
+// vxBellAdd() ist entfallen: die Funktion hatte keinen Aufrufer mehr und
+// bestand nur noch aus einem Aufruf des nie implementierten vxToast(). Der
+// Kommentar behauptete "wird weiterhin fuer Live-Calls genutzt" — belegt ist
+// das Gegenteil, den Fall deckt #incoming-banner ab (siehe
+// vxAnnounceLivePhaseCalls()).
 
 // ── Render Desktop Panel ───────────────────────────────────
 function vxBellRender() {
@@ -10941,14 +10982,14 @@ function dprAction(action, recId, extra) {
     } else {
       var dialPhone = String(phoneForDial || '').replace(/[^+0-9]/g, '');
       if (dialPhone) window.location.href = 'tel:' + dialPhone;
-      else if (typeof showToast === 'function') showToast('⚠️ Keine gültige Telefonnummer vorhanden');
+      else if (typeof showToast === 'function') showToast('Keine gültige Telefonnummer vorhanden', 'warning');
     }
     return;
   }
   if (action === 'done') {
     if (actionIsDone) {
       if (typeof toast === 'function') toast('Dieser Eintrag ist bereits erledigt.', 'info');
-      else if (typeof showToast === 'function') showToast('Dieser Eintrag ist bereits erledigt.');
+      else if (typeof showToast === 'function') showToast('Dieser Eintrag ist bereits erledigt.', 'info');
       return;
     }
     if (typeof vxGuardDoneAction === 'function' && vxGuardDoneAction(recId, 'dprAction.done')) return;
@@ -10963,7 +11004,7 @@ function dprAction(action, recId, extra) {
   if (action === 'archive') {
     if (actionIsArchived) {
       if (typeof toast === 'function') toast('Dieser Eintrag ist bereits archiviert.', 'info');
-      else if (typeof showToast === 'function') showToast('Dieser Eintrag ist bereits archiviert.');
+      else if (typeof showToast === 'function') showToast('Dieser Eintrag ist bereits archiviert.', 'info');
       return;
     }
     var archiveRow = document.querySelector('.dpr-card[data-id="'+recId+'"]');
@@ -14745,48 +14786,80 @@ function vxInitProfil() {
   if (avatarEl) avatarEl.textContent = (name.charAt(0) || 'U').toUpperCase();
 }
 
+// Speicher-Rueckmeldung der Einstellungen-Unterseiten, angeglichen an das in
+// PR #840/#864 etablierte Muster: der Knopf traegt den Erfolg selbst
+// ("Speichert …" -> "Gespeichert ✓" -> Originallabel), der Statusknoten ist
+// nur noch fuer Meldungen da, die diese kurze Animation ueberdauern muessen
+// — Validierungsfehler und Fehlschlaege. Die Vereinheitlichung galt bisher
+// ausdruecklich nur fuer den Assistent-Tab; die gleichnamigen Bereiche unter
+// Einstellungen wurden zurueckgestellt und nie nachgeholt.
+//
+// Die frueher hier gesetzten Inline-Farben (#059669 / #DC2626) sind entfallen:
+// sie ueberschrieben die Token-Farben von .vx-settings-feedback[data-state]
+// und waren damit eine zweite, unsichtbare Farbquelle direkt neben der
+// eigentlichen.
+function vxSetSettingsFeedback(node, message, state) {
+  if (!node) return;
+  node.textContent = message || '';
+  if (state) node.dataset.state = state;
+  else delete node.dataset.state;
+}
+
 async function vxSaveProfil() {
   const fb = document.getElementById('fb-profil-page');
+  const btn = document.getElementById('profil-save-btn');
   const name = document.getElementById('profil-name-input')?.value.trim();
   const email = document.getElementById('profil-email-input')?.value.trim();
-  if (!name || !email) { if(fb){fb.style.color='#DC2626';fb.textContent='Name und E-Mail sind Pflichtfelder.';} return; }
+  if (!name || !email) { vxSetSettingsFeedback(fb, 'Name und E-Mail sind Pflichtfelder.', 'error'); return; }
   try {
-    const _sb = getSupabaseAuthClient();
-    const { data: { session } } = await _sb.auth.getSession();
-    // Update Auth E-Mail
-    if (email !== customerMeta.customerEmail) {
-      const { error } = await _sb.auth.updateUser({ email });
-      if (error) throw new Error(error.message);
-    }
-    // Update customers Name
-    await _sb.from('customers').update({ contact_first_name: name, updated_at: new Date().toISOString() }).eq('id', customerMeta.customerId);
+    await vxInlineSaveStatus(btn, async function() {
+      const _sb = getSupabaseAuthClient();
+      // Das Ergebnis wird nicht gelesen — der Aufruf stand hier schon vorher
+      // und wird bewusst beibehalten: er stösst bei abgelaufenem Token die
+      // Erneuerung an, bevor die beiden Schreibvorgänge starten. Ihn im
+      // Zuge einer Design-Änderung wegzulassen wäre eine unverwandte
+      // Verhaltensänderung am Auth-Pfad.
+      await _sb.auth.getSession();
+      // Update Auth E-Mail
+      if (email !== customerMeta.customerEmail) {
+        const { error } = await _sb.auth.updateUser({ email });
+        if (error) throw new Error(error.message);
+      }
+      // Update customers Name
+      await _sb.from('customers').update({ contact_first_name: name, updated_at: new Date().toISOString() }).eq('id', customerMeta.customerId);
+    }, { savingLabel: 'Speichert …', doneLabel: 'Gespeichert ✓' });
     customerMeta.customerName = name;
     customerMeta.customerEmail = email;
     document.getElementById('profil-name-display').textContent = name;
     document.getElementById('profil-email-display').textContent = email;
     document.getElementById('profil-avatar-preview').textContent = name.charAt(0).toUpperCase();
-    if (fb) { fb.style.color = '#059669'; fb.textContent = '✓ Profil aktualisiert.'; }
+    // Erfolg quittiert der Knopf. Einen stehengebliebenen Fehler eines
+    // frueheren Versuchs raeumt er nicht mit weg — das passiert hier.
+    vxSetSettingsFeedback(fb, '', null);
   } catch(e) {
-    if (fb) { fb.style.color = '#DC2626'; fb.textContent = 'Fehler: ' + (e.message || ''); }
+    vxSetSettingsFeedback(fb, 'Profil konnte nicht gespeichert werden. ' + (e.message || ''), 'error');
   }
 }
 
 async function vxSavePassword() {
   const fb = document.getElementById('fb-password');
+  const btn = document.getElementById('profil-password-save-btn');
   const pw = document.getElementById('profil-pw-new')?.value;
   const confirm = document.getElementById('profil-pw-confirm')?.value;
-  if (!pw) { if(fb){fb.style.color='#DC2626';fb.textContent='Bitte neues Passwort eingeben.';} return; }
-  if (pw !== confirm) { if(fb){fb.style.color='#DC2626';fb.textContent='Passwörter stimmen nicht überein.';} return; }
-  if (pw.length < 8) { if(fb){fb.style.color='#DC2626';fb.textContent='Mindestens 8 Zeichen.';} return; }
+  if (!pw) { vxSetSettingsFeedback(fb, 'Bitte neues Passwort eingeben.', 'error'); return; }
+  if (pw !== confirm) { vxSetSettingsFeedback(fb, 'Passwörter stimmen nicht überein.', 'error'); return; }
+  if (pw.length < 8) { vxSetSettingsFeedback(fb, 'Mindestens 8 Zeichen.', 'error'); return; }
   try {
-    const _sb = getSupabaseAuthClient();
-    const { error } = await _sb.auth.updateUser({ password: pw });
-    if (error) throw new Error(error.message);
+    await vxInlineSaveStatus(btn, async function() {
+      const _sb = getSupabaseAuthClient();
+      const { error } = await _sb.auth.updateUser({ password: pw });
+      if (error) throw new Error(error.message);
+    }, { savingLabel: 'Speichert …', doneLabel: 'Geändert ✓' });
     document.getElementById('profil-pw-new').value = '';
     document.getElementById('profil-pw-confirm').value = '';
-    if (fb) { fb.style.color = '#059669'; fb.textContent = '✓ Passwort geändert.'; }
+    vxSetSettingsFeedback(fb, '', null);
   } catch(e) {
-    if (fb) { fb.style.color = '#DC2626'; fb.textContent = 'Fehler: ' + (e.message || ''); }
+    vxSetSettingsFeedback(fb, 'Passwort konnte nicht geändert werden. ' + (e.message || ''), 'error');
   }
 }
 
@@ -15151,7 +15224,7 @@ async function vxSubmitCancellationRequest() {
       }
       vxRenderContractDetails();
       vxRenderCancellationSection();
-      toast('Kündigung eingereicht.');
+      toast('Kündigung eingereicht.', 'success');
       return true;
     }
   });
@@ -15315,7 +15388,7 @@ async function vxSubmitReactivationRequest() {
       }
       vxRenderContractDetails();
       vxRenderCancellationSection();
-      toast('Kündigung zurückgezogen. Ihr Abonnement läuft weiter.');
+      toast('Kündigung zurückgezogen. Ihr Abonnement läuft weiter.', 'success');
       return true;
     }
   });
@@ -15537,7 +15610,7 @@ function vxCopyCode(btn) {
   if (!code) return;
   if (navigator.clipboard) {
     navigator.clipboard.writeText(code).then(function() {
-      if (typeof showToast === 'function') showToast('✓ Code kopiert.');
+      if (typeof showToast === 'function') showToast('Code kopiert.', 'success');
     });
   }
 }
@@ -16128,23 +16201,47 @@ function toast(msg, type) {
   if (!el) return;
   if (textEl) textEl.textContent = msg;
   else el.textContent = msg;
-  // Icon by type
-  var rawMsg = String(msg || '').trim();
-  var inferredType = 'success';
-  if (/fehler|nicht|ungültig|konnte nicht|fehlgeschlagen/i.test(rawMsg)) inferredType = 'error';
-  else if (/bitte|warn|achtung/i.test(rawMsg)) inferredType = 'warning';
-  else if (/info|hinweis/i.test(rawMsg)) inferredType = 'info';
-  var t = type || inferredType;
+  // Die Tonalitaet kommt ausschliesslich vom Aufrufer.
+  //
+  // Hier stand bis zur Tonalitaets-Bereinigung eine Ableitung aus dem
+  // Meldungstext: /fehler|nicht|ungültig|.../ -> error, /bitte|warn/ ->
+  // warning, /info|hinweis/ -> info, sonst success. Sie entschied ueber 109
+  // der damals 163 Aufrufe, also ueber zwei Drittel der Farbrollen — und sie
+  // lag systematisch daneben, weil Verneinungen mit "kein/keine" in keinem
+  // ihrer Muster vorkommen: "Keine Telefonnummer vorhanden", "Kein Code
+  // verfuegbar", "Testanruf laeuft bereits" landeten alle bei success, also
+  // Gruen. Solange sich die vier Tonalitaeten kaum unterschieden, war das
+  // fast unsichtbar; seit Kante und Icon-Kachel sie tragen, waere es an
+  // jeder dieser Stellen ein sichtbarer Bruch der Vier-Familien-Regel.
+  //
+  // Ohne Angabe gilt jetzt "neutral": Night-Akzent, also die Marke und
+  // ausdruecklich keine der vier Bedeutungen. Lieber keine Aussage als eine
+  // geratene — eine falsche Farbrolle ist schlechter als gar keine.
+  var TOAST_TONES = { success: 1, info: 1, warning: 1, error: 1 };
+  var t = TOAST_TONES[type] ? type : 'neutral';
+  // stroke="currentColor": die Strichfarbe kommt aus der Icon-Kachel, die
+  // ihrerseits das Rollen-Token der Tonalitaet traegt. Vorher standen hier
+  // vier feste Hexwerte neben vier weiteren im CSS — zwei Quellen fuer
+  // dieselbe Entscheidung.
   var icons = {
-    success: '<svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="#22C55E" stroke-width="1.8" stroke-linecap="round"><path d="M1.5 5l2.5 2.5L8.5 2"/></svg>',
-    info:    '<svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="#818CF8" stroke-width="1.8" stroke-linecap="round"><circle cx="5" cy="5" r="4"/><path d="M5 4.5v3M5 3h.01"/></svg>',
-    warning: '<svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="#FBBF24" stroke-width="1.8" stroke-linecap="round"><path d="M5 1L9 9H1L5 1z"/><path d="M5 5v2M5 7.5h.01"/></svg>',
-    error:   '<svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="#F87171" stroke-width="1.8" stroke-linecap="round"><circle cx="5" cy="5" r="4"/><path d="M3.7 3.7l2.6 2.6M6.3 3.7L3.7 6.3"/></svg>'
+    success: '<svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M1.5 5l2.5 2.5L8.5 2"/></svg>',
+    info:    '<svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="5" cy="5" r="4"/><path d="M5 4.5v3M5 3h.01"/></svg>',
+    warning: '<svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M5 1L9 9H1L5 1z"/><path d="M5 5v2M5 7.5h.01"/></svg>',
+    error:   '<svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="5" cy="5" r="4"/><path d="M3.7 3.7l2.6 2.6M6.3 3.7L3.7 6.3"/></svg>',
+    // Neutral: ein Punkt. Kein Haken (das waere ein behaupteter Erfolg), kein
+    // Ausrufezeichen (eine behauptete Dringlichkeit) — die Form sagt "es gibt
+    // eine Meldung" und sonst nichts.
+    neutral: '<svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="5" cy="5" r="2.2"/></svg>'
   };
   if (iconEl) {
     iconEl.className = 'toast-icon ' + t;
-    iconEl.innerHTML = icons[t] || icons.success;
+    iconEl.innerHTML = icons[t] || icons.neutral;
   }
+  // Die Tonalitaet muss auch am Container haengen: linke Kante und
+  // Icon-Kachel lesen dieselbe Rollenvariable, und die wird auf .toast
+  // gesetzt. Die Klasse ersetzt nur die Tonalitaet, "show" wird direkt
+  // darunter ohnehin neu gesetzt.
+  el.className = 'toast t-' + t;
   el.classList.remove('show');
   void el.offsetWidth;
   el.classList.add('show');
@@ -16782,7 +16879,7 @@ function vxAboUpgrade() {
       meta: (price > 0 ? ('CHF ' + price + ' / Mt') : 'Preis wird geprüft') + (minutes > 0 ? (' · ' + minutes + ' Min. inklusive') : '')
     };
   });
-  if (!options.length) { toast('Für Ihren aktuellen Plan ist kein höherer Plan verfügbar.'); return; }
+  if (!options.length) { toast('Für Ihren aktuellen Plan ist kein höherer Plan verfügbar.', 'info'); return; }
   vxCommercialState = { type: 'plan_upgrade', selected: '', options, estimatedAmount: null, submitting: false };
   vxCommercialRender();
   vxCommercialOpen();
@@ -16846,7 +16943,7 @@ async function vxCommercialSubmit() {
       status.innerHTML = '<strong>Anfrage übermittelt</strong><span>Referenz: ' + reference + '</span><small>Voxera bestätigt die Vertrags- oder Abrechnungsänderung separat.</small>';
     }
     if (submit) { submit.textContent = 'Übermittelt'; submit.disabled = true; }
-    toast('Anfrage verbindlich übermittelt.');
+    toast('Anfrage verbindlich übermittelt.', 'success');
   } catch (error) {
     vxCommercialState.submitting = false;
     if (status) { status.dataset.state = 'error'; status.textContent = error.message || 'Übermittlung fehlgeschlagen.'; }
@@ -17326,16 +17423,31 @@ function updateLiveHero(records) {
   }
   if (!host) return;
 
-  // Der Fingerprint kennt bewusst nur die Anzahl. Solange dieselbe Menge an
-  // Gespraechen laeuft, aendert sich am Hinweis nichts — auch dann nicht,
-  // wenn mitten im Gespraech ein Anrufername nachgeliefert wird.
-  var fingerprint = 'live:' + liveRecs.length;
+  // Der Name kommt live aus customerMeta, nie hartkodiert — dieselbe Quelle
+  // und derselbe Fallback wie in vxHeuteRenderLaraHandover().
+  var assistantName = (typeof customerMeta !== 'undefined' && customerMeta && customerMeta.assistantName)
+    ? customerMeta.assistantName
+    : 'Lara';
+
+  // Der Fingerprint kennt bewusst nur die Anzahl — solange dieselbe Menge an
+  // Gespraechen laeuft, aendert sich am Hinweis nichts, auch nicht wenn
+  // mitten im Gespraech ein Anrufername nachgeliefert wird. Seit der Text den
+  // Assistentennamen nennt, gehoert der Name mit hinein: sonst bliebe eine
+  // Umbenennung waehrend eines laufenden Gespraechs auf der Karte stehen,
+  // waehrend der Rest des Screens ueber vxSyncAssistantNameCopy() bereits
+  // nachgezogen hat.
+  var fingerprint = 'live:' + liveRecs.length + ':' + assistantName;
   if (existing && existing.parentNode === host && fingerprint === _liveHeroLastFingerprint) return;
 
+  // Statusanzeige in der Sprache des Assistenten statt rein technisch —
+  // derselbe Blickwinkel wie die Uebergabekarte darueber ("So meldet sich Ihr
+  // Assistent", Zusammenfassungen in seiner Stimme). Dritte Person, nicht
+  // erste: waehrend das Gespraech laeuft, berichtet die Karte ueber den
+  // Assistenten, sie ist nicht seine Stimme.
   var label = liveRecs.length === 1
-    ? 'Ein Anruf läuft gerade'
-    : liveRecs.length + ' Anrufe laufen gerade';
-  var sub = 'Der Eintrag erscheint, sobald das Gespräch beendet ist.';
+    ? assistantName + ' ist gerade im Gespräch'
+    : assistantName + ' führt gerade ' + liveRecs.length + ' Gespräche';
+  var sub = 'Sobald aufgelegt wird, erscheint die Anfrage hier.';
 
   // Gleiche Anzahl-Klasse, aber der Knoten haengt noch woanders (oder der
   // Text hat sich durch einen zweiten Anruf geaendert) -> Text im Knoten
@@ -17343,8 +17455,10 @@ function updateLiveHero(records) {
   if (existing && existing.parentNode === host) {
     var nameEl = existing.querySelector('.vx-live-name');
     var subEl = existing.querySelector('.vx-live-sub');
+    var avatarEl = existing.querySelector('.vx-live-avatar');
     if (nameEl) nameEl.textContent = label;
     if (subEl) subEl.textContent = sub;
+    if (avatarEl) avatarEl.textContent = assistantName.charAt(0).toUpperCase();
     _liveHeroLastFingerprint = fingerprint;
     _liveHeroCurrentId = liveRecs[0].id;
     return;
@@ -17356,7 +17470,11 @@ function updateLiveHero(records) {
   // sonst kuendigt der Screenreader denselben Hinweis doppelt an.
   var row = document.createElement('div');
   row.id = 'live-call-row';
+  // Der Avatar ist aria-hidden: die Initiale ist ein Absenderzeichen, keine
+  // Information — der Name steht im Text daneben, den die Live-Region ohnehin
+  // vorliest.
   row.innerHTML = [
+    '<div class="vx-live-avatar" aria-hidden="true">' + _esc(assistantName.charAt(0).toUpperCase()) + '</div>',
     '<div class="vx-live-body">',
       '<div class="vx-live-name">' + _esc(label) + '</div>',
       '<div class="vx-live-sub">' + _esc(sub) + '</div>',
@@ -19542,9 +19660,9 @@ function vxCallDetailAnrufen() {
   if (!callId) return;
   var recordsSource = (typeof allRecords !== 'undefined' && allRecords) ? allRecords : (window.allRecords || []);
   var rec = recordsSource.find(function(r) { return r.id === callId; });
-  if (!rec) { showToast('⚠️ Anruf nicht gefunden'); return; }
+  if (!rec) { showToast('Anruf nicht gefunden', 'error'); return; }
   var phone = (rec.fields && (rec.fields.caller_phone || rec.fields.phone || rec.fields.tel_link)) || '';
-  if (!phone) { showToast('⚠️ Keine Telefonnummer vorhanden'); return; }
+  if (!phone) { showToast('Keine Telefonnummer vorhanden', 'warning'); return; }
   if (typeof vxOpenTelHref === 'function') vxOpenTelHref(phone, 'Keine gültige Telefonnummer vorhanden');
   else window.location.href = 'tel:' + String(phone).replace(/[^+0-9]/g, '');
 }
@@ -19560,7 +19678,7 @@ function vxCallDetailMail() {
   if (!callId) return;
   var recordsSource = (typeof allRecords !== 'undefined' && allRecords) ? allRecords : (window.allRecords || []);
   var rec = recordsSource.find(function(r) { return r.id === callId; });
-  if (!rec) { showToast('⚠️ Anruf nicht gefunden'); return; }
+  if (!rec) { showToast('Anruf nicht gefunden', 'error'); return; }
   var f = rec.fields || {};
   var email = f.caller_email || '';
   var name = f.caller_name || '';
@@ -19569,7 +19687,7 @@ function vxCallDetailMail() {
   if (email) {
     window.location.href = 'mailto:' + email + '?subject=' + subject + '&body=' + body;
   } else {
-    showToast('Keine E-Mail-Adresse vorhanden — öffne leere E-Mail');
+    showToast('Keine E-Mail-Adresse vorhanden — öffne leere E-Mail', 'info');
     window.location.href = 'mailto:?subject=' + subject + '&body=' + body;
   }
 }
@@ -19600,8 +19718,8 @@ function vxCallDetailArchivieren() {
     ? window._vxCurrentTaskId
     : window._vxCurrentCallId;
   if (!id) {
-    if (typeof showToast === 'function') showToast('⚠️ Eintrag nicht gefunden');
-    else if (typeof toast === 'function') toast('Eintrag nicht gefunden');
+    if (typeof showToast === 'function') showToast('Eintrag nicht gefunden', 'error');
+    else if (typeof toast === 'function') toast('Eintrag nicht gefunden', 'error');
     return;
   }
 
@@ -19774,17 +19892,17 @@ function vxCallDetailErledigt() {
     var sb = (typeof getSupabaseAuthClient === 'function') ? getSupabaseAuthClient() : null;
     if (!sb) {
       resetBtn();
-      showToast('⚠️ Authentifizierung erforderlich');
+      showToast('Authentifizierung erforderlich', 'error');
       return;
     }
     sb.from('calls').update({ dashboard_status: 'closed', updated_at: new Date().toISOString() }).eq('id', callId).then(function(r) {
       resetBtn();
       if (r.error) {
-        showToast('⚠️ Fehler beim Speichern');
+        showToast('Fehler beim Speichern', 'error');
       } else {
         var b = document.getElementById('vx-cd-qa-done');
         if (b) b.classList.add('is-success');
-        showToast('✓ Als erledigt markiert');
+        showToast('Als erledigt markiert', 'success');
         setTimeout(function() { if (typeof hideCallDetail === 'function') hideCallDetail(); }, 1200);
       }
     });
@@ -19794,15 +19912,15 @@ window.vxCallDetailErledigt = vxCallDetailErledigt;
 
 function saveFollowUp(callId) {
   var sb = (typeof getSupabaseAuthClient === 'function') ? getSupabaseAuthClient() : null;
-  if (!sb) { showToast('⚠️ Authentifizierung erforderlich'); return; }
+  if (!sb) { showToast('Authentifizierung erforderlich', 'error'); return; }
   const call = (state && state.calls) ? state.calls.find(function(c){ return c.id === callId; }) : null;
-  if (!call) { showToast('⚠️ Anruf nicht gefunden'); return; }
+  if (!call) { showToast('Anruf nicht gefunden', 'error'); return; }
   const callback = document.getElementById('followup-callback') && document.getElementById('followup-callback').checked;
   const email = document.getElementById('followup-email') && document.getElementById('followup-email').checked;
   const task = document.getElementById('followup-task') && document.getElementById('followup-task').checked;
   const dueDateInput = document.getElementById('followup-date') ? document.getElementById('followup-date').value : '';
-  if (!callback && !email && !task) { showToast('⚠️ Bitte mindestens eine Aktion wählen'); return; }
-  if (!dueDateInput) { showToast('⚠️ Bitte Datum/Uhrzeit wählen'); return; }
+  if (!callback && !email && !task) { showToast('Bitte mindestens eine Aktion wählen', 'warning'); return; }
+  if (!dueDateInput) { showToast('Bitte Datum/Uhrzeit wählen', 'warning'); return; }
   // Determine task type (callback > email > task)
   const taskType = callback ? 'callback' : (email ? 'email' : 'task');
   const taskTitle = callback ? 'Rückruf' : (email ? 'E-Mail senden' : 'Aufgabe');
@@ -19811,7 +19929,7 @@ function saveFollowUp(callId) {
   const legacyFollowUpValue = normalizeFollowUpLocalValue(dueDateInput) || String(dueDateInput || '').trim();
   const legacyFollowUpDueAt = legacyFollowUpValue.slice(0, 10);
   const legacyFollowUpDueTime = normalizeManualTaskDueTime(legacyFollowUpValue.slice(11, 16));
-  if (!legacyFollowUpDueAt || !legacyFollowUpDueTime) { showToast('⚠️ Bitte Datum und Uhrzeit wählen'); return; }
+  if (!legacyFollowUpDueAt || !legacyFollowUpDueTime) { showToast('Bitte Datum und Uhrzeit wählen', 'warning'); return; }
   const taskData = {
     customer_id: call.customer_id,
     phone: call.caller_phone || call.phone_number || '',
@@ -19824,9 +19942,9 @@ function saveFollowUp(callId) {
   };
   sb.from('customer_tasks').insert([taskData]).then(function(r) {
     if (r.error) {
-      showToast('⚠️ Fehler beim Speichern');
+      showToast('Fehler beim Speichern', 'error');
     } else {
-      showToast('✓ Nachfassen gespeichert');
+      showToast('Nachfassen gespeichert', 'success');
       ['followup-callback', 'followup-email', 'followup-task'].forEach(function(id) {
         const el = document.getElementById(id);
         if (el) el.checked = false;
@@ -19894,7 +20012,7 @@ function toggleBrowserNotif() {
     if (perm === 'granted') {
       vxSafeLocalStorageSet('voxera_browser_notif_off', '0');
       updateBrowserNotifToggleUI();
-      toast('Browser-Benachrichtigungen aktiviert.');
+      toast('Browser-Benachrichtigungen aktiviert.', 'success');
     } else {
       toast('Berechtigung nicht erteilt. Bitte im Browser erlauben.', 'warning');
       updateBrowserNotifToggleUI();
@@ -21250,7 +21368,7 @@ function handleDashboardActivationPrimaryCta(event){
   }
   var hasBusinessNumber = !!((customerMeta && customerMeta.telNr) ? String(customerMeta.telNr).trim() : '');
   if (!hasBusinessNumber) {
-    toast('Ihre Geschäftsnummer ist noch nicht hinterlegt.');
+    toast('Ihre Geschäftsnummer ist noch nicht hinterlegt.', 'warning');
     return;
   }
   openSetupHelpOverlay(event, 'testcall');
@@ -21306,7 +21424,7 @@ function vxGuardDoneAction(recordId, source) {
   var rec = vxResolveActionRecord(recordId);
   if (!vxIsReadonlyDoneRecord(rec)) return false;
   if (typeof toast === 'function') toast('Dieser Eintrag ist bereits erledigt.', 'info');
-  else if (typeof showToast === 'function') showToast('Dieser Eintrag ist bereits erledigt.');
+  else if (typeof showToast === 'function') showToast('Dieser Eintrag ist bereits erledigt.', 'info');
   console.info('[Voxera Action Guard] blocked duplicate done action', { id: String(recordId || ''), source: source || 'unknown' });
   return true;
 }
@@ -22317,8 +22435,13 @@ function renderAnrufeInbox(containerId, records, activeFilter) {
     !visibleRecords.some(function(rec) { return rec && String(rec.id) === String(window._vxActiveRecordId); })
   ) {
     if (typeof vxForceCloseCallDetail === 'function') vxForceCloseCallDetail('active-record-filtered-out');
-    if (typeof vxToast === 'function') {
-      vxToast({ type: 'info', title: 'Auswahl aufgehoben', sub: 'Die geöffnete Anfrage ist im aktuellen Filter nicht mehr sichtbar.' });
+    // Der Hinweis lief bisher ueber vxToast() hinter einem typeof-Waechter —
+    // die Funktion existierte nie, der Hinweis erschien also seit jeher nicht.
+    // Jetzt ueber den einzigen lebenden Renderer, damit das Zuklappen des
+    // Detailpanels nicht mehr kommentarlos passiert (Interaktions-Richtlinie
+    // "nie stillschweigend nichts passieren lassen").
+    if (typeof toast === 'function') {
+      toast('Auswahl aufgehoben: die geöffnete Anfrage ist im aktuellen Filter nicht mehr sichtbar.', 'info');
     }
   }
 
@@ -22733,16 +22856,16 @@ async function vxInboxRunBulkStatusChange(actionType) {
 
   if (failed > 0) {
     if (typeof toast === 'function') toast('Einige Einträge konnten nicht aktualisiert werden.', 'warning');
-    else if (typeof showToast === 'function') showToast('Einige Einträge konnten nicht aktualisiert werden.');
+    else if (typeof showToast === 'function') showToast('Einige Einträge konnten nicht aktualisiert werden.', 'error');
   } else if (success > 0 && skipped > 0) {
     if (typeof toast === 'function') toast(success + ' von ' + selected.length + ' Einträgen ' + (isArchive ? 'archiviert' : 'erledigt') + '. ' + skipped + ' übersprungen.', 'info');
-    else if (typeof showToast === 'function') showToast(success + ' von ' + selected.length + ' Einträgen ' + (isArchive ? 'archiviert' : 'erledigt') + '. ' + skipped + ' übersprungen.');
+    else if (typeof showToast === 'function') showToast(success + ' von ' + selected.length + ' Einträgen ' + (isArchive ? 'archiviert' : 'erledigt') + '. ' + skipped + ' übersprungen.', 'success');
   } else if (success > 0) {
     if (typeof toast === 'function') toast(success + ' Einträge ' + (isArchive ? 'archiviert' : 'erledigt') + '.', 'success');
-    else if (typeof showToast === 'function') showToast(success + ' Einträge ' + (isArchive ? 'archiviert' : 'erledigt') + '.');
+    else if (typeof showToast === 'function') showToast(success + ' Einträge ' + (isArchive ? 'archiviert' : 'erledigt') + '.', 'success');
   } else if (selected.length > 0) {
     if (typeof toast === 'function') toast('Keine passenden Einträge für diese Aktion ausgewählt.', 'info');
-    else if (typeof showToast === 'function') showToast('Keine passenden Einträge für diese Aktion ausgewählt.');
+    else if (typeof showToast === 'function') showToast('Keine passenden Einträge für diese Aktion ausgewählt.', 'warning');
   }
 }
 function vxInboxResolveRowRecordId(target) {
@@ -23066,7 +23189,7 @@ async function vxArchivRestore(recordId) {
       rec.fields.completed_at = null;
     }
 
-    if (typeof showToast === 'function') showToast('✓ Eintrag wiederhergestellt');
+    if (typeof showToast === 'function') showToast('Eintrag wiederhergestellt', 'success');
     else if (typeof toast === 'function') toast('Eintrag wiederhergestellt', 'success');
 
     renderArchiv(records);
@@ -23075,7 +23198,7 @@ async function vxArchivRestore(recordId) {
 
   } catch(e) {
     console.error('[vxArchivRestore]', e);
-    if (typeof showToast === 'function') showToast('⚠ Fehler: ' + (e.message || 'Unbekannter Fehler'));
+    if (typeof showToast === 'function') showToast('Fehler: ' + (e.message || 'Unbekannter Fehler'), 'error');
     var btn2 = document.querySelector('[data-restore-id="'+recordId+'"]');
     if (btn2) {
       btn2.disabled = false;
@@ -23088,7 +23211,7 @@ window.vxArchivRestore = vxArchivRestore;
 function exportArchiv() {
   var done = _archivAllDone.length ? _archivAllDone :
     (allRecords||[]).filter(function(r){ return normalizeStatus((r.fields||{}).dashboard_status) === CALL_STATUS.ARCHIVED; });
-  if (!done.length) { toast('Keine Einträge zum Exportieren'); return; }
+  if (!done.length) { toast('Keine Einträge zum Exportieren', 'info'); return; }
   var rows = [['Name','Telefon','Kategorie','Datum','Uhrzeit','Zusammenfassung','Nachfassen','Notiz']];
   done.forEach(function(r) {
     var f = r.fields || {};
@@ -23120,7 +23243,7 @@ function exportArchiv() {
   a.download = 'voxera-archiv-'+new Date().toISOString().slice(0,10)+'.csv';
   document.body.appendChild(a); a.click();
   document.body.removeChild(a); URL.revokeObjectURL(url);
-  toast('CSV exportiert ('+done.length+' Einträge)');
+  toast('CSV exportiert ('+done.length+' Einträge)', 'success');
 }
 
 function activateTab(name) {
@@ -23538,7 +23661,7 @@ async function runConfirmModalAction() {
       closeConfirmModal();
     }
   } catch (e) {
-    toast(' ' + toManualTaskUserMessage(e, 'Aktion konnte nicht gespeichert werden.'));
+    toast(toManualTaskUserMessage(e, 'Aktion konnte nicht gespeichert werden.'), 'error');
   } finally {
     confirmModalBusy = false;
     if (okBtn) {
@@ -23603,7 +23726,7 @@ async function doStatusChange(recordId, newStatus, rowElement) {
     renderAnrufe();
     renderRueckrufe(allRecords, allManualTaskRecords);
     renderArchiv(allRecords);
-    toast('Status bereits gesetzt');
+    toast('Status bereits gesetzt', 'info');
     return true;
   }
 
@@ -23697,7 +23820,7 @@ async function doStatusChange(recordId, newStatus, rowElement) {
         cached.fields.dashboard_status = currentStatus;
       }
     } else {
-      toast('⚠ ' + toManualTaskUserMessage(e, 'Fehler beim Status-Update'));
+      toast(toManualTaskUserMessage(e, 'Fehler beim Status-Update'), 'error');
     }
     if (row) { row.style.opacity='1'; row.style.background=''; row.style.borderColor=''; }
     return false;
@@ -23708,7 +23831,7 @@ async function doStatusChange(recordId, newStatus, rowElement) {
 function directCall(recordId, encodedTarget) {
   const raw = decodeURIComponent(encodedTarget || '').trim();
   if (!raw) {
-    toast('Keine Telefonnummer vorhanden');
+    toast('Keine Telefonnummer vorhanden', 'warning');
     return;
   }
   pendingFollowupRecordId = recordId;
@@ -23919,7 +24042,7 @@ async function saveFollowup() {
         modal: 'followup'
       });
       notizRecordId = null;
-      toast(taskSpec.toast);
+      toast(taskSpec.toast, 'success');
       vxScheduleSingleDataRefresh(500);
       return;
     }
@@ -23937,12 +24060,12 @@ async function saveFollowup() {
     notizRecordId = null;
 
     // Bestätigung folgt der gewählten Aktion statt immer "Rückruf geplant".
-    toast(followUpSaveToastMessage(nextAction, followUpAt));
+    toast(followUpSaveToastMessage(nextAction, followUpAt), 'success');
 
     vxScheduleSingleDataRefresh(500);
   } catch(e) {
     const detail = e && e.message ? String(e.message) : '';
-    toast(detail ? 'Speichern fehlgeschlagen: ' + detail : 'Speichern fehlgeschlagen');
+    toast(detail ? 'Speichern fehlgeschlagen: ' + detail : 'Speichern fehlgeschlagen', 'error');
     // Error contract: keep modal open and preserve inputs.
   } finally {
     vxSetActionButtonLoading(btn, false);
@@ -24097,7 +24220,7 @@ function openManualTaskEditModal(recordId) {
   vxTaskModalMode = 'edit';
   const rec = allManualTaskRecords.find(function(item) { return String(item.id) === String(recordId); });
   if (!rec || !rec.fields) {
-    toast('Aufgabe nicht gefunden.');
+    toast('Aufgabe nicht gefunden.', 'error');
     return;
   }
   const f = rec.fields;
@@ -24204,7 +24327,7 @@ function saveManualRequest() {
   vxSetActionButtonLoading(btn, true, 'Erstelle...');
   try {
   var name = String(document.getElementById('manual-request-name').value || '').trim();
-  if (!name) { toast('Bitte Name / Firma ausfüllen.'); return; }
+  if (!name) { toast('Bitte Name / Firma ausfüllen.', 'warning'); return; }
   var phone = String(document.getElementById('manual-request-phone').value || '').trim();
   var category = String(document.getElementById('manual-request-category').value || 'anruf');
   var priority = String(document.getElementById('manual-request-priority').value || 'hot');
@@ -24231,7 +24354,7 @@ function saveManualRequest() {
   renderDashboard(allRecords, allManualTaskRecords);
   renderAnrufe();
   vxUpdateAnfragenCount();
-  toast('Anfrage erstellt');
+  toast('Anfrage erstellt', 'success');
   } finally {
     vxSetActionButtonLoading(btn, false);
   }
@@ -24276,19 +24399,19 @@ async function saveManualTask() {
   const priority = String((legacyPriority && legacyPriority.value) || '').trim();
 
   if (!title || !type) {
-    toast('Bitte Titel und Typ ausfüllen.');
+    toast('Bitte Titel und Typ ausfüllen.', 'warning');
     return;
   }
   if (!dueAt) {
-    toast('Bitte einen Zeitpunkt wählen.');
+    toast('Bitte einen Zeitpunkt wählen.', 'warning');
     return;
   }
   if (dueTime === null && legacyDue) {
-    toast(MANUAL_TASKS_DUE_TIME_INVALID_MESSAGE);
+    toast(MANUAL_TASKS_DUE_TIME_INVALID_MESSAGE, 'warning');
     return;
   }
   if (!dueTime) {
-    toast(MANUAL_TASKS_DUE_TIME_REQUIRED_MESSAGE);
+    toast(MANUAL_TASKS_DUE_TIME_REQUIRED_MESSAGE, 'warning');
     return;
   }
   const btn = document.getElementById('manual-task-save-btn');
@@ -24318,12 +24441,12 @@ async function saveManualTask() {
       const updatedTask = await updateManualTask(editingManualTaskRecordId, basePayload);
       const idx = allManualTaskRecords.findIndex(function(item) { return String(item.id) === String(editingManualTaskRecordId); });
       if (idx >= 0) allManualTaskRecords[idx] = updatedTask;
-      toast('Änderungen gespeichert');
+      toast('Änderungen gespeichert', 'success');
     } else {
       const createdTask = await createManualTask(basePayload);
       if (createdTask && createdTask.id) savedTaskId = String(createdTask.id);
       allManualTaskRecords.unshift(createdTask);
-      toast('Task erstellt');
+      toast('Task erstellt', 'success');
     }
     vxAfterActionSuccess({
       recordId: isEditMode ? activeEditId : '',
@@ -24339,7 +24462,7 @@ async function saveManualTask() {
       editingTaskId: editingManualTaskRecordId,
       error: e
     });
-    toast(toManualTaskUserMessage(e, isEditMode ? 'Task konnte nicht gespeichert werden.' : 'Task konnte nicht gespeichert werden.'));
+    toast(toManualTaskUserMessage(e, isEditMode ? 'Task konnte nicht gespeichert werden.' : 'Task konnte nicht gespeichert werden.'), 'error');
   } finally {
     vxSetActionButtonLoading(btn, false);
   }
@@ -24735,7 +24858,7 @@ function vxFindManualTaskRecord(taskId) {
 
 function vxTaskDetailNotify(message, type) {
   if (typeof toast === 'function') { toast(message, type || 'info'); return; }
-  if (typeof showToast === 'function') { showToast(message); }
+  if (typeof showToast === 'function') { showToast(message, type || 'info'); }
 }
 
 function vxTaskDetailPhone(fields) {
@@ -24996,11 +25119,11 @@ async function saveNotiz() {
     }
     vxRefreshOperationalViews(allRecords, allManualTaskRecords);
     closeNotiz();
-    toast('Notiz gespeichert');
+    toast('Notiz gespeichert', 'success');
     vxScheduleSingleDataRefresh(600);
   } catch(e) {
     const detail = e && e.message ? String(e.message) : '';
-    toast(detail ? 'Speichern fehlgeschlagen: ' + detail : 'Speichern fehlgeschlagen');
+    toast(detail ? 'Speichern fehlgeschlagen: ' + detail : 'Speichern fehlgeschlagen', 'error');
     // Error contract: keep modal open and preserve inputs.
   } finally {
     vxSetActionButtonLoading(btn, false);
@@ -25091,10 +25214,12 @@ function openAccount() {
   if (nameEl) nameEl.textContent = customerMeta.customerName || (customerMeta.customerId ? '–' : 'Lädt…');
   var telEl = document.getElementById('profile-customer-tel');
   if (telEl) telEl.textContent = customerMeta.telNr || (customerMeta.customerId ? '–' : 'Lädt…');
-  var pn = document.getElementById('pw-new'); if(pn) pn.value = '';
-  var pc = document.getElementById('pw-confirm'); if(pc) pc.value = '';
-  var pe = document.getElementById('pw-error'); if(pe) pe.style.display = 'none';
-  var ps = document.getElementById('pw-success'); if(ps) ps.style.display = 'none';
+  // Die vier Ruecksetzungen auf #pw-new / #pw-confirm / #pw-error /
+  // #pw-success sind mit changePassword() entfallen — keines dieser Elemente
+  // existiert im Markup, die Zeilen liefen seit dem Umbau der Profil-Seite
+  // jedes Mal ins Leere. Die Ruecksetzung auf #notif-success ist aus
+  // demselben Grund weg: das Element gehoerte zu saveNotifSettings() und ist
+  // mit dieser Funktion entfernt worden.
   loadNotifSettings();
 }
 
@@ -25427,7 +25552,7 @@ function copyForwardingTemplateCode(event, btnEl) {
   var template = btnEl && btnEl.getAttribute('data-code-template');
   var code = resolveForwardingCode(template);
   if (!code) {
-    toast('Ihre Voxera-Nummer ist noch nicht verfügbar.');
+    toast('Ihre Voxera-Nummer ist noch nicht verfügbar.', 'warning');
     return;
   }
   return copyForwardingCode(event, code);
@@ -25516,7 +25641,7 @@ function openFullHelpFromWizard(anchorId) {
 async function copyForwardingCode(event, code) {
   if (event) event.stopPropagation();
   if (!code) {
-    toast('Code nicht verfügbar');
+    toast('Code nicht verfügbar', 'warning');
     return;
   }
   try {
@@ -25562,53 +25687,21 @@ function applyForwardingCode(event, linkEl) {
   var reason = linkEl.getAttribute('data-direct-reason') || '';
   if (disabled || !code) {
     if (event) event.preventDefault();
-    if (reason === 'missing_number') toast('Ihre Voxera-Nummer ist noch nicht verfügbar.');
-    else toast('Direktes Anwenden ist auf diesem Gerät nicht verfügbar. Bitte Code kopieren.');
+    if (reason === 'missing_number') toast('Ihre Voxera-Nummer ist noch nicht verfügbar.', 'warning');
+    else toast('Direktes Anwenden ist auf diesem Gerät nicht verfügbar. Bitte Code kopieren.', 'warning');
     return;
   }
   applyForwarding(code);
 }
 
-async function changePassword() {
-  const sb = getSupabaseAuthClient();
-  if (!sb) return;
-  const pw = document.getElementById('pw-new').value;
-  const pw2 = document.getElementById('pw-confirm').value;
-  const btn = document.getElementById('pw-save-btn');
-  const errEl = document.getElementById('pw-error');
-  const succEl = document.getElementById('pw-success');
-
-  errEl.style.display = 'none';
-  succEl.style.display = 'none';
-
-  if (!pw || pw.length < 8) {
-    errEl.textContent = 'Passwort muss mindestens 8 Zeichen haben.';
-    errEl.style.display = 'block';
-    return;
-  }
-  if (pw !== pw2) {
-    errEl.textContent = 'Passwörter stimmen nicht überein.';
-    errEl.style.display = 'block';
-    return;
-  }
-
-  btn.disabled = true; btn.textContent = 'Speichern...';
-  try {
-    const { error } = await sb.auth.updateUser({ password: pw });
-    if (error) throw error;
-    succEl.textContent = 'Passwort erfolgreich geändert';
-    succEl.style.display = 'block';
-    document.getElementById('pw-new').value = '';
-    document.getElementById('pw-confirm').value = '';
-    toast('Passwort geändert');
-  } catch (error) {
-    errEl.textContent = error?.message || 'Fehler beim Speichern.';
-    errEl.style.display = 'block';
-  } finally {
-    btn.disabled = false;
-    btn.textContent = 'Passwort speichern';
-  }
-}
+// changePassword() ist entfallen. Es war ein zweiter, laengst abgeloester
+// Passwort-Pfad: die Funktion hatte keinen Aufrufer, und alle fuenf von ihr
+// angesprochenen Elemente (#pw-new, #pw-confirm, #pw-save-btn, #pw-error,
+// #pw-success) existieren im Markup nicht mehr — der erste
+// getElementById(...).value haette sofort geworfen. Der lebende Pfad ist
+// vxSavePassword() auf der Profil-Unterseite. Mitentfernt statt umgestellt:
+// eine Zustandsanzeige an unerreichbarem Code zu vereinheitlichen waere
+// Arbeit an unsichtbarem Markup.
 
 // ═══════════════════════════════════════════
 //  NAVIGATION
@@ -26074,20 +26167,20 @@ async function resetActivationTestContext(recId, context) {
     context.customerRecord.activation_test_mode = null;
     context.customerRecord.activation_test_candidate_call_id = null;
   }
-  toast('Aktivierung wurde zurückgesetzt. Bitte starten Sie den Test erneut.');
+  toast('Aktivierung wurde zurückgesetzt. Bitte starten Sie den Test erneut.', 'warning');
   renderActivationV2();
 }
 
 async function persistSetupDeviceType(type) {
   var normalized = type === 'mobile' ? 'mobile' : type === 'landline' ? 'landline' : null;
   if (!normalized) {
-    toast('Ungültiger Aktivierungsweg.');
+    toast('Ungültiger Aktivierungsweg.', 'error');
     return null;
   }
   try {
     const context = await resolveCustomerContext();
     var recId = (context && context.customerRecord && context.customerRecord.id) ? context.customerRecord.id : '';
-    if (!recId) { toast('Fehler: Kundendatensatz nicht gefunden.'); return null; }
+    if (!recId) { toast('Fehler: Kundendatensatz nicht gefunden.', 'error'); return null; }
     // Reset activation test context if currently in pending_test
     if (customerMeta.forwardingStatus === 'pending_test') {
       await resetActivationTestContext(recId, context);
@@ -26098,7 +26191,7 @@ async function persistSetupDeviceType(type) {
     return normalized;
   } catch(e) {
     console.error('setup_device_type save failed', e);
-    toast(isContractInactiveError(e) ? getRestrictedContractMessage('Aktivierung') : 'Aktivierungsweg konnte nicht gespeichert werden.');
+    toast(isContractInactiveError(e) ? getRestrictedContractMessage('Aktivierung') : 'Aktivierungsweg konnte nicht gespeichert werden.', 'error');
     return null;
   }
 }
@@ -26107,14 +26200,14 @@ async function persistForwardingSetupCompleted() {
   try {
     const context = await resolveCustomerContext();
     var recId = (context && context.customerRecord && context.customerRecord.id) ? context.customerRecord.id : '';
-    if (!recId) { toast('Fehler: Kundendatensatz nicht gefunden.'); return false; }
+    if (!recId) { toast('Fehler: Kundendatensatz nicht gefunden.', 'error'); return false; }
     await patchCustomerRecord(recId, { forwarding_setup_completed: true });
     customerMeta.forwardingSetupCompleted = true;
     if (context && context.customerRecord) context.customerRecord.forwarding_setup_completed = true;
     return true;
   } catch(e) {
     console.error('forwarding_setup_completed save failed', e);
-    toast(isContractInactiveError(e) ? getRestrictedContractMessage('Erreichbarkeit') : 'Rufumleitungsstatus konnte nicht gespeichert werden.');
+    toast(isContractInactiveError(e) ? getRestrictedContractMessage('Erreichbarkeit') : 'Rufumleitungsstatus konnte nicht gespeichert werden.', 'error');
     return false;
   }
 }
@@ -26123,13 +26216,13 @@ async function persistForwardingMode(mode) {
   var validModes = ['no_answer', 'unreachable', 'always', 'busy'];
   if (!validModes.includes(mode)) {
     console.error('persistForwardingMode: ungültiger Modus', mode);
-    toast('Ungültiger Weiterleitungsmodus.');
+    toast('Ungültiger Weiterleitungsmodus.', 'error');
     return false;
   }
   try {
     const context = await resolveCustomerContext();
     var recId = (context && context.customerRecord && context.customerRecord.id) ? context.customerRecord.id : '';
-    if (!recId) { toast('Fehler: Kundendatensatz nicht gefunden.'); return false; }
+    if (!recId) { toast('Fehler: Kundendatensatz nicht gefunden.', 'error'); return false; }
     // Reset activation test context if currently in pending_test
     if (customerMeta.forwardingStatus === 'pending_test') {
       await resetActivationTestContext(recId, context);
@@ -26140,7 +26233,7 @@ async function persistForwardingMode(mode) {
     return true;
   } catch(e) {
     console.error('forwarding_mode save failed', e);
-    toast(isContractInactiveError(e) ? getRestrictedContractMessage('Erreichbarkeit') : 'Weiterleitungsmodus konnte nicht gespeichert werden.');
+    toast(isContractInactiveError(e) ? getRestrictedContractMessage('Erreichbarkeit') : 'Weiterleitungsmodus konnte nicht gespeichert werden.', 'error');
     return false;
   }
 }
@@ -26279,7 +26372,7 @@ function renderActivationActionCard(meta) {
 
 async function activationCopyCode(event, code) {
   if (event) event.stopPropagation();
-  if (!code) { toast('Kein Code verfügbar.'); return; }
+  if (!code) { toast('Kein Code verfügbar.', 'warning'); return; }
   await copyForwardingCode(event, code);
 }
 
@@ -26297,7 +26390,7 @@ async function activationSkipTest(event) {
   try {
     const context = await resolveCustomerContext();
     var recId = (context && context.customerRecord && context.customerRecord.id) ? context.customerRecord.id : '';
-    if (!recId) { toast('Fehler: Kundendatensatz nicht gefunden.'); if (btn) { btn.disabled = false; btn.textContent = 'Ohne Test fortfahren'; } return; }
+    if (!recId) { toast('Fehler: Kundendatensatz nicht gefunden.', 'error'); if (btn) { btn.disabled = false; btn.textContent = 'Ohne Test fortfahren'; } return; }
     await patchCustomerRecord(recId, {
       forwarding_status: 'active',
       forwarding_setup_completed: true,
@@ -26322,13 +26415,13 @@ async function activationSkipTest(event) {
     candidateCall = null;
     activationFlowSuccessToken = '';
     stopActivationPolling();
-    toast('Rufumleitung erfolgreich aktiviert.');
+    toast('Rufumleitung erfolgreich aktiviert.', 'success');
     renderActivationV2();
     scrollToStatusCard();
     triggerStatusHighlight('success');
   } catch(e) {
     console.error('activationSkipTest failed', e);
-    toast('Aktivierung konnte nicht abgeschlossen werden.');
+    toast('Aktivierung konnte nicht abgeschlossen werden.', 'error');
     if (btn) { btn.disabled = false; btn.textContent = 'Ohne Test fortfahren'; }
   }
 }
@@ -26353,7 +26446,7 @@ function activationMobileDeactivate(event) {
   // Just show the next-step helper box and allow the dialer to open.
   var nextStep = document.getElementById('act-deact-mobile-nextstep');
   if (nextStep) nextStep.style.display = 'block';
-  toast('Deaktivierung gestartet. Bitte testen Sie jetzt Ihre Nummer.');
+  toast('Deaktivierung gestartet. Bitte testen Sie jetzt Ihre Nummer.', 'info');
 }
 
 function openActivationDeactivateSection() {
@@ -26389,12 +26482,12 @@ function activationDeactivationCheckboxChanged() {
 async function activationConfirmDeactivation(event) {
   if (event) event.preventDefault();
   var checkbox = document.getElementById('act-deact-checkbox');
-  if (!checkbox || !checkbox.checked) { toast('Bitte bestätigen Sie das Ergebnis.'); return; }
+  if (!checkbox || !checkbox.checked) { toast('Bitte bestätigen Sie das Ergebnis.', 'warning'); return; }
   var btn = document.getElementById('act-deact-btn');
   if (btn) { btn.disabled = true; btn.textContent = 'Wird gespeichert...'; }
   var ok = await persistForwardingStatus('inactive');
   if (ok) {
-    toast('Rufumleitung erfolgreich deaktiviert.');
+    toast('Rufumleitung erfolgreich deaktiviert.', 'success');
     renderActivationV2();
     scrollToStatusCard();
     triggerStatusHighlight('neutral');
@@ -26407,20 +26500,20 @@ async function persistForwardingStatus(status) {
   var validStatuses = ['not_started', 'pending_test', 'active', 'inactive'];
   if (!validStatuses.includes(status)) {
     console.error('persistForwardingStatus: ungültiger Status', status);
-    toast('Ungültiger Weiterleitungsstatus.');
+    toast('Ungültiger Weiterleitungsstatus.', 'error');
     return false;
   }
   try {
     const context = await resolveCustomerContext();
     var recId = (context && context.customerRecord && context.customerRecord.id) ? context.customerRecord.id : '';
-    if (!recId) { toast('Fehler: Kundendatensatz nicht gefunden.'); return false; }
+    if (!recId) { toast('Fehler: Kundendatensatz nicht gefunden.', 'error'); return false; }
     await patchCustomerRecord(recId, { forwarding_status: status });
     customerMeta.forwardingStatus = status;
     if (context && context.customerRecord) context.customerRecord.forwarding_status = status;
     return true;
   } catch(e) {
     console.error('persistForwardingStatus failed', e);
-    toast('Weiterleitungsstatus konnte nicht gespeichert werden.');
+    toast('Weiterleitungsstatus konnte nicht gespeichert werden.', 'error');
     return false;
   }
 }
@@ -26833,7 +26926,7 @@ async function activationStartSmartphone(event, code) {
   try {
     const context = await resolveCustomerContext();
     var recId = (context && context.customerRecord && context.customerRecord.id) ? context.customerRecord.id : '';
-    if (!recId) { toast('Fehler: Kundendatensatz nicht gefunden.'); return; }
+    if (!recId) { toast('Fehler: Kundendatensatz nicht gefunden.', 'error'); return; }
     if (btn) { btn.disabled = true; btn.textContent = 'Wird gespeichert…'; }
     var now = new Date().toISOString();
     clearActivationStateForRunStart();
@@ -26868,7 +26961,7 @@ async function activationStartSmartphone(event, code) {
     activationRunStartLocalIso = '';
     customerMeta.forwardingStatus = previousStatus;
     customerMeta.activationStartedAt = previousStartedAt;
-    toast('Aktivierung konnte nicht gestartet werden.');
+    toast('Aktivierung konnte nicht gestartet werden.', 'error');
     if (btn) { btn.disabled = false; btn.textContent = 'Jetzt aktivieren'; }
     renderActivationV2();
   } finally {
@@ -26889,7 +26982,7 @@ async function activationStartLandlineTest(event) {
   try {
     const context = await resolveCustomerContext();
     var recId = (context && context.customerRecord && context.customerRecord.id) ? context.customerRecord.id : '';
-    if (!recId) { toast('Fehler: Kundendatensatz nicht gefunden.'); if (btn) { btn.disabled = false; btn.textContent = 'Testanruf starten'; } return; }
+    if (!recId) { toast('Fehler: Kundendatensatz nicht gefunden.', 'error'); if (btn) { btn.disabled = false; btn.textContent = 'Testanruf starten'; } return; }
     var now = new Date().toISOString();
     clearActivationStateForRunStart();
     markActivationFreshRunStarted(now);
@@ -26918,7 +27011,7 @@ async function activationStartLandlineTest(event) {
     activationRunStartLocalIso = '';
     customerMeta.forwardingStatus = previousStatus;
     customerMeta.activationStartedAt = previousStartedAt;
-    toast('Aktivierung konnte nicht gestartet werden.');
+    toast('Aktivierung konnte nicht gestartet werden.', 'error');
     if (btn) { btn.disabled = false; btn.textContent = 'Testanruf starten'; }
     renderActivationV2();
   } finally {
@@ -26935,12 +27028,12 @@ async function confirmActivationTestCall(event) {
   try {
     const context = await resolveCustomerContext();
     var recId = (context && context.customerRecord && context.customerRecord.id) ? context.customerRecord.id : '';
-    if (!recId) { toast('Fehler: Kundendatensatz nicht gefunden.'); if (btn) { btn.disabled = false; btn.textContent = 'Aktivierung abschliessen'; } return false; }
+    if (!recId) { toast('Fehler: Kundendatensatz nicht gefunden.', 'error'); if (btn) { btn.disabled = false; btn.textContent = 'Aktivierung abschliessen'; } return false; }
     // Aktivierung erlauben wenn: automatisch erkannt ODER User hat manuell bestätigt
     // (forwarding_status = pending_test = User hat Code eingegeben und Testanruf gemacht)
     var isPendingTest = customerMeta && customerMeta.forwardingStatus === 'pending_test';
     if (!isPendingTest) {
-      toast('Aktivierung ist nur im Status "Wird geprüft" möglich.');
+      toast('Aktivierung ist nur im Status "Wird geprüft" möglich.', 'warning');
       if (btn) { btn.disabled = false; btn.textContent = 'Aktivierung abschliessen'; }
       return false;
     }
@@ -26984,7 +27077,7 @@ async function confirmActivationTestCall(event) {
     // Deactivation-State zurücksetzen – verhindert Flicker auf deactivation_success
     // falls der User in einer früheren Session deaktiviert hatte.
     erreichbarkeitDeactivationDoneAt = '';
-    toast('Rufumleitung erfolgreich aktiviert.');
+    toast('Rufumleitung erfolgreich aktiviert.', 'success');
     renderActivationV2();
     // Nochmals nach kurzem Delay rendern falls ein paralleler loadData-Lauf
     // den State zwischenzeitlich überschrieben hat.
@@ -27000,7 +27093,7 @@ async function confirmActivationTestCall(event) {
     return true;
   } catch(e) {
     console.error('confirmActivationTestCall failed', e);
-    toast('Aktivierung konnte nicht abgeschlossen werden.');
+    toast('Aktivierung konnte nicht abgeschlossen werden.', 'error');
     if (btn) { btn.disabled = false; btn.textContent = 'Aktivierung abschliessen'; }
     return false;
   } finally {
@@ -27048,7 +27141,7 @@ async function startActivationTestFromManualCta(event) {
     if (sessionLockKey) activationSystemCallSessionLock = sessionLockKey;
     startActivationPolling();
     renderActivationV2();
-    toast('Wir warten bereits auf die Erkennung des Testanrufs auf Ihrer hinterlegten Hauptnummer.');
+    toast('Wir warten bereits auf die Erkennung des Testanrufs auf Ihrer hinterlegten Hauptnummer.', 'info');
     return;
   }
   var started = await startSystemActivationTestCall(event);
@@ -27093,12 +27186,12 @@ async function activationDeactivateFast(event) {
     candidateCall = null;
     clearActivationFreshRunTracking();
     stopActivationPolling();
-    toast('Weiterleitung deaktiviert.');
+    toast('Weiterleitung deaktiviert.', 'success');
     renderActivationV2();
     return;
   } catch (e) {
     console.error('activationDeactivateFast failed', e);
-    toast('Weiterleitung konnte nicht deaktiviert werden.');
+    toast('Weiterleitung konnte nicht deaktiviert werden.', 'error');
   }
   if (btn) { btn.disabled = false; btn.textContent = 'Weiterleitung deaktivieren'; }
 }
@@ -27106,7 +27199,7 @@ async function activationDeactivateFast(event) {
 async function activationCopyOwnNumber(event) {
   if (event) event.stopPropagation();
   var nr = customerMeta && customerMeta.telNr;
-  if (!nr) { toast('Keine Nummer verfügbar.'); return; }
+  if (!nr) { toast('Keine Nummer verfügbar.', 'warning'); return; }
   await copyForwardingCode(event, nr);
 }
 
@@ -27357,7 +27450,7 @@ function saveNotificationAndContinue(event){
   if (event) event.stopPropagation();
   var selected = selectedSetupNotificationOption || getSelectedNotificationMode('setup-notification-mode');
   if (!selected) {
-    toast('Bitte wählen Sie eine Benachrichtigungsoption.');
+    toast('Bitte wählen Sie eine Benachrichtigungsoption.', 'warning');
     return;
   }
   saveSetupNotifications();
@@ -27373,7 +27466,7 @@ function finishSetup(){
 function copyVoxeraNumber(e){
   if(e)e.stopPropagation();
   var num = customerMeta.voxeraNumber || '';
-  if(!num){toast('Keine Nummer vorhanden');return;}
+  if(!num){toast('Keine Nummer vorhanden', 'warning');return;}
   navigator.clipboard.writeText(num)
     .then(function(){ announceCopyFeedback('Nummer kopiert', 'success'); })
     .catch(function(){ announceCopyFeedback('Kopieren fehlgeschlagen', 'error'); });
@@ -27390,7 +27483,7 @@ async function saveSetupNotifications(){
   }
   var notificationMode = selectedSetupNotificationOption || getSelectedNotificationMode('setup-notification-mode');
   if(!notificationMode){
-    toast('Bitte wählen Sie eine Benachrichtigungsoption.');
+    toast('Bitte wählen Sie eine Benachrichtigungsoption.', 'warning');
     return;
   }
   if(recordId){
@@ -27399,7 +27492,7 @@ async function saveSetupNotifications(){
       applyNotificationModeToInputs(notificationMode);
     }catch(e){}
   }
-  toast('Benachrichtigungen gespeichert');
+  toast('Benachrichtigungen gespeichert', 'success');
   completeSetupStep('s3');
 }
 
@@ -27857,11 +27950,11 @@ async function performActivationInternalReset(successMessage) {
     activationResetFlowState.open = false;
     activationResetFlowState.stage = 'choice';
     renderActivationV2();
-    toast(successMessage || 'Einrichtung vollständig zurückgesetzt.');
+    toast(successMessage || 'Einrichtung vollständig zurückgesetzt.', 'success');
     return true;
   } catch (e) {
     console.error('performActivationInternalReset failed', e);
-    toast('Lokaler Reset ausgeführt. Backend-Reset bitte erneut versuchen.');
+    toast('Lokaler Reset ausgeführt. Backend-Reset bitte erneut versuchen.', 'warning');
     return false;
   }
 }
@@ -28287,7 +28380,7 @@ async function persistErreichbarkeitDeactivation(){
         updateSidebarStatus();
       }
     }, 800);
-    toast('Weiterleitung deaktiviert. Sie können jetzt neu einrichten.');
+    toast('Weiterleitung deaktiviert. Sie können jetzt neu einrichten.', 'success');
   } catch (e) {
     console.error(e);
     toast('Deaktivierung konnte nicht gespeichert werden.', 'error');
@@ -28300,7 +28393,7 @@ async function persistErreichbarkeitDeactivation(){
 async function startErreichbarkeitTestCall(event) {
   if (event) event.stopPropagation();
   if (activationSystemCallPending || activationSystemCallTriggerInFlight) {
-    toast('Testanruf läuft bereits.');
+    toast('Testanruf läuft bereits.', 'info');
     return;
   }
   var previousStatus = customerMeta && customerMeta.forwardingStatus;
@@ -28318,7 +28411,7 @@ async function startErreichbarkeitTestCall(event) {
       isForwardingReady = !!(customerMeta && (customerMeta.forwardingStatus === 'active' || customerMeta.forwardingStatus === 'pending_test'));
     }
     if (!isForwardingReady) {
-      toast('Testanruf ist erst möglich, nachdem die Weiterleitung eingerichtet wurde.');
+      toast('Testanruf ist erst möglich, nachdem die Weiterleitung eingerichtet wurde.', 'warning');
       return;
     }
 
@@ -28345,7 +28438,7 @@ async function startErreichbarkeitTestCall(event) {
     showErreichbarkeitState('test_pending');
     var started = await startSystemActivationTestCall(event);
     if (!started) throw new Error('system test not started');
-    toast('Automatischer Testanruf wird gestartet. Wir rufen Ihre hinterlegte Hauptnummer an.');
+    toast('Automatischer Testanruf wird gestartet. Wir rufen Ihre hinterlegte Hauptnummer an.', 'info');
   } catch (e) {
     console.error('startErreichbarkeitTestCall failed', e);
     try {
@@ -28484,13 +28577,13 @@ function selectProvider(key, btn) {
 }
 
 function copyCode(code) {
-  navigator.clipboard.writeText(code).then(function() { showToast && showToast('✓ Code kopiert.'); });
+  navigator.clipboard.writeText(code).then(function() { showToast && showToast('Code kopiert.', 'success'); });
 }
 
 function copyVoxeraNumber() {
   var nr = (customerMeta && customerMeta.voxeraNumber) ? String(customerMeta.voxeraNumber) : '';
   if (!nr) return;
-  navigator.clipboard.writeText(nr).then(function() { showToast && showToast('✓ Nummer kopiert.'); });
+  navigator.clipboard.writeText(nr).then(function() { showToast && showToast('Nummer kopiert.', 'success'); });
 }
 
 function renderProviderInstructions() {
@@ -29182,7 +29275,7 @@ async function handleLogout(triggerEl, beforeLogout) {
     await doLogout();
   } catch (e) {
     var msg = (e && e.message) ? String(e.message) : 'Abmelden fehlgeschlagen';
-    toast(msg);
+    toast(msg, 'error');
     if (btn) {
       btn.disabled = oldDisabled;
       btn.innerHTML = oldHtml || 'Abmelden';
@@ -31005,7 +31098,16 @@ function toggleCallRow(event, row) {
 <script>
 /* Slim stub: vxOpenDetailV2 redirects to new routing; vxDv2SaveNote kept for fullscreen note-save */
 (function() {
-  // vxDv2SaveNote: saves note from fullscreen detail view into Supabase
+  // vxDv2SaveNote: saves note from fullscreen detail view into Supabase.
+  //
+  // Trug den Zustand schon vorher am Knopf — das richtige Muster, aber als
+  // eigener Nachbau: eigene resetBtn()-Helferin, und drei hartkodierte Farben
+  // (#059669 / #0D1F3C / #DC2626), die per btn.style.background direkt in das
+  // Element geschrieben wurden und damit jede Knopf-Regel des Design-Systems
+  // uebersteuerten. Jetzt derselbe vxInlineSaveStatus() wie im Assistent-Tab
+  // und in den Einstellungen; der Fehlerfall geht ueber den Toast, der ihn
+  // ohnehin schon meldete — der zusaetzliche rote Knopf war eine zweite
+  // Meldung fuer dasselbe Ereignis.
   window.vxDv2SaveNote = function() {
     var recId = String(window._vxCurrentCallId || window._vxCurrentTaskId || '').trim();
     if (!recId) return;
@@ -31013,25 +31115,22 @@ function toggleCallRow(event, row) {
     var btn = document.getElementById('vx-dv2-save-btn');
     if (!field) return;
     var noteText = field.value.trim();
-    if (btn) { btn.textContent = 'Speichert…'; btn.disabled = true; }
-    var resetBtn = function(label, bg) {
-      if (!btn) return;
-      btn.textContent = label || 'Speichern';
-      btn.style.background = bg || '#0D1F3C';
-      btn.disabled = false;
-    };
     var sb = window.getSupabaseAuthClient ? getSupabaseAuthClient() : window._sb;
-    if (!sb) { resetBtn('Speichern'); if (window.toast) toast('Verbindung fehlt.'); return; }
-    sb.from('calls').update({ notes_customer_voxera: noteText, updated_at: new Date().toISOString() }).eq('id', recId)
-      .then(function() {
-        var rec = (window.allRecords||[]).find(function(r){ return r.id === recId; });
-        if (rec && rec.fields) rec.fields.notes_customer_voxera = noteText;
-        resetBtn('Gespeichert ✓', '#059669');
-        setTimeout(function(){ resetBtn('Speichern', '#0D1F3C'); }, 2000);
-        if (window.renderDashPriorityList) renderDashPriorityList();
-      }).catch(function() {
-        resetBtn('Fehler', '#DC2626');
-        if (window.toast) toast('Notiz konnte nicht gespeichert werden.');
+    if (!sb) { if (window.toast) toast('Verbindung fehlt.', 'error'); return; }
+    window.vxInlineSaveStatus(btn, function() {
+      return sb.from('calls').update({ notes_customer_voxera: noteText, updated_at: new Date().toISOString() }).eq('id', recId)
+        .then(function(result) {
+          // .update() meldet Fehler im Ergebnis, nicht per Rejection — ohne
+          // diese Pruefung haette der Knopf "Gespeichert ✓" gezeigt, waehrend
+          // nichts geschrieben wurde.
+          if (result && result.error) throw new Error(result.error.message || 'Notiz konnte nicht gespeichert werden.');
+          var rec = (window.allRecords||[]).find(function(r){ return r.id === recId; });
+          if (rec && rec.fields) rec.fields.notes_customer_voxera = noteText;
+          if (window.renderDashPriorityList) renderDashPriorityList();
+        });
+    }, { savingLabel: 'Speichert …', doneLabel: 'Gespeichert ✓', holdMs: 2000 })
+      .catch(function() {
+        if (window.toast) toast('Notiz konnte nicht gespeichert werden.', 'error');
       });
   };
 
@@ -33882,12 +33981,6 @@ button.vx-cd-qa-success:hover,
     width: auto !important; max-width: none !important;
     max-height: min(72vh, 520px) !important;
   }
-  /* Toast */
-  #vx-toast-container {
-    bottom: calc(68px + env(safe-area-inset-bottom, 8px)) !important;
-    left: 10px !important; right: 10px !important;
-    max-width: none !important; width: auto !important;
-  }
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -33932,8 +34025,9 @@ button.vx-cd-qa-success:hover,
   border-radius: 8px !important;
 }
 
-/* Notification icons (30px) */
-.vx-ni-icon, .vx-toast-icon {
+/* Notification icons (30px) — .vx-toast-icon aus dem Selektor entfernt, die
+   Klasse gehoerte zum geloeschten zweiten Toast-System. */
+.vx-ni-icon {
   width: 30px !important; height: 30px !important;
   border-radius: 8px !important;
 }
@@ -35613,7 +35707,7 @@ body.vx-requests-focus-mode #call-detail-page.vx-detail-focus #call-detail-banne
     '#vx-detail-v2',
     '#vx-notif-panel',
     '#vx-notif-backdrop',
-    '#vx-toast-container'
+    '#toast'
   ];
   function run(){
     globalSelectors.forEach(function(sel){

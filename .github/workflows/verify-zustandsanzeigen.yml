@@ -1,0 +1,34 @@
+name: Verify Zustandsanzeigen
+
+# Wächter für die drei Familien von Zustandsanzeigen (Toasts, Live-Anruf-Karte,
+# Speicher-Rückmeldungen). Sie erscheinen nur situativ und tauchen deshalb in
+# keiner Screen-Liste auf — genau darum sind sie bei einem "alle Screens
+# abgedeckt"-Design-Pass einmal komplett durchgerutscht. Ein Test in CI ist
+# hier die einzige Instanz, die sie zuverlässig wieder anschaut.
+
+on:
+  pull_request:
+    paths:
+      - 'customer-dashboard/index.html'
+      - 'customer-dashboard/shared/customer-design-tokens.css'
+      - 'customer-dashboard/shared/customer-settings-components.css'
+      - 'customer-dashboard/shared/customer-runtime-inline-save-status.js'
+      # Diese drei rufen toast() über root./w. auf und fallen damit unter den
+      # Tonalitäts-Wächter.
+      - 'customer-dashboard/shared/customer-runtime-commercial-controller.js'
+      - 'customer-dashboard/shared/customer-runtime-case-intake.js'
+      - 'customer-dashboard/shared/customer-runtime-help-route.js'
+      - 'scripts/verify-zustandsanzeigen.mjs'
+      - '.github/workflows/verify-zustandsanzeigen.yml'
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: node scripts/verify-zustandsanzeigen.mjs
+      - run: node --test customer-dashboard/tests/inline-save-status.test.cjs
