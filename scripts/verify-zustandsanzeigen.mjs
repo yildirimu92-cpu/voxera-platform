@@ -100,8 +100,9 @@ function fnBody(signature) {
     '.toast schreibt nicht mehr in Night — weisse Schrift deutet auf Rückfall zur dunklen Fläche');
   assert.ok(toast.includes('border-radius:var(--vx-ui-card-radius)'),
     '.toast nutzt nicht mehr den kanonischen Karten-Radius');
-  assert.ok(toast.includes('box-shadow:var(--vx-shadow-lg)'),
-    '.toast nutzt nicht mehr das Schatten-Token');
+  assert.ok(toast.includes('box-shadow:var(--vx-shadow-overlay)'),
+    '.toast liegt nicht mehr auf der Overlay-Stufe — --vx-shadow-lg ist die Kartenstufe '
+    + 'und macht eine schwebende Flaeche so flach wie eine ruhende');
   assert.ok(!/rgba\(15,\s*23,\s*42/.test(toast) && !/backdrop-filter/.test(toast),
     '.toast trägt wieder die alte Glas-Optik (rgba/backdrop-filter)');
 }
@@ -110,8 +111,8 @@ function fnBody(signature) {
 {
   const toast = block('.toast');
   assert.ok(toast.includes('--vx-toast-role:'), '.toast definiert keine Rollen-Variable mehr');
-  assert.ok(toast.includes('border-left:3px solid var(--vx-toast-role)'),
-    'die linke Kante trägt die Tonalität nicht mehr — damit hinge sie wieder allein am Icon');
+  assert.ok(toast.includes('border:1px solid var(--vx-toast-role)'),
+    'der umlaufende Rahmen trägt die Tonalität nicht mehr — damit hinge sie wieder allein am Icon');
 
   const icon = block('.toast-icon');
   assert.ok(icon.includes('background:var(--vx-toast-role-bg)') && icon.includes('color:var(--vx-toast-role)'),
@@ -146,6 +147,95 @@ function fnBody(signature) {
   // Kante noch Kachel.
   assert.ok(source.includes("el.className = 'toast t-' + t;"),
     'toast() setzt die Tonalitätsklasse nicht mehr am Container');
+}
+
+// ── 3a. Die Rollenfarbe liegt nie wieder auf einer einseitigen Kante ────────
+{
+  // Der eigentliche Befund vom 09.08.: border-left:3px auf einer Flaeche mit
+  // border-radius:12px laeuft ueber den Rundungsbogen von 3px auf die 0.5px
+  // der Nachbarkanten zusammen. Gerendert wird daraus keine Kante, sondern
+  // eine farbige Klammer NEBEN der Karte, mit weissem Spalt dazwischen. An
+  // allen 162 Aufrufstellen dieselbe.
+  //
+  // Das Produkt hatte die Frage am 2026-08-08 bereits entschieden: die
+  // Anfragen-Karte markiert ihre Auswahl umlaufend, und der Kommentar bei
+  // .sp-active benennt die einseitige 3px-Kante ausdruecklich als das dort
+  // aufgeloeste Muster. PR #902 hat sie einen Tag spaeter auf dem Toast neu
+  // eingefuehrt — dieser Waechter ist die Zusicherung dagegen.
+  for (const [sel, label] of [['.toast', 'Der Toast'], ['.incoming-banner', 'Der Anruf-Hinweis']]) {
+    const rule = block(sel);
+    assert.ok(!/border-left\s*:/.test(rule),
+      `${label} traegt wieder eine einseitige Kante (border-left in ${sel}). `
+      + 'Auf 12px Radius rendert sie als abgeloeste Klammer neben der Karte, nicht als Kante — '
+      + 'die Tonalitaet gehoert auf geschlossene Formen (umlaufender Rahmen + Icon-Kachel).');
+  }
+}
+
+// ── 3e. Eine Spur, eine Achse: die Mitglieder positionieren sich nicht ──────
+{
+  // Vorher schwebten zwei Flaechen derselben Familie auf zwei Achsen mit vier
+  // Pixelliteralen. Der Anruf-Hinweis stand auf top:96px — bemessen gegen
+  // eine .topbar, die seit 2026-05-13 display:none!important traegt. Gemessen
+  // bei 1440x900 lag er damit ueber der Grussformel; auf 390px ueber dem
+  // Bildschirmtitel. Genau diese Klasse Fehler faengt die Regel ab: wer
+  // Position wieder ans Mitglied schreibt, umgeht die Spur.
+  const lane = block('#vx-overlay-lane');
+  assert.ok(/position:fixed/.test(lane) && /bottom:var\(--vx-overlay-lane-bottom\)/.test(lane),
+    '#vx-overlay-lane verankert die Meldungsspur nicht mehr selbst');
+  assert.ok(/left:var\(--vx-overlay-axis\)/.test(lane),
+    '#vx-overlay-lane nutzt nicht mehr die gemeinsame Achse — Toast und Anruf-Hinweis liefen vorher 116px auseinander');
+  assert.ok(/z-index:var\(--z-toast\)/.test(lane),
+    '#vx-overlay-lane liegt nicht mehr auf der Toast-Stufe der z-Leiter');
+
+  for (const [sel, label] of [['.toast', 'Der Toast'], ['.incoming-banner', 'Der Anruf-Hinweis']]) {
+    const rule = block(sel);
+    for (const prop of ['position:', 'top:', 'bottom:', 'left:', 'right:', 'z-index:']) {
+      assert.ok(!rule.includes(prop),
+        `${label} positioniert sich wieder selbst (${prop} in ${sel}) statt in #vx-overlay-lane zu liegen`);
+    }
+  }
+
+  // Beide muessen auch tatsaechlich in der Spur haengen — eine Regel ohne
+  // Position nuetzt nichts, wenn der Knoten woanders im Markup steht.
+  const laneMarkup = source.slice(source.indexOf('<div id="vx-overlay-lane">'));
+  const laneEnd = laneMarkup.indexOf('\n</div>');
+  assert.ok(laneEnd > 0, '#vx-overlay-lane fehlt im Markup');
+  const inside = laneMarkup.slice(0, laneEnd);
+  assert.ok(inside.includes('id="incoming-banner"') && inside.includes('id="toast"'),
+    'Toast oder Anruf-Hinweis haengt nicht mehr in #vx-overlay-lane');
+  assert.ok(inside.indexOf('id="incoming-banner"') < inside.indexOf('id="toast"'),
+    'Die Stapelreihenfolge stimmt nicht: der Anruf-Hinweis gehoert ueber den Toast (laengerer Atem, Klickziel)');
+
+  // Das tote top:96px darf nicht als Erinnerung zurueckkehren.
+  assert.ok(!/\.incoming-banner\{[^}]*top:96px/.test(source),
+    'der Anruf-Hinweis ist wieder auf top:96px verankert — der Wert zeigt auf die ausgeblendete .topbar');
+}
+
+// ── 3f. Ein- und Ausblenden bleiben symmetrisch ─────────────────────────────
+{
+  // Beide Flaechen sind in der Spur display:none, solange sie nicht sichtbar
+  // sind — sonst haelt eine unsichtbare Flaeche ihren Platz und schiebt die
+  // andere nach oben. Weil display nicht animierbar ist, haengt das
+  // Ausblenden an vxOverlayHide(); faellt es weg, verschwinden beide wieder
+  // hart.
+  assert.ok(/function vxOverlayHide\(el\)/.test(source) && /function vxOverlayShow\(el\)/.test(source),
+    'die gemeinsamen Ein-/Ausblendhelfer der Meldungsspur fehlen');
+  for (const fnName of ['function toast(msg, type)', 'function showIncomingBanner(count, newRecords)']) {
+    const fn = fnBody(fnName);
+    assert.ok(/vxOverlayShow\(/.test(fn) && /vxOverlayHide\(/.test(fn),
+      `${fnName} blendet wieder direkt ueber classList ein/aus statt ueber die Spur-Helfer`);
+  }
+
+  // Die Live-Karte blendete ein und wurde hart aus dem DOM genommen.
+  const live = fnBody('function updateLiveHero(');
+  assert.ok(/vxRemoveLiveRowAnimated\(existing\)/.test(live),
+    'die Live-Anruf-Karte verschwindet wieder hart statt symmetrisch zu liveRowEnter auszublenden');
+
+  // Und der Grund, warum das Ausblenden ueberhaupt eine Klasse braucht: die
+  // Karte hing allein am ID-Selektor. Nimmt ihr das Ausblenden die ID ab,
+  // verliert sie ohne den Klassen-Traeger schlagartig ihr Aussehen.
+  assert.ok(/#live-call-row,\s*\n?\.vx-live-row\{/.test(source),
+    '.vx-live-row als zweiter Traeger des Karten-Aussehens fehlt — beim Ausblenden faellt die ID weg');
 }
 
 // ── 3b. Die Tonalität wird nie mehr aus dem Meldungstext geraten ────────────
@@ -263,8 +353,10 @@ function fnBody(signature) {
   const banner = block('.incoming-banner');
   assert.ok(banner.includes('background:var(--vx-ui-card-bg)'),
     '#incoming-banner ist wieder eine dunkle Fläche');
-  assert.ok(banner.includes('border-left:3px solid var(--vx-color-danger)'),
+  assert.ok(banner.includes('border:1px solid var(--vx-color-danger)'),
     '#incoming-banner trägt die Rot-Rolle nicht mehr');
+  assert.ok(banner.includes('box-shadow:var(--vx-shadow-overlay)'),
+    '#incoming-banner liegt nicht mehr auf der Overlay-Stufe');
 
   // Die Deklaration darf nicht nur "auch" da sein: eine zusaetzliche dunkle
   // Fläche im selben Block wäre je nach Reihenfolge wieder die wirksame.

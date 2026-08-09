@@ -20,7 +20,7 @@
 
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&display=swap" rel="stylesheet">
 <!-- Design System 2.0 — canonical token set (typography, spacing, color roles). Loads before the legacy inline :root so new components can rely on --vx-color-*/--vx-spacing-*/--vx-radius-* directly. -->
-<link rel="stylesheet" href="/shared/customer-design-tokens.css?v=20260809-2">
+<link rel="stylesheet" href="/shared/customer-design-tokens.css?v=20260809-3">
 <!-- Unified component markup factory (VoxeraUI). Loaded statically so every inline renderer in this document can build canonical skeleton/badge/empty-state markup without a load-order guard. -->
 <script src="/shared/customer-ui-components.js?v=20260807-2"></script>
 <script src="/shared/offer-brand.js?v=20260807-4"></script>
@@ -203,6 +203,48 @@
   --z-toast:13060;
 }
 
+/* ── Die Meldungsspur ───────────────────────────────────────────────────────
+   Es gibt genau EINE Ebene, auf der Meldungen ueber dem Inhalt schweben, und
+   sie liegt unten. Vorher schwebten zwei Flaechen auf zwei Achsen mit vier
+   Pixelliteralen: der Toast unten auf left:50% (Viewport-Mitte, also inklusive
+   der 232px-Sidebar, in der kein Inhalt liegt) und der Anruf-Hinweis oben auf
+   top:96px. Dieses top:96px war gegen die .topbar bemessen, die seit dem
+   Patch vom 2026-05-13 display:none!important traegt — es zeigte also auf
+   nichts und legte den Hinweis quer ueber die Grussformel und die erste
+   Karte des Heute-Screens.
+
+   Die Achse ist die Mitte der Inhaltsflaeche, nicht die des Viewports:
+   unterhalb von 768px faellt die Sidebar weg und beide Werte fallen
+   zusammen. --vx-overlay-lane-bottom haelt Abstand zur mobilen Bottom-Nav,
+   --vx-overlay-inset ist der Abstand zwischen gestapelten Meldungen und zu
+   den Raendern. */
+:root{
+  --vx-overlay-axis: calc(232px + (100vw - 232px) / 2);
+  --vx-overlay-inset: 16px;
+  --vx-overlay-lane-bottom: 32px;
+}
+@media(max-width:768px){
+  :root{
+    --vx-overlay-axis: 50%;
+    --vx-overlay-inset: 12px;
+    /* 68px Bottom-Nav plus derselbe Abstand, der auch zwischen zwei
+       gestapelten Meldungen liegt. Der alte Wert (72px) setzte den Toast
+       nahezu buendig auf die Nav-Kante. */
+    --vx-overlay-lane-bottom: calc(env(safe-area-inset-bottom, 0px) + 68px + 12px);
+  }
+}
+/* Mobil im Querformat ist der Viewport breiter als 768px, die Sidebar aber
+   trotzdem ausgeblendet und die Bottom-Nav trotzdem da (siehe den
+   gleichlautenden Breakpoint weiter unten). Ohne diese Regel zoege die Spur
+   die Desktop-Werte und laege auf der Nav. */
+@media(max-height:500px) and (orientation:landscape){
+  :root{
+    --vx-overlay-axis: 50%;
+    --vx-overlay-inset: 12px;
+    --vx-overlay-lane-bottom: calc(env(safe-area-inset-bottom, 0px) + 68px + 12px);
+  }
+}
+
 /* ── Voxera Dark Mode Tokens ── */
 
 
@@ -361,7 +403,13 @@
    Der Hinweis ist damit eine gewöhnliche Karte aus den --vx-ui-row-* Werten,
    dieselbe Fläche wie jede Zeile in Heute und Anfragen. */
 #dash-live-ambient:empty{display:none;}
-#live-call-row{
+/* ID und Klasse tragen dieselbe Regel. Die Karte lag bisher allein am
+   ID-Selektor — nimmt ihr jemand die ID ab (das Ausblenden tut genau das,
+   damit ein sofort folgender Anruf nicht auf die abtretende Karte trifft),
+   verliert sie schlagartig ihr komplettes Aussehen. Die Sichtpruefung zu
+   PR #902 ist ueber genau diese Falle gestolpert. */
+#live-call-row,
+.vx-live-row{
   display:flex;align-items:center;gap:10px;
   padding:var(--vx-ui-row-padding);background:var(--vx-ui-row-bg);
   border:var(--vx-ui-row-border-width) solid var(--vx-ui-row-border-color);
@@ -1322,35 +1370,39 @@ body{
   color:var(--blue);
 }
 .live-dot{width:6px;height:6px;border-radius:50%;background:var(--blue);animation:pulse 2s infinite;}
-/* [2026-08-07] War zentriert auf den vollen Viewport (left:50%), obwohl die
-   232px breite Sidebar nur auf Desktop existiert -- der Banner schwebte
-   dadurch ueber den Content, teils ueberlappend mit dem "Heute"-Appbar-Titel,
-   und ohne Bezug zu einem festen Element (Glocke sitzt links oben in der
-   Sidebar, ganz woanders). Jetzt ueber dem Content-Bereich zentriert (rechts
-   der Sidebar) und unterhalb des Appbars verankert; die beiden Breakpoints
-   unten, in denen die Sidebar durch den Mobile-Header ersetzt wird, docken
-   entsprechend um. */
 /* Zweite Zustandsflaeche derselben Familie wie der Toast: eigenes Markup,
    eigener Timer, laeuft NICHT ueber toast() — sah aber genauso aus (dunkles
-   Glas, weisse Schrift). Da sie oben ueber der Content-Spalte sitzt, ist sie
-   die auffaelligste dunkle Flaeche im hellen Produkt. Jetzt dieselbe helle
-   Karte und dieselbe Rot-Rolle wie die Live-Anruf-Karte.
+   Glas, weisse Schrift). Jetzt dieselbe helle Karte und dieselbe Rot-Rolle
+   wie die Live-Anruf-Karte.
 
    Der Puls-Punkt war #22c55e — Gruen. Nach der Vier-Familien-Regel gehoert
    Gruen zu Abschluss-Aktionen; ein eingehender Anruf ist kein Abschluss. Die
    Live-Anruf-Karte loest denselben Sachverhalt bereits ueber
    --vx-color-danger (Rot = Dringlichkeit). Zwei Anzeigen fuer "es passiert
-   gerade etwas" tragen damit wieder dieselbe Farbe. */
+   gerade etwas" tragen damit wieder dieselbe Farbe.
+
+   [2026-08-09] Position und Elevation liegen nicht mehr hier, sondern in
+   #vx-overlay-lane. Der Hinweis hatte zuletzt top:96px und eine eigene
+   Achse — gemessen bei 1440x900 lag er damit bei y 96–163 und deckte die
+   Grussformel (104–132) vollstaendig zu; auf 390px verdeckte er den
+   Bildschirmtitel. Ein absoluter Pixelwert kann nicht wissen, wo der Inhalt
+   beginnt. Er ist jetzt Mitglied der Meldungsspur: ein Toast mit
+   Absenderzeile und Klickziel, nichts anderes.
+
+   Die Rollenfarbe liegt umlaufend statt als 3px-Kante links. Als Kante lief
+   sie ueber den 12px-Rundungsbogen von 3px auf 0.5px zusammen und rendert
+   dabei als abgeloeste Klammer neben der Karte, mit weissem Spalt dazwischen.
+   Das Produkt hatte diese Frage am 2026-08-08 schon entschieden: die
+   Anfragen-Karte markiert ihre Auswahl seit dann umlaufend, und der
+   Kommentar bei .sp-active haelt ausdruecklich fest, dass die einseitige
+   3px-Kante genau das dort aufgeloeste Muster ist. */
 .incoming-banner{
-  display:none;position:fixed;top:96px;
-  left:calc(232px + (100vw - 232px) / 2);transform:translateX(-50%);
-  z-index:9990;
+  display:none;
   background:var(--vx-ui-card-bg);
-  border:var(--vx-ui-card-border-width) solid var(--vx-ui-card-border-color);
-  border-left:3px solid var(--vx-color-danger);
+  border:1px solid var(--vx-color-danger);
   border-radius:var(--vx-ui-card-radius);
   padding:13px 18px;
-  box-shadow:var(--vx-shadow-lg);
+  box-shadow:var(--vx-shadow-overlay);
   min-width:260px;max-width:380px;
   pointer-events:auto;
   cursor:pointer;
@@ -1358,7 +1410,7 @@ body{
 }
 .incoming-banner.show{
   display:flex;align-items:center;gap:12px;
-  animation:bannerSlideDown .4s var(--ease) both;
+  animation:vxOverlayEnter .32s var(--ease) both;
 }
 .incoming-banner-dot{
   width:10px;height:10px;border-radius:50%;
@@ -1374,9 +1426,61 @@ body{
   font-size:var(--vx-ui-row-time-size);color:var(--vx-ui-meta-color);
   margin-top:1px;
 }
-@keyframes bannerSlideDown{
-  from{opacity:0;transform:translateX(-50%) translateY(-16px);}
-  to{opacity:1;transform:translateX(-50%) translateY(0);}
+/* ── #vx-overlay-lane — die einzige schwebende Meldungsspur ────────────────
+   Traegt Position, Achse, Abstand und Elevation fuer alle Meldungen, die
+   ueber dem Inhalt erscheinen. Die Mitglieder (.toast, .incoming-banner)
+   positionieren sich nicht mehr selbst — genau das ist die Zusicherung,
+   die verhindert, dass wieder zwei Flaechen auf zwei Achsen mit eigenen
+   Pixelliteralen auseinanderlaufen.
+
+   Spaltenrichtung: der Anruf-Hinweis steht ueber dem Toast, weil er den
+   laengeren Atem hat (8s gegen 2.8s) und ein Klickziel ist. Sind beide
+   sichtbar, trennt sie --vx-overlay-inset.
+
+   pointer-events:none an der Spur, auto am Mitglied: die Spur selbst darf
+   keine Klicks abfangen, sonst laege ein unsichtbarer Balken ueber dem
+   Inhalt. */
+#vx-overlay-lane{
+  position:fixed;
+  bottom:var(--vx-overlay-lane-bottom);
+  left:var(--vx-overlay-axis);
+  transform:translateX(-50%);
+  z-index:var(--z-toast);
+  display:flex;flex-direction:column;align-items:center;
+  gap:var(--vx-overlay-inset);
+  width:max-content;
+  max-width:calc(100vw - 2 * var(--vx-overlay-inset));
+  pointer-events:none;
+}
+@media(max-width:768px){
+  /* Ohne Sidebar spannt die Spur ueber die volle Breite und die Mitglieder
+     ziehen mit — der Toast war hier schon immer randbuendig. */
+  #vx-overlay-lane{
+    left:var(--vx-overlay-inset);right:var(--vx-overlay-inset);
+    transform:none;width:auto;max-width:none;align-items:stretch;
+  }
+  #vx-overlay-lane .incoming-banner{min-width:0;max-width:none;}
+}
+/* Ein- und Ausblenden sind symmetrisch. Vorher blendete jede Flaeche nur ein
+   und verschwand hart; ein abgeloester Toast tauschte seinen Text unter dem
+   Leser aus, statt zu gehen und wiederzukommen. */
+@keyframes vxOverlayEnter{
+  from{opacity:0;transform:translateY(10px) scale(.985);}
+  to{opacity:1;transform:none;}
+}
+@keyframes vxOverlayLeave{
+  from{opacity:1;transform:none;}
+  to{opacity:0;transform:translateY(6px) scale(.985);}
+}
+.toast.vx-overlay-leaving,
+.incoming-banner.vx-overlay-leaving{
+  display:flex;
+  animation:vxOverlayLeave .2s var(--ease) both;
+  pointer-events:none;
+}
+@media(prefers-reduced-motion:reduce){
+  .toast.show,.incoming-banner.show,
+  .toast.vx-overlay-leaving,.incoming-banner.vx-overlay-leaving{animation-duration:.01ms;}
 }
 @keyframes dotPulse{
   0%,100%{opacity:1;transform:scale(1);}
@@ -1957,10 +2061,26 @@ body.vx-detail-v2-open #confirm-overlay.open {
    Textfarbe waren bei allen vier identisch.
 
    Jetzt dieselbe Karte wie jede andere Flaeche im Produkt (--vx-ui-card-*),
-   Text in Night. Die Tonalitaet liegt auf ZWEI Traegern statt einem — linke
-   Kante und Icon-Kachel, beide aus derselben Rollenvariable. Die
+   Text in Night. Die Tonalitaet liegt auf ZWEI Traegern statt einem —
+   Rahmen und Icon-Kachel, beide aus derselben Rollenvariable. Die
    Unterscheidung wird damit deutlicher als vorher, nicht eingeebnet (das war
    die ausdrueckliche Vorgabe des Auftrags).
+
+   [2026-08-09] Der Rahmen laeuft umlaufend, nicht mehr als 3px-Kante links.
+   Als einseitige Kante lief die Rollenfarbe ueber den 12px-Rundungsbogen von
+   3px auf 0.5px zusammen; sichtbar wurde daraus eine farbige Klammer NEBEN
+   der weissen Karte, mit weissem Spalt dazwischen — bei 4-facher
+   Vergroesserung eindeutig, und an allen 162 Aufrufstellen dieselbe. Zwei
+   Traeger bleiben es, beide jetzt geschlossene Formen. Das ist ausserdem die
+   Grammatik, auf die sich das Produkt am 2026-08-08 bei der Anfragen-Karte
+   festgelegt hatte (.vx-requests-item.sp-active markiert umlaufend, und der
+   Kommentar dort benennt die einseitige 3px-Kante ausdruecklich als das
+   aufgeloeste Muster).
+
+   Position, Achse und Elevation liegen in #vx-overlay-lane. Der Toast stand
+   auf left:50% und damit auf der Viewport-Mitte inklusive der 232px-Sidebar,
+   in der kein Inhalt liegt — 116px neben der Achse, auf der der Anruf-Hinweis
+   stand. Eine Familie, zwei Achsen; jetzt eine.
 
    Rollenzuordnung gegen die Vier-Familien-Regel geprueft, nicht angenommen:
    success = Gruen (Abschluss-Aktion), error = Rot (Dringlichkeit),
@@ -1971,22 +2091,16 @@ body.vx-detail-v2-open #confirm-overlay.open {
 .toast{
   --vx-toast-role: var(--vx-color-night);
   --vx-toast-role-bg: var(--vx-color-surface-soft);
-  position:fixed;bottom:100px;left:50%;
-  transform:translateX(-50%) translateY(8px);
   background:var(--vx-ui-card-bg);
-  border:var(--vx-ui-card-border-width) solid var(--vx-ui-card-border-color);
-  border-left:3px solid var(--vx-toast-role);
+  border:1px solid var(--vx-toast-role);
   color:var(--vx-color-text);
   font-family:var(--vx-ui-row-font);
   font-size:13px;font-weight:600;
   padding:11px 16px;
   border-radius:var(--vx-ui-card-radius);
-  z-index:var(--z-toast);
-  opacity:0;
-  transition:opacity 0.22s ease, transform 0.28s var(--ease);
   pointer-events:none;white-space:nowrap;
-  box-shadow:var(--vx-shadow-lg);
-  display:flex;align-items:center;gap:10px;
+  box-shadow:var(--vx-shadow-overlay);
+  display:none;align-items:center;gap:10px;
 }
 .toast.t-success{--vx-toast-role:var(--vx-color-success);--vx-toast-role-bg:var(--vx-color-success-bg);}
 .toast.t-info{--vx-toast-role:var(--vx-color-info);--vx-toast-role-bg:var(--vx-color-info-bg);}
@@ -1997,8 +2111,8 @@ body.vx-detail-v2-open #confirm-overlay.open {
    nicht als vergessene Zuordnung gelesen wird. */
 .toast.t-neutral{--vx-toast-role:var(--vx-color-night);--vx-toast-role-bg:var(--vx-color-surface-soft);}
 .toast.show{
-  opacity:1;
-  transform:translateX(-50%) translateY(0);
+  display:flex;
+  animation:vxOverlayEnter .28s var(--ease) both;
 }
 /* Die Icons erben ihre Strichfarbe ueber currentColor aus der Kachel — damit
    gibt es genau eine Farbquelle pro Tonalitaet statt einer im CSS und einer
@@ -2227,10 +2341,9 @@ body.vx-detail-v2-open #confirm-overlay.open {
   .topbar{padding:12px 16px!important;}
   .topbar-right{display:none;}
   .content{padding:18px;padding-bottom:110px;}
-  /* Sidebar entfaellt hier zugunsten von .mobile-header (60px hoch) --
-     Banner wieder auf den vollen Viewport zentrieren und unter diesem
-     Header andocken statt unter dem (hier ausgeblendeten) Desktop-Appbar. */
-  .incoming-banner{left:50%;top:76px;}
+  /* Die frueheren .incoming-banner-Andockwerte (left:50%, top:76px) sind
+     entfallen: Position und Achse traegt #vx-overlay-lane, und die Spur
+     steht unten, wo kein Header im Weg ist. */
   .kpi-grid{grid-template-columns:1fr;gap:10px;}
   .kpi{padding:16px;}
   .kpi-val{font-size:28px;}
@@ -2266,7 +2379,6 @@ body.vx-detail-v2-open #confirm-overlay.open {
   .modal-actions .btn--secondary,
   .modal-actions .btn--primary{flex:1;min-width:120px;justify-content:center;text-align:center;}
   .charts-row{display:none;}
-  .toast{bottom:calc(70px + env(safe-area-inset-bottom, 0px));}
   .focus-strip{grid-template-columns:1fr;gap:10px;margin-bottom:20px;}
   .call-list{gap:10px;}
 }
@@ -2572,9 +2684,9 @@ body.vx-detail-v2-open #confirm-overlay.open {
   .main{margin-left:0!important;}
   .mobile-nav{display:block!important;}
   .content{padding-bottom:80px!important;}
-  /* Landscape-Mobile-Header ist hier 52px hoch (siehe .mobile-header-Regel
-     im selben Breakpoint weiter unten). */
-  .incoming-banner{left:50%;top:68px;}
+  /* Der frueher hier andockende .incoming-banner (top:68px unter dem 52px
+     hohen Landscape-Header) braucht keine eigene Regel mehr: die
+     Meldungsspur steht unten. */
 }
 
 
@@ -3337,6 +3449,19 @@ body,.main{background:var(--vx-bg);}
 @keyframes liveRowEnter{
   from{opacity:0;transform:translateY(-6px);}
   to{opacity:1;transform:translateY(0);}
+}
+/* Gegenstueck zu liveRowEnter. Die Karte blendete ein und wurde beim
+   Auflegen hart aus dem DOM genommen — dieselbe Dauer und Kurve, nur
+   rueckwaerts. Die Klasse traegt kein #live-call-row mehr (die ID nimmt
+   vxRemoveLiveRowAnimated() sofort ab), deshalb steht die Regel hier
+   eigenstaendig statt am ID-Selektor. */
+.vx-live-leaving{
+  animation:liveRowLeave .3s cubic-bezier(.16,1,.3,1) both;
+  pointer-events:none;
+}
+@keyframes liveRowLeave{
+  from{opacity:1;transform:translateY(0);}
+  to{opacity:0;transform:translateY(-6px);}
 }
 @keyframes liveHeroPulse{
   0%,100%{box-shadow:0 0 0 1px rgba(220,38,38,0.20),0 12px 32px rgba(13,31,60,0.30),0 0 40px rgba(220,38,38,0.15);}
@@ -4242,21 +4367,17 @@ body,.main{background:var(--vx-bg);}
   .mobile-nav-btn{padding:4px 8px;min-width:44px;min-height:44px;}
 }
 
-/* — TOAST über Bottom-Nav — */
+/* — TOAST auf Mobil —
+   Nur noch Typografie und Umbruch. Die frueheren Positionswerte (bottom,
+   left/right, max-width, transform, alle mit !important) liegen jetzt an
+   #vx-overlay-lane, die auf diesem Breakpoint ohnehin randbuendig spannt.
+   Der Abstand zur Bottom-Nav steckt in --vx-overlay-lane-bottom. */
 @media(max-width:768px){
   .toast{
-    bottom:calc(env(safe-area-inset-bottom) + 72px)!important;
-    left:12px!important;right:12px!important;
-    max-width:calc(100vw - 24px)!important;
-    width:auto!important;
-    transform:translateY(8px)!important;
     font-size:13px;
     border-radius:var(--vx-ui-card-radius);
-    white-space:normal!important;
+    white-space:normal;
     word-break:break-word;
-  }
-  .toast.show{
-    transform:translateY(0)!important;
   }
 }
 /* ═══════════════════════════════════════════
@@ -7407,14 +7528,10 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
       </div>
 
       <div class="content">
-        <div class="incoming-banner" id="incoming-banner" onclick="handleIncomingBannerClick()" role="button" aria-label="Anruf anzeigen">
-  <div class="incoming-banner-dot"></div>
-  <div style="flex:1;min-width:0;">
-    <div class="incoming-banner-text" id="incoming-banner-text">Neuer Anruf</div>
-    <div class="incoming-banner-sub" id="incoming-banner-sub">Voxera hat einen Anruf entgegengenommen</div>
-  </div>
-  <div id="incoming-banner-arrow" style="color:var(--vx-ui-meta-color);font-size:16px;flex-shrink:0;margin-left:4px;">→</div>
-</div>
+        <!-- Der #incoming-banner stand bis 2026-08-09 hier, als erstes Kind
+             von .content, und hob sich per position:fixed wieder heraus. Er
+             lebt jetzt in #vx-overlay-lane auf Body-Ebene, zusammen mit dem
+             Toast — eine Spur, eine Achse, eine Elevation. -->
 
         <!-- DASHBOARD TAB -->
         <style id="vx-lara-handover-styles">
@@ -8770,9 +8887,24 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
 
 <!-- COMMERCIAL LEGACY MODALS REMOVED -->
 
-        <!-- TOAST -->
-<!-- Startzustand neutral, nicht success: der Knoten ist bis zum ersten Aufruf leer und unsichtbar, eine Erfolgs-Tonalitaet waere hier eine Aussage ueber nichts. toast() setzt Klasse und Icon bei jedem Aufruf neu. -->
-<div class="toast t-neutral" id="toast"><div class="toast-icon neutral" id="toast-icon"><svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="5" cy="5" r="2.2"/></svg></div><span id="toast-text"></span></div>
+        <!-- MELDUNGSSPUR -->
+<!-- Die einzige Ebene, auf der Meldungen ueber dem Inhalt schweben. Beide
+     Mitglieder haben eigene Renderer und eigene Timer — geteilt sind
+     Position, Achse, Abstand und Elevation, und genau die liefen vorher
+     auseinander. Reihenfolge = Stapelreihenfolge: der Anruf-Hinweis oben,
+     der Toast unten. -->
+<div id="vx-overlay-lane">
+  <div class="incoming-banner" id="incoming-banner" onclick="handleIncomingBannerClick()" role="button" aria-label="Anruf anzeigen">
+    <div class="incoming-banner-dot"></div>
+    <div style="flex:1;min-width:0;">
+      <div class="incoming-banner-text" id="incoming-banner-text">Neuer Anruf</div>
+      <div class="incoming-banner-sub" id="incoming-banner-sub">Voxera hat einen Anruf entgegengenommen</div>
+    </div>
+    <div id="incoming-banner-arrow" style="color:var(--vx-ui-meta-color);font-size:16px;flex-shrink:0;margin-left:4px;">→</div>
+  </div>
+  <!-- Startzustand neutral, nicht success: der Knoten ist bis zum ersten Aufruf leer und unsichtbar, eine Erfolgs-Tonalitaet waere hier eine Aussage ueber nichts. toast() setzt Klasse und Icon bei jedem Aufruf neu. -->
+  <div class="toast t-neutral" id="toast"><div class="toast-icon neutral" id="toast-icon"><svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="5" cy="5" r="2.2"/></svg></div><span id="toast-text"></span></div>
+</div>
 <div id="copy-feedback-live" class="sr-only" aria-live="polite" aria-atomic="true"></div>
 
 <script>
@@ -16234,6 +16366,37 @@ function isThisWeek(raw) {
   return d >= start;
 }
 
+// ── Meldungsspur: gemeinsames Ein- und Ausblenden ───────────────────────────
+// Beide Mitglieder von #vx-overlay-lane (Toast und Anruf-Hinweis) sind in der
+// Spur display:none, solange sie nicht sichtbar sind — sonst hielte eine
+// unsichtbare Flaeche ihren Platz und schoebe die andere nach oben. Weil
+// display nicht animierbar ist, laeuft das Ausblenden ueber eine eigene
+// Klasse und wird danach abgeraeumt.
+//
+// Vorher verschwanden beide hart: classList.remove('show'), fertig. Ein
+// abgeloester Toast tauschte sogar nur seinen Text unter dem Leser aus.
+var VX_OVERLAY_LEAVE_MS = 200;
+function vxOverlayShow(el) {
+  if (!el) return;
+  clearTimeout(el._vxLeaveTimer);
+  el.classList.remove('vx-overlay-leaving');
+  // Neustart der Einblendung, auch wenn die Flaeche schon sichtbar ist.
+  el.classList.remove('show');
+  void el.offsetWidth;
+  el.classList.add('show');
+}
+function vxOverlayHide(el) {
+  if (!el || !el.classList.contains('show')) return;
+  el.classList.remove('show');
+  el.classList.add('vx-overlay-leaving');
+  clearTimeout(el._vxLeaveTimer);
+  el._vxLeaveTimer = setTimeout(function() {
+    el.classList.remove('vx-overlay-leaving');
+  }, VX_OVERLAY_LEAVE_MS);
+}
+window.vxOverlayShow = vxOverlayShow;
+window.vxOverlayHide = vxOverlayHide;
+
 function toast(msg, type) {
   var el = document.getElementById('toast');
   var textEl = document.getElementById('toast-text');
@@ -16282,11 +16445,9 @@ function toast(msg, type) {
   // gesetzt. Die Klasse ersetzt nur die Tonalitaet, "show" wird direkt
   // darunter ohnehin neu gesetzt.
   el.className = 'toast t-' + t;
-  el.classList.remove('show');
-  void el.offsetWidth;
-  el.classList.add('show');
+  vxOverlayShow(el);
   clearTimeout(el._toastTimer);
-  el._toastTimer = setTimeout(function() { el.classList.remove('show'); }, 2800);
+  el._toastTimer = setTimeout(function() { vxOverlayHide(el); }, 2800);
 }
 window.toast = toast;
 
@@ -17445,6 +17606,22 @@ function vxAnnounceLivePhaseCalls(liveRecs) {
   });
 }
 
+// Nimmt der Karte sofort ihre Identitaet (#live-call-row) und laesst sie dann
+// ausblenden. Ohne den ID-Wechsel wuerde ein sofort folgender Anruf die
+// abtretende Karte finden und ihren Text patchen, statt eine neue zu bauen.
+function vxRemoveLiveRowAnimated(row) {
+  if (!row) return;
+  if (row._vxLeaving) return;
+  row._vxLeaving = true;
+  row.removeAttribute('id');
+  // Der Host ist eine aria-live-Region. Ohne aria-hidden stuende die
+  // abtretende Karte dort noch 300ms als Inhalt — ein Screenreader koennte
+  // den beendeten Anruf ein zweites Mal ansagen.
+  row.setAttribute('aria-hidden', 'true');
+  row.classList.add('vx-live-leaving');
+  setTimeout(function() { row.remove(); }, 300);
+}
+
 function updateLiveHero(records) {
   var liveRecs = vxGetLivePhaseCalls(records);
   var host = document.getElementById('dash-live-ambient');
@@ -17455,7 +17632,13 @@ function updateLiveHero(records) {
   if (!liveRecs.length) {
     // Aufgelegt -> Hinweis verschwindet. Der Eintrag entsteht jetzt in den
     // regulaeren Listen, weil vxIsCallInLivePhase() nicht mehr greift.
-    if (existing) existing.remove();
+    //
+    // Ausblenden mit derselben Dauer und Kurve wie liveRowEnter: die Karte
+    // blendete ein und wurde hart entfernt. Der Knoten wird sofort aus der
+    // Bewertung genommen (Fingerprint zurueckgesetzt, Klasse gesetzt), damit
+    // ein Anruf, der waehrend der Ausblendung eintrifft, nicht auf die
+    // abtretende Karte trifft.
+    if (existing) vxRemoveLiveRowAnimated(existing);
     if (_liveHeroTimer) { clearInterval(_liveHeroTimer); _liveHeroTimer = null; }
     _liveHeroCurrentId = null;
     _liveHeroLastFingerprint = null;
@@ -17510,6 +17693,9 @@ function updateLiveHero(records) {
   // sonst kuendigt der Screenreader denselben Hinweis doppelt an.
   var row = document.createElement('div');
   row.id = 'live-call-row';
+  // Zweiter Traeger desselben Aussehens, siehe die Regel bei #live-call-row:
+  // die ID faellt beim Ausblenden weg, die Klasse haelt das Styling.
+  row.className = 'vx-live-row';
   // Der Avatar ist aria-hidden: die Initiale ist ein Absenderzeichen, keine
   // Information — der Name steht im Text daneben, den die Live-Region ohnehin
   // vorliest.
@@ -20082,16 +20268,15 @@ function showIncomingBanner(count, newRecords) {
     }
   }
 
-  el.classList.add('show');
+  vxOverlayShow(el);
   if (incomingBannerTimer) clearTimeout(incomingBannerTimer);
-  incomingBannerTimer = setTimeout(function() { el.classList.remove('show'); }, 8000);
+  incomingBannerTimer = setTimeout(function() { vxOverlayHide(el); }, 8000);
   if (count === 1 && newRecords && newRecords[0]) vxMaybePlayLiveCallSound(newRecords[0], 'incoming-banner');
 }
 
 function handleIncomingBannerClick() {
   // Dismiss banner
-  var el = document.getElementById('incoming-banner');
-  if (el) el.classList.remove('show');
+  vxOverlayHide(document.getElementById('incoming-banner'));
   if (incomingBannerTimer) { clearTimeout(incomingBannerTimer); incomingBannerTimer = null; }
 
   if (_incomingBannerRecordIds.length === 1) {
@@ -26831,7 +27016,7 @@ function clearActivationToastState(){
   var el = document.getElementById('toast');
   if (!el) return;
   try { clearTimeout(el._toastTimer); } catch(e) {}
-  el.classList.remove('show');
+  vxOverlayHide(el);
 }
 
 function clearActivationRunErrorStorage(){
@@ -35859,7 +36044,12 @@ body.vx-requests-focus-mode #call-detail-page.vx-detail-focus #call-detail-banne
     '#vx-detail-v2',
     '#vx-notif-panel',
     '#vx-notif-backdrop',
-    '#toast'
+    '#vx-overlay-lane',
+    '#toast',
+    // Stand bis 2026-08-09 als erstes Kind in .content und hob sich per
+    // position:fixed wieder heraus — die Art Platzierung, gegen die dieser
+    // Waechter geschrieben ist.
+    '#incoming-banner'
   ];
   function run(){
     globalSelectors.forEach(function(sel){

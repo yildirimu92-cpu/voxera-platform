@@ -62,6 +62,13 @@ function createDom() {
         this.children = [];
       },
       setAttribute(k, v) { this.attributes[k] = String(v); },
+      removeAttribute(k) { delete this.attributes[k]; if (k === 'id') { if (byId.get(this.id) === this) byId.delete(this.id); this.id = ''; } },
+      classList: {
+        _set: new Set(),
+        add(c) { this._set.add(c); },
+        remove(c) { this._set.delete(c); },
+        contains(c) { return this._set.has(c); },
+      },
       appendChild(child) {
         child.parentNode = this;
         this.children.push(child);
@@ -131,6 +138,10 @@ function buildSandbox() {
     _esc: (s) => String(s == null ? '' : s),
     vxGetCallStableId: (rec) => String((rec && rec.id) || ''),
     clearInterval: () => {},
+    // Das Ausblenden der Karte laeuft ueber setTimeout. Gesammelt statt
+    // ausgefuehrt, damit die Tests beide Phasen einzeln pruefen koennen:
+    // sofort nicht mehr Live-Hinweis, nach der Animation aus dem DOM.
+    _pendingTimers: [],
 
     // list-side stubs that are not about live status
     vxHeuteIsManualTask: () => false,
@@ -147,6 +158,8 @@ function buildSandbox() {
     compareFollowUpPriority: () => 0,
     getRecordTimestamp: (r) => (r.fields || {}).created_at,
   };
+  sandbox.setTimeout = (fn) => { sandbox._pendingTimers.push(fn); return sandbox._pendingTimers.length; };
+  sandbox.flushTimers = () => { const q = sandbox._pendingTimers.splice(0); q.forEach((fn) => fn()); };
   sandbox.vxToast = () => { sandbox.announced.toasts += 1; };
   sandbox.vxBellAdd = () => { sandbox.announced.bells += 1; };
   sandbox.notifyLiveCall = () => { sandbox.announced.notifications += 1; };
@@ -166,6 +179,7 @@ function buildSandbox() {
     'vxGetAnfragenCountSourceRecords',
     'vxGetLivePhaseCalls',
     'vxAnnounceLivePhaseCalls',
+    'vxRemoveLiveRowAnimated',
     'updateLiveHero',
   ].map(extractFunction).join('\n'), sandbox);
 
@@ -407,7 +421,50 @@ test('the hint disappears on hangup', () => {
   sandbox.updateLiveHero([call('call-1', 'active')]);
   assert.equal(ambientHost.children.length, 1);
   sandbox.updateLiveHero([call('call-1', 'processing')]);
-  assert.equal(ambientHost.children.length, 0, 'hangup ends the ambient phase — the record becomes an entry');
+
+  // Die Karte blendet seit 2026-08-09 symmetrisch zu liveRowEnter aus, statt
+  // hart aus dem DOM zu fallen. Sie hoert dabei SOFORT auf, ein Live-Hinweis
+  // zu sein — das ist die Invariante, die dieser Test schuetzt; das Abraeumen
+  // des Knotens folgt danach.
+  assert.equal(sandbox.document.getElementById('live-call-row'), null,
+    'hangup ends the ambient phase — the record becomes an entry');
+  const leaving = ambientHost.children[0];
+  assert.ok(leaving.classList.contains('vx-live-leaving'), 'the card must fade out, not vanish');
+  assert.equal(leaving.attributes['aria-hidden'], 'true',
+    'the host is an aria-live region — a fading card must not be announced again');
+
+  sandbox.flushTimers();
+  assert.equal(ambientHost.children.length, 0, 'after the fade the node is gone');
+});
+
+test('a call arriving during the fade builds a fresh card, not a patched one', () => {
+  // Ohne den ID-Entzug in vxRemoveLiveRowAnimated() faende updateLiveHero()
+  // die abtretende Karte, patchte ihren Text und liesse sie trotzdem
+  // ausblenden — der neue Anruf waere unsichtbar.
+  const { sandbox, ambientHost } = buildSandbox();
+  sandbox.updateLiveHero([call('call-1', 'active')]);
+  sandbox.updateLiveHero([call('call-1', 'processing')]);
+  sandbox.updateLiveHero([call('call-2', 'active')]);
+
+  const fresh = sandbox.document.getElementById('live-call-row');
+  assert.ok(fresh, 'the new call needs its own card');
+  assert.ok(!fresh.classList.contains('vx-live-leaving'), 'the new card must not be the fading one');
+  assert.equal(ambientHost.children.length, 2, 'fading card and fresh card coexist until the fade ends');
+
+  sandbox.flushTimers();
+  assert.equal(ambientHost.children.length, 1, 'only the fresh card survives the fade');
+  assert.equal(ambientHost.children[0], fresh);
+});
+
+test('the card carries its look on a class, not only on the id', () => {
+  // Das Ausblenden nimmt der Karte die ID. Haenge das Aussehen allein am
+  // ID-Selektor, verliert sie mitten in der Animation ihr komplettes Styling
+  // — die Sichtpruefung zu PR #902 ist ueber genau diese Falle gestolpert.
+  const { sandbox } = buildSandbox();
+  sandbox.updateLiveHero([call('call-1', 'active')]);
+  assert.equal(sandbox.document.getElementById('live-call-row').className, 'vx-live-row');
+  assert.match(dashboard, /#live-call-row,\s*\n\.vx-live-row\{/,
+    'the CSS rule must carry both selectors, otherwise the fading card is unstyled');
 });
 
 test('the in-app incoming notice is left to #incoming-banner, not rebuilt here', () => {
