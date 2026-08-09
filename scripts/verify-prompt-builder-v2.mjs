@@ -7,7 +7,10 @@ const require = createRequire(import.meta.url);
 const paths = {
   compiler:'admin-panel/netlify/functions/_lib/prompt-builder-v2.js',
   preview:'admin-panel/netlify/functions/prompt-preview.js',
-  trigger:'admin-panel/netlify/functions/trigger-elevenlabs-sync.js',
+  // Seit S4 / Stufe 2 liegt der Sync-Kern in der Lib; der Handler ist nur
+  // noch Guard, Parsing und Antwortform. Der Compiler-Aufruf, den dieser
+  // Guard sucht, ist mit umgezogen.
+  trigger:'admin-panel/netlify/functions/_lib/elevenlabs-sync.js',
   runtime:'admin-panel/shared/admin-runtime-prompt-builder-v2.js',
   loader:'admin-panel/shared/offer-brand.js'
 };
