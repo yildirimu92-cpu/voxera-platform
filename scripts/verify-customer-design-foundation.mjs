@@ -68,19 +68,30 @@ assert.ok(lineCount(statusCss) <= 300, 'assistant status CSS exceeded its consol
 // Rest ist die Anbieter-Marke im Kalender. Budget behaelt denselben Spielraum
 // wie zuvor, damit der Waechter weiterhin anschlaegt, bevor die Datei
 // unbemerkt waechst.
-assert.ok(lineCount(settingsCss) <= 805, 'settings component CSS exceeded its consolidated size budget');
+// Premium-Polish (2026-08-09): +39 Zeilen fuer die Hover-Zustaende der
+// klickbaren Flaechen im Abo-, Plan- und Hilfe-Bereich. Sie stehen bewusst
+// hier statt als Sammelregel im Fundament — die Herleitung dazu steht am
+// Block selbst. Budget behaelt denselben Spielraum wie zuvor.
+assert.ok(lineCount(settingsCss) <= 845, 'settings component CSS exceeded its consolidated size budget');
 assert.ok(lineCount(supportCss) <= 220, 'support component CSS exceeded its size budget');
-assert.ok(lineCount(navigationCss) <= 260, 'navigation component CSS exceeded its size budget');
+// Navigation Premium-Redesign (2026-08-09): +122 Zeilen. Der groessere Teil
+// ist der Gold-Icon-Chip als gemeinsamer Aktiv-Zustand von Seitenleiste und
+// Tab-Leiste samt Herleitung, dazu der Fokusring beider Formen und die
+// Gruss-Zeile auf "Heute". Netto ist das Produkt schlanker geworden: der
+// Aktiv-Zustand stand vorher an fuenf Orten (drei Inline-Bloecke in
+// index.html, dieses Modul und die !important-Farben des Reparaturskripts).
+// Budget behaelt denselben Spielraum wie zuvor.
+assert.ok(lineCount(navigationCss) <= 390, 'navigation component CSS exceeded its size budget');
 
 for (const token of [
   'Styling lives exclusively in explicit CSS modules.',
-  '/shared/customer-design-system.css?v=20260809-1',
+  '/shared/customer-design-system.css?v=20260809-2',
   '/shared/customer-assistant-components.css?v=20260809-3',
   '/shared/customer-assistant-status.css?v=20260803-1',
-  '/shared/customer-settings-components.css?v=20260809-1',
+  '/shared/customer-settings-components.css?v=20260809-3',
   '/shared/customer-support-components.css?v=20260802-2',
-  '/shared/customer-navigation-components.css?v=20260809-1',
-  '/shared/customer-ui-components.css?v=20260809-1',
+  '/shared/customer-navigation-components.css?v=20260809-2',
+  '/shared/customer-ui-components.css?v=20260809-2',
   "link.rel = 'stylesheet'",
   'vx-customer-design-foundation-html',
   'vx-customer-design-foundation',
@@ -314,10 +325,37 @@ for (const token of [
   'var(--vx-ui-appbar-title-size)',
   '#nav-assistent.nav-item',
   '#mnav-assistent.mobile-nav-btn',
-  '.nav-item.vx-root-nav-active',
-  '.mobile-nav-btn:is(.active, .vx-root-nav-active)'
+  // Seit dem Icon-Chip-Umbau setzen Seitenleiste und Tab-Leiste denselben
+  // Aktiv-Zustand, deshalb steht er in einer gemeinsamen Regel statt in zwei.
+  '.nav-item:is(.active, .vx-root-nav-active)',
+  '.mobile-nav-btn:is(.active, .vx-root-nav-active)',
+  'var(--vx-ui-nav-chip-bg)',
+  'var(--vx-ui-nav-item-color)'
 ]) {
   assert.ok(navigationCss.includes(token), `navigation CSS missing: ${token}`);
+}
+
+// Der Aktiv-Zustand der Navigation hat genau einen Eigentuemer. Frueher lag er
+// zusaetzlich in drei Inline-Bloecken in index.html und in den !important-Farben
+// des Tab-Leisten-Reparaturskripts — daher der Bruch "mobil weiss, Desktop Navy".
+{
+  for (const forbidden of ['.nav-item.active{', '.mobile-nav-btn.active{']) {
+    assert.ok(
+      !dashboard.includes(forbidden),
+      `index.html darf den Aktiv-Zustand der Navigation nicht selbst setzen: ${forbidden}`
+    );
+  }
+  const mobileNavRepair = fs.readFileSync('customer-dashboard/shared/customer-runtime-mobile-nav-repair.js', 'utf8');
+  for (const forbidden of ['rgba(255,255,255,.98)', '#64748b', '#3478ed']) {
+    assert.ok(
+      !mobileNavRepair.includes(forbidden),
+      `Tab-Leisten-Reparatur darf keine eigenen Farben setzen: ${forbidden}`
+    );
+  }
+  assert.ok(
+    mobileNavRepair.includes("closest('.mobile-nav')"),
+    'Tab-Leisten-Reparatur muss die Leiste selbst fixieren, nicht die Knopfreihe in ihr'
+  );
 }
 // E8 (09.08.): Der Umschalter ist entfallen — mit ihm seine Mobil-Regeln.
 // Statt der Trefferflaeche der Reiter wird jetzt die des Zurueck-Pfeils
@@ -910,6 +948,6 @@ assert.ok(dashboard.includes('<script src="/shared/offer-brand.js?v=20260807-4">
 assert.ok(!dashboard.includes('<script src="/shared/offer-brand.js"></script>'), 'dashboard still loads unversioned offer-brand');
 assert.ok(loader.includes('/shared/customer-runtime-design-foundation.js?v=20260809-1'), 'offer-brand missing current design loader version');
 assert.ok(!loader.includes('/shared/customer-runtime-design-foundation.js?v=20260803-4'), 'offer-brand still references stale design loader version');
-for (const stale of ['/shared/customer-settings-components.css?v=20260807-3','/shared/customer-design-system.css?v=20260804-1','/shared/customer-assistant-components.css?v=20260803-1','/shared/customer-assistant-components.css?v=20260808-2','/shared/customer-assistant-components.css?v=20260808-3','/shared/customer-assistant-components.css?v=20260809-1','/shared/customer-assistant-components.css?v=20260809-2','/shared/customer-navigation-components.css?v=20260803-1']) assert.ok(!runtime.includes(stale), `design loader still contains stale CSS URL: ${stale}`);
-const cssOrder=['/shared/customer-design-system.css?v=20260809-1','/shared/customer-assistant-components.css?v=20260809-3','/shared/customer-assistant-status.css?v=20260803-1','/shared/customer-navigation-components.css?v=20260809-1','/shared/customer-settings-components.css?v=20260809-1','/shared/customer-support-components.css?v=20260802-2','/shared/customer-ui-components.css?v=20260809-1'];
+for (const stale of ['/shared/customer-settings-components.css?v=20260807-3','/shared/customer-design-system.css?v=20260804-1','/shared/customer-assistant-components.css?v=20260803-1','/shared/customer-assistant-components.css?v=20260808-2','/shared/customer-assistant-components.css?v=20260808-3','/shared/customer-assistant-components.css?v=20260809-1','/shared/customer-assistant-components.css?v=20260809-2','/shared/customer-navigation-components.css?v=20260803-1','/shared/customer-navigation-components.css?v=20260809-1','/shared/customer-design-system.css?v=20260809-1','/shared/customer-ui-components.css?v=20260809-1']) assert.ok(!runtime.includes(stale), `design loader still contains stale CSS URL: ${stale}`);
+const cssOrder=['/shared/customer-design-system.css?v=20260809-2','/shared/customer-assistant-components.css?v=20260809-3','/shared/customer-assistant-status.css?v=20260803-1','/shared/customer-navigation-components.css?v=20260809-2','/shared/customer-settings-components.css?v=20260809-3','/shared/customer-support-components.css?v=20260802-2','/shared/customer-ui-components.css?v=20260809-2'];
 for(let i=1;i<cssOrder.length;i+=1) assert.ok(runtime.indexOf(cssOrder[i-1])<runtime.indexOf(cssOrder[i]),`design CSS module order changed: ${cssOrder[i-1]} before ${cssOrder[i]}`);

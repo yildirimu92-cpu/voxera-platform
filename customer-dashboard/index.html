@@ -20,7 +20,7 @@
 
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&display=swap" rel="stylesheet">
 <!-- Design System 2.0 — canonical token set (typography, spacing, color roles). Loads before the legacy inline :root so new components can rely on --vx-color-*/--vx-spacing-*/--vx-radius-* directly. -->
-<link rel="stylesheet" href="/shared/customer-design-tokens.css?v=20260809-1">
+<link rel="stylesheet" href="/shared/customer-design-tokens.css?v=20260809-2">
 <!-- Unified component markup factory (VoxeraUI). Loaded statically so every inline renderer in this document can build canonical skeleton/badge/empty-state markup without a load-order guard. -->
 <script src="/shared/customer-ui-components.js?v=20260807-2"></script>
 <script src="/shared/offer-brand.js?v=20260807-4"></script>
@@ -118,13 +118,23 @@
   /* Backward-compatible aliases */
   --r:6px;--r-2xl:16px;
   --radius:8px;--radius-lg:12px;
-  /* Shadows – identical to admin */
-  --shadow-xs:0 1px 2px rgba(0,0,0,0.04);
-  --shadow-sm:0 1px 3px rgba(0,0,0,0.06),0 1px 2px rgba(0,0,0,0.04);
-  --shadow-md:0 4px 12px rgba(0,0,0,0.06),0 2px 4px rgba(0,0,0,0.04);
-  --shadow-lg:0 12px 32px rgba(0,0,0,0.08),0 4px 8px rgba(0,0,0,0.04);
+  /* Schatten — eine Leiter, ein Eigentuemer.
+     Diese Namen wurden hier mit eigenen Werten neu definiert und schlugen
+     dabei die gleichnamigen Aliasse aus customer-design-tokens.css, weil der
+     Inline-Block nach der verlinkten Datei kommt. Ergebnis waren zwei
+     Leitern nebeneinander: dieselbe Stufe warf im Token-Satz einen
+     Night-getoenten Schatten (rgba(13,31,60,...)) und hier einen schwarzen —
+     und der schwarze gewann. Zusammen mit --vx-shadow-card/-panel aus
+     customer-design-system.css und den --surface-shadow-* weiter unten waren
+     es vier Leitern fuer dieselbe Aussage.
+     Jetzt verweisen alle auf die kanonische Leiter. Kein Aufrufort musste
+     dafuer angefasst werden. */
+  --shadow-xs:var(--vx-shadow-xs);
+  --shadow-sm:var(--vx-shadow-sm);
+  --shadow-md:var(--vx-shadow-md);
+  --shadow-lg:var(--vx-shadow-lg);
   --shadow-blue:0 4px 14px rgba(26,111,232,0.18);
-  --shadow-card:0 1px 3px rgba(0,0,0,0.05),0 1px 2px rgba(0,0,0,0.04);
+  --shadow-card:var(--vx-shadow-sm);
   /* Motion – identical to admin */
   --ease:cubic-bezier(0.16,1,0.3,1);
   --fast:0.12s var(--ease);
@@ -143,9 +153,11 @@
   /* Surface + button harmonization */
   --surface-border:#E2E8F0;
   --surface-border-strong:#D6E0F0;
-  --surface-shadow:0 2px 8px rgba(13,31,60,0.05);
-  --surface-shadow-focus:0 8px 22px rgba(13,31,60,0.09);
-  --surface-shadow-soft:0 1px 4px rgba(13,31,60,0.04);
+  /* Dritte Namensfamilie fuer dieselbe Leiter — auf die kanonischen Stufen
+     gelegt statt mit eigenen Werten gefuehrt. */
+  --surface-shadow:var(--vx-shadow-md);
+  --surface-shadow-focus:var(--vx-shadow-lg);
+  --surface-shadow-soft:var(--vx-shadow-xs);
   --btn-height:44px;
   --btn-radius:10px;
   /* ── Layering ────────────────────────────────────────────────────────────
@@ -222,13 +234,12 @@
    ═══════════════════════════════════════════════════════════ */
 
 
-.vx-report-card{margin-bottom:14px;} /* Card shell + inset owned by shared/customer-ui-components.css */
-.vx-report-head{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-bottom:0.5px solid var(--vx-border);}
-.vx-report-label{font-size:9px;font-weight:600;color:var(--vx-text3);text-transform:uppercase;letter-spacing:.08em;display:flex;align-items:center;gap:5px;}
-.vx-report-label i{color:var(--vx-blue);font-size:12px;}
-.vx-report-ki{font-size:10px;color:var(--vx-blue);font-weight:500;}
-.vx-report-body{padding:10px 12px;}
-.vx-report-text{font-size:12px;color:var(--vx-text2);line-height:1.65;}
+/* Der Rest dieses Blocks stammte aus der Bericht-Fassung vor dem
+   Design-Pass: .vx-report-card, -head, -ki, -body, -text kommen im Markup
+   gar nicht mehr vor (ausgezaehlt: 0 Treffer), und .vx-report-label i traf
+   kein Element, weil die Beschriftungen dort keine Icons tragen.
+   .vx-report-label selbst wird weiter unten vollstaendig neu gesetzt; die
+   Layout-Angaben von hier sind dort mit aufgenommen, damit nichts kippt. */
 
 
 /* ═══════════════════════════════════════════
@@ -1047,25 +1058,14 @@ body{
   border:1px solid transparent;
   text-decoration:none;
 }
-.nav-item:hover{
-  color:var(--vx-night);
-  background:rgba(75,159,255,0.08);
-  border-color:rgba(75,159,255,0.22);
-  transform:translateX(1px);
-}
-.nav-item.active{
-  background:#1A6FE8;
-  border:1px solid rgba(255,255,255,.12);
-  color:#FFFFFF;
-  font-weight:700;
-  box-shadow:0 2px 12px rgba(26,111,232,.4);
-}
-.nav-item:focus-visible{
-  outline:2px solid rgba(26,111,232,0.45);
-  outline-offset:1px;
-}
-.nav-icon{width:18px;height:18px;flex-shrink:0;opacity:.78;display:block;stroke-linecap:round;stroke-linejoin:round;vector-effect:non-scaling-stroke;stroke-width:2;}
-.nav-item.active .nav-icon{opacity:1;}
+/* Hover- und Aktiv-Zustand der Navigation gehoeren seit dem Icon-Chip-Umbau
+   ausschliesslich shared/customer-navigation-components.css. Die frueheren
+   Blau-Fill-Regeln (.nav-item.active mit Hintergrund, Rand, Schatten und
+   font-weight:700) sind dort entfernt worden, nicht ueberschrieben. */
+/* Fokusring: shared/customer-navigation-components.css — beide
+   Erscheinungsformen der Navigation stehen auf Night und brauchen den
+   hellen Ring, nicht den blauen fuer helle Flaechen. */
+.nav-icon{flex-shrink:0;}
 /* ═══════════════════════════════════════════
    UNIFIED BADGE / CHIP SYSTEM
 ═══════════════════════════════════════════ */
@@ -1215,7 +1215,10 @@ body{
   font-size:13px;font-weight:600;color:var(--ink);cursor:pointer;
   font-family:inherit;text-align:left;transition:background var(--fast),color var(--fast);
 }
-.user-menu-item .menu-icon{width:15px;height:15px;flex-shrink:0;stroke-width:2;}
+/* Font-Icon, kein SVG: width/height/stroke-width an dieser Stelle waren
+   Reste aus der Zeit vor Phosphor und ohne Wirkung. Groesse ueber font-size,
+   wie im Icon-System weiter unten fuer Labels/Navigation festgehalten. */
+.user-menu-item .menu-icon{font-size:16px;line-height:1;flex-shrink:0;}
 .user-menu-item:hover{background:var(--blue-light);color:var(--blue-dark);}
 .user-menu-item.danger:hover{background:var(--red-light);color:var(--red);}
 
@@ -1506,7 +1509,10 @@ body{
   transform:translateY(-1px);
 }
 .call-row:active{transform:none;}
-.call-row:focus,.call-row:focus-visible{outline:none;}
+/* Der Mausklick soll keinen Ring hinterlassen, die Tastatur schon — vorher
+   war beides abgeschaltet und die Zeile im Fokus ohne jede Anzeige. */
+.call-row:focus{outline:none;}
+.call-row:focus-visible{outline:3px solid var(--vx-focus-ring);outline-offset:2px;}
 .call-row,.call-row *{-webkit-tap-highlight-color:rgba(0,0,0,0);}
 @media (hover:none){
   .call-row:hover{transform:none;}
@@ -2089,15 +2095,12 @@ body.vx-detail-v2-open #confirm-overlay.open {
 .mobile-nav-inner{display:flex;justify-content:space-around;align-items:center;}
 .mobile-nav-btn{
   display:flex;flex-direction:column;align-items:center;gap:3px;
-  padding:4px 12px;cursor:pointer;font-size:10px;color:rgba(255,255,255,.4);
+  padding:4px 12px;cursor:pointer;font-size:10px;
   font-weight:500;position:relative;border:none;background:none;font-family:inherit;
-  transition:color .18s ease;min-width:44px;min-height:44px;justify-content:center;
+  min-width:44px;min-height:44px;justify-content:center;
 }
-.mobile-nav-btn:focus-visible{
-  outline:2px solid rgba(147,197,253,.95);
-  outline-offset:2px;
-  border-radius:12px;
-}
+/* Fokusring: shared/customer-navigation-components.css, siehe .nav-item. */
+.mobile-nav-btn:focus-visible{border-radius:12px;}
 .mobile-nav-icon-wrap{
   position:relative;
   width:24px;
@@ -2106,8 +2109,9 @@ body.vx-detail-v2-open #confirm-overlay.open {
   align-items:center;
   justify-content:center;
 }
-.mobile-nav-btn svg,.mobile-nav-btn .lucide{width:20px;height:20px;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;stroke:rgba(255,255,255,.4);color:rgba(255,255,255,.4);}
-.mobile-nav-btn.active svg,.mobile-nav-btn.active .lucide{stroke:#fff;color:#fff;}
+/* Die frueheren svg-/.lucide-Regeln an dieser Stelle stammten aus der Zeit vor
+   dem Wechsel auf Phosphor und trafen kein Element mehr — die Tab-Leiste
+   enthaelt ausschliesslich <i class="ph-...">. Entfernt statt mitgepflegt. */
 .mobile-nav-badge{
   position:absolute;
   top:0;
@@ -3083,28 +3087,14 @@ body,.main{background:var(--vx-bg);}
   margin-top:4px;
 }
 .nav-item{
-  color:rgba(255,255,255,.55);
   padding:7px 10px;
   min-height:36px;
   border-radius:8px;
   border:1px solid transparent;
   margin:3px 0;
 }
-.nav-item:hover{
-  color:#FFFFFF;
-  background:rgba(255,255,255,.06);
-  border-color:transparent;
-  transform:none;
-}
-.nav-item.active{
-  background:var(--blue);
-  border:1px solid rgba(255,255,255,.12);
-  color:#FFFFFF;
-  font-weight:700;
-  box-shadow:0 2px 12px rgba(26,111,232,.4);
-}
-.nav-icon{opacity:1;color:inherit;}
-.nav-item.active .nav-icon{color:#fff;}
+/* Farbe, Hover und Aktiv-Zustand: siehe shared/customer-navigation-components.css.
+   Die frueheren Regeln an dieser Stelle sind entfernt, nicht ueberschrieben. */
 .nav-badge{box-shadow:none;}
 .sidebar-footer{
   padding:14px 16px 16px;
@@ -4036,15 +4026,11 @@ body,.main{background:var(--vx-bg);}
   font-family:var(--font-display);
   font-size:10px;
   letter-spacing:.01em;
-  transition:color .18s ease;
   position:relative;
-  color:rgba(255,255,255,.4);
   font-weight:500;
 }
-.mobile-nav-btn.active{
-  color:#fff;
-  font-weight:700;
-}
+/* Farbe und Aktiv-Zustand: shared/customer-navigation-components.css.
+   Die frueheren Regeln an dieser Stelle sind entfernt, nicht ueberschrieben. */
 /* Badge */
 .mobile-nav-badge{
   font-family:var(--font-display);
@@ -6960,8 +6946,16 @@ body.vx-customer-design-foundation .vx-report-kpi{display:flex;flex-direction:co
 /* Label-Stufe der Typo-Leiter aus PR #848 (12px/600, Meta-Rolle, keine
    Versalien, keine Sperrung). --vx-subtle (#8a98ae) kam auf Weiss nur auf
    2.9:1 und lag damit unter AA; --vx-ui-meta-color liegt bei 4.83:1. */
-body.vx-customer-design-foundation .vx-report-label{color:var(--vx-ui-meta-color);font-size:var(--vx-ui-section-label-size);font-weight:var(--vx-ui-section-label-weight);letter-spacing:0;text-transform:none;}
-body.vx-customer-design-foundation .vx-report-value{margin-top:10px;color:var(--vx-brand);font-size:30px;font-weight:780;line-height:1;font-variant-numeric:tabular-nums;}
+body.vx-customer-design-foundation .vx-report-label{display:flex;align-items:center;gap:5px;color:var(--vx-ui-meta-color);font-size:var(--vx-ui-section-label-size);font-weight:var(--vx-ui-section-label-weight);letter-spacing:0;text-transform:none;}
+/* Die Grundfarbe der Kennzahl ist Night, nicht Blau.
+   Blau ist seit F7 die funktionale Kategorie "interaktiv" — eine Zahl, die
+   man nicht anfassen kann, darf sie nicht tragen. "Anrufe" und "Ø Dauer"
+   sind neutrale Messwerte und stehen deshalb in Night. Farbe bekommt hier
+   nur, was einer der vier Bedeutungsfamilien angehoert: tone-gold fuer
+   Lead-Qualitaet (Hot Leads), tone-green fuer Abschluss (Erledigt).
+   "Ø Dauer" stand vorher auf tone-green, obwohl eine Gespraechsdauer kein
+   Abschluss ist — die Klasse ist im Markup entfernt. */
+body.vx-customer-design-foundation .vx-report-value{margin-top:10px;color:var(--vx-color-text);font-size:30px;font-weight:780;line-height:1;font-variant-numeric:tabular-nums;}
 body.vx-customer-design-foundation .vx-report-value.tone-green{color:#047857;}
 /* "Hot Leads" IST Lead-Qualitaet und gehoert damit an die Gold-Rampe, die
    genau dafuer da ist. Vorher ein Amber-Literal ohne Verbindung zu den
@@ -6986,7 +6980,7 @@ body.vx-customer-design-foundation .vx-report-highlight-value{margin-top:6px;col
    aus Groesse, Gewicht 500 und der begrenzten Zeilenlaenge. */
 body.vx-customer-design-foundation .vx-report-voice .vx-ops-message{font-family:var(--vx-ui-voice-font);font-size:var(--vx-ui-voice-size);font-weight:var(--vx-ui-voice-weight);line-height:var(--vx-ui-voice-leading);letter-spacing:var(--vx-ui-voice-tracking);color:var(--vx-ui-voice-color);max-width:var(--vx-ui-voice-measure);}
 @media (max-width:560px){body.vx-customer-design-foundation .vx-report-voice .vx-ops-message{font-size:var(--vx-ui-voice-size-sm);}}
-body.vx-customer-design-foundation .vx-report-insight{display:flex;align-items:flex-start;gap:12px;} body.vx-customer-design-foundation .vx-report-insight-icon{display:flex;align-items:center;justify-content:center;flex:0 0 auto;width:32px;height:32px;border-radius:10px;}
+body.vx-customer-design-foundation .vx-report-insight{display:flex;align-items:flex-start;gap:12px;} body.vx-customer-design-foundation .vx-report-insight-icon{display:flex;align-items:center;justify-content:center;flex:0 0 auto;box-sizing:border-box;width:var(--vx-ui-icon-tile-md);height:var(--vx-ui-icon-tile-md);border-radius:var(--vx-ui-icon-tile-md-radius);}
 body.vx-customer-design-foundation .vx-report-insight.tone-warning{background:#fff7ed;color:#9a3412;} body.vx-customer-design-foundation .vx-report-insight.tone-warning .vx-report-insight-icon{background:#fed7aa;} body.vx-customer-design-foundation .vx-report-insight.tone-info{background:#eff6ff;color:#1d4ed8;} body.vx-customer-design-foundation .vx-report-insight.tone-info .vx-report-insight-icon{background:#dbeafe;} body.vx-customer-design-foundation .vx-report-insight.tone-success{background:#ecfdf5;color:#047857;} body.vx-customer-design-foundation .vx-report-insight.tone-success .vx-report-insight-icon{background:#d1fae5;}
 body.vx-customer-design-foundation .vx-report-week-chart{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));align-items:end;gap:8px;min-height:120px;}
 body.vx-customer-design-foundation .vx-report-week-col{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:5px;height:116px;} body.vx-customer-design-foundation .vx-report-week-count,body.vx-customer-design-foundation .vx-report-week-label{color:var(--vx-subtle);font-size:11px;font-weight:700;}
@@ -7256,12 +7250,12 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
   </div>
   <button class="user-menu-item" onclick="showTab('mehr',document.getElementById('nav-mehr'));closeMobileUserMenu();setTimeout(function(){vxMehrShow('profil');},100);"><i class="ph-light ph-user menu-icon" aria-hidden="true"></i>Profil</button>
   <button class="user-menu-item" onclick="showTab('mehr',document.getElementById('nav-mehr'));closeMobileUserMenu();setTimeout(function(){vxMehrShow('hilfe');},100);"><i class="ph-light ph-question menu-icon" aria-hidden="true"></i>Hilfe</button>
-  <div style="padding:6px 8px 4px;">
-    <button onclick="mobileLogoutAction()" style="width:100%;background:#0D1F3C;color:#fff;border:none;border-radius:10px;padding:11px 16px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;">
-      <i class="ph-bold ph-sign-out"  style="font-size:16px;" aria-hidden="true"></i>
-      Abmelden
-    </button>
-  </div>
+  <!-- Derselbe Menue-Eintrag wie Profil und Hilfe darueber. Vorher stand hier
+       ein eigens ausgestalteter Night-Knopf mit hartkodierter Farbe, eigener
+       Geometrie und eigener Schriftgroesse — er hat dem Abmelden im mobilen
+       Menue ein Gewicht gegeben, das es am Desktop nicht hatte, und er war
+       die letzte Stelle im Menue, die ihr Aussehen selbst bestimmt hat. -->
+  <button class="user-menu-item" data-vx-logout-button onclick="vxLogoutAction(this, closeMobileUserMenu)"><i class="ph-light ph-sign-out menu-icon" aria-hidden="true"></i>Abmelden</button>
 </div>
 
 <!-- ═══════════════════════════════════════
@@ -7341,7 +7335,7 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
         <div class="user-menu" id="sidebar-user-menu">
           <button class="user-menu-item" onclick="showTab('mehr',document.getElementById('nav-mehr'));closeUserMenu();setTimeout(function(){vxMehrShow('profil');},100);"><i class="ph-light ph-user menu-icon" aria-hidden="true"></i>Profil</button>
           <button class="user-menu-item" onclick="showTab('mehr',document.getElementById('nav-mehr'));closeUserMenu();setTimeout(function(){vxMehrShow('hilfe');},100);"><i class="ph-light ph-question menu-icon" aria-hidden="true"></i>Hilfe</button>
-          <button class="user-menu-item danger" onclick="handleLogout(this, closeUserMenu)"><i class="ph-light ph-sign-out menu-icon" aria-hidden="true"></i>Abmelden</button>
+          <button class="user-menu-item" data-vx-logout-button onclick="vxLogoutAction(this, closeUserMenu)"><i class="ph-light ph-sign-out menu-icon" aria-hidden="true"></i>Abmelden</button>
         </div>
       </div>
     </aside>
@@ -7591,6 +7585,13 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
             <!-- Greeting and date left the header in Etappe 2 and live here as
                  the first card of the content area — ordinary card, no
                  special treatment. -->
+            <!-- Seit dem Heute-Redesign (Lara-Uebergabe) per
+                 display:none!important dauerhaft unsichtbar, siehe die Regel
+                 in #vx-lara-handover-styles. Die Karte bekommt seit dem
+                 09.08.2026 auch keinen Inhalt mehr geschrieben — der Gruss
+                 steht als sichtbare Zeile weiter unten
+                 (#dash-personal-greeting). Das Markup bleibt, weil
+                 bestehendes Render-/Event-Wiring den Abschnitt kennt. -->
             <section id="dash-greeting-block" class="vx-ui-card vx-screen-meta">
               <div class="vx-screen-meta-main">
                 <div id="dash-greeting-title" class="vx-screen-meta-title"></div>
@@ -7636,6 +7637,14 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
                  Steht bewusst VOR der Lara-Uebergabe: der Hinweis sagt, was
                  gerade in dieser Sekunde passiert, die Uebergabe sagt, was
                  seither liegen geblieben ist. -->
+            <!-- Der einzige Ort, an dem das Produkt den Kunden beim Namen
+                 nennt. Bewusst eine Zeile und keine Karte: der Heute-Screen
+                 wurde mit der Lara-Übergabe absichtlich auf wenige Blöcke
+                 reduziert, und ein Gruss ist kein Block. Sie steht vor dem
+                 Live-Hinweis, weil sie den Screen anredet und nicht meldet,
+                 was gerade passiert. -->
+            <p id="dash-personal-greeting" class="vx-heute-greeting"></p>
+
             <div id="dash-live-ambient" role="status" aria-live="polite"></div>
 
             <!-- Lara-Übergabe: ersetzt KPI-Kacheln + "Heute passiert"-Chronologie.
@@ -7801,7 +7810,7 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
               </article>
               <article class="vx-ap-card vx-report-kpi">
                 <div class="vx-report-label">Ø Dauer</div>
-                <div class="vx-report-value tone-green" id="au2-dur">–</div>
+                <div class="vx-report-value" id="au2-dur">–</div>
                 <div class="vx-report-trend" id="au2-dur-trend"></div>
               </article>
               <article class="vx-ap-card vx-report-kpi">
@@ -7890,22 +7899,38 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
               <button type="button" class="vx-settings-entry" onclick="vxMehrShow('profil')">
                 <span class="vx-settings-entry-icon"><i class="ph-bold ph-user" aria-hidden="true"></i></span>
                 <span class="vx-settings-entry-copy"><span class="vx-settings-entry-title">Profil</span><span id="mehr-profil-sub" class="vx-settings-entry-subtitle">Name, E-Mail, Passwort</span></span>
-                <i class="ph-bold ph-caret-right vx-settings-entry-caret" aria-hidden="true"></i>
+                <i class="ph-light ph-caret-right vx-settings-entry-caret" aria-hidden="true"></i>
               </button>
               <button type="button" class="vx-settings-entry" onclick="vxMehrShow('benachrichtigungen')">
                 <span class="vx-settings-entry-icon"><i class="ph-bold ph-bell" aria-hidden="true"></i></span>
                 <span class="vx-settings-entry-copy"><span class="vx-settings-entry-title">Benachrichtigungen</span><span class="vx-settings-entry-subtitle">E-Mail, SMS, Browser</span></span>
-                <i class="ph-bold ph-caret-right vx-settings-entry-caret" aria-hidden="true"></i>
+                <i class="ph-light ph-caret-right vx-settings-entry-caret" aria-hidden="true"></i>
               </button>
               <button type="button" class="vx-settings-entry" onclick="vxMehrShow('abonnement')">
                 <span class="vx-settings-entry-icon"><i class="ph-bold ph-credit-card" aria-hidden="true"></i></span>
                 <span class="vx-settings-entry-copy"><span class="vx-settings-entry-title">Abonnement &amp; Add-ons</span><span id="mehr-plan-label" class="vx-settings-entry-subtitle">Ihr aktueller Plan</span></span>
-                <i class="ph-bold ph-caret-right vx-settings-entry-caret" aria-hidden="true"></i>
+                <i class="ph-light ph-caret-right vx-settings-entry-caret" aria-hidden="true"></i>
               </button>
               <button type="button" class="vx-settings-entry" onclick="vxMehrShow('hilfe')">
                 <span class="vx-settings-entry-icon"><i class="ph-bold ph-question" aria-hidden="true"></i></span>
                 <span class="vx-settings-entry-copy"><span class="vx-settings-entry-title">Hilfe</span><span class="vx-settings-entry-subtitle">FAQ, Support kontaktieren</span></span>
-                <i class="ph-bold ph-caret-right vx-settings-entry-caret" aria-hidden="true"></i>
+                <i class="ph-light ph-caret-right vx-settings-entry-caret" aria-hidden="true"></i>
+              </button>
+            </div>
+
+            <!-- Abmelden lag bisher nur hinter dem Benutzermenue: am Desktop
+                 hinter der Karte unten in der Seitenleiste, auf dem Telefon
+                 hinter dem Avatar oben rechts. Wer es in den Einstellungen
+                 suchte — der naheliegendste Ort — fand es nicht.
+
+                 Eigene Liste, abgesetzt: der Eintrag traegt keinen Chevron,
+                 weil er nirgendwohin fuehrt, sondern eine Handlung ausloest.
+                 Der Chevron ist auf diesem Screen das Versprechen "hier geht
+                 es weiter", und ein Abmelden-Dialog ist keine Unterseite. -->
+            <div class="vx-settings-list vx-settings-list--actions" aria-label="Sitzung">
+              <button type="button" class="vx-settings-entry vx-settings-entry--action" onclick="vxLogoutAction(this)">
+                <span class="vx-settings-entry-icon"><i class="ph-bold ph-sign-out" aria-hidden="true"></i></span>
+                <span class="vx-settings-entry-copy"><span class="vx-settings-entry-title">Abmelden</span><span id="mehr-logout-sub" class="vx-settings-entry-subtitle">Aus dem Voxera Portal abmelden</span></span>
               </button>
             </div>
           </div>
@@ -8043,8 +8068,8 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
             <section class="vx-settings-card">
               <div class="vx-settings-card-head"><div><h2 class="vx-settings-card-title">Plan & Optionen</h2><p class="vx-settings-card-meta">Planwechsel und zusätzliches Gesprächsvolumen zentral anfragen.</p></div></div>
               <div class="vx-abo-addon-grid">
-                <button type="button" class="vx-commercial-entry" onclick="vxAboUpgrade()"><span class="vx-commercial-entry-icon"><i class="ph-bold ph-trend-up" aria-hidden="true"></i></span><span><strong>Plan wechseln</strong><small>Verfügbare höhere Pläne vergleichen und verbindlich anfragen.</small></span><i class="ph-bold ph-caret-right" aria-hidden="true"></i></button>
-                <button type="button" class="vx-commercial-entry" onclick="vxAboMinuten()"><span class="vx-commercial-entry-icon"><i class="ph-bold ph-plus-circle" aria-hidden="true"></i></span><span><strong>Zusatzminuten</strong><small>Ein einmaliges Minutenpaket für Spitzenzeiten anfragen.</small></span><i class="ph-bold ph-caret-right" aria-hidden="true"></i></button>
+                <button type="button" class="vx-commercial-entry" onclick="vxAboUpgrade()"><span class="vx-commercial-entry-icon"><i class="ph-bold ph-trend-up" aria-hidden="true"></i></span><span><strong>Plan wechseln</strong><small>Verfügbare höhere Pläne vergleichen und verbindlich anfragen.</small></span><i class="ph-light ph-caret-right" aria-hidden="true"></i></button>
+                <button type="button" class="vx-commercial-entry" onclick="vxAboMinuten()"><span class="vx-commercial-entry-icon"><i class="ph-bold ph-plus-circle" aria-hidden="true"></i></span><span><strong>Zusatzminuten</strong><small>Ein einmaliges Minutenpaket für Spitzenzeiten anfragen.</small></span><i class="ph-light ph-caret-right" aria-hidden="true"></i></button>
               </div>
             </section>
 
@@ -8361,32 +8386,32 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
     <div class="mobile-nav-inner">
       <button class="mobile-nav-btn active" id="mnav-dashboard" onclick="showTab('dashboard',this)">
         <span class="mobile-nav-icon-wrap">
-          <i class="ph-bold ph-squares-four" aria-hidden="true"></i>
+          <i class="ph-light ph-squares-four" aria-hidden="true"></i>
         </span>
         Heute
       </button>
       <button class="mobile-nav-btn" id="mnav-anrufe" onclick="showTab('anrufe',this)">
         <span class="mobile-nav-icon-wrap">
-          <i class="ph-bold ph-tray" aria-hidden="true"></i>
+          <i class="ph-light ph-tray" aria-hidden="true"></i>
           <span class="mobile-nav-badge blue" id="mnav-badge-anrufe" style="display:none"></span>
         </span>
         Anfragen
       </button>
       <button class="mobile-nav-btn" id="mnav-assistent" onclick="showTab('assistent',this)">
         <span class="mobile-nav-icon-wrap">
-          <i class="ph-bold ph-robot" aria-hidden="true"></i>
+          <i class="ph-light ph-robot" aria-hidden="true"></i>
         </span>
         Assistent
       </button>
       <button class="mobile-nav-btn" id="mnav-auswertung" onclick="showTab('auswertung',this)">
         <span class="mobile-nav-icon-wrap">
-          <i class="ph-bold ph-chart-bar" aria-hidden="true"></i>
+          <i class="ph-light ph-chart-bar" aria-hidden="true"></i>
         </span>
         Bericht
       </button>
       <button class="mobile-nav-btn" id="mnav-mehr" onclick="showTab('mehr',this)">
         <span class="mobile-nav-icon-wrap">
-          <i class="ph-bold ph-gear" aria-hidden="true"></i>
+          <i class="ph-light ph-gear" aria-hidden="true"></i>
         </span>
         Einstellungen
       </button>
@@ -10840,13 +10865,17 @@ function dprRestoreOpen(containerId) {
   });
 }
 
+// Der Chevron wird ueber seine Icon-Klasse gesucht, nicht ueber ein exaktes
+// class-Attribut. Die frueheren [class="ph-bold ph-caret-right"]-Selektoren
+// koppelten das Aufklapp-Verhalten an die Strichstaerke: eine Aenderung am
+// Icon-System haette den Pfeil stumm nicht mehr gefunden.
 function dprCloseAll(container) {
   if (!container) return;
   container.querySelectorAll('.dpr-exp').forEach(function(e){ e.style.display = 'none'; });
   container.querySelectorAll('.dpr-row').forEach(function(r){
     r.style.background = '';
     r.style.borderColor = '';
-    var c = r.querySelector('[class="ph-bold ph-caret-right"]');
+    var c = r.querySelector('.ph-caret-right');
     if (c) { c.style.transform = ''; c.style.color = ''; }
   });
 }
@@ -10857,7 +10886,7 @@ function dprOpen(rowEl) {
   var exp = card.querySelector('.dpr-exp');
   if (!exp) return;
   exp.style.display = 'block';
-  var chev = rowEl.querySelector('[class="ph-bold ph-caret-right"]');
+  var chev = rowEl.querySelector('.ph-caret-right');
   if (chev) { chev.style.transform = 'rotate(90deg)'; chev.style.color = 'var(--blue)'; }
   rowEl.style.background = '#F7F9FF';
 }
@@ -10879,14 +10908,14 @@ function dprToggle(rowEl) {
       container.querySelectorAll('.dpr-row').forEach(function(r) {
         r.style.background = '';
         r.style.borderColor = '';
-        var c = r.querySelector('[class="ph-bold ph-caret-right"]');
+        var c = r.querySelector('.ph-caret-right');
         if (c) { c.style.transform = ''; c.style.color = ''; }
       });
     }
   }
 
   exp.style.display = isOpen ? 'none' : 'block';
-  var chev = rowEl.querySelector('[class="ph-bold ph-caret-right"]');
+  var chev = rowEl.querySelector('.ph-caret-right');
   if (chev) {
     chev.style.transform = isOpen ? '' : 'rotate(90deg)';
     chev.style.color = isOpen ? 'var(--slate2)' : 'var(--blue)';
@@ -15430,7 +15459,7 @@ function vxShellSelectProvider(key, btn) {
 
     var secondaryKeys = Object.keys(provider.codes).filter(function(k){ return k !== 'off' && k !== 'miss'; });
     if (secondaryKeys.length) {
-      instrHtml += '<div class="vx-forwarding-secondary"><details class="vx-forwarding-details"><summary><span>Weitere Optionen</span><i class="ph-bold ph-caret-down" aria-hidden="true"></i></summary><div class="vx-forwarding-details-body">';
+      instrHtml += '<div class="vx-forwarding-secondary"><details class="vx-forwarding-details"><summary><span>Weitere Optionen</span><i class="ph-light ph-caret-down" aria-hidden="true"></i></summary><div class="vx-forwarding-details-body">';
       secondaryKeys.forEach(function(k) {
         var item = provider.codes[k];
         instrHtml += makeSecondaryCode(item.code, item.label);
@@ -17283,17 +17312,21 @@ function injectTaskGroupHeaders(listId) {
 var _auPeriod = 'week';
 var _auPeriodRecords = null;
 
-function auSetPeriod(period, btn) {
+// Der zweite Parameter (das angeklickte Element) wird bewusst nicht mehr
+// ausgewertet: die Schleife leitet den Aktiv-Zustand aus data-report-period
+// ab und ist damit die einzige Quelle. Der frühere Nachtrag
+// "if (btn && !btn.classList.contains('active')) btn.classList.add('active')"
+// konnte einen zweiten Eintrag aktiv setzen, wenn er je mit einem Knopf
+// aufgerufen worden wäre, dessen data-report-period nicht zum Zeitraum passt —
+// zwei Schreiber für denselben Zustand. Die Signatur bleibt, weil die drei
+// onclick-Attribute im Markup sie mitgeben.
+function auSetPeriod(period) {
   _auPeriod = period;
   document.querySelectorAll('#au-period-row .vx-report-period').forEach(function(button) {
     var active = button.getAttribute('data-report-period') === period;
     button.classList.toggle('active', active);
     button.setAttribute('aria-selected', active ? 'true' : 'false');
   });
-  if (btn && !btn.classList.contains('active')) {
-    btn.classList.add('active');
-    btn.setAttribute('aria-selected', 'true');
-  }
   renderAuswertung();
 }
 
@@ -17339,15 +17372,36 @@ function renderAuswertung() {
   _auEl('au2-hot', hotCount || '–');
   _auEl('au2-rate', total ? rate+'%' : '–');
 
-  // Trends (compare to previous period)
-  var prev = _auPrevPeriodRecords(all);
+  // Trends (Vergleich mit der Vorperiode)
+  //
+  // "Gesamt" hat per Definition keine Vorperiode — _auPrevPeriodRecords gibt
+  // dafuer eine leere Liste zurueck. Vorher wurde trotzdem gerechnet und die
+  // fehlende Bezugsgroesse nur dadurch angedeutet, dass der Zusatz
+  // "vs. Vorperiode" weggelassen wurde. Ergebnis auf dem Tab "Gesamt": ein
+  // gruener Aufwaertspfeil mit der vollen Gesamtzahl daneben ("↑ +21"), also
+  // ein Wachstum gegen nichts. Dasselbe traf bei "7 Tage"/"30 Tage" jeden
+  // Kunden, dessen Vorperiode leer war.
+  //
+  // Der Zeitraum entscheidet jetzt, OB verglichen wird; ob die Vorperiode
+  // leer war, entscheidet nur noch ueber die Zahl. Eine leere Vorperiode mit
+  // Eintraegen in dieser ist eine echte Aussage und behaelt ihren Zusatz.
+  var hasPrevPeriod = _auPeriod !== 'all';
+  var prev = hasPrevPeriod ? _auPrevPeriodRecords(all) : [];
   var prevTotal = prev.length;
   var prevHot = prev.filter(function(r){ return qualKey((r.fields||{}).lead_quality)==='hot'; }).length;
   var prevRate = prevTotal ? Math.round(prev.filter(function(r){ return isClosedStatus((r.fields||{}).dashboard_status); }).length/prevTotal*100) : 0;
-  _auTrend('au2-calls-trend', total - prevTotal, prevTotal ? 'vs. Vorperiode' : '');
-  _auTrend('au2-hot-trend', hotCount - prevHot, prevTotal ? 'vs. Vorperiode' : '');
-  var rateDiff = rate - prevRate;
-  _auTrend('au2-rate-trend', rateDiff, prevTotal ? '% vs. Vorperiode' : '');
+  var prevDurTotal = prev.reduce(function(s,r){ return s+Number((r.fields||{}).duration_seconds||0); }, 0);
+  var prevAvgDur = prevTotal ? Math.round(prevDurTotal/prevTotal) : 0;
+  _auTrend('au2-calls-trend', hasPrevPeriod ? total - prevTotal : null, 'vs. Vorperiode');
+  _auTrend('au2-hot-trend', hasPrevPeriod ? hotCount - prevHot : null, 'vs. Vorperiode');
+  _auTrend('au2-rate-trend', hasPrevPeriod ? rate - prevRate : null, '% vs. Vorperiode');
+  // "Ø Dauer" hatte als einzige der vier Kennzahlen nie einen Trend: das
+  // Element #au2-dur-trend stand im Markup und hielt seinen Platz frei
+  // (min-height:18px), wurde aber nie beschrieben. Jetzt verhalten sich alle
+  // vier Karten gleich. Ohne Anrufe in einer der beiden Perioden gibt es
+  // keinen Mittelwert zu vergleichen.
+  var canCompareDur = hasPrevPeriod && prevTotal > 0 && total > 0;
+  _auTrend('au2-dur-trend', canCompareDur ? avgDur - prevAvgDur : null, 's vs. Vorperiode');
 
   // Sparklines
   _auBuildSparkCalls(all);
@@ -17377,9 +17431,16 @@ function _auEl(id, val) { var el = document.getElementById(id); if (el) el.textC
 function _auTrend(id, diff, suffix) {
   var el = document.getElementById(id);
   if (!el) return;
-  if (!diff && diff !== 0) { el.textContent = ''; el.className = 'vx-report-trend'; return; }
+  // null/undefined heisst "es gibt nichts zu vergleichen" — die Zeile bleibt
+  // leer. 0 heisst "verglichen, unveraendert" und wird angezeigt.
+  if (diff === null || diff === undefined) { el.textContent = ''; el.className = 'vx-report-trend'; return; }
   el.className = 'vx-report-trend ' + (diff > 0 ? 'up' : diff < 0 ? 'down' : '');
-  el.textContent = (diff > 0 ? '↑ +' : diff < 0 ? '↓ ' : '→ ') + (diff !== 0 ? Math.abs(diff) : '') + ' ' + (suffix || '');
+  // Bei 0 traegt die Einheit im Zusatz nichts bei ("→ 0 % vs. Vorperiode"
+  // sagt weniger als "unverändert") — der Fall bekommt deshalb seinen
+  // eigenen Wortlaut statt Zahl plus Zusatz.
+  if (diff === 0) { el.textContent = '→ unverändert'; return; }
+  var value = (diff > 0 ? '↑ +' : '↓ ') + Math.abs(diff);
+  el.textContent = suffix ? value + ' ' + suffix : value;
 }
 
 function _auPrevPeriodRecords(all) {
@@ -20552,7 +20613,7 @@ function vxHeuteRenderScopedList(listId, sectionId, countId, records, emptyText)
       + '<div class="vx-row-body"><div class="vx-row-name">'+_esc(title)+'<span class="vx-row-pill">'+_esc(label)+'</span></div>'
       + (time ? '<div class="vx-row-time">'+_esc(time)+'</div>' : '')
       + (summary ? '<div class="vx-row-summary">'+_esc(summary)+'</div>' : '')
-      + '</div><div class="vx-row-btns">'+callBtn+'<button type="button" class="vx-ibtn" data-action="detail" data-rec-id="'+_esc(id)+'" title="Details öffnen"><i class="ph-bold ph-caret-right"></i></button></div>'
+      + '</div><div class="vx-row-btns">'+callBtn+'<button type="button" class="vx-ibtn" data-action="detail" data-rec-id="'+_esc(id)+'" title="Details öffnen"><i class="ph-light ph-caret-right"></i></button></div>'
       + '</div></div>';
   }).join('');
   vxSetHtmlIfChanged(list, scopedHtml);
@@ -20731,31 +20792,40 @@ function renderDashboard(records, manualTasks) {
 
   // ── NEW DASHBOARD SECTIONS ──────────────────────────────────────────
 
-  // Greeting + datetime
-  var greetingEl = document.getElementById('dash-greeting-title');
-  var greetingSubEl = document.getElementById('dash-greeting-sub');
-  var dtEl = document.getElementById('dash-datetime-label');
-  var now2 = new Date();
-  var hour = now2.getHours();
-  var greeting = hour < 12 ? 'Guten Morgen' : hour < 18 ? 'Guten Nachmittag' : 'Guten Abend';
-  var customerName = (customerMeta && customerMeta.displayName) ? customerMeta.displayName : (customerMeta && customerMeta.customerName) ? customerMeta.customerName : (customerContext && customerContext.displayName) ? customerContext.displayName : '';
-  if (greetingEl) greetingEl.textContent = greeting + (customerName ? ', ' + customerName : '');
-  if (greetingSubEl) {
-    // [PATCH 2026-05-13 v2 — Aufgaben-Zählung Konsistenz]
-    // Vorher: eigene Inline-Filterung über manualTasks → driftete mit topbar und tagesbericht
-    // Jetzt: zentrale getOpenTaskCount()-Funktion, dieselbe wie topbar verwendet
-    // [BUG FIX v2.54] Gleicher Filter wie KPI: isOnToday-Records ausschliessen
-    var parts = [];
-    if (anfragenOps.inbox > 0) parts.push(anfragenOps.inbox + ' Inbox');
-    if (anfragenOps.planned > 0) parts.push(anfragenOps.planned + ' geplant');
-    var heuteCountsForSub = (typeof vxGetHeuteKpiCounts === 'function') ? vxGetHeuteKpiCounts(records || [], manualTasks || allManualTaskRecords || []) : null;
-    if (heuteCountsForSub && heuteCountsForSub.importantNow > 0) parts.push(heuteCountsForSub.importantNow + ' wichtig');
-    greetingSubEl.textContent = parts.length > 0 ? parts.join(' · ') : 'Keine offenen Inbox- oder Follow-up-Einträge';
-  }
-  if (dtEl) {
-    var days = ['So','Mo','Di','Mi','Do','Fr','Sa'];
-    var months = ['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'];
-    dtEl.textContent = days[now2.getDay()] + ', ' + now2.getDate() + '. ' + months[now2.getMonth()] + ' · ' + String(now2.getHours()).padStart(2,'0') + ':' + String(now2.getMinutes()).padStart(2,'0');
+  // ── Persoenlicher Gruss ─────────────────────────────────────────────
+  // Der Gruss stand bisher in #dash-greeting-title, zusammen mit einer
+  // Zaehlerzeile und einer Datum-/Uhrzeit-Angabe. Dieser ganze Block ist seit
+  // dem Heute-Redesign (Lara-Uebergabe) per display:none!important dauerhaft
+  // unsichtbar — die drei Schreibvorgaenge liefen also ins Leere, und der
+  // einzige persoenliche Bezug des Produkts war damit gar nicht vorhanden.
+  //
+  // Jetzt eine sichtbare Zeile: die Tageszeit-Floskel fuehrt leise, der
+  // Firmenname traegt sie auf der Kartentitel-Stufe der Typo-Leiter. Ohne
+  // bekannten Namen bleibt es bei der Floskel allein, kein leerer Platzhalter.
+  //
+  // Zaehler und Uhrzeit sind nicht mitgewandert: die Zaehler stehen seit dem
+  // Redesign an den Abschnitten selbst ("Braucht dich", "Erledigt"), die
+  // Uhrzeit in der Meldezeile der Uebergabe. Sie hier zu wiederholen waere
+  // eine zweite Wahrheit fuer dieselbe Zahl.
+  var greetingEl = document.getElementById('dash-personal-greeting');
+  if (greetingEl) {
+    var now2 = new Date();
+    var hour = now2.getHours();
+    var greeting = hour < 12 ? 'Guten Morgen' : hour < 18 ? 'Guten Nachmittag' : 'Guten Abend';
+    var customerName = (customerMeta && customerMeta.displayName) ? customerMeta.displayName
+      : (customerMeta && customerMeta.customerName) ? customerMeta.customerName
+      : (customerContext && customerContext.displayName) ? customerContext.displayName : '';
+    greetingEl.textContent = '';
+    var greetLead = document.createElement('span');
+    greetLead.className = 'vx-greeting-lead';
+    greetLead.textContent = customerName ? greeting + ',' : greeting;
+    greetingEl.appendChild(greetLead);
+    if (customerName) {
+      var greetName = document.createElement('span');
+      greetName.className = 'vx-greeting-name';
+      greetName.textContent = customerName;
+      greetingEl.appendChild(greetName);
+    }
   }
 
   // Tagesbericht deaktiviert: Heute arbeitet jetzt mit Aufmerksamkeit + Verlauf.
@@ -25155,19 +25225,42 @@ function closeMobileUserMenu() {
   if (menu) menu.classList.remove('open');
 }
 
-function mobileLogoutAction() {
-  closeMobileUserMenu();
+// Der einzige Einstieg zum Abmelden — Seitenleiste, mobiles Menü und
+// Einstellungen laufen alle hierher.
+//
+// Vorher gab es zwei Wege mit unterschiedlichem Verhalten: das mobile Menü
+// fragte nach ("Wirklich abmelden?"), die Seitenleiste am Desktop meldete
+// ohne Rueckfrage sofort ab. Dieselbe Aktion, zwei Zusagen — und die
+// verlierbare Variante stand ausgerechnet dort, wo man sie mit der Maus
+// streift.
+//
+// Der mobile Weg rief ausserdem doLogout() roh auf und ging damit an
+// handleLogout vorbei: an dessen try/catch, dem Toast bei Fehlschlag und der
+// Rueckstellung der Knoepfe. Ein fehlgeschlagenes Abmelden waere auf dem
+// Telefon stumm geblieben. Beides ist mit der Zusammenfuehrung erledigt.
+function vxLogoutAction(triggerEl, beforeConfirm) {
+  if (typeof beforeConfirm === 'function') beforeConfirm();
   openConfirmModal({
     title: 'Wirklich abmelden?',
     text: 'Sie werden aus dem Voxera Portal abgemeldet.',
     confirmLabel: 'Abmelden',
     loadingLabel: 'Melde ab...',
-    tone: 'danger',
+    // Night, nicht Rot. Rot ist in der Vier-Familien-Regel Dringlichkeit und
+    // Ungelesenes, nicht "diese Handlung ist destruktiv" — Abmelden ist eine
+    // gewoehnliche bestaetigende Aktion, und deren Farbe ist Night. Derselbe
+    // Fall wurde bei F7 schon einmal entschieden: "Zurueckziehen" war
+    // faelschlich als danger markiert und ist jetzt neutral.
+    tone: 'primary',
     onConfirm: function() {
-      doLogout();
+      handleLogout(triggerEl || null);
       return true;
     }
   });
+}
+
+// Alter Name, damit vorhandene Aufrufer nicht ins Leere laufen.
+function mobileLogoutAction() {
+  vxLogoutAction(null, closeMobileUserMenu);
 }
 
 document.addEventListener('click', function(event) {
@@ -28923,9 +29016,20 @@ async function doLogout() {
   isAuthTransition = false;
 }
 
+// Gesucht wird ueber ein Datenattribut, nicht mehr ueber den Inhalt des
+// onclick-Attributs. Der frueher benutzte Selektor button[onclick*="handleLogout"]
+// haette nach der Zusammenfuehrung der Abmelde-Wege (die Menues rufen jetzt
+// vxLogoutAction) kein Element mehr getroffen und waere stumm wirkungslos
+// geworden.
+//
+// Das Attribut tragen ausschliesslich die beiden Menue-Eintraege, deren
+// Beschriftung aus reinem Text besteht. Der Eintrag in den Einstellungen hat
+// es bewusst nicht: seine Zeile besteht aus Icon-Kachel, Titel und Untertitel,
+// und ein innerHTML-Austausch wuerde diese Struktur zerstoeren. Seine
+// Rueckmeldung ist der Bestaetigungsdialog, der ohnehin davor steht.
 function setLogoutButtonsLoading(isLoading) {
   var shouldLoad = !!isLoading;
-  var buttons = Array.prototype.slice.call(document.querySelectorAll('button[onclick*="handleLogout"]'));
+  var buttons = Array.prototype.slice.call(document.querySelectorAll('[data-vx-logout-button]'));
   buttons.forEach(function(btn) {
     if (!btn) return;
     if (!btn.dataset.logoutDefaultHtml) btn.dataset.logoutDefaultHtml = btn.innerHTML || 'Abmelden';
@@ -32464,14 +32568,14 @@ textarea { border-radius: 8px !important; }
 }
 
 /* ── 7. FOCUS-RING EINHEITLICH ──────────────────────────────── */
-.btn:focus-visible,
-button:focus-visible,
-input:focus-visible,
-select:focus-visible,
-textarea:focus-visible {
-  outline: none !important;
-  box-shadow: 0 0 0 3px rgba(26,111,232,.18) !important;
-}
+/* Der Block, der hier stand, nahm jedem Knopf und jedem Eingabefeld per
+   !important die outline und ersetzte sie durch ein Blau bei 18 % Deckkraft.
+   Er hat damit den Fokusring des Design-Systems (--vx-focus-ring) zu totem
+   Code gemacht und auf jeder dunklen Flaeche die Tastaturbedienung ohne
+   sichtbare Position gelassen. Aufgeloest gemaess
+   docs/BACKLOG_FOKUSRING_DESIGN_SYSTEM_2026-08-08.md, Variante 1:
+   zustaendig ist wieder shared/customer-design-system.css, mit einem
+   deckenden Ring fuer helle und einem weissen fuer dunkle Flaechen. */
 
 /* ── 8. DARK MODE TOKENS ────────────────────────────────────── */
 /* Hardcoded weiße Hintergründe in Dark Mode korrigieren */
@@ -32623,14 +32727,23 @@ textarea:focus-visible {
 }
 
 /* ── PHOSPHOR ICON SYSTEM — Voxera v2.30 ──────────────────────
+   Ein Satz, zwei Strichstärken: Phosphor Icons Web 2.1.1, Light und Bold.
    ph-bold:  Icon-Boxen (farbige Hintergründe), Buttons, CTAs
-   ph-light: Navigation, Labels, sekundäre Kontexte
+   ph-light: Navigation, Labels, Chevrons, sekundäre Kontexte
+
+   Die Zuordnung steht ab jetzt in der Markup-Klasse, nicht in einer
+   font-family-Korrektur dahinter. Vorher standen an 19 Stellen ph-bold im
+   Markup, während die Regeln hier "Phosphor-Light" erzwangen — die Klasse
+   log über die gerenderte Strichstärke, und wer nach dem gemischten
+   Erscheinungsbild suchte, fand im Markup ein Bild und im Browser ein
+   anderes. Die betroffenen Stellen (Tab-Leiste, sämtliche Chevrons) tragen
+   jetzt ph-light; die vier Light-Erzwingungen, die genau das korrigiert
+   haben, sind damit gegenstandslos und entfernt.
+
+   Die Bold-Erzwingungen unten bleiben: sie decken Icon-Boxen und Buttons ab,
+   deren Markup zur Laufzeit erzeugt wird und deshalb nicht abschliessend
+   ausgezählt werden kann.
    ─────────────────────────────────────────────────────────── */
-.nav-icon { font-family: "Phosphor-Light" !important; }
-.mobile-nav-btn i { font-family: "Phosphor-Light" !important; }
-.menu-icon { font-family: "Phosphor-Light" !important; }
-/* Chevrons und Trenn-Elemente immer Light */
-.ph-caret-right, .ph-caret-down { font-family: "Phosphor-Light" !important; }
 /* Icon-Boxen: ph-bold (schon Standard) */
 .dpr-type-icon i,
 .vx-cd-avatar i,
@@ -32656,17 +32769,13 @@ textarea:focus-visible {
   line-height: 1 !important;
   opacity: .9;
 }
-.nav-icon {
-  font-size: 18px !important;
-}
-.mobile-nav-btn i {
-  font-size: 20px !important;
-}
-/* Chevrons/Carets immer Light */
+/* Die Icon-Grösse in der Navigation gehört zum Icon-Chip und steht als Token
+   in customer-design-tokens.css (--vx-ui-nav-chip-icon-size). Ein !important
+   an dieser Stelle hätte das Token wirkungslos gemacht. */
+/* Chevrons/Carets: Grösse und Dämpfung. Die Strichstärke steht im Markup. */
 .ph-caret-right, .ph-caret-down,
 .dpr-chevron i, .va-tr-chev {
   font-size: 14px !important;
-  font-family: "Phosphor-Light" !important;
   opacity: .5;
 }
 /* Aktions-Leiste Buttons: konsistente Icon-Grösse */
@@ -35103,11 +35212,12 @@ Hauptaktionen
 .nav-section{font-size:9px;font-weight:700;letter-spacing:.1em;padding:16px 10px 5px;opacity:.4;}
 .nav-section:first-child{padding-top:4px;}
 .nav-item{min-height:38px;padding:8px 10px;border-radius:8px;font-size:13px;font-weight:500;gap:9px;margin:2px 0;border:1px solid transparent;letter-spacing:-.01em;}
-.nav-item:hover{background:rgba(255,255,255,.06);border-color:transparent;transform:none;color:rgba(255,255,255,.8);}
-.nav-item.active{background:var(--vx-blue);border-color:transparent;color:#fff;font-weight:600;box-shadow:0 1px 8px rgba(26,111,232,.35);}
-.nav-icon{width:17px;height:17px;opacity:.5;}
-.nav-item.active .nav-icon{opacity:1;}
-.nav-item:hover .nav-icon{opacity:.72;}
+/* Dies war der dritte Ort, an dem Hover und Aktiv-Zustand der Navigation
+   gesetzt wurden (nach den beiden Bloecken weiter oben). Alle drei sind
+   entfernt; zustaendig ist shared/customer-navigation-components.css.
+   Die frueheren opacity-Stufen auf .nav-icon entfallen mit, weil der
+   gedaempfte Ton jetzt ueber die Farbe kommt und nicht ueber Transparenz —
+   sonst waere der Gold-Chip im aktiven Eintrag mit ausgeblasst. */
 
 /* ─── 3. SIDEBAR LOGO ───────────────────────────────────────── */
 .sidebar-logo{padding:16px 14px 14px;border-bottom:0.5px solid rgba(255,255,255,.06);}
@@ -35121,7 +35231,9 @@ Hauptaktionen
 /* ─── 5. SECTIONS ───────────────────────────────────────────── */
 
 
-.vx-work-section,.vx-jetzt-section,.vx-greeting-block,.vx-report-card{margin-bottom:12px;}
+/* .vx-report-card aus der Auswahl entfernt: die Klasse kommt im Markup nicht
+   mehr vor, der Bericht baut seine Karten aus .vx-ap-card/.vx-ops-card. */
+.vx-work-section,.vx-jetzt-section,.vx-greeting-block{margin-bottom:12px;}
 
 /* ─── 6. DETAIL HEADER ──────────────────────────────────────── */
 .vx-detail-header{padding:14px 16px;border-bottom:0.5px solid rgba(255,255,255,.05);}
@@ -37887,7 +37999,7 @@ body:has(#tab-archiv.active) .content{
     return '<details class="' + cls + '"' + (opts.open ? ' open' : '') + (extraAttr || '') + '><summary>' +
       '<span class="vx-summary-acc-label"><i class="ph-bold ph-' + icon + '" aria-hidden="true"></i><span>' + title + '</span></span>' +
       '<span class="vx-summary-acc-right">' + state +
-        '<i class="ph-bold ph-caret-down vx-summary-acc-chevron" aria-hidden="true"></i>' +
+        '<i class="ph-light ph-caret-down vx-summary-acc-chevron" aria-hidden="true"></i>' +
       '</span>' +
       '</summary>' + bodyHtml + '</details>';
   }
@@ -40421,28 +40533,21 @@ body.vx-dv2-fullscreen-open{overflow:hidden;}
 .vx-audio-modern__tool:hover{color:var(--vx-ui-row-title-color,#0D1F3C);background:var(--vx-ui-row-icon-bg,#F1F5F9);}
 .vx-audio-modern__tool--speed{color:var(--vx-ui-row-title-color,#0D1F3C);background:var(--vx-ui-row-icon-bg,#F1F5F9);font-weight:700;}
 .vx-audio-modern__tool svg{display:block;}
-/* Der globale Fokus-Reset weiter oben ("FOCUS-RING EINHEITLICH") nimmt allen
-   Knoepfen und Eingaben per !important die outline und ersetzt sie durch
-   box-shadow:0 0 0 3px rgba(26,111,232,.18) — ein Blau bei 18 % Deckkraft,
-   das auf keiner Flaeche wirklich traegt. Die drei Bedienelemente holen sich
-   hier ihren Ring zurueck; !important ist dabei kein Stilmittel, sondern die
-   einzige Moeglichkeit, den Reset zu schlagen.
-   Der Ring ist Night (16,4:1 auf der weissen Karte). Auf dem frueheren
-   Night-Block war er weiss — mit der hellen Flaeche muss er mitkippen, sonst
-   ist er unsichtbar. */
-.vx-audio-modern__tool:focus-visible,
-.vx-audio-modern__range:focus-visible{
-  outline:2px solid var(--vx-color-night,#0D1F3C) !important;
-  outline-offset:2px !important;
-  box-shadow:none !important;
-}
+/* Hier stand die oertliche Ausnahme aus PR #850: die drei Bedienelemente des
+   Players holten sich per !important einen eigenen Ring zurueck, weil der
+   globale Reset ihnen die outline genommen hatte. Der Reset ist aufgeloest,
+   damit ist die Ausnahme gegenstandslos — die Elemente bekommen jetzt
+   denselben Ring wie jedes andere Bedienelement im Produkt. Der Player steht
+   auf der weissen Karte, also den hellen. */
 /* Der Knopf traegt seine Night-Kontur als box-shadow. Ein pauschales
    box-shadow:none wie bei den beiden Regeln darueber wuerde sie im Fokus
    abraeumen — der Ring wird also ergaenzt, nicht ersetzt. */
+/* Der Ring kommt vom Design-System. Was der Knopf selbst mitbringen muss, ist
+   seine Night-Kontur — die ist ein box-shadow und wuerde von einer Regel, die
+   im Fokus box-shadow setzt, abgeraeumt. Hier steht sie deshalb ausdruecklich
+   noch einmal; die outline bleibt dem System ueberlassen. */
 .vx-audio-modern__play:focus-visible{
-  outline:2px solid var(--vx-color-night,#0D1F3C) !important;
-  outline-offset:2px !important;
-  box-shadow:inset 0 0 0 1.5px var(--vx-color-night,#0D1F3C) !important;
+  box-shadow:inset 0 0 0 1.5px var(--vx-color-night,#0D1F3C);
 }
 
 .vx-audio-modern__feedback{

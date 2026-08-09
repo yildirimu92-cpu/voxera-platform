@@ -395,6 +395,9 @@ body.vx-customer-design-foundation :where(
   text-align: center;
 }
 
+/* Das Icon sitzt auf einer Kachel, nicht frei auf Weiss — dieselbe Kachel,
+   die die Legacy-Variante .empty-icon schon immer hatte. Der leere Zustand
+   bekommt damit einen Ankerpunkt, ohne eine zweite Farbe einzufuehren. */
 body.vx-customer-design-foundation :where(
   .vx-ui-empty,
   .empty,
@@ -403,7 +406,16 @@ body.vx-customer-design-foundation :where(
   .vx-notif-empty,
   .vx-notif-mobile-empty
 ) > i {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   flex: 0 0 auto;
+  box-sizing: border-box;
+  width: var(--vx-ui-empty-icon-tile-size);
+  height: var(--vx-ui-empty-icon-tile-size);
+  margin-bottom: var(--vx-ui-empty-icon-tile-gap);
+  border-radius: var(--vx-ui-empty-icon-tile-radius);
+  background: var(--vx-ui-empty-icon-tile-bg);
   color: var(--vx-ui-empty-icon-color);
   font-size: var(--vx-ui-empty-icon-size);
   line-height: 1;
@@ -432,11 +444,14 @@ body.vx-customer-design-foundation .empty-icon {
   align-items: center;
   justify-content: center;
   flex: 0 0 auto;
-  width: 44px;
-  height: 44px;
-  border-radius: var(--vx-ui-card-radius);
-  background: var(--vx-color-surface-soft);
+  box-sizing: border-box;
+  width: var(--vx-ui-empty-icon-tile-size);
+  height: var(--vx-ui-empty-icon-tile-size);
+  margin-bottom: var(--vx-ui-empty-icon-tile-gap);
+  border-radius: var(--vx-ui-empty-icon-tile-radius);
+  background: var(--vx-ui-empty-icon-tile-bg);
   color: var(--vx-ui-empty-icon-color);
+  font-size: var(--vx-ui-empty-icon-size);
 }
 
 body.vx-customer-design-foundation .empty-title {
