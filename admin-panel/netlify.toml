@@ -14,6 +14,19 @@
 [functions."lifecycle-runner"]
   schedule = "15 4 * * *"
 
+# S4 / Stufe 2: arbeitet die Fan-out-Warteschlange ab. Haeufiger Tick, kleine
+# Batches -- ein Sync kostet 4-7 ElevenLabs-Aufrufe und Netlify schneidet bei
+# ~26s ab. Findet der Worker nichts, kostet er eine Leseabfrage.
+[functions."fanout-sync-worker"]
+  schedule = "*/5 * * * *"
+
+# S4 / Stufe 3: plant naechtlich ein, was nicht auf dem aktuellen Stand ist.
+# Nachts und nicht bei jedem Deploy: ein zeitgesteuerter Lauf deckt beide
+# Faelle ab -- veraltete Vorlagen UND abgelaufene Betriebsinformationen (S3) --
+# und laeuft nie mitten in eine gerade laufende Auslieferung.
+[functions."fanout-sync-planner"]
+  schedule = "40 3 * * *"
+
 [[headers]]
   for = "/*"
   [headers.values]

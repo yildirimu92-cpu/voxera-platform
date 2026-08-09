@@ -6,6 +6,7 @@ on:
       - 'admin-panel/netlify/functions/_lib/prompt-fingerprint.js'
       - 'admin-panel/netlify/functions/_lib/prompt-builder-v2.js'
       - 'admin-panel/netlify/functions/trigger-elevenlabs-sync.js'
+      - 'admin-panel/netlify/functions/_lib/elevenlabs-sync.js'
       - 'admin-panel/netlify/functions/elevenlabs-sync-status.js'
       - 'scripts/verify-prompt-fingerprint.mjs'
   workflow_dispatch:

@@ -1,23 +1,23 @@
 'use strict';
 
+// Der Sync-Kern liegt seit S4 / Stufe 2 in _lib/elevenlabs-sync.js. Diese Datei
+// behaelt genau das, was ein HTTP-Endpunkt braucht: Methode, Body, Env-Check,
+// Guard und die Antwortform. Verhalten und Antwortfelder sind unveraendert --
+// die acht bestehenden Ausloeser merken davon nichts.
+//
+// Der Grund fuer die Trennung: der Fan-out-Worker laeuft geplant und hat kein
+// Nutzer-JWT, das requirePromptSyncCaller pruefen koennte. Er ruft deshalb
+// dieselbe Funktion in-process mit Service-Role auf, statt sich an diesem
+// Endpunkt vorbei zu authentifizieren.
+
 const { createClient } = require('@supabase/supabase-js');
 const { requirePromptSyncCaller } = require('./_lib/require-prompt-sync-caller');
-const { buildPromptV2 } = require('./_lib/prompt-builder-v2');
-const {
-  configured: calendarToolProvisioningConfigured,
-  ensureWorkspaceTool,
-  mergedAgentToolIds,
-  calendarPromptBlock
-} = require('./_lib/elevenlabs-calendar-tool');
-const { ensureAgentPhoneNumber } = require('./_lib/elevenlabs-phone-number');
-const { promptFingerprint } = require('./_lib/prompt-fingerprint');
+const { syncCustomerToElevenLabs } = require('./_lib/elevenlabs-sync');
 
 const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
-const ELEVENLABS_BASE = 'https://api.elevenlabs.io/v1/convai/agents';
-const AUDIO_TRANSCRIPT_RETENTION_DAYS = 90;
 
 function response(statusCode, payload) {
   return {
@@ -25,108 +25,6 @@ function response(statusCode, payload) {
     headers: { 'Content-Type': 'application/json; charset=utf-8' },
     body: JSON.stringify(payload)
   };
-}
-
-async function loadPromptInputs(sb, customerId, customer) {
-  const nowIso = new Date().toISOString();
-  const [masterResult, operationalResult, calendarResult] = await Promise.all([
-    sb.from('system_config').select('value').eq('key', 'prompt_master_l1').maybeSingle(),
-    sb.from('customer_operational_updates')
-      .select('id,type,title,message,behavior,starts_at,ends_at,status')
-      .eq('customer_id', customerId)
-      .eq('status', 'published')
-      .gt('ends_at', nowIso)
-      .order('starts_at', { ascending: true })
-      .limit(20),
-    sb.from('calendar_settings').select('*').eq('customer_id', customerId).maybeSingle()
-  ]);
-
-  if (masterResult.error) throw masterResult.error;
-  if (operationalResult.error) {
-    const error = new Error('operational_updates_lookup_failed');
-    error.cause = operationalResult.error;
-    throw error;
-  }
-  if (calendarResult.error) throw calendarResult.error;
-
-  let industryPrompt = '';
-  if (customer.industry_template_id) {
-    const { data, error } = await sb.from('industry_templates')
-      .select('prompt_block')
-      .eq('id', customer.industry_template_id)
-      .maybeSingle();
-    if (error) throw error;
-    industryPrompt = data?.prompt_block || '';
-  }
-
-  let assistantRole = 'die Assistentin';
-  if (customer.voice_id) {
-    const { data, error } = await sb.from('voxera_voices')
-      .select('gender')
-      .eq('voice_id', customer.voice_id)
-      .maybeSingle();
-    if (error) throw error;
-    if (data?.gender === 'male') assistantRole = 'der Assistent';
-  }
-
-  return {
-    masterPrompt: masterResult.data?.value || '',
-    operationalUpdates: operationalResult.data || [],
-    calendarSettings: calendarResult.data || null,
-    industryPrompt,
-    assistantRole
-  };
-}
-
-const SYNC_LOG_KEEP_PER_CLASS = 10;
-
-// S4 / Stufe 0: Die Aufbewahrung laeuft pro Kunde UND pro Herkunftsklasse.
-//
-// Vorher galten pauschal 10 Zeilen pro Kunde. Ein Fan-out schreibt eine Zeile
-// pro Kunde und Durchlauf -- zwei, drei Durchlaeufe haetten damit die gesamte
-// interaktive Historie verdraengt, inklusive der prompt_snapshot-Zeilen, die
-// ein Rollback braucht. Genau die Daten waeren also im Fehlerfall weg, in dem
-// man sie am dringendsten braucht.
-//
-// Beide Klassen behalten deshalb ihr eigenes Kontingent: ein Fan-out kann die
-// interaktive Historie nicht mehr verdraengen und umgekehrt.
-function syncLogClass(triggeredBy) {
-  return String(triggeredBy || '').startsWith('fanout') ? 'fanout' : 'interactive';
-}
-
-async function trimSyncLogs(sb, customerId) {
-  const { data: allLogs, error } = await sb.from('elevenlabs_sync_log')
-    .select('id, triggered_by')
-    .eq('customer_id', customerId)
-    .order('created_at', { ascending: false });
-  if (error || !allLogs) return;
-
-  const kept = { fanout: 0, interactive: 0 };
-  const doomed = [];
-  for (const row of allLogs) {
-    const cls = syncLogClass(row.triggered_by);
-    if (kept[cls] < SYNC_LOG_KEEP_PER_CLASS) kept[cls] += 1;
-    else doomed.push(row.id);
-  }
-  if (!doomed.length) return;
-  await sb.from('elevenlabs_sync_log').delete().in('id', doomed);
-}
-
-// prev_values traegt den Stand VOR dem Patch, den der Aufrufer bereits in
-// `customers` geschrieben hat; `customer` ist hier frisch aus der DB gelesen,
-// spiegelt also den Stand NACH dem Patch. Nur Felder, die der Aufrufer
-// mitschickt, werden verglichen -- fehlt prev_values (Wizard, customer_request),
-// bleibt changed_fields leer statt geraten zu werden.
-function diffPrevValues(prevValues, customer) {
-  if (!prevValues || typeof prevValues !== 'object' || Array.isArray(prevValues)) return {};
-  const normalize = (value) => (value === null || value === undefined ? '' : value);
-  const changed = {};
-  for (const key of Object.keys(prevValues)) {
-    const before = normalize(prevValues[key]);
-    const after = normalize(customer?.[key]);
-    if (before !== after) changed[key] = after;
-  }
-  return changed;
 }
 
 exports.handler = async (event) => {
@@ -163,190 +61,42 @@ exports.handler = async (event) => {
   });
   if (!guard.ok) return response(guard.statusCode, guard.body);
 
-  const { data: customer, error: customerError } = await sb.from('customers')
-    .select('*')
-    .eq('id', customer_id)
-    .maybeSingle();
-  if (customerError || !customer) return response(404, { error: 'customer_not_found' });
-  if (String(customer.elevenlabs_agent_id || '').trim() && String(customer.elevenlabs_agent_id) !== String(agent_id)) {
+  const result = await syncCustomerToElevenLabs({
+    sb,
+    apiKey: ELEVENLABS_API_KEY,
+    customerId: customer_id,
+    agentId: agent_id,
+    triggeredBy: triggered_by,
+    prevValues: prev_values
+  });
+
+  if (result.code === 'customer_not_found') return response(404, { error: 'customer_not_found' });
+  if (result.code === 'agent_customer_mapping_mismatch') {
     return response(409, { error: 'agent_customer_mapping_mismatch' });
   }
 
-  let fullPrompt = '';
-  let compiled = null;
-  let syncStatus = 'success';
-  let syncError = null;
-  let calendarToolId = null;
-  let calendarToolStatus = 'not_configured';
-  let phoneNumberStatus = 'not_attempted';
-  let phoneNumberId = null;
-  let phoneNumber = null;
-  let fingerprint = null;
-
-  try {
-    const inputs = await loadPromptInputs(sb, customer_id, customer);
-    // S4 / Stufe 1: aus genau den Eingaben berechnet, die gerade in den Prompt
-    // gehen -- kein zweiter Ladeweg, der auseinanderlaufen koennte.
-    fingerprint = promptFingerprint({
-      masterPrompt: inputs.masterPrompt,
-      industryPrompt: inputs.industryPrompt
-    });
-    compiled = buildPromptV2({
-      customer,
-      masterPrompt: inputs.masterPrompt,
-      industryPrompt: inputs.industryPrompt,
-      assistantRole: inputs.assistantRole,
-      operationalUpdates: inputs.operationalUpdates
-    });
-
-    const calendarBlock = calendarPromptBlock(inputs.calendarSettings || {});
-    fullPrompt = [compiled.prompt, calendarBlock].filter(Boolean).join('\n\n');
-
-    let toolIds;
-    if (calendarToolProvisioningConfigured()) {
-      calendarToolId = await ensureWorkspaceTool();
-      toolIds = await mergedAgentToolIds(agent_id, calendarToolId);
-      calendarToolStatus = 'configured';
-    } else if (calendarBlock) {
-      throw new Error('calendar_tool_provisioning_configuration_missing');
-    }
-
-    const promptPatch = { prompt: fullPrompt };
-    if (toolIds) promptPatch.tool_ids = toolIds;
-
-    const elRes = await fetch(`${ELEVENLABS_BASE}/${encodeURIComponent(agent_id)}`, {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        'xi-api-key': ELEVENLABS_API_KEY
-      },
-      body: JSON.stringify({
-        conversation_config: {
-          agent: {
-            prompt: promptPatch,
-            first_message: compiled.firstMessage
-          },
-          tts: customer.voice_id ? { voice_id: customer.voice_id } : undefined
-        },
-        platform_settings: {
-          privacy: {
-            record_voice: true,
-            retention_days: AUDIO_TRANSCRIPT_RETENTION_DAYS,
-            zero_retention_mode: false
-          }
-        }
-      })
-    });
-
-    if (!elRes.ok) {
-      const errText = await elRes.text();
-      throw new Error(`ElevenLabs ${elRes.status}: ${errText.substring(0, 300)}`);
-    }
-
-    const phoneAssignment = await ensureAgentPhoneNumber({
-      apiKey: ELEVENLABS_API_KEY,
-      agentId: agent_id,
-      customer
-    });
-    phoneNumberStatus = phoneAssignment.status;
-    phoneNumberId = phoneAssignment.phone_number_id;
-    phoneNumber = phoneAssignment.phone_number;
-  } catch (error) {
-    syncStatus = 'failed';
-    syncError = error?.message || String(error);
-  }
-
-  const changedFields = diffPrevValues(prev_values, customer);
-  const syncLogRow = {
-    customer_id,
-    agent_id,
-    status: syncStatus,
-    triggered_by,
-    prompt_snapshot: syncStatus === 'success' ? fullPrompt : null,
-    prompt_length: fullPrompt.length,
-    error_message: syncError,
-    changed_fields: Object.keys(changedFields).length ? changedFields : null,
-    prev_values: Object.keys(prev_values || {}).length ? prev_values : null,
-    prompt_fingerprint: fingerprint,
-    created_at: new Date().toISOString()
-  };
-  const { error: syncLogError } = await sb.from('elevenlabs_sync_log').insert(syncLogRow);
-  if (syncLogError) {
-    // Fehlt eine der neueren Spalten in dieser Umgebung, darf das Log selbst
-    // nicht verloren gehen -- ein zweiter Versuch ohne sie haelt zumindest
-    // status/triggered_by/prompt_snapshot fest.
-    //
-    // WICHTIG: hier muss JEDE spaeter hinzugekommene Spalte stehen. Genau
-    // dieser Fallback hat den S9-Fix monatelang verdeckt: prev_values fehlte
-    // in der DB, der primaere Insert schlug bei jedem Sync fehl, und der
-    // Fallback verwarf changed_fields stillschweigend gleich mit. Wer hier
-    // eine Spalte vergisst, baut denselben Fehler noch einmal.
-    console.warn('[trigger-elevenlabs-sync] sync_log_insert_failed', syncLogError.message);
-    const {
-      changed_fields: _cf,
-      prev_values: _pv,
-      prompt_fingerprint: _fp,
-      ...fallbackRow
-    } = syncLogRow;
-    const { error: fallbackError } = await sb.from('elevenlabs_sync_log').insert(fallbackRow);
-    if (fallbackError) {
-      console.warn('[trigger-elevenlabs-sync] sync_log_fallback_insert_failed', fallbackError.message);
-    }
-  }
-  await trimSyncLogs(sb, customer_id);
-
-  const customerPatch = {
-    elevenlabs_last_sync_at: new Date().toISOString(),
-    elevenlabs_sync_status: syncStatus,
-    elevenlabs_sync_error: syncError || null,
-    updated_at: new Date().toISOString()
-  };
-  // Etappe 6 / S2: Das Kunden-Dashboard zeigt die Begruessung an. Damit dort nie
-  // ein Satz steht, den der Agent nicht bekommen hat, wird die erste Nachricht
-  // nur nach einem erfolgreichen Sync festgehalten.
-  if (syncStatus === 'success' && compiled?.firstMessage) {
-    customerPatch.ai_effective_greeting = compiled.firstMessage;
-  }
-  // S4 / Stufe 1: Der Ist-Fingerprint darf nur nach einem erfolgreichen Sync
-  // fortgeschrieben werden -- sonst gaelte ein Kunde als aktuell, obwohl der
-  // Agent den neuen Prompt nie bekommen hat, und der Fan-out uebersaehe ihn.
-  if (syncStatus === 'success' && fingerprint) {
-    customerPatch.prompt_fingerprint = fingerprint;
-  }
-  const { error: customerPatchError } = await sb.from('customers')
-    .update(customerPatch)
-    .eq('id', customer_id);
-  // Der Sync selbst gilt weiterhin als erfolgreich: der Agent ist bereits
-  // aktualisiert. Ein fehlgeschlagener Patch darf das nicht umdeuten.
-  if (customerPatchError) {
-    console.warn('[trigger-elevenlabs-sync] customer_patch_failed', {
-      customer_id,
-      message: customerPatchError.message
-    });
-  }
-
-  if (syncStatus === 'failed') {
+  if (!result.ok) {
     return response(500, {
       success: false,
-      error: syncError,
-      calendar_tool_status: calendarToolStatus,
-      phone_number_status: phoneNumberStatus,
-      phone_number_id: phoneNumberId,
-      phone_number: phoneNumber
+      error: result.error,
+      calendar_tool_status: result.calendarToolStatus,
+      phone_number_status: result.phoneNumberStatus,
+      phone_number_id: result.phoneNumberId,
+      phone_number: result.phoneNumber
     });
   }
 
   return response(200, {
     success: true,
     agent_id,
-    promptLength: fullPrompt.length,
-    promptVersion: compiled?.version,
-    promptFingerprint: fingerprint,
-    quality: compiled?.quality,
-    calendar_tool_status: calendarToolStatus,
-    calendar_tool_id: calendarToolId,
-    phone_number_status: phoneNumberStatus,
-    phone_number_id: phoneNumberId,
-    phone_number: phoneNumber
+    promptLength: result.promptLength,
+    promptVersion: result.promptVersion,
+    promptFingerprint: result.promptFingerprint,
+    quality: result.quality,
+    calendar_tool_status: result.calendarToolStatus,
+    calendar_tool_id: result.calendarToolId,
+    phone_number_status: result.phoneNumberStatus,
+    phone_number_id: result.phoneNumberId,
+    phone_number: result.phoneNumber
   });
 };

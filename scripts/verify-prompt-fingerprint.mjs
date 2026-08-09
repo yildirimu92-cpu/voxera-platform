@@ -17,7 +17,8 @@ import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
 const LIB = 'admin-panel/netlify/functions/_lib/prompt-fingerprint.js';
-const TRIGGER = 'admin-panel/netlify/functions/trigger-elevenlabs-sync.js';
+// Seit S4 / Stufe 2 liegt der Sync-Kern in der Lib, nicht mehr im Handler.
+const TRIGGER = 'admin-panel/netlify/functions/_lib/elevenlabs-sync.js';
 const STATUS = 'admin-panel/netlify/functions/elevenlabs-sync-status.js';
 
 const { promptFingerprint, fingerprintFor } = require(`../${LIB}`);
