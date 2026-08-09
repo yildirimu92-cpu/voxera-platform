@@ -1,0 +1,38 @@
+name: Verify Heute follow-up due
+
+# Guards die Regel "eine fällige Folgeaktion ist heute Arbeit".
+# Die Grundmenge der Lara-Übergabe war "heute eingegangen ODER heute
+# abgeschlossen". Eine Folgeaktion (calls.follow_up_at + calls.next_action)
+# entsteht aber an einem früheren Tag und wird später fällig — an ihrem
+# Fälligkeitstag ist der Anruf keines von beidem und fiel damit aus "Braucht
+# dich" heraus. Heute meldete "Alles im Griff", während eine zugesagte
+# Rückmeldung überfällig war.
+#
+# Mitgeprüft wird die Zeitzonen-Falle: follow_up_at ist lokale Benutzerzeit
+# (parseFollowUpDate), nicht UTC (vxHeuteParseDate/parseCallTimestamp).
+
+on:
+  pull_request:
+    paths:
+      - 'customer-dashboard/index.html'
+      - 'customer-dashboard/shared/customer-ui-components.js'
+      - 'customer-dashboard/tests/heute-follow-up-due.test.cjs'
+      - '.github/workflows/verify-heute-follow-up-due.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'customer-dashboard/index.html'
+      - 'customer-dashboard/shared/customer-ui-components.js'
+      - 'customer-dashboard/tests/heute-follow-up-due.test.cjs'
+      - '.github/workflows/verify-heute-follow-up-due.yml'
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: node --test customer-dashboard/tests/heute-follow-up-due.test.cjs

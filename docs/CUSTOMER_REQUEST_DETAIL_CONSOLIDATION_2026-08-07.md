@@ -97,7 +97,7 @@ Ursache (mehrere gleichzeitig gemountete Hosts) blieb.
   Lead-Qualität, kein Telefonnummern-Fallback im Namensfeld.
 - Die Aktionszeile wird **einmal** gebaut (`buildActionRowHtml`), abgeleitet aus
   `vxBuildOperationalRowActions()`. Fallback, falls die zentrale Ableitung nichts
-  liefert: Anrufen / Rückruf planen / Erledigen / Archivieren.
+  liefert: Anrufen / Folgeaktion planen / Erledigen / Archivieren.
 - `window.vxRenderRequestsDetailV2` bleibt als öffentlicher Name bestehen — rund
   zwanzig Aufrufstellen zeigen darauf — ist aber nur noch ein Alias.
 
@@ -220,7 +220,7 @@ Anrufe (offen / geplant / erledigt / live / processing) und eine Aufgabe.
 - Panel und Overlay erzeugen **identisches** Detail-Markup — für Anfrage und für Aufgabe
 - im ganzen Dokument immer genau **eine** Detail-Instanz, eine `#vx-call-audio-card`, ein `#vx-dv2-note`
 - `border-radius` der Karten in beiden Rahmen berechnet 12px; Anliegen in Newsreader
-- Aktionszeile enthält Erledigen / Anrufen / Rückruf planen / Archivieren, ohne Duplikate
+- Aktionszeile enthält Erledigen / Anrufen / Folgeaktion planen / Archivieren, ohne Duplikate
 - Live-Phasen-Anruf lässt sich nicht öffnen, `processing`-Anruf sehr wohl
 - Mobile (390×844) nutzt den Overlay-Rahmen
 - keine neuen JS-Fehler
