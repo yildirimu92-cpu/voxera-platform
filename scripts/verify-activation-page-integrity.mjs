@@ -126,7 +126,22 @@ const missing = [...new Set(referenced)].filter(id => !html.includes(`id="${id}"
 if (missing.length === 0) ok(`alle ${new Set(referenced).size} angesteuerten Ansichten existieren`);
 else fail(`Ansicht(en) ohne Markup: ${missing.join(', ')}`, 'showView() wuerde ins Leere greifen.');
 
-// ── 9. Der Aktivierungslink zeigt ueberhaupt auf diese Seite ───────────────
+// ── 9. Keine feste Umgebungsadresse in der Weiterleitung ──────────────────
+// Die urspruengliche Fassung (05f8b3b0) leitete relativ auf /index.html weiter.
+// Bei der Wiederherstellung wurde daraus die feste Produktionsadresse — auf
+// Produktion folgenlos, auf Staging und in Deploy-Previews nicht: der Kunde
+// landete nach erfolgreicher Aktivierung auf der Produktionsumgebung. Genau das
+// soll die Staging-Trennung verhindern.
+const absoluteHost = /https?:\/\/[a-z0-9.-]*voxera\.ch/gi;
+const hostHits = [...html.matchAll(absoluteHost)];
+if (hostHits.length === 0) {
+  ok('keine feste Umgebungsadresse in der Weiterleitung (relative Pfade)');
+} else {
+  const lines = hostHits.map(h => `Zeile ${html.slice(0, h.index).split('\n').length}: ${h[0]}`).join(', ');
+  fail(`feste Umgebungsadresse in activate.html (${hostHits.length})`, `${lines}. Relativ weiterleiten, sonst wirft die Aktivierung auf Staging den Kunden auf Produktion.`);
+}
+
+// ── 10. Der Aktivierungslink zeigt ueberhaupt auf diese Seite ──────────────
 // Der teuerste Teil des Fundes vom 09.08. war nicht die abgeschnittene Datei,
 // sondern dass niemand es merkte: der Link aus der Willkommensmail zeigte auf
 // die Dashboard-Wurzel, wo index.html den Recovery-Token mit einem eigenen
@@ -157,7 +172,7 @@ for (const [label, src] of [['send-customer-access.js', sendAccess], ['outbox-re
   }
 }
 
-// ── 10. Netlify leitet /activate auch wirklich auf die Seite ───────────────
+// ── 11. Netlify leitet /activate auch wirklich auf die Seite ──────────────
 // Regeln aus netlify.toml gehen denen aus _redirects vor und werden der Reihe
 // nach ausgewertet: steht die Catch-all-Regel zuerst, ist /activate tot.
 const netlifyToml = readFileSync(resolve(repoRoot, 'customer-dashboard/netlify.toml'), 'utf8');

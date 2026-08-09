@@ -295,6 +295,21 @@ der Catch-all-Regel, und `_redirects` ist nicht wieder da. **18 Prüfungen, alle
 grün.** Die Trigger-Pfade des Workflows sind auf alle geprüften Dateien
 erweitert.
 
+**5. Nachtrag: Weiterleitung zurück auf relativ.**
+Beim Abgleich mit der Originalfassung `05f8b3b0` (siehe Abschnitt 9) fiel eine
+Abweichung auf, die bei der Wiederherstellung entstanden war: das Original
+leitete nach Erfolg relativ auf `/index.html` weiter, die wiederhergestellte
+Fassung auf die feste Adresse `https://dashboard.voxera.ch`. Auf Produktion
+folgenlos, auf Staging und in Deploy-Previews nicht — wer dort aktiviert, wäre
+auf der Produktionsumgebung gelandet. Damit hätte ausgerechnet der empfohlene
+Staging-Durchlauf auf der falschen Umgebung geendet.
+
+Beide Stellen (Weiterleitung und der "hier"-Link im Erfolgstext) sind zurück auf
+den relativen Pfad. Der Wächter prüft jetzt zusätzlich, dass in `activate.html`
+überhaupt keine feste `voxera.ch`-Adresse steht (**19 Prüfungen**), und der
+Browser-Durchlauf belegt, dass die Weiterleitung auf demselben Ursprung bleibt
+(**22 Prüfungen**).
+
 ### Was der User noch tun muss
 
 - **`ACTIVATE_URL` in Netlify nachsehen.** Steht dort noch der alte Wurzelwert
@@ -304,3 +319,49 @@ erweitert.
 - **Auf Staging durchspielen**, bevor das auf Produktion geht: echte Einladung
   auslösen, Mail klicken, Passwort setzen, Login prüfen. Das ist der Teil, den
   weder der Wächter noch der Browser-Durchlauf ersetzen können.
+
+---
+
+## 9. Nachtrag: die Quelle existiert doch (Herkunft des Fixes)
+
+Das Briefing hielt fest, der fehlende Code existiere "in **keiner** Version
+dieses Repos", und leitete daraus ab, jede Reparatur wäre eine Rekonstruktion
+und müsste zur Freigabe vorgelegt werden. Diese Annahme ist **widerlegt**.
+
+**Fakt.** Die lokale Historie zeigt 14 Fassungen von `activate.html`, alle
+abgeschnitten (12'585 bzw. 13'076 Bytes, Ende jeweils `// ── Start ───` +
+U+FFFD). Das sieht nach "keine vollständige Fassung" aus — ist aber ein
+Artefakt: **der Klon ist shallow**, die lokale Historie beginnt am 02.08.2026.
+Zusätzlich wurde die Datei umbenannt, `--follow` half deshalb ebenfalls nicht.
+
+**Fakt.** Über die GitHub-API sind beide vom Fix zitierten Commits vorhanden:
+
+- `05f8b3b0f4c0d6c112c1bbdb6a33688ec535dd27` (03.04.2026, `copilot-swe-agent`,
+  "Refactor welcome-email flow: activation link statt Passwort") legt
+  `customer-dashboard/activate.html` mit 255 Zeilen an — **vollständig**.
+- `70d8fc26e2cca446d2959dc1d377937797e2b4cf` (07.04.2026, Weboberfläche),
+  "Rename activate (2).html to activate.html", 1 Zeile geändert — hier riss sie
+  ab.
+
+**Fakt.** Die Originalfassung endet auf:
+
+```
+// ── Start ──────────────────────────────────────────
+init();
+</script>
+</body>
+</html>
+```
+
+Exakt der fehlende Teil. Der Fix `f9b7c9f` war damit **hergeleitet, nicht
+geraten** — die Audit-first-Regel wurde eingehalten, auch wenn das aus der
+lokalen Historie allein nicht nachvollziehbar war.
+
+**Lehre für künftige Quellensuchen in diesem Repo:** `git log` im Arbeitsklon
+beantwortet die Frage "gab es je eine funktionierende Fassung?" **nicht**. Der
+Klon ist shallow und Umbenennungen brechen die Pfadverfolgung. Erst die
+GitHub-API gibt die vollständige Antwort.
+
+**Nebenbefund aus dem Abgleich, bereits behoben (Abschnitt 8.5):** die
+Weiterleitung war bei der Wiederherstellung von relativ auf die feste
+Produktionsadresse gewechselt.

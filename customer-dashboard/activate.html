@@ -119,7 +119,7 @@ body{
     </div>
     <div class="note" style="margin-top:12px;">
       Falls die Weiterleitung nicht funktioniert, klicken Sie
-      <a href="https://dashboard.voxera.ch" style="color:var(--blue);font-weight:600;">hier</a>.
+      <a href="/index.html" style="color:var(--blue);font-weight:600;">hier</a>.
     </div>
   </div>
 
@@ -311,8 +311,12 @@ async function setPassword() {
     // Flag setzen damit Dashboard-onAuthStateChange weiss: kommt von Aktivierung
     try { sessionStorage.setItem('voxera_just_activated', '1'); } catch(_) {}
 
+    // Relativ, nicht auf die feste Produktionsadresse: auf Staging und in
+    // Deploy-Previews wuerde ein absoluter Link den Kunden nach erfolgreicher
+    // Aktivierung auf die Produktionsumgebung werfen. So stand es auch in der
+    // urspruenglichen Fassung (05f8b3b0), bevor die Datei abriss.
     setTimeout(() => {
-      window.location.replace('https://dashboard.voxera.ch');
+      window.location.replace('/index.html');
     }, SUCCESS_REDIRECT_DELAY);
   } catch (e) {
     console.error('[activate] Passwort-Fehler:', e);
