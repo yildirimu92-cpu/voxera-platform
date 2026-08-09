@@ -5,6 +5,16 @@ const endpoint = fs.readFileSync('admin-panel/netlify/functions/admin-payment-ac
 const migration = fs.readFileSync('supabase/sql/2026-08-01_payment_accounts_qr_billing.sql', 'utf8');
 const loader = fs.readFileSync('admin-panel/shared/offer-brand.js', 'utf8');
 
+// Jeder zugewiesene Wert von stripe_link_enabled, egal ob als Objekt-Eigenschaft
+// oder als Zuweisung geschrieben. Der Wert wird ausgelesen statt per Lookahead
+// ausgeschlossen: ein \s* vor dem Lookahead faellt auf Nullbreite zurueck und
+// laesst " false" faelschlich als Treffer durch.
+const stripeValues = runtime
+  .split('\n')
+  .map((line) => line.match(/stripe_link_enabled\s*[:=]\s*([^;,\s)]+)/))
+  .filter(Boolean)
+  .map((match) => match[1]);
+
 const checks = [
   ['payment account table', migration.includes('CREATE TABLE IF NOT EXISTS public.payment_accounts')],
   ['invoice snapshot', migration.includes('payment_account_snapshot jsonb')],
@@ -16,7 +26,14 @@ const checks = [
   ['audit entry', endpoint.includes("payment_account.update")],
   ['settings UI', runtime.includes('Zahlungskonto & QR-Rechnung')],
   ['masked IBAN', runtime.includes('maskIban')],
-  ['Stripe disabled default', runtime.includes('stripe_link_enabled:false')],
+  // Frueher wurde hier das Objekt-Literal 'stripe_link_enabled:false' gesucht --
+  // ein ueberschreibbarer Default. Den gibt es seit dem Entfernen der
+  // Stripe-Bedienelemente (2026-08-01) nicht mehr: die Einstellung wird beim
+  // Speichern unbedingt auf false gesetzt, egal was im Formular steht. Geprueft
+  // wird deshalb die staerkere Zusage -- erzwungenes Aus, und kein Pfad, der es
+  // wieder einschaltet.
+  ['Stripe wird unbedingt deaktiviert', stripeValues.includes('false')],
+  ['kein Pfad aktiviert Stripe', stripeValues.length > 0 && stripeValues.every((value) => value === 'false')],
   ['runtime loaded', loader.includes('admin-runtime-payment-account.js')]
 ];
 
