@@ -26,7 +26,19 @@
 // GESCHÄFTSPROFIL -> UNTERNEHMENSBESCHREIBUNG, TERMINLOGIK & FAQ ->
 // TERMINREGELN & HÄUFIGE FRAGEN, STANDORT & ERREICHBARKEIT -> STANDORT UND
 // ERREICHBARKEIT.
-const PROMPT_BUILDER_VERSION = '2.6';
+// 2.7 (E1/E2): Zwei Freitexte verlieren ihre Sonderstellung, und einer bekommt
+// einen Nachfolger. E1: die Regeln rund um Termine stehen als eigener
+// Abschnitt REGELN RUND UM TERMINE; die bestaetigte FAQ-Liste verdraengt
+// `ai_booking_faq` nicht mehr allein, sondern erst zusammen mit dem neuen Feld
+// -- vorher verschwanden die Regelzeilen mit dem Text, obwohl die Oberflaeche
+// versprach, sie blieben stehen. Ausserdem heisst der Abschnitt HÄUFIGE FRAGEN,
+// wenn nur noch Paare darin stehen. E2: `ai_location_hours` verlaesst den
+// Prompt, sobald Wochenraster UND Adresse bestaetigt sind, und der Vorrangsatz
+// der Oeffnungszeiten entfaellt dann mit ihm.
+//
+// Wirkt bei jedem Kunden, dessen Freitext Regelzeilen traegt -- also bei allen
+// mit Vorlagentext. Der Bump ist damit nicht nur formal noetig.
+const PROMPT_BUILDER_VERSION = '2.7';
 const PROFILE_MARKER = 'PROMPT_V2';
 const WIZARD_MARKER = 'WIZARD';
 
@@ -119,7 +131,11 @@ const CORE_FIELD_COLUMNS = Object.freeze([
   'ai_pricing_validity',
   // J7. Bestaetigte Listen; sie fuehren vor den Freitextspalten.
   'ai_service_list',
-  'ai_faq_list'
+  'ai_faq_list',
+  // E1. Die Regeln rund um Termine lagen bis hierher als Regelzeilen im
+  // Freitext `ai_booking_faq` -- also in derselben Spalte, die `ai_faq_list`
+  // verdraengt. Wer die Liste bestaetigte, verlor sie.
+  'ai_appointment_rules'
 ]);
 
 const CORE_KEY_OPENING_HOURS = 'opening_hours';
@@ -131,6 +147,7 @@ const CORE_KEY_PRICING_UNIT = 'pricing_unit';
 const CORE_KEY_PRICING_VALIDITY = 'pricing_validity';
 const CORE_KEY_SERVICE_LIST = 'service_list';
 const CORE_KEY_FAQ_LIST = 'faq_list';
+const CORE_KEY_APPOINTMENT_RULES = 'appointment_rules';
 
 // J7. Die Darstellung steht hier ein zweites Mal (Original in
 // customer-dashboard/netlify/functions/_lib/service-faq.js) -- die beiden
@@ -571,11 +588,29 @@ function buildPromptProfileSections(profile, appointmentMode, bookingUrl, templa
 // appointmentMode kommt seit J4 aus Schicht A und nicht mehr allein aus der
 // [PROMPT_V2]-Zeile. Der Parameter ist optional, damit bestehende Aufrufer des
 // exportierten qualityReport() unveraendert weiterlaufen.
-function qualityReport(customer, profile, industryPrompt, appointmentMode) {
+// Entscheid E4: Die beiden Inhaltspruefungen lasen bis hierher ausschliesslich
+// die Freitextspalten. Seit J6/J7 fuehrt die Struktur -- ein Kunde mit
+// bestaetigter Leistungsliste und geleertem Freitext galt damit als nicht
+// startbereit, obwohl sein Prompt den Abschnitt LEISTUNGEN vollstaendig
+// enthaelt. Der Fehler war bisher verdeckt, weil jeder Kunde Vorlagentext in
+// `ai_services` traegt.
+//
+// `core` ist optional und wird von buildPromptV2 fertig hereingereicht, statt
+// hier ein zweites Mal berechnet zu werden -- zwei Auswertungen derselben
+// Rangfolge waeren genau die Doppelung, die dieser Auftrag aufloest. Bestehende
+// Aufrufer des exportierten qualityReport() laufen unveraendert weiter; ohne
+// Schicht A bleibt es beim bisherigen Verhalten, statt einen Kunden
+// faelschlich als leer zu melden.
+function qualityReport(customer, profile, industryPrompt, appointmentMode, core = {}) {
   const effectiveAppointmentMode = appointmentMode === undefined ? profile.appointmentMode : appointmentMode;
+  const hasList = (value) => Array.isArray(value) && value.length > 0;
   const checks = [
-    ['business_profile', Boolean(text(customer.ai_business_description)), 'Geschäftsprofil erfasst'],
-    ['services', Boolean(text(customer.ai_services)), 'Leistungen erfasst'],
+    ['business_profile',
+      Boolean(text(customer.ai_business_description) || text(core[CORE_KEY_SHORT_DESCRIPTION])),
+      'Geschäftsprofil erfasst'],
+    ['services',
+      Boolean(hasList(core[CORE_KEY_SERVICE_LIST]) || text(customer.ai_services)),
+      'Leistungen erfasst'],
     ['functions', profile.functions.length > 0, 'Mindestens eine Agent-Funktion gewählt'],
     ['required_information', Boolean(profile.requiredInformation), 'Pflichtinformationen definiert'],
     ['appointment_mode', Boolean(effectiveAppointmentMode), 'Terminbefugnis eindeutig'],
@@ -679,7 +714,23 @@ function buildPromptV2({ customer = {}, masterPrompt = '', industryPrompt = '', 
   // Adresse steht hier nichts — street/zip/city stammen aus Offerte und
   // Vertrag und sind deshalb nur Vorschlag, nie Auskunft (siehe Migration).
   const publicAddress = text(neutralizePlaceholders(core[CORE_KEY_PUBLIC_ADDRESS]));
-  const locationText = text(neutralizePlaceholders(customer.ai_location_hours));
+  // Vorgezogen: der Standort-Abschnitt braucht die Antwort auf "sind die
+  // Oeffnungszeiten bestaetigt", bevor er entscheidet, ob der Freitext noch
+  // gedruckt wird. Die Ausgabereihenfolge im Prompt aendert sich dadurch nicht.
+  const openingHours = formatOpeningHours(core[CORE_KEY_OPENING_HOURS]);
+  // Entscheid E2: Der Freitext zieht sich zurueck, sobald seine beiden
+  // Nachfolger bestaetigt sind -- das Wochenraster aus J5 und die Adresse aus
+  // J6. Bis J6 musste er bleiben, weil er als einziger die Adresse trug; diese
+  // Begruendung ist mit der eigenen Spalte abgelaufen. Anfahrt, Einsatzgebiet
+  // und Vorbereitung haben seit J6 ebenfalls eigene Felder und stehen weiter
+  // unten als eigene Zeilen.
+  //
+  // Beide Bedingungen und nicht nur eine: mit bestaetigten Zeiten, aber ohne
+  // Adresse waere der Text die einzige verbliebene Adressauskunft. Ihn dann
+  // wegzulassen hiesse, eine Auskunft zu loeschen statt eine Doppelung
+  // aufzuloesen.
+  const locationTextRetired = Boolean(publicAddress && openingHours);
+  const locationText = locationTextRetired ? '' : text(neutralizePlaceholders(customer.ai_location_hours));
   if (publicAddress || locationText) {
     const locationBody = [
       publicAddress ? `Adresse: ${publicAddress}` : '',
@@ -694,18 +745,49 @@ function buildPromptV2({ customer = {}, masterPrompt = '', industryPrompt = '', 
   // hat, fuehrt es. Der Vorrang wird ausdruecklich gesagt, weil der Freitext
   // seine alten Zeiten weiter enthaelt: sie dort automatisch zu entfernen
   // hiesse, den Text eines Kunden ungefragt umzuschreiben.
-  const openingHours = formatOpeningHours(core[CORE_KEY_OPENING_HOURS]);
   if (openingHours) {
+    // Der Vorrangsatz steht nur da, solange es etwas gibt, dem er vorgeht. Ist
+    // der Freitext nach E2 zurueckgezogen, verweist er auf einen Abschnitt, der
+    // gar keine Zeitangaben mehr traegt -- ein Hinweis auf einen Widerspruch,
+    // den es nicht gibt, ist selbst eine Irrefuehrung.
     customerParts.push(
       '## REGULÄRE ÖFFNUNGSZEITEN\n'
-      + 'Diese Zeiten sind die verbindliche Auskunft. Weichen Zeitangaben im Abschnitt '
-      + 'STANDORT UND ERREICHBARKEIT davon ab, gelten die Zeiten hier.\n'
+      + (locationText
+        ? 'Diese Zeiten sind die verbindliche Auskunft. Weichen Zeitangaben im Abschnitt '
+          + 'STANDORT UND ERREICHBARKEIT davon ab, gelten die Zeiten hier.\n'
+        : 'Diese Zeiten sind die verbindliche Auskunft.\n')
       + openingHours
       + '\nNenne ausserhalb dieser Zeiten keine Verfügbarkeit, die hier nicht steht.'
     );
   }
+  // Entscheid E1. Bis hierher galt `faqList || customer.ai_booking_faq`: die
+  // bestaetigte Liste ersetzte den Freitext vollstaendig. Das war fuer die
+  // Frage-Antwort-Paare richtig und fuer die Regelzeilen falsch -- "Absagen
+  // mindestens 24 Stunden vorher" stand in derselben Spalte und verschwand
+  // mit ihr. Die Oberflaeche hat waehrenddessen ausdruecklich versprochen, die
+  // Regelzeilen blieben stehen.
+  //
+  // Jetzt haben beide Inhalte ein eigenes Ziel, und der Freitext weicht erst,
+  // wenn BEIDE bestaetigt sind. Solange nur eines von beiden steht, bleibt er
+  // mit ausdruecklichem Vorrangsatz -- dieselbe Bauform wie bei den
+  // Oeffnungszeiten und aus demselben Grund: er traegt mehr als ein Thema, und
+  // ihn ungefragt umzuschreiben ist keine Option.
   const faqList = formatFaqList(core[CORE_KEY_FAQ_LIST]);
-  add('TERMINREGELN & HÄUFIGE FRAGEN', faqList || customer.ai_booking_faq);
+  const appointmentRules = text(core[CORE_KEY_APPOINTMENT_RULES]);
+  if (appointmentRules) add('REGELN RUND UM TERMINE', appointmentRules);
+  if (faqList) add('HÄUFIGE FRAGEN', faqList);
+  const faqTextRetired = Boolean(faqList && appointmentRules);
+  const faqText = faqTextRetired ? '' : text(customer.ai_booking_faq);
+  if (faqText) {
+    // Der Vorrangsatz haengt am Text und nicht am Abschnitt: ohne Text gaebe es
+    // sonst einen Abschnitt, der nur aus einem Hinweis auf sich selbst besteht.
+    const leading = [faqList ? 'HÄUFIGE FRAGEN' : '', appointmentRules ? 'REGELN RUND UM TERMINE' : '']
+      .filter(Boolean).join(' und ');
+    add('TERMINREGELN & HÄUFIGE FRAGEN', [
+      leading ? `Weichen Angaben im folgenden Text von den Abschnitten ${leading} ab, gelten die Abschnitte oben.` : '',
+      faqText
+    ].filter(Boolean).join('\n'));
+  }
   // Entscheid F4: Der Abschnitt steht immer da, auch wenn nichts hinterlegt ist.
   // Ein Prompt ohne Preisregel ueberliess die Preisfrage bisher dem Modell; die
   // Voreinstellung ist ausdruecklich "keine Betraege nennen, Offerte anbieten"
@@ -733,7 +815,9 @@ function buildPromptV2({ customer = {}, masterPrompt = '', industryPrompt = '', 
       new Set([
         CORE_KEY_APPOINTMENT, CORE_KEY_BOOKING_URL, CORE_KEY_SHORT_DESCRIPTION, CORE_KEY_PUBLIC_ADDRESS,
         CORE_KEY_PRICING_MODE, CORE_KEY_PRICING_AMOUNT, CORE_KEY_PRICING_UNIT, CORE_KEY_PRICING_VALIDITY,
-        CORE_KEY_SERVICE_LIST, CORE_KEY_FAQ_LIST
+        CORE_KEY_SERVICE_LIST, CORE_KEY_FAQ_LIST,
+        // E1: steht als eigener Abschnitt REGELN RUND UM TERMINE weiter oben.
+        CORE_KEY_APPOINTMENT_RULES
       ]),
       assistantName
     ),
@@ -780,7 +864,7 @@ function buildPromptV2({ customer = {}, masterPrompt = '', industryPrompt = '', 
     prompt: prompt.trim(),
     firstMessage,
     profile,
-    quality: qualityReport(customer, profile, industryPrompt, appointmentMode)
+    quality: qualityReport(customer, profile, industryPrompt, appointmentMode, core)
   };
 }
 

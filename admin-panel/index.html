@@ -7262,8 +7262,31 @@ const CORE_FIELD_COLUMN_MAP = {
   pricing_mode: 'ai_pricing_mode',
   pricing_amount: 'ai_pricing_amount',
   pricing_unit: 'ai_pricing_unit',
-  pricing_validity: 'ai_pricing_validity'
+  pricing_validity: 'ai_pricing_validity',
+  // E1: Regeln rund um Termine. Bis hierher lagen sie als Regelzeilen im
+  // Freitext ai_booking_faq und verschwanden aus dem Prompt, sobald der Kunde
+  // die FAQ-Liste bestaetigte.
+  appointment_rules: 'ai_appointment_rules'
 };
+
+// E4: Traegt der Kunde ueberhaupt eine Schicht-A-Antwort? Liest bewusst ueber
+// CORE_FIELD_COLUMN_MAP und nicht ueber eine zweite Spaltenliste -- ein neues
+// Feld ist damit automatisch mitgezaehlt, statt hier vergessen zu werden.
+function hasCoreFieldAnswers(customer){
+  if(!customer) return false;
+  return Object.values(CORE_FIELD_COLUMN_MAP).some(column => {
+    const raw = customer[column];
+    if(raw == null) return false;
+    // Wochenraster (Objekt) und die beiden Listen (Array) tragen ihre Aussage
+    // im Inhalt, nicht im Vorhandensein: ein leeres Raster ist keine Antwort.
+    if(typeof raw === 'object'){
+      return Array.isArray(raw)
+        ? raw.length > 0
+        : Object.values(raw).some(list => Array.isArray(list) && list.length);
+    }
+    return String(raw).trim().length > 0;
+  });
+}
 
 function coreWizardValues(customer){
   const values = {};
@@ -7561,7 +7584,13 @@ async function openAiWizard(customerId){
     String(cfg.fallbackEscalation||'').trim() ||
     String(cfg.responseConstraints||'').trim() ||
     String(c?.ai_business_description||'').trim() ||
-    String(c?.ai_services||'').trim()
+    String(c?.ai_services||'').trim() ||
+    // E4: Seit J5-J7 pflegt ein Kunde sein Geschaeftswissen strukturiert. Wer
+    // nur noch dort eingetragen hat, galt diesem Guard als unkonfiguriert --
+    // der Setup-Assistent haette sich ohne Warnung geoeffnet und die
+    // bestaetigten Angaben ueberschrieben. Dieselbe Rangfolge wie im
+    // Prompt-Builder: Struktur zaehlt, Text ist Rueckfall.
+    hasCoreFieldAnswers(c)
   );
   if(isConfigured){
     const proceed = await voxConfirm({
@@ -7803,7 +7832,7 @@ async function wizardFinish(){
       'spezialgebiet','kanton','sprechstunden_modus','notfallnummer_lebensgefahr',
       'notfallnummer_dringend','notfall_service_name','industry_template_id',
       'ai_business_description','ai_services','ai_location_hours','ai_booking_faq',
-      'ai_website_url','ai_short_description',
+      'ai_website_url','ai_short_description','ai_appointment_rules',
       'ai_forwarding_1_name','ai_forwarding_1_number','ai_forwarding_1_trigger',
       'ai_forwarding_2_name','ai_forwarding_2_number','ai_forwarding_2_trigger',
       'ai_emergency_number','ai_instructions','ai_fallback_escalation',

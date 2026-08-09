@@ -621,15 +621,19 @@
       ? identityRow('Angaben für Ihre Branche', esc(branchFilled + ' von ' + branchCount + ' ausgefüllt'))
       : '';
 
+    // E4: Die vier Zeilen lasen bis hierher die Freitextspalten. Seit J5-J7
+    // fuehrt die Struktur — ein Kunde mit bestaetigter Leistungsliste und
+    // geleertem Freitext bekam "Noch ergänzen" zu lesen, waehrend sein Prompt
+    // den Abschnitt LEISTUNGEN vollstaendig enthielt. Der Zustand kommt jetzt
+    // vom Server, der die Rangfolge ohnehin kennt; hier wird er nur angezeigt.
+    const topics = Array.isArray(business.topics) ? business.topics : [];
     return '<section class="vx-ap-card">'
       + '<div class="vx-ap-head"><div><div class="vx-ap-title">Was Ihr Assistent weiss</div>'
       + '<div class="vx-ap-meta">Dauerhaftes Geschäftswissen. Ferien und kurzfristige Änderungen gehören ins Band oben.</div></div>'
       + '<span class="vx-ap-pill' + (completed === total ? ' selected' : '') + '">' + completed + ' von ' + total + ' Bereichen</span></div>'
       + '<div class="vx-ap-summary">'
       + identityRow('Unternehmen', esc(business.company_name || 'Nicht angegeben'))
-      + identityRow('Leistungen', esc(business.services ? 'Hinterlegt' : 'Noch ergänzen'))
-      + identityRow('Öffnungszeiten / Standort', esc(business.location_hours ? 'Hinterlegt' : 'Noch ergänzen'))
-      + identityRow('Häufige Fragen', esc(business.booking_faq ? 'Hinterlegt' : 'Noch ergänzen'))
+      + topics.map((topic) => identityRow(esc(topic.label), topic.filled ? 'Hinterlegt' : 'Noch ergänzen')).join('')
       + branchRow
       + '</div>'
       + industryLine()
@@ -691,14 +695,31 @@
         : '';
       return;
     }
-    const data = profile.business_profile || {};
+    // Die Karte "Dauerhaftes Geschaeftswissen" ist hier verschwunden. Sie
+    // stellte dieselben vier Fragen wie die Karte darunter, nur unstrukturiert
+    // — die J-Reihe hat die strukturierten Felder ergaenzt, ohne dass die alten
+    // Textfelder wichen. Der Klick-Test am 09.08. hat das als das eigentliche
+    // Problem des Screens benannt: vier Themen, jeweils zweimal, zwei
+    // Speicher-Knoepfe, und die Vorrangregel nur als Fliesstext im Feldhinweis.
+    //
+    // Was aus den vier Feldern geworden ist:
+    //   Unternehmensbeschreibung  -> fuehrendes Feld im Abschnitt "Was Sie
+    //                                anbieten" (E3), mit Beschriftung und
+    //                                Beispiel der frueheren Kurzbeschreibung
+    //   Leistungen                -> Listeneditor, Text als Herkunftszeile
+    //   Standort/Erreichbarkeit   -> Wochenraster + Adresse, Text als Herkunft
+    //   Terminregeln + FAQ        -> Fragenliste + eigenes Regelfeld (E1)
+    //
     // vx-ui-brand-rule: der Gold-Streifen auf der fuehrenden Karte des
     // Screens. Genau eine pro Screen, zustandsunabhaengig — siehe
-    // customer-ui-components.css, Abschnitt 9.
-    body.innerHTML = '<div id="vx-business-profile-status" class="vx-ap-status" role="status" aria-live="polite"></div><div class="vx-ap-stack"><div class="vx-ap-card vx-ui-brand-rule"><div class="vx-ap-head"><div><div class="vx-ap-title">Dauerhaftes Geschäftswissen</div><div class="vx-ap-meta">Diese Informationen verwendet der Assistent im normalen Betrieb. Ferien und kurzfristige Änderungen gehören in „Aktuelle Infos“.</div></div></div><div class="vx-ap-fieldlist"><div class="vx-ap-field"><label>Unternehmensbeschreibung</label><textarea id="vx-business-description" placeholder="Was macht Ihr Unternehmen und für wen?">' + esc(data.description || '') + '</textarea></div><div class="vx-ap-field"><label>Leistungen</label><textarea id="vx-business-services" placeholder="Welche Leistungen darf der Assistent erklären?">' + esc(data.services || '') + '</textarea>' + replacedByListNote('service_list') + '</div><div class="vx-ap-field"><label>Standort und Erreichbarkeit</label><textarea id="vx-business-location-hours" placeholder="Wie Ihr Betrieb erreichbar ist. Adresse und Öffnungszeiten haben eigene Felder weiter unten.">' + esc(data.location_hours || '') + '</textarea></div><div class="vx-ap-field"><label>Terminregeln und häufige Fragen</label><textarea id="vx-business-booking-faq" placeholder="Regeln rund um Termine und Antworten auf häufige Fragen">' + esc(data.booking_faq || '') + '</textarea>' + replacedByListNote('faq_list') + '</div></div><div class="vx-ap-actions"><button type="button" class="vx-ap-btn" id="vx-business-profile-save"' + (busy ? ' disabled' : '') + '>Geschäftsprofil speichern</button></div><div id="vx-business-save-status" class="vx-ap-status vx-ap-status--inline" role="status" aria-live="polite"></div></div>' + coreCard() + branchCard() + '</div>';
-    document.getElementById('vx-business-profile-save')?.addEventListener('click', saveBusiness);
-    document.getElementById('vx-core-save')?.addEventListener('click', saveCore);
+    // customer-ui-components.css, Abschnitt 9. Er wandert mit, weil die Karte
+    // "Ihr Betrieb" jetzt die erste ist.
+    body.innerHTML = '<div id="vx-business-profile-status" class="vx-ap-status" role="status" aria-live="polite"></div>'
+      + '<div class="vx-ap-stack">' + coreCard() + branchCard() + saveBar() + '</div>';
+    document.getElementById('vx-business-save')?.addEventListener('click', saveBusinessPage);
     document.getElementById('vx-hours-apply')?.addEventListener('click', applyHoursSuggestion);
+    bindHoursMode();
+    bindLegacyText();
     // J6: bedingte Felder folgen der Auswahl sofort, nicht erst nach dem
     // Speichern. Ein Feld, das erst nach einem Neuladen verschwindet, wirkt wie
     // ein Fehler und wird trotzdem ausgefüllt.
@@ -706,8 +727,8 @@
       node.addEventListener('change', applyFieldVisibility);
     });
     // J7: Zeile hinzufuegen, Zeile entfernen, Vorschlag uebernehmen. Alle drei
-    // aendern nur das Formular; gespeichert wird weiterhin nur ueber
-    // "Betriebsangaben speichern".
+    // aendern nur das Formular; gespeichert wird weiterhin erst mit dem Knopf
+    // am Seitenende.
     document.querySelectorAll('[data-vx-list-add]').forEach((node) => node.addEventListener('click', () => {
       const container = document.querySelector('[data-vx-list="' + node.dataset.vxListAdd + '"]');
       if (!container) return;
@@ -720,6 +741,16 @@
       const suggestion = profile?.core_suggestions?.[key];
       if (!container || !Array.isArray(suggestion) || !suggestion.length) return;
       fillList(container, suggestion);
+    }));
+    // E1: Derselbe Vorschlagsknopf fuer das Regelfeld. Es ist ein Textfeld und
+    // keine Liste, deshalb ein eigener Haken statt fillList().
+    document.querySelectorAll('[data-vx-text-apply]').forEach((node) => node.addEventListener('click', () => {
+      const key = node.dataset.vxTextApply;
+      const field = document.querySelector('[data-vx-core-key="' + key + '"]');
+      const suggestion = profile?.core_suggestions?.[key];
+      if (!field || typeof suggestion !== 'string' || !suggestion) return;
+      field.value = suggestion;
+      field.focus();
     }));
     document.getElementById('vx-business-profile-body')?.addEventListener('click', (event) => {
       const remove = event.target.closest?.('[data-vx-list-remove]');
@@ -740,7 +771,6 @@
       field.value = node.dataset.vxSuggestValue;
       field.focus();
     }));
-    document.getElementById('vx-branch-save')?.addEventListener('click', saveBranch);
     restoreStatus('business');
   }
 
@@ -761,14 +791,21 @@
     ['fri', 'Freitag'], ['sat', 'Samstag'], ['sun', 'Sonntag']
   ];
 
-  function hoursRow(day, label, intervals) {
+  // `options.group` nennt die weiteren Tage, die denselben Wert bekommen. Er
+  // haengt am Feld und nicht an einer Tabelle im Sammel-Code, damit
+  // collectHours() die Zuordnung aus der Oberflaeche lesen kann statt sie ein
+  // zweites Mal zu wissen.
+  function hoursRow(day, label, intervals, options) {
+    const group = Array.isArray(options?.group) && options.group.length
+      ? ' data-vx-hours-group="' + esc(options.group.join(' ')) + '"'
+      : '';
     const slot = (index) => {
       const pair = intervals[index] || ['', ''];
-      return '<input type="time" data-vx-hours="' + day + '" data-vx-slot="' + index + '" data-vx-edge="from"'
+      return '<input type="time" data-vx-hours="' + day + '"' + group + ' data-vx-slot="' + index + '" data-vx-edge="from"'
         + ' value="' + esc(pair[0] || '') + '" aria-label="' + esc(label) + ', Zeitspanne ' + (index + 1) + ', von"'
         + (busy ? ' disabled' : '') + '>'
         + '<span class="vx-ap-hours-dash">–</span>'
-        + '<input type="time" data-vx-hours="' + day + '" data-vx-slot="' + index + '" data-vx-edge="to"'
+        + '<input type="time" data-vx-hours="' + day + '"' + group + ' data-vx-slot="' + index + '" data-vx-edge="to"'
         + ' value="' + esc(pair[1] || '') + '" aria-label="' + esc(label) + ', Zeitspanne ' + (index + 1) + ', bis"'
         + (busy ? ' disabled' : '') + '>';
     };
@@ -779,17 +816,104 @@
       + '</div>';
   }
 
+  // Klick-Test 09.08., zweiter Befund: das Raster ist zu gross geraten. Sieben
+  // Tage mit je zwei Zeitspannen sind 28 Zeitfelder, immer alle sichtbar — fuer
+  // "Mo–Fr 8–12 und 13–17, Sa geschlossen" bedient der Kunde davon vier und
+  // scrollt an 24 vorbei. Der Standardfall gehoert kurz, die Ausnahme
+  // aufklappbar.
+  //
+  // Die kompakte Form ist reine Darstellung: gespeichert wird weiterhin das
+  // Wochenraster aus J5 ({"mon":[["08:30","12:00"]], …}). "Montag bis Freitag"
+  // schreibt denselben Wert nach mon..fri, und collectHours() liest unveraendert
+  // aus denselben Eingaben — es gibt keine zweite Speicherform und damit auch
+  // keine Migration.
+  const HOURS_WEEKDAYS = ['mon', 'tue', 'wed', 'thu', 'fri'];
+
+  // Die Entscheidung, welche Form gezeigt wird, faellt am gespeicherten Wert und
+  // nicht an einer Voreinstellung: sind die fuenf Werktage identisch, ist die
+  // kompakte Form vollstaendig; weicht einer ab, waere sie eine Luege und das
+  // Raster steht offen. Kein gespeicherter Zustand ist damit unerreichbar.
+  function hoursAreUniformWeekdays(week) {
+    const reference = JSON.stringify(week.mon || []);
+    return HOURS_WEEKDAYS.every((day) => JSON.stringify(week[day] || []) === reference);
+  }
+
   function hoursField(field) {
     const week = (field.value && typeof field.value === 'object') ? field.value : {};
     const hint = field.hint ? '<div class="vx-ap-meta">' + esc(field.hint) + '</div>' : '';
-    return '<div class="vx-ap-field vx-ap-field--hours">'
+    const uniform = hoursAreUniformWeekdays(week);
+    // Samstag und Sonntag stehen bewusst NICHT in der Sammelzeile: bei
+    // Schweizer KMU weichen sie fast immer ab (meist geschlossen, oft nur
+    // vormittags). Mit ihnen zusammen waere der Standardfall wieder die
+    // Ausnahme und praktisch jeder Betrieb muesste sofort ins Raster.
+    const compact = '<div class="vx-ap-hours vx-ap-hours--compact"' + (uniform ? '' : ' hidden') + '>'
+      + hoursRow('mon', 'Montag bis Freitag', Array.isArray(week.mon) ? week.mon : [], { group: HOURS_WEEKDAYS })
+      + hoursRow('sat', 'Samstag', Array.isArray(week.sat) ? week.sat : [])
+      + hoursRow('sun', 'Sonntag', Array.isArray(week.sun) ? week.sun : [])
+      + '</div>';
+    const full = '<div class="vx-ap-hours vx-ap-hours--full"' + (uniform ? ' hidden' : '') + '>'
+      + HOURS_DAYS.map(([day, label]) => hoursRow(day, label, Array.isArray(week[day]) ? week[day] : [])).join('')
+      + '</div>';
+    return '<div class="vx-ap-field vx-ap-field--hours" data-vx-hours-field>'
       + '<label>' + esc(field.label) + '</label>'
       + hint
-      + '<div class="vx-ap-hours">'
-      + HOURS_DAYS.map(([day, label]) => hoursRow(day, label, Array.isArray(week[day]) ? week[day] : [])).join('')
-      + '</div>'
+      + compact
+      + full
+      + '<button type="button" class="vx-ap-btn ghost" data-vx-hours-toggle'
+      + ' aria-expanded="' + (uniform ? 'false' : 'true') + '"' + (busy ? ' disabled' : '') + '>'
+      + (uniform ? 'Einzelne Wochentage weichen ab' : 'Wieder für Montag bis Freitag gemeinsam eintragen')
+      + '</button>'
       + '<div class="vx-ap-meta">Ein leeres Feldpaar bedeutet geschlossen.</div>'
       + '</div>';
+  }
+
+  // Beim Wechsel zwischen den beiden Formen wird der gerade sichtbare Stand
+  // uebernommen und nicht der zuletzt gespeicherte: sonst verloere der Kunde,
+  // was er unmittelbar davor eingetippt hat. Aufklappen faechert die
+  // Sammelzeile auf alle fuenf Werktage auf, Zuklappen nimmt den Montag als
+  // gemeinsamen Wert — und sagt vorher, dass die uebrigen Werktage ihm folgen.
+  function bindHoursMode() {
+    const toggle = document.querySelector('[data-vx-hours-toggle]');
+    if (!toggle) return;
+    toggle.addEventListener('click', () => {
+      const field = toggle.closest('[data-vx-hours-field]');
+      const compact = field?.querySelector('.vx-ap-hours--compact');
+      const full = field?.querySelector('.vx-ap-hours--full');
+      if (!compact || !full) return;
+      const openingFull = !compact.hidden;
+      const current = collectHours();
+      if (openingFull) {
+        HOURS_WEEKDAYS.forEach((day) => { current[day] = current.mon || []; });
+      } else {
+        const differs = HOURS_WEEKDAYS.some((day) => JSON.stringify(current[day] || []) !== JSON.stringify(current.mon || []));
+        if (differs && !root.confirm('Die gemeinsame Zeile gilt für Montag bis Freitag. Abweichende Zeiten an einzelnen Werktagen gehen dabei verloren. Fortfahren?')) return;
+        HOURS_WEEKDAYS.forEach((day) => { current[day] = current.mon || []; });
+      }
+      compact.hidden = openingFull;
+      full.hidden = !openingFull;
+      toggle.setAttribute('aria-expanded', openingFull ? 'true' : 'false');
+      toggle.textContent = openingFull
+        ? 'Wieder für Montag bis Freitag gemeinsam eintragen'
+        : 'Einzelne Wochentage weichen ab';
+      writeHours(current);
+    });
+  }
+
+  // Schreibt ein Wochenraster in die gerade sichtbaren Eingaben zurueck.
+  function writeHours(week) {
+    visibleHoursInputs().forEach((node) => {
+      const intervals = Array.isArray(week[node.dataset.vxHours]) ? week[node.dataset.vxHours] : [];
+      const pair = intervals[Number(node.dataset.vxSlot)] || ['', ''];
+      node.value = node.dataset.vxEdge === 'from' ? (pair[0] || '') : (pair[1] || '');
+    });
+  }
+
+  // Nur die sichtbare Form zaehlt. Stuende die verborgene mit in der Auswertung,
+  // gewaenne je nach Reihenfolge mal die eine, mal die andere — und der Kunde
+  // saehe etwas anderes gespeichert, als er eingetippt hat.
+  function visibleHoursInputs() {
+    return Array.from(document.querySelectorAll('[data-vx-hours]'))
+      .filter((node) => !node.closest('.vx-ap-hours')?.hidden);
   }
 
   // Liest das Raster aus der Oberflaeche. Unvollstaendige Paare (nur von oder
@@ -798,12 +922,19 @@
   function collectHours() {
     const week = {};
     HOURS_DAYS.forEach(([day]) => { week[day] = []; });
-    document.querySelectorAll('[data-vx-hours]').forEach((node) => {
-      const day = node.dataset.vxHours;
+    visibleHoursInputs().forEach((node) => {
       const slot = Number(node.dataset.vxSlot);
-      if (!week[day]) return;
-      week[day][slot] = week[day][slot] || ['', ''];
-      week[day][slot][node.dataset.vxEdge === 'from' ? 0 : 1] = String(node.value || '').trim();
+      const edge = node.dataset.vxEdge === 'from' ? 0 : 1;
+      // In der kompakten Form traegt eine Zeile fuenf Tage. Welche das sind,
+      // steht am Feld selbst — so bleibt "Montag bis Freitag" eine Aussage der
+      // Oberflaeche und nicht eine zweite, hier wiederholte Annahme.
+      const days = [node.dataset.vxHours, ...String(node.dataset.vxHoursGroup || '').split(/\s+/)]
+        .filter(Boolean);
+      days.forEach((day) => {
+        if (!week[day]) return;
+        week[day][slot] = week[day][slot] || ['', ''];
+        week[day][slot][edge] = String(node.value || '').trim();
+      });
     });
     HOURS_DAYS.forEach(([day]) => {
       week[day] = (week[day] || []).filter((pair) => pair && pair[0] && pair[1]);
@@ -851,49 +982,46 @@
       + '<div class="vx-ap-list" data-vx-list="' + esc(field.key) + '" data-vx-list-kind="' + (isFaq ? 'faq' : 'list') + '">'
       + rows.map((entry) => (isFaq ? faqRow(entry) : listRow(entry))).join('')
       + '</div>'
-      + '<button type="button" class="vx-ap-btn vx-ap-btn--ghost" data-vx-list-add="' + esc(field.key) + '"'
+      + '<button type="button" class="vx-ap-btn ghost" data-vx-list-add="' + esc(field.key) + '"'
       + (busy ? ' disabled' : '') + '>Zeile hinzufügen</button>'
       + listSuggestionBanner(field)
       + '</div>';
   }
 
   // Der Vorschlag füllt das Formular, er speichert nicht. Und er sagt daneben,
-  // was er aus dem Text NICHT lesen konnte — bei den häufigen Fragen zusätzlich
-  // getrennt, was gar keine Frage war: in den meisten Vorlagen steht über den
-  // Fragen die Aufnahme-Checkliste (Befund G6).
+  // was er aus dem Text NICHT lesen konnte.
+  //
+  // Die Regelzeilen stehen hier nicht mehr. Bis E1 nannte dieser Kasten sie mit
+  // dem Satz "Sie bleiben im Text stehen" — ein Versprechen, das der
+  // Prompt-Builder gebrochen hat, weil die bestätigte Liste den ganzen Text
+  // verdrängte. Sie haben jetzt ein eigenes Feld direkt darunter und dort ihren
+  // eigenen Vorschlag; sie hier zusätzlich zu nennen wäre die Doppelung, die
+  // dieser Auftrag gerade aufgelöst hat, nur eine Ebene kleiner.
   function listSuggestionBanner(field) {
     const suggestion = profile?.core_suggestions?.[field.key];
     const info = profile?.list_suggestions || {};
     const unparsed = field.type === 'faq' ? info.faq_unparsed_lines : info.service_unparsed_lines;
-    const rules = field.type === 'faq' ? info.faq_rule_lines : [];
     if (!Array.isArray(suggestion) || !suggestion.length) return '';
     return '<div class="vx-ap-suggestion">'
-      + '<div class="vx-ap-suggestion-title">Vorschlag aus Ihrem Text im Geschäftsprofil</div>'
+      + '<div class="vx-ap-suggestion-title">Vorschlag aus Ihrem bisherigen Text</div>'
       + '<div class="vx-ap-meta">Wir haben ' + suggestion.length + ' '
       + (field.type === 'faq' ? 'Frage-Antwort-Paare' : 'Einträge') + ' gelesen. '
       + 'Sie gelten erst, wenn Sie sie prüfen und speichern — bis dahin verwendet Ihr Assistent weiterhin den Text.</div>'
-      + (Array.isArray(rules) && rules.length
-        ? '<div class="vx-ap-meta">Diese Zeilen sind keine Fragen, sondern Regeln. Sie bleiben im Text stehen: '
-          + rules.map((line) => esc(line)).join(' · ') + '</div>'
-        : '')
       + (Array.isArray(unparsed) && unparsed.length
         ? '<div class="vx-ap-meta">Diese Zeilen konnten wir nicht zuordnen, bitte selbst eintragen: '
           + unparsed.map((line) => esc(line)).join(' · ') + '</div>'
         : '')
-      + '<button type="button" class="vx-ap-btn vx-ap-btn--ghost" data-vx-list-apply="' + esc(field.key) + '"'
+      + '<button type="button" class="vx-ap-btn ghost" data-vx-list-apply="' + esc(field.key) + '"'
       + (busy ? ' disabled' : '') + '>Vorschlag übernehmen</button>'
       + '</div>';
   }
 
-  // Sobald eine Liste bestaetigt ist, benutzt der Assistent sie und nicht mehr
-  // diesen Text. Ohne diesen Hinweis bearbeitet der Kunde ein Feld, das keine
-  // Wirkung mehr hat -- und merkt es erst am Telefon.
-  function replacedByListNote(key) {
-    const value = storedValue(key, 'core');
-    if (!Array.isArray(value) || !value.length) return '';
-    return '<div class="vx-ap-meta">Dieser Text wird nicht mehr verwendet: weiter unten steht eine bestätigte Liste, '
-      + 'und die gilt. Der Text bleibt als Notiz erhalten.</div>';
-  }
+  // replacedByListNote() ist hier entfallen. Der Hinweis "Dieser Text wird nicht
+  // mehr verwendet" hing an einem Textfeld, das direkt darueber weiterhin zur
+  // Eingabe einlud — er war die richtige Aussage an der falschen Stelle. Den
+  // Zustand traegt jetzt die eingeklappte Herkunftszeile (legacyTextRow), und
+  // zwar mit der Rangfolge, die der Server auswertet, statt mit einer zweiten
+  // Fassung derselben Regel im Browser.
 
   function collectList(container) {
     if (container.dataset.vxListKind === 'faq') {
@@ -949,7 +1077,7 @@
     if (!field.suggestion || !value || field.value) return '';
     return '<div class="vx-ap-field-suggest">'
       + '<span>Aus Ihren Stammdaten: ' + esc(value) + '</span>'
-      + '<button type="button" class="vx-ap-btn vx-ap-btn--ghost" data-vx-suggest="' + esc(field.key) + '"'
+      + '<button type="button" class="vx-ap-btn ghost" data-vx-suggest="' + esc(field.key) + '"'
       + ' data-vx-suggest-value="' + esc(value) + '"' + (busy ? ' disabled' : '') + '>Übernehmen</button>'
       + '</div>';
   }
@@ -980,7 +1108,26 @@
         + ' data-vx-showif-scope="' + esc(scope) + '"' + (fieldVisible(field, scope) ? '' : ' hidden')
       : '';
     return '<div class="vx-ap-field"' + gate + '><label for="' + esc(id) + '">' + esc(field.label) + '</label>'
-      + control + hint + suggestionRow(field) + '</div>';
+      + control + hint + suggestionRow(field) + textSuggestionBanner(field, scope) + '</div>';
+  }
+
+  // E1: Der Vorschlag fuer ein Textfeld. Gleiche Bauform und gleiche Regel wie
+  // bei den Listen und beim Wochenraster — er fuellt das Feld, er speichert
+  // nicht. Bei den Terminregeln ist das besonders wichtig: der Parser hat sie
+  // aus einem gewachsenen Text herausgetrennt, und was eine Regel ist, ist
+  // Auslegung. Deshalb liest der Kunde sie, bevor sie gelten.
+  function textSuggestionBanner(field, scope) {
+    if (scope !== 'core' || field.type !== 'textarea') return '';
+    const suggestion = profile?.core_suggestions?.[field.key];
+    if (typeof suggestion !== 'string' || !suggestion || field.value) return '';
+    return '<div class="vx-ap-suggestion">'
+      + '<div class="vx-ap-suggestion-title">Vorschlag aus Ihrem bisherigen Text</div>'
+      + '<div class="vx-ap-meta">Diese Zeilen standen bei den häufigen Fragen, sind aber keine Fragen '
+      + 'sondern Regeln. Sie gelten erst, wenn Sie sie prüfen und speichern.</div>'
+      + '<div class="vx-ap-suggestion-body">' + esc(suggestion) + '</div>'
+      + '<button type="button" class="vx-ap-btn ghost" data-vx-text-apply="' + esc(field.key) + '"'
+      + (busy ? ' disabled' : '') + '>Vorschlag übernehmen</button>'
+      + '</div>';
   }
 
   function branchField(field) { return schemaField(field, 'branch'); }
@@ -1004,52 +1151,181 @@
         ? '<div class="vx-ap-meta">Diese Zeilen konnten wir nicht zuordnen, bitte selbst eintragen: '
           + unparsed.map((line) => esc(line)).join(' · ') + '</div>'
         : '')
-      + '<button type="button" class="vx-ap-btn vx-ap-btn--ghost" id="vx-hours-apply"'
+      + '<button type="button" class="vx-ap-btn ghost" id="vx-hours-apply"'
       + (busy ? ' disabled' : '') + '>Vorschlag ins Raster übernehmen</button>'
       + '</div>';
+  }
+
+  // Der eingeklappte Herkunftstext. Er steht direkt unter dem Feld, das ihn
+  // abgeloest hat, und nicht mehr als eigenes Formular weiter oben — Naehe ist
+  // das, was die Vorrangregel erklaert. Ob er noch wirkt, entscheidet der
+  // Server (business_profile.legacy_texts): dieselbe Rangfolge wie im
+  // Prompt-Builder, einmal ausgewertet statt hier ein zweites Mal.
+  //
+  // Bewusst als Text und nicht als Textarea: dies ist kein Eingabefeld mehr.
+  // Bearbeiten geht nur noch ueber den ausdruecklichen Knopf, und das ist der
+  // Punkt — der Kunde soll oben eintragen, nicht hier.
+  function legacyTextRow(anchorKey) {
+    const entry = (profile?.business_profile?.legacy_texts || []).find((item) => item.anchor === anchorKey);
+    if (!entry) return '';
+    const state = entry.retired
+      ? 'Wird nicht mehr verwendet — es gilt, was Sie oben eingetragen haben.'
+      : 'Wird noch verwendet, solange ' + esc(entry.replaced_by) + ' nicht vollständig ist.';
+    return '<details class="vx-ap-legacy" data-vx-legacy="' + esc(entry.key) + '"'
+      + ' data-vx-legacy-column="' + esc(entry.column) + '">'
+      + '<summary><span class="vx-ap-legacy-label">Ihr ursprünglicher Text: ' + esc(entry.label) + '</span>'
+      + '<span class="vx-ap-legacy-state' + (entry.retired ? ' is-retired' : '') + '">'
+      + (entry.retired ? 'nicht mehr in Verwendung' : 'noch in Verwendung') + '</span></summary>'
+      + '<div class="vx-ap-meta">' + state + '</div>'
+      + '<div class="vx-ap-legacy-body">' + esc(entry.value) + '</div>'
+      + '<div class="vx-ap-actions">'
+      + (entry.retired
+        ? '<button type="button" class="vx-ap-btn ghost" data-vx-legacy-delete="' + esc(entry.key) + '"'
+          + (busy ? ' disabled' : '') + '>Text löschen</button>'
+        : '<button type="button" class="vx-ap-btn ghost" data-vx-legacy-edit="' + esc(entry.key) + '"'
+          + (busy ? ' disabled' : '') + '>Text bearbeiten</button>')
+      + '</div>'
+      + '</details>';
+  }
+
+  // Bearbeiten tauscht die Anzeige gegen ein Textfeld — nur fuer den Text, der
+  // noch wirkt. Loeschen fragt nach, weil es die letzte Fassung eines
+  // gewachsenen Textes entfernt: er kommt aus der Branchenvorlage oder aus der
+  // Website-Analyse und laesst sich hier nicht wiederherstellen.
+  function bindLegacyText() {
+    document.querySelectorAll('[data-vx-legacy-edit]').forEach((node) => node.addEventListener('click', () => {
+      const box = node.closest('[data-vx-legacy]');
+      const bodyNode = box?.querySelector('.vx-ap-legacy-body');
+      if (!box || !bodyNode || box.querySelector('[data-vx-legacy-input]')) return;
+      const value = bodyNode.textContent || '';
+      bodyNode.innerHTML = '<textarea data-vx-legacy-input rows="6">' + esc(value) + '</textarea>';
+      bodyNode.querySelector('textarea')?.focus();
+      node.remove();
+    }));
+    document.querySelectorAll('[data-vx-legacy-delete]').forEach((node) => node.addEventListener('click', () => {
+      const box = node.closest('[data-vx-legacy]');
+      if (!box) return;
+      if (!root.confirm('Diesen Text endgültig löschen? Ihr Assistent verwendet ihn nicht mehr — er bleibt sonst nur als Notiz erhalten.')) return;
+      const column = box.dataset.vxLegacyColumn;
+      if (!column) return;
+      updateAssistant({ [column]: '' }, 'business', document.getElementById('vx-business-save'));
+    }));
   }
 
   function applyHoursSuggestion() {
     const week = profile?.opening_hours?.suggestion;
     if (!week) return;
-    document.querySelectorAll('[data-vx-hours]').forEach((node) => {
-      const intervals = Array.isArray(week[node.dataset.vxHours]) ? week[node.dataset.vxHours] : [];
-      const pair = intervals[Number(node.dataset.vxSlot)] || ['', ''];
-      node.value = node.dataset.vxEdge === 'from' ? (pair[0] || '') : (pair[1] || '');
-    });
+    // Weicht der Vorschlag an einzelnen Werktagen ab, passt er nicht in die
+    // kompakte Zeile — dann wird das Raster aufgeklappt, statt den Vorschlag
+    // beim Uebernehmen stillschweigend auf den Montag einzuebnen.
+    const field = document.querySelector('[data-vx-hours-field]');
+    const compact = field?.querySelector('.vx-ap-hours--compact');
+    const full = field?.querySelector('.vx-ap-hours--full');
+    const toggle = field?.querySelector('[data-vx-hours-toggle]');
+    if (compact && full && !hoursAreUniformWeekdays(week) && !compact.hidden) {
+      compact.hidden = true;
+      full.hidden = false;
+      if (toggle) {
+        toggle.setAttribute('aria-expanded', 'true');
+        toggle.textContent = 'Wieder für Montag bis Freitag gemeinsam eintragen';
+      }
+    }
+    writeHours(week);
+  }
+
+  // E3: Die Beschreibung des Betriebs ist das einzige der vier alten
+  // Textfelder, das ein Eingabefeld bleibt. Sie liegt weiterhin in
+  // `ai_business_description` und wird deshalb nicht ueber `core_fields`
+  // geschrieben — zwei Schreibwege auf dieselbe Spalte waeren genau die
+  // Doppelung, die dieser Auftrag aufloest, nur eine Ebene tiefer. Wo sie
+  // steht, sagt der Server (`description_field.section`).
+  function descriptionField() {
+    const field = profile?.business_profile?.description_field;
+    if (!field) return '';
+    return '<div class="vx-ap-field"><label for="vx-business-description">' + esc(field.label) + '</label>'
+      + '<textarea id="vx-business-description" maxlength="6000" placeholder="' + esc(field.placeholder || '') + '"'
+      + (busy ? ' disabled' : '') + '>' + esc(field.value || '') + '</textarea>'
+      + (field.hint ? '<div class="vx-ap-meta">' + esc(field.hint) + '</div>' : '')
+      + '</div>';
   }
 
   function coreCard() {
     const sections = profile?.core_sections || [];
     if (!sections.length) return '';
-    return '<div class="vx-ap-card"><div class="vx-ap-head"><div><div class="vx-ap-title">Ihr Betrieb</div>'
-      + '<div class="vx-ap-meta">Erreichbarkeit, Termine, Anfahrt und Preisauskunft. '
-      + 'Sie gelten unabhängig von Ihrer Branche; was leer bleibt, erwähnt Ihr Assistent nicht.</div></div></div>'
+    const descriptionSection = profile?.business_profile?.description_field?.section || '';
+    // vx-ui-brand-rule wandert mit: seit die Freitext-Karte weg ist, ist dies
+    // die fuehrende Karte des Screens. Genau eine pro Screen — siehe
+    // customer-ui-components.css, Abschnitt 9.
+    return '<div class="vx-ap-card vx-ui-brand-rule"><div class="vx-ap-head"><div><div class="vx-ap-title">Ihr Betrieb</div>'
+      + '<div class="vx-ap-meta">Was Ihr Assistent im normalen Betrieb über Ihren Betrieb weiss. '
+      + 'Was leer bleibt, erwähnt er nicht. Ferien und kurzfristige Änderungen gehören in „Aktuelle Infos“.</div></div></div>'
       + sections.map((section) => (
         '<div class="vx-ap-subsection">'
         + '<div class="vx-ap-subtitle">' + esc(section.title) + '</div>'
         + (section.hint ? '<div class="vx-ap-meta">' + esc(section.hint) + '</div>' : '')
-        + '<div class="vx-ap-fieldlist">' + section.fields.map((field) => schemaField(field, 'core')).join('') + '</div>'
+        + '<div class="vx-ap-fieldlist">'
+        + (section.id === descriptionSection ? descriptionField() : '')
+        + section.fields.map((field) => (
+          schemaField(field, 'core')
+          // Der Herkunftstext steht hinter dem Feld, das ihn abgeloest hat.
+          + (field.key === 'opening_hours' ? hoursSuggestionBanner() : '')
+          + legacyTextRow(field.key)
+        )).join('')
+        + '</div>'
         + '</div>'
       )).join('')
-      + hoursSuggestionBanner()
       + originChip('voxera', 'Gilt für alle Betriebe')
-      + '<div class="vx-ap-actions"><button type="button" class="vx-ap-btn" id="vx-core-save"' + (busy ? ' disabled' : '') + '>Betriebsangaben speichern</button></div>'
-      + '<div id="vx-core-status" class="vx-ap-status vx-ap-status--inline" role="status" aria-live="polite"></div>'
       + '</div>';
   }
 
-  async function saveCore() {
+  // Alle drei Knoepfe der Seite riefen denselben Endpoint mit demselben
+  // Rumpf-Format auf — die Trennung war kein Implementierungsdetail, sondern
+  // gar keins. `customer-update-assistant` verarbeitet die drei Schluessel in
+  // einem Aufruf, baut ein einziges patch-Objekt, prueft vollstaendig und
+  // schreibt dann einmal. Ein Knopf ist damit auch technisch besser als drei:
+  // ein Schreibvorgang, ein ElevenLabs-Sync, ein Fingerprint statt je drei.
+  function saveBar() {
+    return '<div class="vx-ap-savebar">'
+      + '<button type="button" class="vx-ap-btn" id="vx-business-save"' + (busy ? ' disabled' : '') + '>Angaben speichern</button>'
+      + '<div id="vx-business-save-status" class="vx-ap-status vx-ap-status--inline" role="status" aria-live="polite"></div>'
+      + '</div>';
+  }
+
+  async function saveBusinessPage() {
     const payload = {};
+
+    // Schicht A.
+    const core = {};
     document.querySelectorAll('[data-vx-core-key]').forEach((node) => {
-      payload[node.dataset.vxCoreKey] = String(node.value || '').trim();
+      core[node.dataset.vxCoreKey] = String(node.value || '').trim();
     });
-    if (document.querySelector('[data-vx-hours]')) payload.opening_hours = collectHours();
+    if (document.querySelector('[data-vx-hours]')) core.opening_hours = collectHours();
     document.querySelectorAll('[data-vx-list]').forEach((node) => {
-      payload[node.dataset.vxList] = collectList(node);
+      core[node.dataset.vxList] = collectList(node);
     });
+    if (Object.keys(core).length) payload.core_fields = core;
+
+    // Branchenfelder. Nur mitschicken, wenn es welche gibt: ohne zugeordnete
+    // Vorlage antwortet der Endpoint mit 409 no_industry_template, und weil er
+    // vollstaendig prueft, bevor er schreibt, scheiterte damit auch alles
+    // andere. Bis hierher war der Fall dadurch verdeckt, dass die Karte ohne
+    // Felder gar keinen Knopf gerendert hat.
+    const branch = {};
+    document.querySelectorAll('[data-vx-branch-key]').forEach((node) => {
+      branch[node.dataset.vxBranchKey] = String(node.value || '').trim();
+    });
+    if (Object.keys(branch).length) payload.ai_branch_extra = branch;
+
+    // Die Beschreibung und ein eventuell geoeffneter Herkunftstext.
+    const description = document.getElementById('vx-business-description');
+    if (description) payload.ai_business_description = String(description.value || '');
+    document.querySelectorAll('[data-vx-legacy]').forEach((box) => {
+      const input = box.querySelector('[data-vx-legacy-input]');
+      if (input && box.dataset.vxLegacyColumn) payload[box.dataset.vxLegacyColumn] = String(input.value || '');
+    });
+
     if (!Object.keys(payload).length) return;
-    await updateAssistant({ core_fields: payload }, 'business', document.getElementById('vx-core-save'));
+    await updateAssistant(payload, 'business', document.getElementById('vx-business-save'));
   }
 
   function branchCard() {
@@ -1080,18 +1356,7 @@
         + '</div>'
       )).join('')
       + originChip('branch', 'Aus Ihrer Branche: ' + industry.name)
-      + '<div class="vx-ap-actions"><button type="button" class="vx-ap-btn" id="vx-branch-save"' + (busy ? ' disabled' : '') + '>Branchenangaben speichern</button></div>'
-      + '<div id="vx-branch-status" class="vx-ap-status vx-ap-status--inline" role="status" aria-live="polite"></div>'
       + '</div>';
-  }
-
-  async function saveBranch() {
-    const payload = {};
-    document.querySelectorAll('[data-vx-branch-key]').forEach((node) => {
-      payload[node.dataset.vxBranchKey] = String(node.value || '').trim();
-    });
-    if (!Object.keys(payload).length) return;
-    await updateAssistant({ ai_branch_extra: payload }, 'business', document.getElementById('vx-branch-save'));
   }
 
   function bindAssistant() {
@@ -1194,11 +1459,20 @@
     // vx-hero-tune-cancel gehoert dazu: sonst laesst sich der Editor waehrend
     // eines laufenden Speicherns wegklicken und der Zustand ist weg, obwohl der
     // Request noch fehlschlagen kann.
-    ['vx-business-profile-save', 'vx-open-business-profile', 'vx-hero-tune-cancel', 'vx-greeting-reset',
-      'vx-core-save', 'vx-branch-save',
+    ['vx-business-save', 'vx-open-business-profile', 'vx-hero-tune-cancel', 'vx-greeting-reset',
       'vx-forwarding-edit', 'vx-forwarding-cancel', 'vx-forwarding-add'].forEach((id) => {
       const node = document.getElementById(id);
       if (node) node.disabled = disabled;
+    });
+    // Die Nebenaktionen der Geschäftsprofil-Seite gehoeren dazu: Vorschlag
+    // uebernehmen, Zeile hinzufuegen, Herkunftstext loeschen. Waehrend eines
+    // laufenden Speicherns duerfen sie das Formular nicht mehr veraendern —
+    // sonst schickt der naechste Klick einen Stand, den der Kunde nie gesehen
+    // hat.
+    document.querySelectorAll('[data-vx-list-add], [data-vx-list-apply], [data-vx-list-remove],'
+      + ' [data-vx-text-apply], [data-vx-suggest], [data-vx-hours-toggle],'
+      + ' [data-vx-legacy-edit], [data-vx-legacy-delete], #vx-hours-apply').forEach((node) => {
+      node.disabled = disabled;
     });
     document.querySelectorAll('[data-vx-select-voice], [data-vx-preview]').forEach((node) => { node.disabled = disabled; });
   }
@@ -1349,15 +1623,8 @@
     }
   }
 
-  async function saveBusiness() {
-    const payload = {
-      ai_business_description: document.getElementById('vx-business-description')?.value || '',
-      ai_services: document.getElementById('vx-business-services')?.value || '',
-      ai_location_hours: document.getElementById('vx-business-location-hours')?.value || '',
-      ai_booking_faq: document.getElementById('vx-business-booking-faq')?.value || ''
-    };
-    await updateAssistant(payload, 'business', document.getElementById('vx-business-profile-save'));
-  }
+  // saveBusiness() ist in saveBusinessPage() aufgegangen — die Seite schickt
+  // ihre drei frueheren Formulare jetzt in einem Request.
 
   function openVoiceModal(voiceId) {
     const voice = voices.find((item) => item.voice_id === voiceId);

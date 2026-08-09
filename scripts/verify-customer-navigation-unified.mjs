@@ -76,7 +76,7 @@ assert.doesNotMatch(source.navigation, /vx-nav-voice-details/);
 assert.match(source.operational, /root\.vxOperationalUpdatesOpen=open/);
 assert.match(source.loader, /customer-runtime-calendar-settings\.js\?v=20260809-1/);
 assert.match(source.loader, /customer-runtime-operational-updates\.js\?v=20260809-1/);
-assert.match(source.loader, /customer-runtime-assistant-profile\.js\?v=20260809-8/);
+assert.match(source.loader, /customer-runtime-assistant-profile\.js\?v=20260809-9/);
 assert.match(source.loader, /customer-runtime-assistant-status\.js\?v=20260809-1/);
 assert.match(source.loader, /customer-runtime-unified-navigation\.js\?v=20260809-1/);
 assert.match(source.loader, /customer-runtime-design-foundation\.js\?v=20260809-1/);

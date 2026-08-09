@@ -954,7 +954,14 @@ body.vx-customer-design-foundation .vx-ap-hours { display: grid; gap: var(--vx-s
 body.vx-customer-design-foundation .vx-ap-hours-row { display: grid; grid-template-columns: 8.5rem 1fr auto; align-items: center; gap: var(--vx-space-3, 12px); }
 body.vx-customer-design-foundation .vx-ap-hours-day { font-size: 13px; }
 body.vx-customer-design-foundation .vx-ap-hours-slots { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
-body.vx-customer-design-foundation .vx-ap-hours-slots input[type="time"] { min-width: 6.5rem; }
+/* Der Klick-Test am 09.08. sah "pro Wochentag mehrere Zeitfelder untereinander
+   mit Bindestrichen dazwischen". Das war nicht nur zu viel Raster, sondern ein
+   Fehler: `.vx-ap-field :where(input, textarea) { width: 100% }` trifft auch
+   die Zeitfelder, und ein Flex-Item mit voller Breite bekommt jedes Mal eine
+   eigene Zeile. Das Wochenraster aus J5 hat damit nie als Raster gerendert --
+   erst am Bildschirm gesehen, nicht am Quelltext. `width: auto` muss deshalb
+   ausdruecklich hier stehen; `min-width` allein genuegt nicht. */
+body.vx-customer-design-foundation .vx-ap-hours-slots input[type="time"] { width: auto; flex: 0 0 auto; min-width: 6.5rem; }
 body.vx-customer-design-foundation .vx-ap-hours-dash { opacity: .6; padding: 0 2px; }
 body.vx-customer-design-foundation .vx-ap-hours-state { font-size: 12px; opacity: .7; white-space: nowrap; }
 body.vx-customer-design-foundation .vx-ap-suggestion { margin-top: var(--vx-space-4, 16px); padding: var(--vx-space-3, 12px); border: 1px dashed var(--vx-color-border, currentColor); border-radius: var(--vx-radius-md, 10px); display: grid; gap: 6px; }
@@ -974,6 +981,11 @@ body.vx-customer-design-foundation .vx-ap-list-row--faq { grid-template-columns:
 body.vx-customer-design-foundation .vx-ap-list-remove { background: none; border: 0; cursor: pointer; color: inherit; opacity: .6; font-size: 18px; line-height: 1; padding: 4px 8px; border-radius: var(--vx-radius-sm, 6px); }
 body.vx-customer-design-foundation .vx-ap-list-remove:hover { opacity: 1; }
 body.vx-customer-design-foundation .vx-ap-field--list > .vx-ap-btn { margin-top: var(--vx-space-2, 8px); justify-self: start; }
+/* Nebenaktionen bleiben auf ihrer Textbreite. Im Grid-Kasten des Vorschlags
+   streckte sich der Knopf ueber die volle Zeile und las sich damit wie die
+   Hauptaktion der Seite — auf einem Screen mit vier Vorschlaegen standen vier
+   Balken, die alle aussahen wie "Speichern". */
+body.vx-customer-design-foundation .vx-ap-suggestion > .vx-ap-btn { justify-self: start; }
 @media (max-width: 560px) {
   body.vx-customer-design-foundation .vx-ap-list-row--faq { grid-template-columns: 1fr auto; }
   body.vx-customer-design-foundation .vx-ap-list-row--faq [data-vx-faq-answer] { grid-column: 1 / -1; }
@@ -981,4 +993,36 @@ body.vx-customer-design-foundation .vx-ap-field--list > .vx-ap-btn { margin-top:
 @media (max-width: 560px) {
   body.vx-customer-design-foundation .vx-ap-hours-row { grid-template-columns: 1fr auto; }
   body.vx-customer-design-foundation .vx-ap-hours-slots { grid-column: 1 / -1; }
+}
+
+/* Geschäftsprofil entschlacken — die Seite hat statt drei Formularen mit je
+   eigenem Knopf eine Bearbeitungsfläche mit einem Knopf am Ende. */
+body.vx-customer-design-foundation .vx-ap-savebar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--vx-space-3, 12px); }
+body.vx-customer-design-foundation .vx-ap-savebar .vx-ap-status { margin: 0; }
+
+/* Der eingeklappte Herkunftstext. Er sieht bewusst NICHT wie ein Eingabefeld
+   aus — kein Rahmen um den Inhalt, keine Textarea, gedämpfte Schrift: er ist
+   Herkunft und Archiv, und genau das soll man ihm ansehen, bevor man ihn
+   aufklappt. Der Zustand steht im Summary, damit er ohne Aufklappen lesbar
+   ist; das war der eigentliche Fehler der alten Lösung, die ihn erst im
+   zweiten Absatz eines Feldhinweises nannte. */
+body.vx-customer-design-foundation .vx-ap-legacy { margin-top: var(--vx-space-3, 12px); border-top: 1px solid var(--vx-color-border, currentColor); padding-top: var(--vx-space-2, 8px); }
+body.vx-customer-design-foundation .vx-ap-legacy > summary { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--vx-space-2, 8px); cursor: pointer; font-size: 13px; opacity: .8; }
+body.vx-customer-design-foundation .vx-ap-legacy > summary:hover { opacity: 1; }
+body.vx-customer-design-foundation .vx-ap-legacy-label { font-weight: 600; }
+body.vx-customer-design-foundation .vx-ap-legacy-state { font-size: 12px; opacity: .75; }
+body.vx-customer-design-foundation .vx-ap-legacy-state.is-retired { text-decoration: line-through; }
+body.vx-customer-design-foundation .vx-ap-legacy-body { margin-top: var(--vx-space-2, 8px); font-size: 13px; white-space: pre-wrap; opacity: .85; }
+body.vx-customer-design-foundation .vx-ap-legacy-body textarea { width: 100%; }
+/* Der Vorschlagstext im Regelfeld wird gelesen, bevor er gilt — deshalb steht
+   er in der Bauform des Herkunftstextes und nicht als weiteres Eingabefeld. */
+body.vx-customer-design-foundation .vx-ap-suggestion-body { font-size: 13px; white-space: pre-wrap; opacity: .85; }
+
+/* Öffnungszeiten kompakt. Die Sammelzeile ist breiter beschriftet als eine
+   Tageszeile ("Montag bis Freitag"), sonst bräche der Text auf dem Telefon
+   mitten im Wort. Aufgeklappt gilt wieder das Raster aus J5. */
+body.vx-customer-design-foundation .vx-ap-hours--compact .vx-ap-hours-row { grid-template-columns: 11rem 1fr auto; }
+body.vx-customer-design-foundation [data-vx-hours-toggle] { margin-top: var(--vx-space-2, 8px); justify-self: start; }
+@media (max-width: 560px) {
+  body.vx-customer-design-foundation .vx-ap-hours--compact .vx-ap-hours-row { grid-template-columns: 1fr auto; }
 }

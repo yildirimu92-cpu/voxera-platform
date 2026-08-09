@@ -1,6 +1,6 @@
 # Geschäftsprofil entschlacken — Diagnose und Zielbild
 
-**Datum:** 09.08.2026 · **Branch:** `claude/geschaeftsprofil-entschlacken-8xoebb` · **Kein Code geändert.**
+**Datum:** 09.08.2026 · **Branch:** `claude/geschaeftsprofil-entschlacken-8xoebb` · **Diagnose zuerst, Umsetzung nach Freigabe von E1–E4 (Abschnitt 11).**
 
 **Grundlage:** Auftrag „Geschäftsprofil-Seite entschlacken — Doppelerfassung auflösen" (09.08., nach dem
 ersten Klick-Test), Grundsatz 15 im Fahrplan, `docs/GESCHAEFTSWISSEN_FREITEXTFELDER_DIAGNOSE_2026-08-09.md`
@@ -433,3 +433,103 @@ Voraussetzung dafür, dass 3 die Felder überhaupt wegnehmen **darf**, ohne Inha
 - **Die Zählungen (19/19, 5/19, …)** stammen aus der Morgen-Diagnose und sind hier nicht neu ausgezählt.
 - **Ob die kompakte Öffnungszeiten-Form auf dem Telefon wirklich trägt**, ist eine begründete Annahme. Sie
   ist der einzige Vorschlag hier, der ein neues Bedienmuster einführt statt eines wegzunehmen.
+
+---
+
+## 11. Umsetzung (09.08., nach Freigabe von E1–E4)
+
+Alle vier Entscheidungen wie empfohlen freigegeben und umgesetzt. Was dabei
+zusätzlich zum Zielbild gefunden wurde, steht in 11.3 — es sind drei Fehler, die
+**erst der Blick auf die gerenderte Seite** gezeigt hat, keiner davon aus diesem
+Auftrag stammend.
+
+### 11.1 Was gebaut wurde
+
+| Entscheid | Umsetzung |
+|---|---|
+| **E1** | Spalte `ai_appointment_rules`, Schema-Feld „Regeln rund um Termine" im Schritt *Leistungen und häufige Fragen*, Vorschlag aus den bereits getrennt gemeldeten Regelzeilen, Prompt-Abschnitt `## REGELN RUND UM TERMINE`. `ai_booking_faq` weicht erst, wenn **beide** Nachfolger bestätigt sind; solange nur einer steht, bleibt der Text mit ausdrücklichem Vorrangsatz. Die Fragenliste bekommt den Abschnitt `## HÄUFIGE FRAGEN`, wenn nur noch Paare darin stehen. |
+| **E2** | `ai_location_hours` verlässt den Prompt, sobald Wochenraster **und** Adresse bestätigt sind. Der Vorrangsatz im Öffnungszeiten-Abschnitt entfällt dann mit ihm — ein Hinweis auf einen Widerspruch, den es nicht mehr gibt, ist selbst eine Irreführung. |
+| **E3** | `ai_business_description` führt, übernimmt Beschriftung, Hinweis und Beispiel der Kurzbeschreibung und steht im Abschnitt *Was Sie anbieten*. `short_description` ist über das neue Schema-Attribut `audience: "admin"` eine reine Admin-Frage geworden — gefiltert wird in **beiden** Richtungen, Darstellung und Schreibpfad. |
+| **E4** | Vier Messstellen auf „Struktur führt, Text ist Rückfall": `qualityReport()`, der Zähler `completed_fields`, die Zeilen der Karte *Was Ihr Assistent weiss* (kommen jetzt fertig vom Server) und der Admin-Guard `isConfigured`. |
+| **Oberfläche** | Karte *Dauerhaftes Geschäftswissen* aufgelöst; die drei abgelösten Texte stehen als eingeklappte Herkunftszeile unter dem Feld, das sie ersetzt, mit ihrem Zustand im Summary statt im zweiten Absatz eines Feldhinweises. |
+| **Speichern** | Ein Knopf, ein Statusbereich, ein Request. `ai_branch_extra` und `core_fields` werden nur mitgeschickt, wenn es sie gibt — sonst liesse ein `409` die vollständige Vorprüfung auch alles andere scheitern. |
+| **Öffnungszeiten** | Mo–Fr / Sa / So kompakt, Sieben-Tage-Raster aufklappbar. Gespeicherte Struktur unverändert (`{"mon":[["08:00","12:00"]], …}`), keine Migration. |
+
+Zwei Schema-Attribute sind dazugekommen, beide additiv und von älteren Renderern
+ignorierbar: `audience` (wer die Frage stellt) und `max` (Zeichenlimit, im Code
+hart auf 2000 gedeckelt — eine Zeile in `system_config` soll kein unbegrenztes
+Schreibrecht werden).
+
+**`PROMPT_BUILDER_VERSION` auf 2.7.** Die Ausgabe ändert sich bei jedem Kunden,
+dessen Freitext Regelzeilen trägt — also bei allen mit Vorlagentext. Folge wie
+bei J9: jeder gespeicherte Fingerprint gilt ab dem Deploy als veraltet, der
+nächste Fan-out fasst alle Agenten an.
+
+### 11.2 Wie geprüft wurde
+
+- **Migration und Rückbau gegen eine echte Postgres 16 gefahren**, nicht nur
+  gelesen: Ausgangszustand aus J6 + J7 hergestellt, Migration angewandt
+  (5 Schritte, `betrieb_angebot` von 2 auf 3 Felder, `short_description` auf
+  `audience: admin`), **zweiter Lauf idempotent** (0 statt 1 betroffene Zeile),
+  Rückbau stellt den Ausgangszustand exakt wieder her (Feld weg, Hinweis
+  zurück, Spalte gelöscht).
+- **Klick-Abnahme im Browser, beide Breakpoints, 58 Prüfungen grün.** Das echte
+  Runtime-Skript mit dem echten CSS, nur der Endpoint gestubbt: Zustand 1 und
+  Zustand 2 je Paar, ein Speicher-Knopf, ein Request mit allen drei Teilen,
+  Vorschlag füllt ohne zu speichern, Auf- und Zuklappen des Rasters verlustfrei,
+  kein horizontaler Überlauf, keine JS-Fehler.
+- **58 von 59 `verify-*.mjs` grün**, 157/157 Tests. Der eine Fehlschlag ist der
+  bekannte, dokumentierte Fall fehlender DB-Zugangsdaten.
+- Ein bestehender Test wurde **umgeschrieben statt gelöscht**: „J7: questions and
+  answers stay paired" prüfte, dass die bestätigte Liste den Freitext ersetzt —
+  genau das Verhalten, das E1 zurücknimmt. Er heisst jetzt „E1: a confirmed FAQ
+  list leads, but does not take the rules with it" und prüft die Paare weiterhin.
+
+### 11.3 Drei Fehler, die erst der Screenshot gezeigt hat
+
+Alle drei sind älter als dieser Auftrag und wären durch keine Quelltextprüfung
+aufgefallen — sie sind der Beleg dafür, warum die Klick-Abnahme der grösste
+verbliebene Risikoposten war.
+
+1. **Das Wochenraster aus J5 hat nie als Raster gerendert.**
+   `.vx-ap-field :where(input, textarea) { width: 100% }` trifft auch die
+   Zeitfelder; ein Flex-Item mit voller Breite bekommt jede Zeile für sich.
+   Der Klick-Test-Befund „pro Wochentag mehrere Zeitfelder untereinander mit
+   Bindestrichen dazwischen" beschreibt genau das — er war nicht nur *zu viel
+   Raster*, sondern ein Darstellungsfehler. `width: auto; flex: 0 0 auto` muss
+   ausdrücklich dastehen, `min-width` allein genügt nicht.
+
+2. **`vx-ap-btn--ghost` gibt es nicht.** Die Klasse heisst `.ghost`, wie
+   `.secondary`. Seit J5 waren damit alle Nebenaktionen — Vorschlag übernehmen,
+   Zeile hinzufügen, Raster aufklappen — als gefüllte Hauptaktion gerendert. Auf
+   einem Screen mit vier Vorschlägen standen vier dunkle Balken, die alle
+   aussahen wie „Speichern". Für Grundsatz 15 ist das die falsche Einladung.
+   Alle acht Aufrufstellen auf die etablierte Schreibweise umgestellt; zusätzlich
+   bleiben Vorschlagsknöpfe jetzt auf ihrer Textbreite statt sich über die volle
+   Zeile zu strecken.
+
+3. **Der Regelvorschlag stand zweimal untereinander.** Einmal als
+   Schema-`suggestion` (die einzeilige Zeile „Aus Ihren Stammdaten: …
+   [Übernehmen]", gedacht für die Adresse) und einmal als der neue Kasten mit
+   vollem Wortlaut. Zusätzlich nannte der FAQ-Vorschlag die Regelzeilen weiterhin
+   als Nebenbemerkung — mit dem Satz „Sie bleiben im Text stehen", also genau dem
+   Versprechen, das E1 gerade erst eingelöst hat. Beides entfernt: die Regeln
+   stehen an genau einer Stelle, bei ihrem Feld.
+
+### 11.4 Was ungeprüft bleibt
+
+- **Die Migration ist auf keiner echten Datenbank angewandt** — weder Staging
+  noch Produktion. Das ist eine Freigabeentscheidung, wie bei J4/J5/J6. Die
+  lokale Postgres beweist Syntax, Idempotenz und Rückbau, nicht den Zustand
+  Ihrer Daten. Für den Staging-Lauf gilt die Lehre aus J6: **zuerst den
+  Ausgangszustand herstellen**, Staging spiegelt Produktion nicht automatisch.
+- **Kein Live-Anruf.** Der Prompt enthält die Terminregeln nachweislich; ob das
+  Modell sie befolgt, ist damit nicht gezeigt. Unverändert offen seit J1.
+- **Die Klick-Abnahme lief gegen einen gestubbten Endpoint.** Sie beweist, dass
+  die Seite mit einem realistischen Profil korrekt rendert, bedient und den
+  richtigen Rumpf schickt — nicht, dass der echte Endpoint diesen Rumpf
+  akzeptiert. Der Weg dorthin ist durch die Verify-Skripte des Schreibpfads
+  abgedeckt, aber nicht in einem Zug durchlaufen.
+- **Kein Kunde hat bestätigte Terminregeln**, der Zustand 2 ist also nur an
+  gesetzten Werten geprüft, nicht an gewachsenen Daten.
+- **Der Fan-out nach dem Versionswechsel ist nicht gelaufen.**

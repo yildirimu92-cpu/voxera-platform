@@ -556,7 +556,8 @@ const CORE_STEPS_J7 = JSON.stringify([
   ...JSON.parse(CORE_STEPS_J6),
   { id:'betrieb_angebot', title:'Leistungen und häufige Fragen', fields:[
     { key:'service_list', column:'ai_service_list', type:'list', label:'Leistungen' },
-    { key:'faq_list', column:'ai_faq_list', type:'faq', label:'Häufige Fragen' }
+    { key:'faq_list', column:'ai_faq_list', type:'faq', label:'Häufige Fragen' },
+    { key:'appointment_rules', column:'ai_appointment_rules', type:'textarea', label:'Regeln rund um Termine' }
   ] }
 ]);
 
@@ -578,10 +579,46 @@ check('J7: a confirmed list replaces the free text instead of standing next to i
   assert.ok(!built.prompt.includes('Telefonannahme, Lead-Qualifizierung'), 'Der ersetzte Freitext steht weiter im Prompt');
 });
 
-check('J7: questions and answers stay paired', () => {
+// Dieser Test hat bis E1 das Gegenteil geprueft: "eine bestaetigte Liste
+// ersetzt den Freitext" -- und genau das war der Fehler. `ai_booking_faq`
+// traegt neben den Fragen auch die Terminregeln, und die verschwanden mit dem
+// Text. Die Oberflaeche versprach dabei ausdruecklich, sie blieben stehen.
+// Der Test ist bewusst umgeschrieben und nicht geloescht: die Paare muessen
+// weiterhin sauber gerendert werden, nur die Verdraengung ist zurueckgenommen.
+check('E1: a confirmed FAQ list leads, but does not take the rules with it', () => {
   const built = j7({ ai_faq_list:[{ q:'Brauche ich einen Termin?', a:'Ja, wir arbeiten auf Termin.' }] });
-  assert.match(built.prompt, /## TERMINREGELN & HÄUFIGE FRAGEN\n- Frage: Brauche ich einen Termin\?\n {2}Antwort: Ja, wir arbeiten auf Termin\./);
-  assert.ok(!built.prompt.includes('nach interner Prüfung'), 'Der ersetzte FAQ-Freitext steht weiter im Prompt');
+  assert.match(built.prompt, /## HÄUFIGE FRAGEN\n- Frage: Brauche ich einen Termin\?\n {2}Antwort: Ja, wir arbeiten auf Termin\./);
+  // Der Freitext bleibt, solange die Regeln kein eigenes Zuhause haben -- mit
+  // ausdruecklichem Vorrangsatz statt als stiller Widerspruch.
+  assert.match(built.prompt, /## TERMINREGELN & HÄUFIGE FRAGEN\nWeichen Angaben im folgenden Text von den Abschnitten HÄUFIGE FRAGEN ab/);
+  assert.ok(built.prompt.includes('nach interner Prüfung'), 'Die Regelzeilen sind aus dem Prompt verschwunden');
+});
+
+check('E1: with both confirmed the free text steps back', () => {
+  const built = j7({
+    ai_faq_list:[{ q:'Brauche ich einen Termin?', a:'Ja.' }],
+    ai_appointment_rules:'Absagen bitte mindestens 24 Stunden vorher.'
+  });
+  assert.match(built.prompt, /## REGELN RUND UM TERMINE\nAbsagen bitte mindestens 24 Stunden vorher\./);
+  assert.match(built.prompt, /## HÄUFIGE FRAGEN\n- Frage: Brauche ich einen Termin\?/);
+  assert.ok(!built.prompt.includes('nach interner Prüfung'), 'Der abgeloeste Freitext steht weiter im Prompt');
+  assert.ok(!built.prompt.includes('## TERMINREGELN & HÄUFIGE FRAGEN'), 'Der leere Sammelabschnitt steht noch da');
+});
+
+check('E1: rules alone also leave the free text in place', () => {
+  const built = j7({ ai_appointment_rules:'Absagen bitte mindestens 24 Stunden vorher.' });
+  assert.match(built.prompt, /## REGELN RUND UM TERMINE\nAbsagen bitte/);
+  assert.match(built.prompt, /Weichen Angaben im folgenden Text von den Abschnitten REGELN RUND UM TERMINE ab/);
+  assert.ok(built.prompt.includes('nach interner Prüfung'), 'Die Fragen aus dem Freitext sind verschwunden');
+});
+
+check('E1: the rules never appear a second time as a configuration line', () => {
+  const built = j7({
+    ai_faq_list:[{ q:'Wie lange?', a:'Eine Stunde.' }],
+    ai_appointment_rules:'Absagen bitte mindestens 24 Stunden vorher.'
+  });
+  assert.equal((built.prompt.match(/Absagen bitte mindestens 24 Stunden vorher/g) || []).length, 1,
+    'Die Terminregeln stehen doppelt im Prompt');
 });
 
 check('J7: a half pair never reaches the prompt', () => {
@@ -664,6 +701,56 @@ check('J9: the precedence sentence of the opening hours names the renamed sectio
   });
   const section = built.prompt.slice(built.prompt.indexOf('## REGULÄRE ÖFFNUNGSZEITEN'));
   assert.match(section, /Abschnitt STANDORT UND ERREICHBARKEIT/);
+});
+
+// ── E2: der Standort-Freitext zieht sich zurueck ─────────────────────────────
+// Bis J6 musste er bleiben, weil er als einziger die Adresse trug. Diese
+// Begruendung ist mit `ai_public_address` abgelaufen -- seither stand er ohne
+// eigene Aufgabe im Prompt und auf der Seite.
+const CORE_STEPS_E2 = JSON.stringify([{ id:'kern', fields:[
+  { key:'opening_hours', column:'ai_opening_hours', type:'hours', label:'Reguläre Öffnungszeiten' },
+  { key:'public_address', column:'ai_public_address', type:'text', label:'Adresse für Anrufende' }
+] }]);
+const e2 = (extra) => buildPromptV2({
+  customer:{ ...coreCustomer, ai_location_hours:'Bahnhofstrasse 1, Luzern. Mo-Fr 8-12.', ...extra },
+  masterPrompt:'{{CUSTOMER_LAYER}}',
+  coreFields:CORE_STEPS_E2
+});
+
+check('E2: with hours and address confirmed the free text steps back', () => {
+  const built = e2({ ai_opening_hours:{ mon:[['08:00', '12:00']] }, ai_public_address:'Seestrasse 4, 6006 Luzern' });
+  assert.match(built.prompt, /Adresse: Seestrasse 4, 6006 Luzern/);
+  assert.ok(!built.prompt.includes('Bahnhofstrasse 1, Luzern'), 'Der abgeloeste Standort-Text steht weiter im Prompt');
+  // Der Vorrangsatz verweist auf einen Widerspruch, den es nicht mehr gibt --
+  // ein Hinweis auf nichts ist selbst eine Irrefuehrung.
+  const hours = built.prompt.slice(built.prompt.indexOf('## REGULÄRE ÖFFNUNGSZEITEN'));
+  assert.ok(!hours.includes('Abschnitt STANDORT UND ERREICHBARKEIT'), 'Der Vorrangsatz zeigt auf einen Abschnitt ohne Zeitangaben');
+});
+
+check('E2: hours alone are not enough — the text is then the only address', () => {
+  const built = e2({ ai_opening_hours:{ mon:[['08:00', '12:00']] } });
+  assert.ok(built.prompt.includes('Bahnhofstrasse 1, Luzern'), 'Die einzige Adressauskunft wurde geloescht');
+  assert.match(built.prompt, /Abschnitt STANDORT UND ERREICHBARKEIT/);
+});
+
+check('E2: an address alone is not enough — the text still carries the hours', () => {
+  const built = e2({ ai_public_address:'Seestrasse 4, 6006 Luzern' });
+  assert.ok(built.prompt.includes('Mo-Fr 8-12'), 'Die einzige Zeitauskunft wurde geloescht');
+  assert.match(built.prompt, /gilt die Adresse oben/);
+});
+
+// ── E4: der Qualitaetscheck misst die fuehrende Schicht ──────────────────────
+check('E4: a confirmed list counts as services, not just the free text', () => {
+  const built = j7({ ai_services:'', ai_service_list:['Schnitt', 'Färbung'] });
+  const services = built.quality.checks.find((item) => item.id === 'services');
+  assert.equal(services.passed, true, 'Ein strukturiert gepflegter Kunde gilt als leer');
+  assert.ok(!built.quality.blockers.includes('Leistungen erfasst'), 'Der Blocker steht trotz vollstaendigem Prompt');
+});
+
+check('E4: without either source the check still fails', () => {
+  const built = j7({ ai_services:'', ai_service_list:[] });
+  assert.equal(built.quality.checks.find((item) => item.id === 'services').passed, false);
+  assert.ok(built.quality.blockers.includes('Leistungen erfasst'), 'Ein wirklich leerer Kunde gilt als startbereit');
 });
 
 // ── J10 / G8: es gibt nur noch eine Quelle fuer den Prompt ───────────────────

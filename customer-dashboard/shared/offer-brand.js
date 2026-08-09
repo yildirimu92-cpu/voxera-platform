@@ -181,7 +181,7 @@
     ['__voxeraCustomerInlineSaveStatusLoaded', '/shared/customer-runtime-inline-save-status.js?v=20260808-1'],
     ['__voxeraCustomerCalendarSettingsLoaded', '/shared/customer-runtime-calendar-settings.js?v=20260809-1'],
     ['__voxeraCustomerOperationalUpdatesLoaded', '/shared/customer-runtime-operational-updates.js?v=20260809-1'],
-    ['__voxeraCustomerAssistantProfileLoaded', '/shared/customer-runtime-assistant-profile.js?v=20260809-8'],
+    ['__voxeraCustomerAssistantProfileLoaded', '/shared/customer-runtime-assistant-profile.js?v=20260809-9'],
     ['__vxAssistantStatusLoaderInstalled', '/shared/customer-runtime-assistant-status.js?v=20260809-1'],
     ['__vxCustomerHelpRouteLoaderInstalled', '/shared/customer-runtime-help-route.js?v=20260807-2'],
     ['__voxeraCustomerMobileNavRepairLoaded', '/shared/customer-runtime-mobile-nav-repair.js?v=20260808-2'],

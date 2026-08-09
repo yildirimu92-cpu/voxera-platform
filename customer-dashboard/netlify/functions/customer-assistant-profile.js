@@ -4,7 +4,7 @@ const { createClient } = require('@supabase/supabase-js');
 const { requireCustomerCaller } = require('./_lib/require-customer');
 const { buildGreetingView } = require('./_lib/assistant-greeting');
 const { parseOpeningHours } = require('./_lib/opening-hours');
-const { parseServiceList, parseFaqList } = require('./_lib/service-faq');
+const { parseServiceList, parseFaqList, formatRuleLines } = require('./_lib/service-faq');
 const { canEditForwarding } = require('./_lib/assistant-write-policy');
 
 const headers = {
@@ -32,8 +32,19 @@ const CORE_FIELD_COLUMNS = new Set([
   'ai_arrival_note', 'ai_visit_preparation',
   'ai_pricing_mode', 'ai_pricing_amount', 'ai_pricing_unit', 'ai_pricing_validity',
   // J7
-  'ai_service_list', 'ai_faq_list'
+  'ai_service_list', 'ai_faq_list',
+  // E1
+  'ai_appointment_rules'
 ]);
+
+// E3: Das Schema bestimmt seit J4, WELCHE Frage gestellt wird. Mit `audience`
+// bestimmt es zusaetzlich, WEM: die Kurzbeschreibung ist eine Admin-Frage
+// geworden, weil sie dieselbe Auskunft verlangt wie die Beschreibung des
+// Betriebs und sich von ihr nur in der erwarteten Laenge unterscheidet. Der
+// Schreibpfad filtert dieselben Felder (customer-update-assistant.js) -- ein
+// Feld nur auszublenden waere keine Sperre.
+const ADMIN_ONLY_AUDIENCE = 'admin';
+const isCustomerField = (field) => String(field?.audience || '').trim() !== ADMIN_ONLY_AUDIENCE;
 
 // J6 / G7: street, zip und city sind gefuellt, stammen aber aus Offerte und
 // Vertrag und sind damit die Rechnungsadresse. Sie werden deshalb
@@ -445,6 +456,11 @@ function buildBranchSections(template, values) {
     hint: text(step?.sub),
     fields: (Array.isArray(step?.fields) ? step.fields : [])
       .filter((field) => text(field?.key))
+      // E3: Admin-Fragen erscheinen im Kunden-Dashboard nicht. Der Filter steht
+      // hier und damit auch fuer die Branchenfelder -- eine Vorlage koennte
+      // dieselbe Trennung brauchen, und zwei Regeln fuer dieselbe Sache waeren
+      // eine zu viel.
+      .filter(isCustomerField)
       .map((field) => ({
         key: text(field.key),
         label: text(field.label) || text(field.key),
@@ -565,7 +581,7 @@ exports.handler = async (event) => {
       'ai_short_description', 'ai_public_address', 'ai_target_groups', 'ai_service_area',
       'ai_arrival_note', 'ai_visit_preparation',
       'ai_pricing_mode', 'ai_pricing_amount', 'ai_pricing_unit', 'ai_pricing_validity',
-      'ai_service_list', 'ai_faq_list',
+      'ai_service_list', 'ai_faq_list', 'ai_appointment_rules',
       // Nur als Quelle fuer den Adressvorschlag, siehe addressSuggestion().
       'street', 'zip', 'city'
     ].join(','))
@@ -677,18 +693,89 @@ exports.handler = async (event) => {
   const upcoming = [...plannedUpdates].sort((a, b) => new Date(a.starts_at) - new Date(b.starts_at));
   const highlight = activeUpdates[0] || upcoming[0] || null;
 
-  const permanentFields = [
-    customer.ai_business_description,
-    customer.ai_services,
-    customer.ai_location_hours,
-    customer.ai_booking_faq
-  ];
-  const completedFields = permanentFields.filter((value) => String(value || '').trim()).length;
   const coreSteps = parseCoreSteps(coreResult.data?.value);
   const coreValueMap = coreValues(customer, coreSteps);
   const openingHoursSuggestion = parseOpeningHours(customer.ai_location_hours);
   const serviceSuggestion = parseServiceList(customer.ai_services);
   const faqSuggestion = parseFaqList(customer.ai_booking_faq);
+  // E4: Die vier Bereiche wurden bis hierher an den vier Freitextspalten
+  // gemessen. Seit J5-J7 fuehrt die Struktur -- ein Kunde mit bestaetigter
+  // Leistungsliste und leerem Freitext bekam "Noch ergaenzen" zu lesen, obwohl
+  // sein Prompt vollstaendig war. Dieselbe Rangfolge wie im Prompt-Builder:
+  // Struktur zuerst, Text als Rueckfall.
+  const filled = (value) => (Array.isArray(value)
+    ? value.length > 0
+    : (value && typeof value === 'object' ? Object.values(value).some((list) => Array.isArray(list) && list.length) : Boolean(text(value))));
+  const knowledgeTopics = [
+    {
+      key: 'description',
+      label: 'Beschreibung',
+      filled: filled(customer.ai_business_description) || filled(coreValueMap.short_description)
+    },
+    {
+      key: 'services',
+      label: 'Leistungen',
+      filled: filled(coreValueMap.service_list) || filled(customer.ai_services)
+    },
+    {
+      key: 'location',
+      label: 'Öffnungszeiten / Standort',
+      filled: filled(coreValueMap.opening_hours) || filled(coreValueMap.public_address) || filled(customer.ai_location_hours)
+    },
+    {
+      key: 'faq',
+      label: 'Häufige Fragen',
+      filled: filled(coreValueMap.faq_list) || filled(coreValueMap.appointment_rules) || filled(customer.ai_booking_faq)
+    }
+  ];
+  const completedFields = knowledgeTopics.filter((topic) => topic.filled).length;
+
+  // Die drei gewachsenen Freitexte sind keine Eingabefelder mehr, sondern
+  // Herkunft. Ob einer noch wirkt, entscheidet dieselbe Rangfolge wie im
+  // Prompt-Builder -- und sie wird hier EINMAL ausgewertet und mitgeliefert,
+  // statt im Browser ein zweites Mal nachgebaut zu werden. Zwei Fassungen
+  // derselben Vorrangregel waeren genau die Doppelung, die dieser Auftrag
+  // aufloest, nur eine Ebene tiefer.
+  //
+  // `anchor` sagt, hinter welchem Schema-Feld die eingeklappte Zeile steht. Der
+  // Text gehoert neben das Feld, das ihn abloest -- Naehe ist das, was die
+  // Vorrangregel erklaert; zwei Absaetze Fliesstext waren es nicht.
+  const legacyTexts = [
+    {
+      key: 'services',
+      label: 'Leistungen',
+      column: 'ai_services',
+      anchor: 'service_list',
+      value: text(customer.ai_services) || null,
+      // J7 unveraendert: die bestaetigte Liste ersetzt den Text vollstaendig.
+      retired: filled(coreValueMap.service_list),
+      replaced_by: 'Ihrer Leistungsliste'
+    },
+    {
+      key: 'booking_faq',
+      label: 'Terminregeln und häufige Fragen',
+      column: 'ai_booking_faq',
+      anchor: 'appointment_rules',
+      value: text(customer.ai_booking_faq) || null,
+      // E1: BEIDE Nachfolger. Der Text traegt Fragen und Regeln; solange nur
+      // eines von beiden bestaetigt ist, wirkt er weiter -- sonst waere das
+      // Bestaetigen der Fragenliste ein stiller Verlust der Regeln.
+      retired: filled(coreValueMap.faq_list) && filled(coreValueMap.appointment_rules),
+      replaced_by: 'Ihren häufigen Fragen und Terminregeln'
+    },
+    {
+      key: 'location_hours',
+      label: 'Standort und Erreichbarkeit',
+      column: 'ai_location_hours',
+      anchor: 'visit_preparation',
+      value: text(customer.ai_location_hours) || null,
+      // E2: Wochenraster UND Adresse. Mit Zeiten, aber ohne Adresse waere der
+      // Text die einzige verbliebene Adressauskunft.
+      retired: filled(coreValueMap.opening_hours) && filled(coreValueMap.public_address),
+      replaced_by: 'Ihren Öffnungszeiten und Ihrer Adresse'
+    }
+  ].filter((entry) => entry.value);
+
   const parsedProfile = promptProfile(customer.ai_internal_notes);
   // Rangfolge wie im Prompt-Builder: die typisierte Spalte fuehrt. Sonst zeigte
   // diese Seite eine andere Terminbefugnis an, als der Agent tatsaechlich hat.
@@ -715,8 +802,31 @@ exports.handler = async (event) => {
       services: customer.ai_services || null,
       location_hours: customer.ai_location_hours || null,
       booking_faq: customer.ai_booking_faq || null,
+      // E4: Der Zaehler und die Zeilen der Karte "Was Ihr Assistent weiss"
+      // kommen jetzt von hier statt aus einer zweiten Auswertung im Browser.
+      // Die Rangfolge "Struktur fuehrt, Text ist Rueckfall" ist eine
+      // Prompt-Regel und gehoert nicht in zwei Fassungen.
+      topics: knowledgeTopics,
       completed_fields: completedFields,
-      total_fields: permanentFields.length,
+      total_fields: knowledgeTopics.length,
+      legacy_texts: legacyTexts,
+      // E3: Die Beschreibung des Betriebs ist das einzige der vier Freitextfelder,
+      // das ein Eingabefeld bleibt -- sie hat mit `ai_short_description` nie ein
+      // eigenes Thema gedoppelt, sondern dieselbe Frage in anderer Laenge
+      // gestellt. Sie fuehrt und uebernimmt Beschriftung und Beispiel der
+      // Kurzbeschreibung, die im Gegenzug eine reine Admin-Frage geworden ist.
+      //
+      // Wo sie steht, sagt der Server und nicht das Formular: `section` verweist
+      // auf einen Schritt aus core_field_steps, damit die Reihenfolge der
+      // Abschnitte an einer Stelle gepflegt wird.
+      description_field: {
+        section: 'betrieb_profil',
+        column: 'ai_business_description',
+        label: 'Beschreibung Ihres Betriebs',
+        hint: 'Ein bis zwei Sätze. Der Assistent verwendet sie, wenn jemand fragt, was Sie machen.',
+        placeholder: 'Zum Beispiel: Wir sind eine Zahnarztpraxis in Luzern mit Schwerpunkt Kinderzahnmedizin.',
+        value: text(customer.ai_business_description) || ''
+      },
       updated_at: customer.updated_at || null
     },
     permissions: {
@@ -769,12 +879,22 @@ exports.handler = async (event) => {
       // woandershin gehoert (G6). Ohne diese beiden Listen suggerierte der
       // Vorschlag eine Vollstaendigkeit, die er nicht hat.
       service_list: coreValueMap.service_list ? null : (serviceSuggestion.items.length ? serviceSuggestion.items : null),
-      faq_list: coreValueMap.faq_list ? null : (faqSuggestion.items.length ? faqSuggestion.items : null)
+      faq_list: coreValueMap.faq_list ? null : (faqSuggestion.items.length ? faqSuggestion.items : null),
+      // E1: Dieselbe Bauform wie die drei Vorschlaege darueber -- der Parser
+      // schlaegt vor, der Kunde bestaetigt. Die Regelzeilen hat `parseFaqList`
+      // schon immer getrennt gemeldet; bis hierher fehlte nur das Feld, in das
+      // sie gehoeren.
+      appointment_rules: coreValueMap.appointment_rules ? null : (formatRuleLines(faqSuggestion.rules) || null)
     },
     list_suggestions: {
       service_unparsed_lines: coreValueMap.service_list ? [] : serviceSuggestion.ignored,
-      faq_unparsed_lines: coreValueMap.faq_list ? [] : faqSuggestion.ignored,
-      faq_rule_lines: coreValueMap.faq_list ? [] : faqSuggestion.rules
+      faq_unparsed_lines: coreValueMap.faq_list ? [] : faqSuggestion.ignored
+      // `faq_rule_lines` ist hier entfallen. Die Regelzeilen reisen jetzt als
+      // `core_suggestions.appointment_rules` mit -- zum Feld, in das sie
+      // gehoeren. Sie zusaetzlich beim FAQ-Vorschlag zu nennen, hiess sie am
+      // Bildschirm zweimal untereinander zu zeigen, und der Satz dort ("sie
+      // bleiben im Text stehen") war genau das Versprechen, das der
+      // Prompt-Builder gebrochen hat.
     },
     branch_sections: buildBranchSections(industryResult.data, branchValues(customer)),
     operational_updates: {
