@@ -225,13 +225,12 @@
    ═══════════════════════════════════════════════════════════ */
 
 
-.vx-report-card{margin-bottom:14px;} /* Card shell + inset owned by shared/customer-ui-components.css */
-.vx-report-head{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-bottom:0.5px solid var(--vx-border);}
-.vx-report-label{font-size:9px;font-weight:600;color:var(--vx-text3);text-transform:uppercase;letter-spacing:.08em;display:flex;align-items:center;gap:5px;}
-.vx-report-label i{color:var(--vx-blue);font-size:12px;}
-.vx-report-ki{font-size:10px;color:var(--vx-blue);font-weight:500;}
-.vx-report-body{padding:10px 12px;}
-.vx-report-text{font-size:12px;color:var(--vx-text2);line-height:1.65;}
+/* Der Rest dieses Blocks stammte aus der Bericht-Fassung vor dem
+   Design-Pass: .vx-report-card, -head, -ki, -body, -text kommen im Markup
+   gar nicht mehr vor (ausgezaehlt: 0 Treffer), und .vx-report-label i traf
+   kein Element, weil die Beschriftungen dort keine Icons tragen.
+   .vx-report-label selbst wird weiter unten vollstaendig neu gesetzt; die
+   Layout-Angaben von hier sind dort mit aufgenommen, damit nichts kippt. */
 
 
 /* ═══════════════════════════════════════════
@@ -6938,8 +6937,16 @@ body.vx-customer-design-foundation .vx-report-kpi{display:flex;flex-direction:co
 /* Label-Stufe der Typo-Leiter aus PR #848 (12px/600, Meta-Rolle, keine
    Versalien, keine Sperrung). --vx-subtle (#8a98ae) kam auf Weiss nur auf
    2.9:1 und lag damit unter AA; --vx-ui-meta-color liegt bei 4.83:1. */
-body.vx-customer-design-foundation .vx-report-label{color:var(--vx-ui-meta-color);font-size:var(--vx-ui-section-label-size);font-weight:var(--vx-ui-section-label-weight);letter-spacing:0;text-transform:none;}
-body.vx-customer-design-foundation .vx-report-value{margin-top:10px;color:var(--vx-brand);font-size:30px;font-weight:780;line-height:1;font-variant-numeric:tabular-nums;}
+body.vx-customer-design-foundation .vx-report-label{display:flex;align-items:center;gap:5px;color:var(--vx-ui-meta-color);font-size:var(--vx-ui-section-label-size);font-weight:var(--vx-ui-section-label-weight);letter-spacing:0;text-transform:none;}
+/* Die Grundfarbe der Kennzahl ist Night, nicht Blau.
+   Blau ist seit F7 die funktionale Kategorie "interaktiv" — eine Zahl, die
+   man nicht anfassen kann, darf sie nicht tragen. "Anrufe" und "Ø Dauer"
+   sind neutrale Messwerte und stehen deshalb in Night. Farbe bekommt hier
+   nur, was einer der vier Bedeutungsfamilien angehoert: tone-gold fuer
+   Lead-Qualitaet (Hot Leads), tone-green fuer Abschluss (Erledigt).
+   "Ø Dauer" stand vorher auf tone-green, obwohl eine Gespraechsdauer kein
+   Abschluss ist — die Klasse ist im Markup entfernt. */
+body.vx-customer-design-foundation .vx-report-value{margin-top:10px;color:var(--vx-color-text);font-size:30px;font-weight:780;line-height:1;font-variant-numeric:tabular-nums;}
 body.vx-customer-design-foundation .vx-report-value.tone-green{color:#047857;}
 /* "Hot Leads" IST Lead-Qualitaet und gehoert damit an die Gold-Rampe, die
    genau dafuer da ist. Vorher ein Amber-Literal ohne Verbindung zu den
@@ -6964,7 +6971,7 @@ body.vx-customer-design-foundation .vx-report-highlight-value{margin-top:6px;col
    aus Groesse, Gewicht 500 und der begrenzten Zeilenlaenge. */
 body.vx-customer-design-foundation .vx-report-voice .vx-ops-message{font-family:var(--vx-ui-voice-font);font-size:var(--vx-ui-voice-size);font-weight:var(--vx-ui-voice-weight);line-height:var(--vx-ui-voice-leading);letter-spacing:var(--vx-ui-voice-tracking);color:var(--vx-ui-voice-color);max-width:var(--vx-ui-voice-measure);}
 @media (max-width:560px){body.vx-customer-design-foundation .vx-report-voice .vx-ops-message{font-size:var(--vx-ui-voice-size-sm);}}
-body.vx-customer-design-foundation .vx-report-insight{display:flex;align-items:flex-start;gap:12px;} body.vx-customer-design-foundation .vx-report-insight-icon{display:flex;align-items:center;justify-content:center;flex:0 0 auto;width:32px;height:32px;border-radius:10px;}
+body.vx-customer-design-foundation .vx-report-insight{display:flex;align-items:flex-start;gap:12px;} body.vx-customer-design-foundation .vx-report-insight-icon{display:flex;align-items:center;justify-content:center;flex:0 0 auto;box-sizing:border-box;width:var(--vx-ui-icon-tile-md);height:var(--vx-ui-icon-tile-md);border-radius:var(--vx-ui-icon-tile-md-radius);}
 body.vx-customer-design-foundation .vx-report-insight.tone-warning{background:#fff7ed;color:#9a3412;} body.vx-customer-design-foundation .vx-report-insight.tone-warning .vx-report-insight-icon{background:#fed7aa;} body.vx-customer-design-foundation .vx-report-insight.tone-info{background:#eff6ff;color:#1d4ed8;} body.vx-customer-design-foundation .vx-report-insight.tone-info .vx-report-insight-icon{background:#dbeafe;} body.vx-customer-design-foundation .vx-report-insight.tone-success{background:#ecfdf5;color:#047857;} body.vx-customer-design-foundation .vx-report-insight.tone-success .vx-report-insight-icon{background:#d1fae5;}
 body.vx-customer-design-foundation .vx-report-week-chart{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));align-items:end;gap:8px;min-height:120px;}
 body.vx-customer-design-foundation .vx-report-week-col{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:5px;height:116px;} body.vx-customer-design-foundation .vx-report-week-count,body.vx-customer-design-foundation .vx-report-week-label{color:var(--vx-subtle);font-size:11px;font-weight:700;}
@@ -7794,7 +7801,7 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
               </article>
               <article class="vx-ap-card vx-report-kpi">
                 <div class="vx-report-label">Ø Dauer</div>
-                <div class="vx-report-value tone-green" id="au2-dur">–</div>
+                <div class="vx-report-value" id="au2-dur">–</div>
                 <div class="vx-report-trend" id="au2-dur-trend"></div>
               </article>
               <article class="vx-ap-card vx-report-kpi">
@@ -17270,17 +17277,21 @@ function injectTaskGroupHeaders(listId) {
 var _auPeriod = 'week';
 var _auPeriodRecords = null;
 
-function auSetPeriod(period, btn) {
+// Der zweite Parameter (das angeklickte Element) wird bewusst nicht mehr
+// ausgewertet: die Schleife leitet den Aktiv-Zustand aus data-report-period
+// ab und ist damit die einzige Quelle. Der frühere Nachtrag
+// "if (btn && !btn.classList.contains('active')) btn.classList.add('active')"
+// konnte einen zweiten Eintrag aktiv setzen, wenn er je mit einem Knopf
+// aufgerufen worden wäre, dessen data-report-period nicht zum Zeitraum passt —
+// zwei Schreiber für denselben Zustand. Die Signatur bleibt, weil die drei
+// onclick-Attribute im Markup sie mitgeben.
+function auSetPeriod(period) {
   _auPeriod = period;
   document.querySelectorAll('#au-period-row .vx-report-period').forEach(function(button) {
     var active = button.getAttribute('data-report-period') === period;
     button.classList.toggle('active', active);
     button.setAttribute('aria-selected', active ? 'true' : 'false');
   });
-  if (btn && !btn.classList.contains('active')) {
-    btn.classList.add('active');
-    btn.setAttribute('aria-selected', 'true');
-  }
   renderAuswertung();
 }
 
@@ -17326,15 +17337,36 @@ function renderAuswertung() {
   _auEl('au2-hot', hotCount || '–');
   _auEl('au2-rate', total ? rate+'%' : '–');
 
-  // Trends (compare to previous period)
-  var prev = _auPrevPeriodRecords(all);
+  // Trends (Vergleich mit der Vorperiode)
+  //
+  // "Gesamt" hat per Definition keine Vorperiode — _auPrevPeriodRecords gibt
+  // dafuer eine leere Liste zurueck. Vorher wurde trotzdem gerechnet und die
+  // fehlende Bezugsgroesse nur dadurch angedeutet, dass der Zusatz
+  // "vs. Vorperiode" weggelassen wurde. Ergebnis auf dem Tab "Gesamt": ein
+  // gruener Aufwaertspfeil mit der vollen Gesamtzahl daneben ("↑ +21"), also
+  // ein Wachstum gegen nichts. Dasselbe traf bei "7 Tage"/"30 Tage" jeden
+  // Kunden, dessen Vorperiode leer war.
+  //
+  // Der Zeitraum entscheidet jetzt, OB verglichen wird; ob die Vorperiode
+  // leer war, entscheidet nur noch ueber die Zahl. Eine leere Vorperiode mit
+  // Eintraegen in dieser ist eine echte Aussage und behaelt ihren Zusatz.
+  var hasPrevPeriod = _auPeriod !== 'all';
+  var prev = hasPrevPeriod ? _auPrevPeriodRecords(all) : [];
   var prevTotal = prev.length;
   var prevHot = prev.filter(function(r){ return qualKey((r.fields||{}).lead_quality)==='hot'; }).length;
   var prevRate = prevTotal ? Math.round(prev.filter(function(r){ return isClosedStatus((r.fields||{}).dashboard_status); }).length/prevTotal*100) : 0;
-  _auTrend('au2-calls-trend', total - prevTotal, prevTotal ? 'vs. Vorperiode' : '');
-  _auTrend('au2-hot-trend', hotCount - prevHot, prevTotal ? 'vs. Vorperiode' : '');
-  var rateDiff = rate - prevRate;
-  _auTrend('au2-rate-trend', rateDiff, prevTotal ? '% vs. Vorperiode' : '');
+  var prevDurTotal = prev.reduce(function(s,r){ return s+Number((r.fields||{}).duration_seconds||0); }, 0);
+  var prevAvgDur = prevTotal ? Math.round(prevDurTotal/prevTotal) : 0;
+  _auTrend('au2-calls-trend', hasPrevPeriod ? total - prevTotal : null, 'vs. Vorperiode');
+  _auTrend('au2-hot-trend', hasPrevPeriod ? hotCount - prevHot : null, 'vs. Vorperiode');
+  _auTrend('au2-rate-trend', hasPrevPeriod ? rate - prevRate : null, '% vs. Vorperiode');
+  // "Ø Dauer" hatte als einzige der vier Kennzahlen nie einen Trend: das
+  // Element #au2-dur-trend stand im Markup und hielt seinen Platz frei
+  // (min-height:18px), wurde aber nie beschrieben. Jetzt verhalten sich alle
+  // vier Karten gleich. Ohne Anrufe in einer der beiden Perioden gibt es
+  // keinen Mittelwert zu vergleichen.
+  var canCompareDur = hasPrevPeriod && prevTotal > 0 && total > 0;
+  _auTrend('au2-dur-trend', canCompareDur ? avgDur - prevAvgDur : null, 's vs. Vorperiode');
 
   // Sparklines
   _auBuildSparkCalls(all);
@@ -17364,9 +17396,16 @@ function _auEl(id, val) { var el = document.getElementById(id); if (el) el.textC
 function _auTrend(id, diff, suffix) {
   var el = document.getElementById(id);
   if (!el) return;
-  if (!diff && diff !== 0) { el.textContent = ''; el.className = 'vx-report-trend'; return; }
+  // null/undefined heisst "es gibt nichts zu vergleichen" — die Zeile bleibt
+  // leer. 0 heisst "verglichen, unveraendert" und wird angezeigt.
+  if (diff === null || diff === undefined) { el.textContent = ''; el.className = 'vx-report-trend'; return; }
   el.className = 'vx-report-trend ' + (diff > 0 ? 'up' : diff < 0 ? 'down' : '');
-  el.textContent = (diff > 0 ? '↑ +' : diff < 0 ? '↓ ' : '→ ') + (diff !== 0 ? Math.abs(diff) : '') + ' ' + (suffix || '');
+  // Bei 0 traegt die Einheit im Zusatz nichts bei ("→ 0 % vs. Vorperiode"
+  // sagt weniger als "unverändert") — der Fall bekommt deshalb seinen
+  // eigenen Wortlaut statt Zahl plus Zusatz.
+  if (diff === 0) { el.textContent = '→ unverändert'; return; }
+  var value = (diff > 0 ? '↑ +' : '↓ ') + Math.abs(diff);
+  el.textContent = suffix ? value + ' ' + suffix : value;
 }
 
 function _auPrevPeriodRecords(all) {
@@ -35068,7 +35107,9 @@ Hauptaktionen
 /* ─── 5. SECTIONS ───────────────────────────────────────────── */
 
 
-.vx-work-section,.vx-jetzt-section,.vx-greeting-block,.vx-report-card{margin-bottom:12px;}
+/* .vx-report-card aus der Auswahl entfernt: die Klasse kommt im Markup nicht
+   mehr vor, der Bericht baut seine Karten aus .vx-ap-card/.vx-ops-card. */
+.vx-work-section,.vx-jetzt-section,.vx-greeting-block{margin-bottom:12px;}
 
 /* ─── 6. DETAIL HEADER ──────────────────────────────────────── */
 .vx-detail-header{padding:14px 16px;border-bottom:0.5px solid rgba(255,255,255,.05);}
