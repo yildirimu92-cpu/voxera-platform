@@ -16197,6 +16197,8 @@ async function loadCustomerContractMeta(customerId, subscriptionId) {
       customerContractState.hasActiveContract = resolveHasActiveContractFromState(customerContractState);
       customerContractMeta = customerContractState.effectiveContract || customerContractState.latestContract || null;
       renderVertrag();
+      vxRenderContractDetails();
+      vxRenderCancellationSection();
       vxDebugInfo('[plan-card-debug] contract-state-source', {
         serverState: {
           status: serverState.status,
@@ -16234,6 +16236,8 @@ async function loadCustomerContractMeta(customerId, subscriptionId) {
     customerContractState.resolution = 'resolved';
     customerContractMeta = customerContractState.effectiveContract || null;
     renderVertrag();
+    vxRenderContractDetails();
+    vxRenderCancellationSection();
     return customerContractMeta;
   } catch (e) {
     console.warn('[contract-meta] load failed', e);
