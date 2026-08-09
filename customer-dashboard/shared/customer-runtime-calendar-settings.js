@@ -49,7 +49,7 @@
         entry.id = 'vx-calendar-settings-entry';
         entry.className = 'vx-settings-entry vx-settings-entry--calendar';
         entry.hidden = false;
-        entry.innerHTML = '<span class="vx-settings-entry-icon"><i class="ph-bold ph-calendar-dots" aria-hidden="true"></i></span><span class="vx-settings-entry-copy"><span class="vx-settings-entry-title">Kalender</span><span id="vx-calendar-entry-sub" class="vx-settings-entry-subtitle">Kalender verbinden</span></span><i class="ph-bold ph-caret-right vx-settings-entry-caret" aria-hidden="true"></i>';
+        entry.innerHTML = '<span class="vx-settings-entry-icon"><i class="ph-bold ph-calendar-dots" aria-hidden="true"></i></span><span class="vx-settings-entry-copy"><span class="vx-settings-entry-title">Kalender</span><span id="vx-calendar-entry-sub" class="vx-settings-entry-subtitle">Kalender verbinden</span></span><i class="ph-light ph-caret-right vx-settings-entry-caret" aria-hidden="true"></i>';
         entry.addEventListener('click', open);
         const help = Array.from(list.children).find((child) => /Hilfe/.test(child.textContent || ''));
         list.insertBefore(entry, help || null);

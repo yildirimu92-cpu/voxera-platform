@@ -156,6 +156,40 @@ body.vx-customer-design-foundation .vx-screen-meta-text {
   line-height: 1.4;
 }
 
+/* Der Gruss auf "Heute" ist die einzige Stelle, an der das Produkt den Kunden
+   beim Namen nennt. Die Tageszeit-Floskel führt leise, der Firmenname trägt
+   die Zeile — auf der Kartentitel-Stufe der Typo-Leiter, also eine Stufe
+   unter dem Screen-Namen in der Leiste darüber. Beide Teile stehen in
+   derselben Zeile; erst wenn der Platz knapp wird, bricht der Name um. */
+body.vx-customer-design-foundation .vx-heute-greeting {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0;
+  min-width: 0;
+  margin: 0 0 var(--vx-space-3);
+}
+
+body.vx-customer-design-foundation .vx-greeting-lead {
+  color: var(--vx-color-text-muted);
+  font-family: var(--vx-font-body, inherit);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: normal;
+}
+
+body.vx-customer-design-foundation .vx-greeting-lead + .vx-greeting-name {
+  margin-left: 6px;
+}
+
+body.vx-customer-design-foundation .vx-greeting-name {
+  color: var(--vx-color-text);
+  font-family: var(--vx-font-display);
+  font-size: var(--vx-ui-title-size);
+  font-weight: var(--vx-ui-title-weight);
+  letter-spacing: var(--vx-ui-title-tracking);
+}
+
 body.vx-customer-design-foundation .vx-screen-meta-action {
   padding: 0;
   border: 0;
@@ -176,43 +210,126 @@ body.vx-customer-design-foundation .vx-screen-meta-action:hover {
   display: flex;
 }
 
-body.vx-customer-design-foundation .nav-item.vx-root-nav-active {
-  background: var(--vx-brand);
-  color: #ffffff;
+/* ------------------------------------------------------------
+   Root navigation — Seitenleiste (Desktop) und Tab-Leiste (Mobile)
+   ------------------------------------------------------------
+   Ein Vertrag, zwei Erscheinungsformen. Beide stehen auf derselben
+   Night-Fläche, beide dämpfen die inaktiven Einträge gleich, und
+   beide zeigen den aktiven Eintrag ausschliesslich über einen
+   goldenen Chip um sein Icon.
+
+   Was der aktive Eintrag NICHT bekommt: einen Hintergrund über die
+   ganze Zeile, einen Rand, einen linken Akzentstreifen, eine
+   Gold-Tönung der Fläche oder eine fettere Schrift. Das Label wechselt
+   auf Weiss — mehr braucht der Zustand nicht, und mehr würde die
+   Zeile wieder zu dem Vollflächen-Fill machen, den dieser Umbau
+   abgelöst hat.
+
+   Dieses Modul ist ab hier der einzige Ort, der den Aktiv-Zustand der
+   Navigation setzt. Die Blau-Fill-Regeln in index.html (`.nav-item.active`
+   in beiden Inline-Blöcken, `.mobile-nav-btn.active`) und die
+   Farb-Overrides im Laufzeit-Skript customer-runtime-mobile-nav-repair.js
+   wurden im selben Schritt entfernt — nicht überschrieben.
+   ------------------------------------------------------------ */
+
+/* — gemeinsame Grundlage beider Erscheinungsformen — */
+body.vx-customer-design-foundation :is(.nav-item, .mobile-nav-btn) {
+  color: var(--vx-ui-nav-item-color);
+  transition: var(--vx-ui-nav-transition);
 }
 
-body.vx-customer-design-foundation .nav-item.vx-root-nav-active :where(i, .nav-icon) {
-  color: #ffffff;
+body.vx-customer-design-foundation :is(.nav-item, .mobile-nav-btn) :where(i, .nav-icon) {
+  color: inherit;
+}
+
+/* — der Chip — */
+/* Am Desktop ist der Chip das Icon-Element selbst (ein Phosphor-<i>, das zur
+   Box wird); auf dem Telefon gibt es mit .mobile-nav-icon-wrap bereits einen
+   Rahmen um Icon und Zähler-Badge. Beide bekommen dieselbe Geometrie. */
+body.vx-customer-design-foundation .nav-item > .nav-icon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: var(--vx-ui-nav-chip-size);
+  height: var(--vx-ui-nav-chip-size);
+  border-radius: var(--vx-ui-nav-chip-radius);
+  background: transparent;
+  font-size: var(--vx-ui-nav-chip-icon-size);
+  line-height: 1;
+  transition: var(--vx-ui-nav-transition);
 }
 
 body.vx-customer-design-foundation .mobile-nav-btn {
   gap: 5px;
   padding-right: 2px;
   padding-left: 2px;
-  color: rgba(255, 255, 255, 0.5);
 }
 
 body.vx-customer-design-foundation .mobile-nav-btn .mobile-nav-icon-wrap {
-  width: 34px;
-  height: 28px;
-  border-radius: 10px;
+  box-sizing: border-box;
+  width: var(--vx-ui-nav-chip-width-mobile);
+  height: var(--vx-ui-nav-chip-height-mobile);
+  border-radius: var(--vx-ui-nav-chip-radius);
   background: transparent;
   color: inherit;
+  font-size: var(--vx-ui-nav-chip-icon-size-mobile);
+  transition: var(--vx-ui-nav-transition);
 }
 
-body.vx-customer-design-foundation .mobile-nav-btn:is(.active, .vx-root-nav-active) {
-  color: #5b9cff;
-  font-weight: 700;
+/* — Hover: die Kachel wird angedeutet, nicht die ganze Zeile — */
+/* Nur auf Zeigergeräten. Auf dem Telefon bleibt ein :hover nach dem Tippen
+   hängen und sähe wie ein zweiter aktiver Eintrag aus. */
+@media (hover: hover) {
+  body.vx-customer-design-foundation :is(.nav-item, .mobile-nav-btn):hover {
+    color: var(--vx-ui-nav-item-hover-color);
+    background: transparent;
+    border-color: transparent;
+    transform: none;
+    box-shadow: none;
+  }
+
+  body.vx-customer-design-foundation .nav-item:hover > .nav-icon,
+  body.vx-customer-design-foundation .mobile-nav-btn:hover .mobile-nav-icon-wrap {
+    background: var(--vx-ui-nav-item-hover-bg);
+  }
+
+  /* Der aktive Eintrag behält seinen Gold-Chip, auch unter dem Zeiger. */
+  body.vx-customer-design-foundation .nav-item:is(.active, .vx-root-nav-active):hover > .nav-icon,
+  body.vx-customer-design-foundation .mobile-nav-btn:is(.active, .vx-root-nav-active):hover .mobile-nav-icon-wrap {
+    background: var(--vx-ui-nav-chip-bg);
+  }
 }
 
+/* — Fokus — */
+/* Beide Erscheinungsformen stehen auf Night, also der helle Ring. Die
+   Seitenleisten-Einträge sind <div>-Elemente und werden von der
+   Fundament-Regel für Bedienelemente nicht erfasst; sie brauchen ihren
+   eigenen Eintrag, tragen aber denselben Ring. */
+body.vx-customer-design-foundation :is(.nav-item, .mobile-nav-btn):focus-visible {
+  outline: 3px solid var(--vx-focus-ring-on-dark);
+  outline-offset: 2px;
+}
+
+/* — aktiv: Gold-Chip um das Icon, Label auf Weiss, sonst nichts — */
+body.vx-customer-design-foundation :is(.nav-item, .mobile-nav-btn):is(.active, .vx-root-nav-active) {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  color: var(--vx-ui-nav-item-active-color);
+}
+
+body.vx-customer-design-foundation .nav-item:is(.active, .vx-root-nav-active) > .nav-icon,
 body.vx-customer-design-foundation .mobile-nav-btn:is(.active, .vx-root-nav-active) .mobile-nav-icon-wrap {
-  background: rgba(26, 111, 232, 0.18);
-  color: #5b9cff;
+  background: var(--vx-ui-nav-chip-bg);
+  color: var(--vx-ui-nav-chip-color);
 }
 
-body.vx-customer-design-foundation .mobile-nav-btn:is(.active, .vx-root-nav-active) :where(i, svg, .lucide) {
-  color: #5b9cff;
-  stroke: #5b9cff;
+/* Der Chip färbt sein Icon über `color`. Das Zähler-Badge im mobilen Wrap
+   bringt seine eigene Farbe mit und darf davon nicht eingefangen werden. */
+body.vx-customer-design-foundation .mobile-nav-btn:is(.active, .vx-root-nav-active) .mobile-nav-icon-wrap > i {
+  color: var(--vx-ui-nav-chip-color);
 }
 
 @media (max-width: 720px) {

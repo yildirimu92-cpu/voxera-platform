@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
+import { createRequire } from 'node:module';
+
+const require = createRequire(import.meta.url);
 
 const files = {
   runtime: 'customer-dashboard/shared/customer-runtime-assistant-profile.js',
@@ -163,7 +166,7 @@ for (const forbidden of [
   if (source.statusRuntime.includes(forbidden)) failures.push(`status runtime exposes protected field: ${forbidden}`);
 }
 
-assert.match(source.loader, /customer-runtime-assistant-profile\.js\?v=20260809-2/);
+assert.match(source.loader, /customer-runtime-assistant-profile\.js\?v=20260809-7/);
 assert.match(source.loader, /customer-runtime-assistant-status\.js\?v=20260809-1/);
 assert.doesNotMatch(source.loader, /customer-runtime-assistant-business-menu\.js/);
 assert.doesNotMatch(source.loader, /customer-runtime-voice-preview-fallback\.js/);
@@ -249,6 +252,184 @@ assert.match(source.update, /voice_not_available_on_plan/);
 assert.match(source.update, /from\('voxera_voices'\)/);
 assert.match(source.update, /PLAN_TIERS/);
 assert.match(source.voices, /gender,language,preview_url/);
+
+// ── J4 / Schicht A: der Schreibpfad der generischen Felder ───────────────────
+// Die Funktionen laufen normalerweise in Netlify mit installierten
+// Abhaengigkeiten. Hier wird das Modul in einer Sandbox mit gestubbtem require
+// ausgewertet, damit die Allowlist echt geprueft wird und nicht nur ihr
+// Quelltext — sie ist die Stelle, an der eine Zeile in system_config sonst zu
+// einer Schreibberechtigung auf beliebige Kundenspalten wuerde.
+function loadFunctionModule(path) {
+  const stubs = {
+    '@supabase/supabase-js': { createClient: () => ({}) },
+    './_lib/require-customer': { requireCustomerCaller: async () => ({ ok: false, statusCode: 401, body: {} }) },
+    './_lib/assistant-greeting': { buildGreetingView: () => ({}) },
+    // Kein Stub: das Modul ist abhaengigkeitsfrei und traegt die Pruefung der
+    // Oeffnungszeiten. Gestubbt wuerde der Test genau die Stelle auslassen,
+    // die er absichern soll.
+    './_lib/opening-hours': require('../customer-dashboard/netlify/functions/_lib/opening-hours.js'),
+    // N6: diese beiden sind echte Repo-Module ohne externe Abhaengigkeiten und
+    // werden deshalb echt geladen statt gestubbt — die Sync-Klassifikation und
+    // die Nummernpruefung sollen im Test dieselben sein wie in Produktion.
+    './_lib/phone-normalize': require('../customer-dashboard/netlify/functions/_lib/phone-normalize.js'),
+    './_lib/assistant-write-policy': require('../customer-dashboard/netlify/functions/_lib/assistant-write-policy.js')
+  };
+  const module = { exports: {} };
+  const context = vm.createContext({
+    module,
+    exports: module.exports,
+    require: (name) => {
+      if (!(name in stubs)) throw new Error('unerwartetes require: ' + name);
+      return stubs[name];
+    },
+    console,
+    process
+  });
+  new vm.Script(fs.readFileSync(path, 'utf8'), { filename: path }).runInContext(context);
+  return module.exports;
+}
+
+const CORE_SCHEMA = [{
+  id: 'betrieb_kern',
+  fields: [
+    { key: 'coverage_mode', column: 'sprechstunden_modus', type: 'radio', options: [{ val: 'backup' }, { val: 'rund_um_die_uhr' }] },
+    { key: 'online_booking_url', column: 'ai_online_booking_url', type: 'text' }
+  ]
+}];
+
+try {
+  const updateModule = loadFunctionModule(files.update);
+  const { parseCoreSteps, coreFieldRules, sanitizeCoreFields } = updateModule._test;
+
+  const rules = coreFieldRules(CORE_SCHEMA);
+  assert.equal(rules.get('coverage_mode').column, 'sprechstunden_modus');
+
+  // Der Kern der Trennung: das Schema darf die Frage bestimmen, nicht das Ziel.
+  const hijackRules = coreFieldRules([{ id: 'x', fields: [
+    { key: 'plan_code', column: 'plan_code', type: 'text' },
+    { key: 'agent', column: 'elevenlabs_agent_id', type: 'text' }
+  ] }]);
+  assert.equal(hijackRules.size, 0, 'Eine system_config-Zeile konnte eine fremde Spalte als Ziel setzen');
+
+  const accepted = sanitizeCoreFields({ coverage_mode: 'backup' }, rules);
+  assert.equal(JSON.stringify(accepted.patch), JSON.stringify({ sprechstunden_modus: 'backup' }));
+  assert.equal(accepted.rejected.length, 0);
+
+  const badOption = sanitizeCoreFields({ coverage_mode: 'immer_alles' }, rules);
+  assert.equal(badOption.rejected.join(), 'coverage_mode', 'Ein Wert ausserhalb der Optionen wurde angenommen');
+  assert.equal(Object.keys(badOption.patch).length, 0);
+
+  const unknownKey = sanitizeCoreFields({ nicht_im_schema: 'x' }, rules);
+  assert.equal(unknownKey.rejected.join(), 'nicht_im_schema');
+
+  // Leeren muss zuruecknehmbar sein: jedes Feld hat eine eigene Spalte.
+  const cleared = sanitizeCoreFields({ coverage_mode: '' }, rules);
+  assert.equal(JSON.stringify(cleared.patch), JSON.stringify({ sprechstunden_modus: null }));
+
+  // Geschweifte Klammern raus, sonst schriebe eine Antwort einen Platzhalter.
+  const braces = sanitizeCoreFields({ online_booking_url: 'https://x.ch/{{ASSISTANT_NAME}}' }, rules);
+  assert.equal(braces.patch.ai_online_booking_url, 'https://x.ch/ASSISTANT_NAME');
+
+  assert.equal(parseCoreSteps('kein json').length, 0, 'Ein kaputtes Schema muss leer degradieren, nicht werfen');
+} catch (error) {
+  failures.push(`core field write path: ${error.message}`);
+}
+
+// Klick-Test 09.08.: Die Geschäftsprofil-Seite benutzte das zweispaltige
+// KPI-Raster (vx-ap-grid) statt der einspaltigen Feldliste und hatte keinen
+// vx-ap-stack-Rahmen — die drei Karten standen dadurch ohne vertikalen
+// Abstand aufeinander. Beides ist reine Klassenwahl, kein neues CSS.
+assert.doesNotMatch(source.runtime, /class="vx-ap-grid"/);
+// Der Einstieg ins Geschäftsprofil trägt einen Chevron: er führt auf eine
+// eigene Seite und ist keine Aktion auf dieser Karte. Bewusst im eigenen
+// Knopf statt in der Einstellungen-Zeile — die verbietet der
+// Settings-Bridge-Wächter in verify-customer-navigation-unified.
+assert.match(source.runtime, /id="vx-open-business-profile"[\s\S]{0,160}ph-caret-right/);
+assert.doesNotMatch(source.runtime, /vx-settings-entry/);
+// Der mehr-sub-Präfix gehört zum Einstellungen-Tab und darf auf den
+// Assistent-Seiten nicht zurückkehren.
+assert.doesNotMatch(source.runtime, /mehr-sub-(assistant|business)-profile/);
+assert.match(source.runtime, /vx-business-profile-status[\s\S]{0,80}vx-ap-stack/);
+
+// J5: Öffnungszeiten
+assert.match(source.profile, /opening_hours/);
+assert.match(source.profile, /unparsed_lines/);
+assert.match(source.update, /sanitizeOpeningHours/);
+assert.match(source.runtime, /data-vx-hours/);
+assert.match(source.runtime, /payload\.opening_hours = collectHours\(\)/);
+// Der Vorschlag darf nur ins Formular, nie direkt in die Daten (Entscheid F3).
+assert.doesNotMatch(source.profile, /ai_opening_hours:\s*openingHoursSuggestion/);
+assert.match(source.runtime, /function applyHoursSuggestion/);
+
+assert.match(source.update, /core_field_not_in_schema/);
+assert.match(source.profile, /core_sections/);
+assert.match(source.runtime, /data-vx-core-key/);
+assert.match(source.runtime, /core_fields: payload/);
+
+// ── J6: die restlichen Schicht-A-Felder ─────────────────────────────────────
+// Der erste Block prueft den Lesepfad an der Funktion selbst und nicht am
+// Quelltext. Er deckt den Fehler ab, den J5 hinterlassen hat: der Feldtyp
+// `hours` stand nicht in der Typenliste von buildBranchSections und wurde
+// deshalb auf `text` heruntergestuft. Die Oberflaeche zeigte statt des
+// Wochenrasters ein leeres Textfeld, dessen Inhalt der Schreibpfad
+// anschliessend als ungueltiges Raster abwies — sichtbar wurde das nie, weil
+// noch kein Kunde bestaetigte Zeiten hatte.
+try {
+  const profileModule = loadFunctionModule(files.profile);
+  const { buildBranchSections } = profileModule._test;
+
+  const sections = buildBranchSections({ extra_steps: [{ id: 's', fields: [
+    { key: 'opening_hours', column: 'ai_opening_hours', type: 'hours', label: 'Öffnungszeiten' },
+    { key: 'public_address', column: 'ai_public_address', type: 'text', label: 'Adresse', suggestion: 'public_address' },
+    { key: 'pricing_amount', column: 'ai_pricing_amount', type: 'text', label: 'Betrag',
+      show_if: { key: 'pricing_mode', in: ['ab_preis', 'fixpreis'] } }
+  ] }] }, { opening_hours: { mon: [['08:00', '12:00']] }, public_address: 'Bahnhofstrasse 1' });
+
+  const [hoursField, addressField, amountField] = sections[0].fields;
+  assert.equal(hoursField.type, 'hours', 'Der Feldtyp hours wird wieder auf text heruntergestuft');
+  assert.equal(typeof hoursField.value, 'object', 'Das Wochenraster wird zu "[object Object]" verflacht');
+  assert.equal(JSON.stringify(hoursField.value.mon), JSON.stringify([['08:00', '12:00']]));
+  assert.equal(addressField.value, 'Bahnhofstrasse 1');
+  assert.equal(addressField.suggestion, 'public_address');
+  assert.equal(JSON.stringify(amountField.show_if), JSON.stringify({ key: 'pricing_mode', in: ['ab_preis', 'fixpreis'] }));
+
+  // Die Bedingung ist bewusst nicht ausdrucksstark: alles ausser Schluessel und
+  // Werteliste faellt weg, damit aus einer system_config-Zeile keine Logik wird.
+  const loose = buildBranchSections({ extra_steps: [{ id: 's', fields: [
+    { key: 'a', column: 'ai_service_area', type: 'text', label: 'A', show_if: { key: 'x' } },
+    { key: 'b', column: 'ai_service_area', type: 'text', label: 'B', show_if: 'pricing_mode' },
+    { key: 'c', column: 'ai_service_area', type: 'text', label: 'C', suggestion: { evil: true } }
+  ] }] }, {});
+  assert.equal(loose[0].fields[0].show_if, null, 'Eine Bedingung ohne Werteliste wird durchgereicht');
+  assert.equal(loose[0].fields[1].show_if, null, 'Eine Bedingung ohne Objektform wird durchgereicht');
+  assert.equal(loose[0].fields[2].suggestion, null, 'Ein Vorschlagsmarker beliebiger Form wird durchgereicht');
+} catch (error) {
+  failures.push(`core field read path: ${error.message}`);
+}
+
+// Der Adressvorschlag ist ein Vorschlag und keine Auskunft: street/zip/city
+// stammen aus Offerte und Vertrag. Er darf nur mitreisen, nie gespeichert
+// werden — dieselbe Regel wie beim Öffnungszeiten-Vorschlag (Entscheid F3).
+assert.match(source.profile, /core_suggestions/);
+assert.match(source.profile, /function addressSuggestion/);
+assert.doesNotMatch(source.profile, /ai_public_address:\s*addressSuggestion/);
+assert.match(source.runtime, /data-vx-suggest-value/);
+assert.match(source.runtime, /function applyFieldVisibility/);
+
+// Ein ausgeblendetes Feld behält seinen gespeicherten Wert. saveCore sammelt
+// weiterhin alle Kernfelder ein; würde es die versteckten überspringen, wäre
+// ein kurzer Blick auf „keine Termine“ genug, um den Buchungslink zu verlieren.
+assert.doesNotMatch(source.runtime, /data-vx-core-key\]:not\(\[hidden\]\)/);
+
+// Für dieselbe Spalte darf es nur einen Schreiber geben. ai_short_description
+// hatte bis J6 zwei: das eigene Wizard-Feld und Schicht A.
+const adminIndexSource = fs.readFileSync('admin-panel/index.html', 'utf8');
+assert.doesNotMatch(adminIndexSource, /ai_short_description:\s*d\.shortDescription/);
+assert.doesNotMatch(adminIndexSource, /id="wz-short-description"/);
+for (const column of ['ai_public_address', 'ai_target_groups', 'ai_pricing_mode', 'ai_pricing_amount']) {
+  assert.ok(source.profile.includes(column), `Lesepfad kennt ${column} nicht`);
+  assert.ok(source.update.includes(column), `Schreibpfad kennt ${column} nicht`);
+}
 
 if (failures.length) {
   console.error(failures.join('\n'));

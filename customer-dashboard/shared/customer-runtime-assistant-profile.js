@@ -15,6 +15,8 @@
   let bootAttempts = 0;
   let activeView = 'assistant';
   let toneEditorOpen = false;
+  let forwardingEditorOpen = false;
+  let forwardingSecondSlotOpen = false;
   let voiceDetailsOpen = false;
   let loadPromise = null;
   let loadSequence = 0;
@@ -39,8 +41,8 @@
   }
 
   function inject() {
-    if (!ensurePage('mehr-sub-assistant-profile', 'vx-assistant-profile-body', 'Mein Assistent')) return false;
-    if (!ensurePage('mehr-sub-business-profile', 'vx-business-profile-body', 'Geschäftsprofil')) return false;
+    if (!ensurePage('vx-assistant-view-profile', 'vx-assistant-profile-body', 'Mein Assistent')) return false;
+    if (!ensurePage('vx-assistant-view-business', 'vx-business-profile-body', 'Geschäftsprofil')) return false;
     if (!document.getElementById('vx-assistant-voice-modal')) {
       const modal = document.createElement('div');
       modal.id = 'vx-assistant-voice-modal';
@@ -144,7 +146,7 @@
       // Ohne Anker schreibt setStatus an den Seitenknoten.
       anchorId: page === 'business'
         ? 'vx-business-save-status'
-        : (toneEditorOpen ? 'vx-hero-tune-status' : '')
+        : (toneEditorOpen ? 'vx-hero-tune-status' : (forwardingEditorOpen ? 'vx-forwarding-status' : ''))
     };
   }
 
@@ -234,6 +236,57 @@
     return originChip('branch', 'Noch keine Branche zugeordnet');
   }
 
+  // N6 — die Weiterleitung ist wieder selbst bearbeitbar. Der Editor ist
+  // bewusst ein Satz und kein Telefonanlagen-Formular (Grundsatz 15): drei
+  // Felder, die zusammen "Wenn X, dann anrufen: Name unter Nummer" ergeben. Das
+  // zweite Ziel erscheint erst, wenn es gebraucht wird — wer nur eine
+  // Weiterleitung hat, sieht auch nur eine.
+  function forwardingSlotFields(index, slot) {
+    const prefix = 'vx-fwd-' + index;
+    return '<div class="vx-ap-subsection">'
+      + '<div class="vx-ap-subtitle">' + (index === 1 ? 'Weiterleitung' : 'Zweite Weiterleitung') + '</div>'
+      + '<div class="vx-ap-fieldlist">'
+      // Der Auslöser wird im Prompt zu „(bei: …)" — deshalb fragt das Feld nach
+      // dem Fall und nicht nach einem Nebensatz. „Wenn jemand einen
+      // Wasserschaden meldet" ergäbe dort „bei: jemand einen Wasserschaden
+      // meldet"; der Assistent liest, was hier getippt wird.
+      + '<div class="vx-ap-field"><label for="' + prefix + '-trigger">In welchem Fall?</label>'
+      + '<input id="' + prefix + '-trigger" maxlength="500" value="' + esc(slot.trigger || '') + '"'
+      + ' placeholder="z. B. Wasserschaden oder Rohrbruch"' + (busy ? ' disabled' : '') + '></div>'
+      + '<div class="vx-ap-field"><label for="' + prefix + '-name">Dann anrufen</label>'
+      + '<input id="' + prefix + '-name" maxlength="120" value="' + esc(slot.name || '') + '"'
+      + ' placeholder="Name, z. B. Pikettdienst Meier"' + (busy ? ' disabled' : '') + '></div>'
+      + '<div class="vx-ap-field"><label for="' + prefix + '-number">Nummer</label>'
+      + '<input id="' + prefix + '-number" type="tel" inputmode="tel" maxlength="40" value="' + esc(slot.number || '') + '"'
+      + ' placeholder="z. B. 079 123 45 67"' + (busy ? ' disabled' : '') + '></div>'
+      + '</div>'
+      + (index === 2
+        ? '<div class="vx-ap-meta">Zum Entfernen die drei Felder leeren und speichern.</div>'
+        : '')
+      + '</div>';
+  }
+
+  function forwardingEditor(slots) {
+    if (!forwardingEditorOpen) {
+      const label = (slots[0].name || slots[0].number) ? 'Weiterleitung ändern' : 'Weiterleitung einrichten';
+      return '<div class="vx-ap-actions"><button type="button" class="vx-ap-btn secondary" id="vx-forwarding-edit">' + label + '</button></div>';
+    }
+    const showSecond = forwardingSecondSlotOpen || Boolean(slots[1].name || slots[1].number || slots[1].trigger);
+    return '<div class="vx-ap-subsection">'
+      + '<div class="vx-ap-meta">Ihr Assistent verbindet nur weiter, wenn Name und Nummer beide hinterlegt sind. '
+      + 'Sonst nimmt er das Anliegen wie gewohnt auf.</div>'
+      + forwardingSlotFields(1, slots[0])
+      + (showSecond
+        ? forwardingSlotFields(2, slots[1])
+        : '<div class="vx-ap-actions"><button type="button" class="vx-ap-linkbtn" id="vx-forwarding-add">+ Zweite Weiterleitung hinzufügen</button></div>')
+      + '<div class="vx-ap-actions">'
+      + '<button type="button" class="vx-ap-btn" id="vx-forwarding-save"' + (busy ? ' disabled' : '') + '>Weiterleitung speichern</button>'
+      + '<button type="button" class="vx-ap-btn ghost" id="vx-forwarding-cancel"' + (busy ? ' disabled' : '') + '>Abbrechen</button>'
+      + '</div>'
+      + '<div id="vx-forwarding-status" class="vx-ap-status vx-ap-status--inline" role="status" aria-live="polite"></div>'
+      + '</div>';
+  }
+
   function boundariesCard() {
     const urgent = profile?.urgent || { emergency_number: '', forwarding: [] };
     const boundaries = profile?.boundaries || {};
@@ -278,16 +331,33 @@
         + rules + originChip('voxera', 'Nicht überschreibbar') + '</details>'
       : '';
 
+    // Die Kartenbeschreibung muss die Schreibregel treffen, die auf der Karte
+    // gilt — sonst behauptet sie einen Bestaetigungsweg, den es fuer die
+    // Weiterleitung nicht mehr gibt.
+    const canEditForwarding = profile?.permissions?.can_change_forwarding === true;
+    const slots = Array.isArray(urgent.slots) && urgent.slots.length === 2
+      ? urgent.slots
+      : [{ name: '', number: '', trigger: '' }, { name: '', number: '', trigger: '' }];
+    const cardMeta = canEditForwarding
+      ? 'Die Weiterleitung ändern Sie selbst — sie wirkt sofort. Die Notfallnummer bestätigt Voxera.'
+      : 'Änderungen an Weiterleitung und Notfallnummer bestätigt Voxera vor der Aktivierung.';
+
     return '<section class="vx-ap-card" id="vx-assistant-urgent-card">'
-      + '<div class="vx-ap-head"><div><div class="vx-ap-title">Grenzen und Eskalation</div><div class="vx-ap-meta">Änderungen an Weiterleitung und Notfallnummer bestätigt Voxera vor der Aktivierung.</div></div></div>'
+      + '<div class="vx-ap-head"><div><div class="vx-ap-title">Grenzen und Eskalation</div><div class="vx-ap-meta">' + esc(cardMeta) + '</div></div></div>'
       + body
+      + (canEditForwarding ? forwardingEditor(slots) : '')
       + limitsBlock
       + escalationBlock
       + industryBlock
       + rulesBlock
       + '<div class="vx-ap-actions"><button type="button" class="vx-ap-btn secondary" id="vx-urgent-change-toggle" aria-expanded="false" aria-controls="vx-urgent-change-panel">Änderung melden</button></div>'
       + '<div id="vx-urgent-change-panel" class="vx-ap-change-panel" hidden>'
-      + '<div class="vx-ap-change-presets">' + CHANGE_PRESETS.map(([label, prefix]) => '<button type="button" class="vx-ap-btn ghost" data-vx-change-preset="' + esc(prefix) + '">' + esc(label) + '</button>').join('') + '</div>'
+      // Wer die Weiterleitung selbst bearbeiten kann, braucht dafuer keinen
+      // Meldeweg — der Baustein stuende sonst als zweiter, langsamerer Weg
+      // direkt neben dem Editor.
+      + '<div class="vx-ap-change-presets">' + CHANGE_PRESETS
+        .filter(([label]) => !(canEditForwarding && label === 'Weiterleitung einrichten'))
+        .map(([label, prefix]) => '<button type="button" class="vx-ap-btn ghost" data-vx-change-preset="' + esc(prefix) + '">' + esc(label) + '</button>').join('') + '</div>'
       + '<div class="vx-ap-field"><label for="vx-urgent-change-msg">Ihre Änderungsanfrage</label><textarea id="vx-urgent-change-msg" maxlength="6000" placeholder="Beschreiben Sie Ihre Wünsche …"></textarea></div>'
       + '<div class="vx-ap-actions"><button type="button" class="vx-ap-btn" id="vx-urgent-change-submit">Anfrage senden</button></div>'
       + '<div id="vx-urgent-change-feedback" class="vx-ap-urgent-feedback" role="status" aria-live="polite" hidden></div>'
@@ -563,7 +633,23 @@
       + branchRow
       + '</div>'
       + industryLine()
-      + '<div class="vx-ap-actions"><button type="button" class="vx-ap-btn secondary" id="vx-open-business-profile">Geschäftsprofil bearbeiten</button></div>'
+      // Klick-Test 09.08.: Die Seite dahinter wirkte verwaist, obwohl sie
+      // absichtlich ein Drill-in ist und in ASSISTANT_VIEWS registriert steht.
+      // Gefehlt hat nicht ein zweiter Navigationsweg, sondern die Geste: ohne
+      // Chevron liest sich der Knopf als Aktion auf dieser Karte, nicht als
+      // Weg zu einer eigenen Seite.
+      //
+      // Bewusst NICHT die Drill-in-Zeile des Einstellungen-Tabs, obwohl sie
+      // optisch genau das waere: verify-customer-navigation-unified verbietet
+      // dem Assistent-Runtime jeden Baustein von dort, und zwar als
+      // Substring-Pruefung — dieser Kommentar darf den Klassennamen also nicht
+      // einmal nennen. Die
+      // Sperre stammt aus dem Rueckbau der alten Settings-Bridge und ist
+      // richtig — der Assistent-Tab soll nicht wieder an den Bausteinen eines
+      // anderen Tabs haengen. Der Chevron sitzt deshalb im eigenen Knopf,
+      // genau wie ph-play in der Stimmkarte.
+      + '<div class="vx-ap-actions"><button type="button" class="vx-ap-btn secondary" id="vx-open-business-profile">'
+      + 'Geschäftsprofil bearbeiten<i class="ph-light ph-caret-right" aria-hidden="true"></i></button></div>'
       + '</section>';
   }
 
@@ -609,8 +695,22 @@
     // vx-ui-brand-rule: der Gold-Streifen auf der fuehrenden Karte des
     // Screens. Genau eine pro Screen, zustandsunabhaengig — siehe
     // customer-ui-components.css, Abschnitt 9.
-    body.innerHTML = '<div id="vx-business-profile-status" class="vx-ap-status" role="status" aria-live="polite"></div><div class="vx-ap-card vx-ui-brand-rule"><div class="vx-ap-head"><div><div class="vx-ap-title">Dauerhaftes Geschäftswissen</div><div class="vx-ap-meta">Diese Informationen verwendet der Assistent im normalen Betrieb. Ferien und kurzfristige Änderungen gehören in „Aktuelle Infos“.</div></div></div><div class="vx-ap-grid"><div class="vx-ap-field"><label>Unternehmensbeschreibung</label><textarea id="vx-business-description" placeholder="Was macht Ihr Unternehmen und für wen?">' + esc(data.description || '') + '</textarea></div><div class="vx-ap-field"><label>Leistungen und Angebote</label><textarea id="vx-business-services" placeholder="Welche Leistungen darf der Assistent erklären?">' + esc(data.services || '') + '</textarea></div><div class="vx-ap-field"><label>Standort und reguläre Öffnungszeiten</label><textarea id="vx-business-location-hours" placeholder="Adresse, Einzugsgebiet und reguläre Öffnungszeiten">' + esc(data.location_hours || '') + '</textarea></div><div class="vx-ap-field"><label>Häufige Fragen und Buchungshinweise</label><textarea id="vx-business-booking-faq" placeholder="Wichtige Antworten, Voraussetzungen oder Hinweise">' + esc(data.booking_faq || '') + '</textarea></div></div><div class="vx-ap-actions"><button type="button" class="vx-ap-btn" id="vx-business-profile-save"' + (busy ? ' disabled' : '') + '>Geschäftsprofil speichern</button></div><div id="vx-business-save-status" class="vx-ap-status vx-ap-status--inline" role="status" aria-live="polite"></div></div>' + branchCard();
+    body.innerHTML = '<div id="vx-business-profile-status" class="vx-ap-status" role="status" aria-live="polite"></div><div class="vx-ap-stack"><div class="vx-ap-card vx-ui-brand-rule"><div class="vx-ap-head"><div><div class="vx-ap-title">Dauerhaftes Geschäftswissen</div><div class="vx-ap-meta">Diese Informationen verwendet der Assistent im normalen Betrieb. Ferien und kurzfristige Änderungen gehören in „Aktuelle Infos“.</div></div></div><div class="vx-ap-fieldlist"><div class="vx-ap-field"><label>Unternehmensbeschreibung</label><textarea id="vx-business-description" placeholder="Was macht Ihr Unternehmen und für wen?">' + esc(data.description || '') + '</textarea></div><div class="vx-ap-field"><label>Leistungen und Angebote</label><textarea id="vx-business-services" placeholder="Welche Leistungen darf der Assistent erklären?">' + esc(data.services || '') + '</textarea></div><div class="vx-ap-field"><label>Standort und reguläre Öffnungszeiten</label><textarea id="vx-business-location-hours" placeholder="Adresse, Einzugsgebiet und reguläre Öffnungszeiten">' + esc(data.location_hours || '') + '</textarea></div><div class="vx-ap-field"><label>Häufige Fragen und Buchungshinweise</label><textarea id="vx-business-booking-faq" placeholder="Wichtige Antworten, Voraussetzungen oder Hinweise">' + esc(data.booking_faq || '') + '</textarea></div></div><div class="vx-ap-actions"><button type="button" class="vx-ap-btn" id="vx-business-profile-save"' + (busy ? ' disabled' : '') + '>Geschäftsprofil speichern</button></div><div id="vx-business-save-status" class="vx-ap-status vx-ap-status--inline" role="status" aria-live="polite"></div></div>' + coreCard() + branchCard() + '</div>';
     document.getElementById('vx-business-profile-save')?.addEventListener('click', saveBusiness);
+    document.getElementById('vx-core-save')?.addEventListener('click', saveCore);
+    document.getElementById('vx-hours-apply')?.addEventListener('click', applyHoursSuggestion);
+    // J6: bedingte Felder folgen der Auswahl sofort, nicht erst nach dem
+    // Speichern. Ein Feld, das erst nach einem Neuladen verschwindet, wirkt wie
+    // ein Fehler und wird trotzdem ausgefüllt.
+    document.querySelectorAll('[data-vx-core-key], [data-vx-branch-key]').forEach((node) => {
+      node.addEventListener('change', applyFieldVisibility);
+    });
+    document.querySelectorAll('[data-vx-suggest]').forEach((node) => node.addEventListener('click', () => {
+      const field = document.querySelector('[data-vx-core-key="' + node.dataset.vxSuggest + '"]');
+      if (!field || !node.dataset.vxSuggestValue) return;
+      field.value = node.dataset.vxSuggestValue;
+      field.focus();
+    }));
     document.getElementById('vx-branch-save')?.addEventListener('click', saveBranch);
     restoreStatus('business');
   }
@@ -619,25 +719,203 @@
   // extra_steps), nicht aus dieser Datei. Ohne zugeordnete Branche oder ohne
   // hinterlegte Zusatzfelder sagt die Karte genau das, statt zu verschwinden:
   // die fehlende Zuordnung ist die eigentliche Lücke, nicht der Inhalt.
-  function branchField(field) {
-    const id = 'vx-branch-' + field.key;
+  // J4: Derselbe Renderer bedient beide Schichten — die generischen Felder aus
+  // system_config.core_field_steps und die Branchenfelder aus der Vorlage. Sie
+  // unterscheiden sich nur im Speicher (typisierte Spalte gegenüber
+  // ai_branch_extra) und deshalb hier nur im Namen des Datenattributs.
+  // J5: Wochenraster. Sieben Zeilen, je bis zu zwei Zeitspannen — mehr kommt in
+  // den 19 Vorlagentexten nicht vor, und jede weitere Spalte macht die Zeile auf
+  // dem Telefon unbedienbar. Leere Felder bedeuten geschlossen; das steht auch
+  // so daneben, damit „leer“ nicht als „noch nicht ausgefüllt“ gelesen wird.
+  const HOURS_DAYS = [
+    ['mon', 'Montag'], ['tue', 'Dienstag'], ['wed', 'Mittwoch'], ['thu', 'Donnerstag'],
+    ['fri', 'Freitag'], ['sat', 'Samstag'], ['sun', 'Sonntag']
+  ];
+
+  function hoursRow(day, label, intervals) {
+    const slot = (index) => {
+      const pair = intervals[index] || ['', ''];
+      return '<input type="time" data-vx-hours="' + day + '" data-vx-slot="' + index + '" data-vx-edge="from"'
+        + ' value="' + esc(pair[0] || '') + '" aria-label="' + esc(label) + ', Zeitspanne ' + (index + 1) + ', von"'
+        + (busy ? ' disabled' : '') + '>'
+        + '<span class="vx-ap-hours-dash">–</span>'
+        + '<input type="time" data-vx-hours="' + day + '" data-vx-slot="' + index + '" data-vx-edge="to"'
+        + ' value="' + esc(pair[1] || '') + '" aria-label="' + esc(label) + ', Zeitspanne ' + (index + 1) + ', bis"'
+        + (busy ? ' disabled' : '') + '>';
+    };
+    return '<div class="vx-ap-hours-row">'
+      + '<div class="vx-ap-hours-day">' + esc(label) + '</div>'
+      + '<div class="vx-ap-hours-slots">' + slot(0) + slot(1) + '</div>'
+      + '<div class="vx-ap-hours-state">' + (intervals.length ? '' : 'geschlossen') + '</div>'
+      + '</div>';
+  }
+
+  function hoursField(field) {
+    const week = (field.value && typeof field.value === 'object') ? field.value : {};
+    const hint = field.hint ? '<div class="vx-ap-meta">' + esc(field.hint) + '</div>' : '';
+    return '<div class="vx-ap-field vx-ap-field--hours">'
+      + '<label>' + esc(field.label) + '</label>'
+      + hint
+      + '<div class="vx-ap-hours">'
+      + HOURS_DAYS.map(([day, label]) => hoursRow(day, label, Array.isArray(week[day]) ? week[day] : [])).join('')
+      + '</div>'
+      + '<div class="vx-ap-meta">Ein leeres Feldpaar bedeutet geschlossen.</div>'
+      + '</div>';
+  }
+
+  // Liest das Raster aus der Oberflaeche. Unvollstaendige Paare (nur von oder
+  // nur bis) werden verworfen statt halb gespeichert — der Server wiese sie
+  // ohnehin ab, und eine halbe Zeitspanne ist keine Aussage.
+  function collectHours() {
+    const week = {};
+    HOURS_DAYS.forEach(([day]) => { week[day] = []; });
+    document.querySelectorAll('[data-vx-hours]').forEach((node) => {
+      const day = node.dataset.vxHours;
+      const slot = Number(node.dataset.vxSlot);
+      if (!week[day]) return;
+      week[day][slot] = week[day][slot] || ['', ''];
+      week[day][slot][node.dataset.vxEdge === 'from' ? 0 : 1] = String(node.value || '').trim();
+    });
+    HOURS_DAYS.forEach(([day]) => {
+      week[day] = (week[day] || []).filter((pair) => pair && pair[0] && pair[1]);
+    });
+    return week;
+  }
+
+  // J6: Ein Feld kann an der Antwort eines anderen haengen — der Buchungslink an
+  // der Terminbefugnis, Betrag und Einheit an der Preisart. Ausgewertet wird die
+  // Bedingung hier und nur fuer die Darstellung. Was gespeichert werden darf,
+  // entscheidet weiterhin allein der Schreibpfad; ein ausgeblendetes Feld
+  // behaelt seinen gespeicherten Wert, statt ihn stillschweigend zu verlieren.
+  // Beim Aufbau der Zeichenkette steht das steuernde Feld noch nicht im
+  // Dokument — hier zaehlt deshalb der gespeicherte Wert. Was der Kunde
+  // waehrend der Bearbeitung umstellt, faengt applyFieldVisibility() ab.
+  function fieldVisible(field, scope) {
+    if (!field.show_if) return true;
+    return field.show_if.in.indexOf(String(storedValue(field.show_if.key, scope) || '')) >= 0;
+  }
+
+  function storedValue(key, scope) {
+    const sections = (scope === 'core' ? profile?.core_sections : profile?.branch_sections) || [];
+    for (const section of sections) {
+      const match = (section.fields || []).find((item) => item.key === key);
+      if (match) return match.value;
+    }
+    return '';
+  }
+
+  function applyFieldVisibility() {
+    document.querySelectorAll('[data-vx-showif-key]').forEach((node) => {
+      const control = document.querySelector('[data-vx-' + node.dataset.vxShowifScope + '-key="' + node.dataset.vxShowifKey + '"]');
+      const current = control ? String(control.value || '') : '';
+      node.hidden = String(node.dataset.vxShowifIn || '').split('|').indexOf(current) < 0;
+    });
+  }
+
+  // Der Vorschlag fuellt das Feld, speichert aber nicht. Gleiche Regel wie beim
+  // Oeffnungszeiten-Vorschlag aus J5: uebernommen ist noch nicht bestaetigt.
+  function suggestionRow(field) {
+    const value = profile?.core_suggestions?.[field.suggestion];
+    if (!field.suggestion || !value || field.value) return '';
+    return '<div class="vx-ap-field-suggest">'
+      + '<span>Aus Ihren Stammdaten: ' + esc(value) + '</span>'
+      + '<button type="button" class="vx-ap-btn vx-ap-btn--ghost" data-vx-suggest="' + esc(field.key) + '"'
+      + ' data-vx-suggest-value="' + esc(value) + '"' + (busy ? ' disabled' : '') + '>Übernehmen</button>'
+      + '</div>';
+  }
+
+  function schemaField(field, scope) {
+    if (field.type === 'hours') return hoursField(field);
+    const id = 'vx-' + scope + '-' + field.key;
+    const attr = scope === 'core' ? 'data-vx-core-key' : 'data-vx-branch-key';
     const hint = field.hint ? '<div class="vx-ap-meta">' + esc(field.hint) + '</div>' : '';
     let control;
     if (field.type === 'radio' && field.options.length) {
-      control = '<select id="' + esc(id) + '" data-vx-branch-key="' + esc(field.key) + '"' + (busy ? ' disabled' : '') + '>'
+      control = '<select id="' + esc(id) + '" ' + attr + '="' + esc(field.key) + '"' + (busy ? ' disabled' : '') + '>'
         + '<option value="">Noch nicht gewählt</option>'
         + field.options.map((option) => (
           '<option value="' + esc(option.value) + '"' + (field.value === option.value ? ' selected' : '') + '>' + esc(option.label) + '</option>'
         )).join('')
         + '</select>';
     } else if (field.type === 'textarea') {
-      control = '<textarea id="' + esc(id) + '" data-vx-branch-key="' + esc(field.key) + '" maxlength="400" placeholder="' + esc(field.placeholder) + '"'
+      control = '<textarea id="' + esc(id) + '" ' + attr + '="' + esc(field.key) + '" maxlength="400" placeholder="' + esc(field.placeholder) + '"'
         + (busy ? ' disabled' : '') + '>' + esc(field.value) + '</textarea>';
     } else {
-      control = '<input id="' + esc(id) + '" data-vx-branch-key="' + esc(field.key) + '" maxlength="400" value="' + esc(field.value) + '" placeholder="' + esc(field.placeholder) + '"'
+      control = '<input id="' + esc(id) + '" ' + attr + '="' + esc(field.key) + '" maxlength="400" value="' + esc(field.value) + '" placeholder="' + esc(field.placeholder) + '"'
         + (busy ? ' disabled' : '') + '>';
     }
-    return '<div class="vx-ap-field"><label for="' + esc(id) + '">' + esc(field.label) + '</label>' + control + hint + '</div>';
+    const gate = field.show_if
+      ? ' data-vx-showif-key="' + esc(field.show_if.key) + '" data-vx-showif-in="' + esc(field.show_if.in.join('|')) + '"'
+        + ' data-vx-showif-scope="' + esc(scope) + '"' + (fieldVisible(field, scope) ? '' : ' hidden')
+      : '';
+    return '<div class="vx-ap-field"' + gate + '><label for="' + esc(id) + '">' + esc(field.label) + '</label>'
+      + control + hint + suggestionRow(field) + '</div>';
+  }
+
+  function branchField(field) { return schemaField(field, 'branch'); }
+
+  // Schicht A. Diese Karte steht vor der Branchenkarte, weil ihre Angaben für
+  // jeden Betrieb gelten — auch für die drei von vier Kunden ohne zugeordnete
+  // Branche, die die Branchenkarte gar nicht ausfüllen können.
+  // F3: Der Parser schlaegt vor, der Kunde bestaetigt. Der Vorschlag wird erst
+  // beim Speichern zu Daten — vorher fuellt er nur das Raster aus. Deshalb ein
+  // Knopf und keine automatische Uebernahme, und deshalb steht daneben, was der
+  // Parser aus dem Text NICHT lesen konnte.
+  function hoursSuggestionBanner() {
+    const info = profile?.opening_hours || {};
+    if (info.confirmed || !info.suggestion) return '';
+    const unparsed = Array.isArray(info.unparsed_lines) ? info.unparsed_lines : [];
+    return '<div class="vx-ap-suggestion">'
+      + '<div class="vx-ap-suggestion-title">Vorschlag aus Ihrem Standort-Text</div>'
+      + '<div class="vx-ap-meta">Wir haben aus „Standort und reguläre Öffnungszeiten“ ein Wochenraster gelesen. '
+      + 'Es gilt erst, wenn Sie es prüfen und speichern — bis dahin verwendet Ihr Assistent weiterhin den Text.</div>'
+      + (unparsed.length
+        ? '<div class="vx-ap-meta">Diese Zeilen konnten wir nicht zuordnen, bitte selbst eintragen: '
+          + unparsed.map((line) => esc(line)).join(' · ') + '</div>'
+        : '')
+      + '<button type="button" class="vx-ap-btn vx-ap-btn--ghost" id="vx-hours-apply"'
+      + (busy ? ' disabled' : '') + '>Vorschlag ins Raster übernehmen</button>'
+      + '</div>';
+  }
+
+  function applyHoursSuggestion() {
+    const week = profile?.opening_hours?.suggestion;
+    if (!week) return;
+    document.querySelectorAll('[data-vx-hours]').forEach((node) => {
+      const intervals = Array.isArray(week[node.dataset.vxHours]) ? week[node.dataset.vxHours] : [];
+      const pair = intervals[Number(node.dataset.vxSlot)] || ['', ''];
+      node.value = node.dataset.vxEdge === 'from' ? (pair[0] || '') : (pair[1] || '');
+    });
+  }
+
+  function coreCard() {
+    const sections = profile?.core_sections || [];
+    if (!sections.length) return '';
+    return '<div class="vx-ap-card"><div class="vx-ap-head"><div><div class="vx-ap-title">Ihr Betrieb</div>'
+      + '<div class="vx-ap-meta">Erreichbarkeit, Termine, Anfahrt und Preisauskunft. '
+      + 'Sie gelten unabhängig von Ihrer Branche; was leer bleibt, erwähnt Ihr Assistent nicht.</div></div></div>'
+      + sections.map((section) => (
+        '<div class="vx-ap-subsection">'
+        + '<div class="vx-ap-subtitle">' + esc(section.title) + '</div>'
+        + (section.hint ? '<div class="vx-ap-meta">' + esc(section.hint) + '</div>' : '')
+        + '<div class="vx-ap-fieldlist">' + section.fields.map((field) => schemaField(field, 'core')).join('') + '</div>'
+        + '</div>'
+      )).join('')
+      + hoursSuggestionBanner()
+      + originChip('voxera', 'Gilt für alle Betriebe')
+      + '<div class="vx-ap-actions"><button type="button" class="vx-ap-btn" id="vx-core-save"' + (busy ? ' disabled' : '') + '>Betriebsangaben speichern</button></div>'
+      + '<div id="vx-core-status" class="vx-ap-status vx-ap-status--inline" role="status" aria-live="polite"></div>'
+      + '</div>';
+  }
+
+  async function saveCore() {
+    const payload = {};
+    document.querySelectorAll('[data-vx-core-key]').forEach((node) => {
+      payload[node.dataset.vxCoreKey] = String(node.value || '').trim();
+    });
+    if (document.querySelector('[data-vx-hours]')) payload.opening_hours = collectHours();
+    if (!Object.keys(payload).length) return;
+    await updateAssistant({ core_fields: payload }, 'business', document.getElementById('vx-core-save'));
   }
 
   function branchCard() {
@@ -714,6 +992,23 @@
     });
     document.getElementById('vx-hero-tune-save')?.addEventListener('click', saveTune);
     document.getElementById('vx-open-business-profile')?.addEventListener('click', () => root.vxShowAssistantView?.('business', true));
+    document.getElementById('vx-forwarding-edit')?.addEventListener('click', () => {
+      forwardingEditorOpen = true;
+      renderAssistant();
+    });
+    // Gleicher zweiter Riegel wie beim Ton-Editor: ein Klick, der waehrend des
+    // Speicherns durchkommt, darf den Editor nicht schliessen.
+    document.getElementById('vx-forwarding-cancel')?.addEventListener('click', () => {
+      if (busy) return;
+      forwardingEditorOpen = false;
+      forwardingSecondSlotOpen = false;
+      renderAssistant();
+    });
+    document.getElementById('vx-forwarding-add')?.addEventListener('click', () => {
+      forwardingSecondSlotOpen = true;
+      renderAssistant();
+    });
+    document.getElementById('vx-forwarding-save')?.addEventListener('click', saveForwarding);
     document.getElementById('vx-urgent-change-toggle')?.addEventListener('click', toggleUrgentChangePanel);
     document.querySelectorAll('[data-vx-change-preset]').forEach((node) => node.addEventListener('click', () => prefillUrgentChange(node.dataset.vxChangePreset)));
     document.getElementById('vx-urgent-change-submit')?.addEventListener('click', submitUrgentChange);
@@ -765,11 +1060,30 @@
     // vx-hero-tune-cancel gehoert dazu: sonst laesst sich der Editor waehrend
     // eines laufenden Speicherns wegklicken und der Zustand ist weg, obwohl der
     // Request noch fehlschlagen kann.
-    ['vx-business-profile-save', 'vx-open-business-profile', 'vx-hero-tune-cancel', 'vx-greeting-reset', 'vx-branch-save'].forEach((id) => {
+    ['vx-business-profile-save', 'vx-open-business-profile', 'vx-hero-tune-cancel', 'vx-greeting-reset',
+      'vx-core-save', 'vx-branch-save',
+      'vx-forwarding-edit', 'vx-forwarding-cancel', 'vx-forwarding-add'].forEach((id) => {
       const node = document.getElementById(id);
       if (node) node.disabled = disabled;
     });
     document.querySelectorAll('[data-vx-select-voice], [data-vx-preview]').forEach((node) => { node.disabled = disabled; });
+  }
+
+  // request() wirft mit dem Fehlercode des Endpoints im Text. Solange niemand
+  // ihn uebersetzt, liest der Kunde "forwarding_number_invalid" — fuer die
+  // Zielgruppe (Grundsatz 15) unbrauchbar.
+  const SAVE_ERROR_TEXT = {
+    forwarding_number_invalid: 'Diese Telefonnummer können wir nicht wählen. Bitte mit Vorwahl eingeben, z. B. 079 123 45 67.',
+    forwarding_not_allowed_on_plan: 'Die Weiterleitung gehört zum Professional-Paket. Melden Sie uns die gewünschte Änderung, wir richten sie ein.',
+    tone_not_allowed_on_plan: 'Den Ton können Sie ab dem Business-Paket selbst wählen.',
+    assistant_name_not_allowed_on_plan: 'Den Namen können Sie ab dem Business-Paket selbst wählen.',
+    voice_not_allowed_on_plan: 'Die Stimmenauswahl ist in Ihrem Paket nicht freigeschaltet.',
+    voice_not_available_on_plan: 'Diese Stimme ist in Ihrem Paket nicht verfügbar.'
+  };
+
+  function saveErrorMessage(error) {
+    const raw = String(error?.message || '').trim();
+    return SAVE_ERROR_TEXT[raw] || raw || 'Änderung konnte nicht gespeichert werden.';
   }
 
   // button: the save button to animate (Speichert … → Gespeichert ✓ → its
@@ -807,7 +1121,7 @@
         finalTone = 'warning';
       }
     } catch (error) {
-      finalMessage = error?.message || 'Änderung konnte nicht gespeichert werden.';
+      finalMessage = saveErrorMessage(error);
       finalTone = 'error';
     } finally {
       busy = false;
@@ -857,6 +1171,46 @@
     // nicht nur quittiert.
     if (saved) {
       toneEditorOpen = false;
+      renderAssistant();
+    }
+  }
+
+  // Nur die tatsaechlich gerenderten Felder werden gesendet. Ist das zweite
+  // Ziel gar nicht aufgeklappt, ist es auch nicht Teil der Aenderung — sonst
+  // stuenden bei jedem Speichern drei leere Spalten in prev_values und im
+  // Sync-Log.
+  function collectForwardingPayload() {
+    const payload = {};
+    [1, 2].forEach((index) => {
+      ['name', 'number', 'trigger'].forEach((part) => {
+        const node = document.getElementById('vx-fwd-' + index + '-' + part);
+        if (node) payload['ai_forwarding_' + index + '_' + part] = String(node.value || '').trim();
+      });
+    });
+    return payload;
+  }
+
+  async function saveForwarding() {
+    const payload = collectForwardingPayload();
+    // Name ohne Nummer (oder umgekehrt) speichert der Server klaglos, der
+    // Assistent nutzt das Ziel aber nicht — genau die Sorte stille Wirkungslosigkeit,
+    // um die es bei N6 ging. Deshalb hier gesagt statt hingenommen.
+    for (const index of [1, 2]) {
+      const name = payload['ai_forwarding_' + index + '_name'];
+      const number = payload['ai_forwarding_' + index + '_number'];
+      if (name === undefined) continue;
+      if (Boolean(name) !== Boolean(number)) {
+        setStatus('assistant', 'Name und Telefonnummer gehören zusammen — Ihr Assistent verbindet sonst nicht weiter.', 'warning', true);
+        document.getElementById('vx-fwd-' + index + '-' + (name ? 'number' : 'name'))?.focus();
+        return;
+      }
+    }
+    const saved = await updateAssistant(payload, 'assistant', document.getElementById('vx-forwarding-save'));
+    // Erst schliessen, wenn es wirklich gespeichert ist — die Karte darueber
+    // zeigt danach den neuen Stand.
+    if (saved) {
+      forwardingEditorOpen = false;
+      forwardingSecondSlotOpen = false;
       renderAssistant();
     }
   }

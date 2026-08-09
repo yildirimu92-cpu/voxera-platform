@@ -341,8 +341,17 @@
         if (greetingEl) greetingEl.textContent = result.first_message || '';
         renderPreviewQuality(result.quality, result.prompt_version);
       } catch (error) {
-        original.apply(this, arguments);
-        if (typeof w.showToast === 'function') w.showToast('Server-Vorschau nicht verfügbar – lokale Vorschau angezeigt.');
+        // G8 / J10: Frueher fiel dieser Pfad auf den lokalen Prompt-Bauer in
+        // index.html zurueck. Dessen Fassung enthielt keine Sicherheitsregeln —
+        // und der Toast sagte nur, dass die Vorschau lokal sei, nicht dass sie
+        // unvollstaendig ist. Ein Admin, der sie kopierte, uebertrug einen
+        // Agenten ohne Schutzregeln. Es gibt hier bewusst keinen Ersatzprompt
+        // mehr: lieber keine Vorschau als eine, die man nicht verwenden darf.
+        if (promptEl) promptEl.textContent = w.AI_PREVIEW_UNAVAILABLE || 'Die Vorschau konnte nicht geladen werden.';
+        if (greetingEl) greetingEl.textContent = '—';
+        const panel = document.getElementById('vox-prompt-quality-panel');
+        if (panel) panel.remove();
+        if (typeof w.showToast === 'function') w.showToast('Vorschau nicht verfügbar – bitte erneut versuchen.');
       }
     };
     wrapped.__voxPromptBuilderV2 = true;

@@ -149,19 +149,36 @@ test('der Seek-Regler wird nicht per opacity ausgeblendet', () => {
 });
 
 test('Knopf, Werkzeuge und Regler haben einen sichtbaren Fokuszustand', () => {
-  // Seit der Umstellung auf die helle Karte ist der Ring Night statt weiss,
-  // und der Knopf hat eine eigene Regel, weil seine Night-Kontur ein
-  // box-shadow ist, das ein pauschales box-shadow:none abraeumen wuerde.
+  // Die drei Bedienelemente hatten hier eine eigene Ring-Regel mit
+  // !important. Sie war ausdruecklich als Gegenmittel gegen den globalen
+  // Reset "7. FOCUS-RING EINHEITLICH" kommentiert, der jedem Knopf und jedem
+  // Eingabefeld die outline nahm. Der Reset ist am 09.08.2026 aufgeloest
+  // (siehe docs/BACKLOG_FOKUSRING_DESIGN_SYSTEM_2026-08-08.md), damit ist die
+  // Ausnahme gegenstandslos: der Ring kommt jetzt fuer alle drei aus
+  // shared/customer-design-system.css, wie fuer jedes andere Bedienelement.
+  //
+  // Der Test prueft deshalb ab hier nicht mehr die oertliche Regel, sondern
+  // die Bedingungen, unter denen der Ring des Systems ankommt.
+  assert.doesNotMatch(
+    dashboard,
+    /(?:button|input|select|textarea):focus-visible[^{]*\{[^}]*outline:\s*none\s*!important/,
+    'der globale Fokus-Reset darf nicht zurueckkehren — er macht --vx-focus-ring zu totem Code'
+  );
+
   for (const part of ['__play', '__tool', '__range']) {
     const selector = '.vx-audio-modern' + part + ':focus-visible';
     const idx = dashboard.indexOf(selector);
-    assert.notEqual(idx, -1, selector + ' fehlt');
+    if (idx === -1) continue; // kein eigener Fokus-Block noetig, das System liefert den Ring
     const block = dashboard.slice(idx, dashboard.indexOf('}', idx));
-    assert.match(block, /outline:2px solid var\(--vx-color-night/,
-      selector + ' braucht einen Ring, der auf der hellen Karte sichtbar ist');
+    assert.doesNotMatch(block, /outline:\s*none/,
+      selector + ' darf den Ring des Systems nicht abschalten');
   }
-  // Die Night-Kontur des Knopfs darf im Fokus nicht verschwinden.
-  const playFocus = dashboard.slice(dashboard.indexOf('.vx-audio-modern__play:focus-visible'));
+
+  // Die Night-Kontur des Knopfs ist ein box-shadow und muss im Fokus stehen
+  // bleiben — sie ist das Einzige, was der Knopf selbst beitragen muss.
+  const playFocusIdx = dashboard.indexOf('.vx-audio-modern__play:focus-visible');
+  assert.notEqual(playFocusIdx, -1, '.vx-audio-modern__play:focus-visible fehlt');
+  const playFocus = dashboard.slice(playFocusIdx);
   assert.match(playFocus.slice(0, playFocus.indexOf('}')), /box-shadow:inset 0 0 0 1\.5px/,
     'der Fokuszustand des Knopfs muss seine Kontur behalten');
 });

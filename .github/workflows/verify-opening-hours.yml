@@ -1,0 +1,30 @@
+name: Verify Opening Hours
+
+# Ohne Pfad-Filter, gleiche Begruendung wie bei verify-prompt-builder-v2 und
+# den drei sicherheitsrelevanten Checks in
+# docs/VERIFY_SKRIPTE_CI_ABDECKUNG_2026-08-09.md.
+#
+# Der Check sichert zwei Dinge, die auseinanderlaufen koennen, ohne dass es
+# jemand merkt: dass der Parser aus dem Freitext nichts erfindet (er ist an den
+# 19 echten Vorlagentexten geprueft), und dass er nur Werte liefert, die der
+# Schreibpfad auch annimmt. Driften die beiden auseinander, schlaegt entweder
+# ein Vorschlag beim Speichern fehl oder es landet ein Zeitplan in der
+# Datenbank, den niemand bestaetigt hat.
+#
+# Reine Rechenpruefung ohne Netz- oder Datenbankzugriff, Laufzeit unter einer
+# Sekunde.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: node scripts/verify-opening-hours.mjs

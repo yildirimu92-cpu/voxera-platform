@@ -21,8 +21,11 @@ for (const token of [
   "desktop: 'nav-assistent'", "mobile: 'mnav-assistent'",
   "desktop: 'nav-auswertung'", "mobile: 'mnav-auswertung'",
   "desktop: 'nav-mehr'", "mobile: 'mnav-mehr'",
-  "pageId: 'mehr-sub-assistant-profile'",
-  "pageId: 'mehr-sub-business-profile'",
+  // Die beiden Assistent-Formularseiten duerfen den mehr-sub-Praefix nicht
+  // zurueckbekommen: er gehoert zum Einstellungen-Tab, dessen Selektoren
+  // (#tab-mehr [id^="mehr-sub-"]) diese Seiten nie erfasst haben.
+  "pageId: 'vx-assistant-view-profile'",
+  "pageId: 'vx-assistant-view-business'",
   "pageId: 'mehr-sub-betriebsinfos'",
   'vx-assistant-root-host', 'vxAssistantManagedPage',
   // E8 (09.08.): Der Umschalter ist entfallen. Die beiden Formulare sind
@@ -73,7 +76,7 @@ assert.doesNotMatch(source.navigation, /vx-nav-voice-details/);
 assert.match(source.operational, /root\.vxOperationalUpdatesOpen=open/);
 assert.match(source.loader, /customer-runtime-calendar-settings\.js\?v=20260809-1/);
 assert.match(source.loader, /customer-runtime-operational-updates\.js\?v=20260809-1/);
-assert.match(source.loader, /customer-runtime-assistant-profile\.js\?v=20260809-2/);
+assert.match(source.loader, /customer-runtime-assistant-profile\.js\?v=20260809-7/);
 assert.match(source.loader, /customer-runtime-assistant-status\.js\?v=20260809-1/);
 assert.match(source.loader, /customer-runtime-unified-navigation\.js\?v=20260809-1/);
 assert.match(source.loader, /customer-runtime-design-foundation\.js\?v=20260809-1/);

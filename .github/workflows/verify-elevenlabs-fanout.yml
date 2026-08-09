@@ -1,0 +1,22 @@
+name: Verify ElevenLabs fan-out
+
+on:
+  pull_request:
+    paths:
+      - 'admin-panel/netlify/functions/_lib/elevenlabs-fanout.js'
+      - 'admin-panel/netlify/functions/_lib/prompt-fingerprint.js'
+      - 'admin-panel/netlify/functions/fanout-sync-worker.js'
+      - 'admin-panel/netlify/functions/fanout-sync-planner.js'
+      - 'admin-panel/netlify/functions/elevenlabs-sync-fanout.js'
+      - 'scripts/verify-elevenlabs-fanout.mjs'
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: node scripts/verify-elevenlabs-fanout.mjs

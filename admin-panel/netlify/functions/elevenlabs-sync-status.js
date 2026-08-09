@@ -2,6 +2,7 @@
 
 const { createClient } = require('@supabase/supabase-js');
 const { requireAdminCaller } = require('./_lib/require-admin');
+const { loadFingerprintContext, fingerprintFor } = require('./_lib/prompt-fingerprint');
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
@@ -43,11 +44,11 @@ exports.handler = async event => {
 
   const [{ data: customer, error: customerError }, { data: logs, error: logError }] = await Promise.all([
     sb.from('customers')
-      .select('id, elevenlabs_agent_id, elevenlabs_last_sync_at, elevenlabs_sync_status, elevenlabs_sync_error')
+      .select('id, elevenlabs_agent_id, elevenlabs_last_sync_at, elevenlabs_sync_status, elevenlabs_sync_error, prompt_fingerprint, industry_template_id')
       .eq('id', customerId)
       .maybeSingle(),
     sb.from('elevenlabs_sync_log')
-      .select('id, customer_id, agent_id, status, triggered_by, prompt_length, error_message, created_at')
+      .select('id, customer_id, agent_id, status, triggered_by, prompt_length, error_message, prompt_fingerprint, changed_fields, created_at')
       .eq('customer_id', customerId)
       .order('created_at', { ascending: false })
       .limit(20)
@@ -57,6 +58,33 @@ exports.handler = async event => {
   if (!customer) return response(404, { error: 'Kunde nicht gefunden.' });
   if (logError) return response(500, { error: 'Sync-Historie konnte nicht geladen werden.' });
 
+  // S4 / Stufe 1: Soll gegen Ist. Der Soll-Wert wird hier berechnet, nicht
+  // gelesen -- er kann deshalb nicht seinerseits veralten. Kostet zwei
+  // Datenbankabfragen und keinen einzigen ElevenLabs-Aufruf.
+  //
+  // Ein Fehler beim Berechnen darf den Sync-Status nicht abschiessen: die
+  // Karte zeigt dann Status und Historie wie bisher, nur ohne Veraltet-Hinweis.
+  // Drei Zustaende, nicht zwei. "Unbekannt" ist der wichtigste davon: direkt
+  // nach der Einfuehrung hat JEDER Bestandskunde prompt_fingerprint = null,
+  // weil die Spalte erst beim naechsten Sync geschrieben wird. Wuerde null als
+  // "aktuell" gelten, waeren ausgerechnet die Kunden unsichtbar, fuer die S4
+  // gebaut wurde -- und der Mechanismus haette am ersten Tag nichts zu tun.
+  // Der Fan-out behandelt 'unknown' deshalb wie 'outdated'; nur die Anzeige
+  // unterscheidet, damit niemand einen Fehler sieht, wo nur eine Messung fehlt.
+  let expectedFingerprint = null;
+  let promptState = null;
+  try {
+    const context = await loadFingerprintContext(sb);
+    expectedFingerprint = fingerprintFor(context, customer);
+    if (!customer.elevenlabs_agent_id) promptState = 'no_agent';
+    else if (!customer.prompt_fingerprint) promptState = 'unknown';
+    else if (customer.prompt_fingerprint !== expectedFingerprint) promptState = 'outdated';
+    else promptState = 'current';
+  } catch (error) {
+    console.warn('[elevenlabs-sync-status] fingerprint_failed', error?.message || error);
+  }
+  const promptOutdated = promptState === null ? null : promptState === 'outdated';
+
   return response(200, {
     success: true,
     customer: {
@@ -64,7 +92,11 @@ exports.handler = async event => {
       agent_id: customer.elevenlabs_agent_id || null,
       sync_status: customer.elevenlabs_sync_status || 'never',
       last_sync_at: customer.elevenlabs_last_sync_at || null,
-      sync_error: customer.elevenlabs_sync_error || null
+      sync_error: customer.elevenlabs_sync_error || null,
+      prompt_fingerprint: customer.prompt_fingerprint || null,
+      expected_prompt_fingerprint: expectedFingerprint,
+      prompt_state: promptState,
+      prompt_outdated: promptOutdated
     },
     logs: logs || []
   });
