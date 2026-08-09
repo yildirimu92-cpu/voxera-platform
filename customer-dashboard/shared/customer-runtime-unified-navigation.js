@@ -12,8 +12,13 @@
     { key: 'mehr', desktop: 'nav-mehr', mobile: 'mnav-mehr', label: 'Einstellungen', icon: 'ph-gear' }
   ];
 
+  // Der Assistent-Tab ist seit der Umgliederung eine durchgehende Seite mit vier
+  // Abschnitten. Was bleibt, sind zwei Formulare — und Formulare sind genau das,
+  // was hinter einem Drill-in besser aufgehoben ist als hinter einem Reiter, der
+  // auf 390px dauerhaft eine Zeile kostet. `root: true` markiert die Seite, die
+  // ohne Zurück-Pfeil auskommt.
   const ASSISTANT_VIEWS = [
-    { key: 'profile', pageId: 'mehr-sub-assistant-profile', label: 'Assistent' },
+    { key: 'profile', pageId: 'mehr-sub-assistant-profile', label: 'Assistent', root: true },
     { key: 'business', pageId: 'mehr-sub-business-profile', label: 'Geschäftsprofil' },
     { key: 'updates', pageId: 'mehr-sub-betriebsinfos', label: 'Aktuelle Infos' }
   ];
@@ -22,7 +27,7 @@
   let assistantObserver = null;
   let stableRootKey = '';
   let initialAssistantLoadDone = false;
-  let voiceSelectionExpanded = false;
+  let screenNavRegistered = false;
 
   function textLabel(node) {
     return String(node?.textContent || '').replace(/\s+/g, ' ').trim();
@@ -164,26 +169,20 @@
       header = document.createElement('header');
       header.id = 'vx-assistant-root-header';
       // Etappe 2: the assistant root uses the same bar as every other screen.
-      // Its old subtitle ("Stimme, Geschäftswissen ...") was a header subline
-      // and is gone; the section switch below already names the three areas.
+      // Seit dem Wegfall des Umschalters trägt sie zusätzlich den Zurück-Pfeil
+      // der beiden Drill-ins — die Etappe-2-Ausnahme "Assistent-Root bleibt
+      // pfeillos" gilt damit nur noch für die Wurzelseite selbst, wie bei
+      // jedem anderen Screen auch.
       header.className = 'vx-appbar';
-      header.innerHTML = '<h1 class="vx-appbar-title">Assistent</h1>';
-    }
-
-    let switcher = document.getElementById('vx-assistant-root-switch');
-    if (!switcher) {
-      switcher = document.createElement('div');
-      switcher.id = 'vx-assistant-root-switch';
-      switcher.className = 'vx-assistant-root-switch';
-      switcher.setAttribute('role', 'tablist');
-      switcher.setAttribute('aria-label', 'Assistentenbereich');
-      switcher.innerHTML = ASSISTANT_VIEWS.map((view) => (
-        `<button type="button" data-vx-assistant-view="${view.key}" role="tab">${view.label}</button>`
-      )).join('');
-      switcher.addEventListener('click', (event) => {
-        const button = event.target.closest('[data-vx-assistant-view]');
-        if (!button) return;
-        showAssistantView(button.dataset.vxAssistantView, true);
+      header.innerHTML = '<button type="button" class="vx-appbar-back" id="vx-assistant-root-back" aria-label="Zurück" hidden>'
+        + '<i class="ph-bold ph-arrow-left" aria-hidden="true"></i></button>'
+        + '<h1 class="vx-appbar-title" id="vx-assistant-root-title">Assistent</h1>';
+      header.querySelector('#vx-assistant-root-back').addEventListener('click', () => {
+        // Pfeil, Browser-Zurück und Wisch-Geste sind dieselbe Operation
+        // (customer-runtime-screen-navigation.js). Der Fallback greift nur,
+        // wenn history nicht verfügbar ist.
+        if (typeof root.vxScreenBack === 'function') root.vxScreenBack(() => showAssistantView('profile', true));
+        else showAssistantView('profile', true);
       });
     }
 
@@ -194,9 +193,11 @@
     }
 
     if (header.parentElement !== assistantTab) assistantTab.insertBefore(header, assistantTab.firstChild);
-    if (switcher.parentElement !== assistantTab) assistantTab.insertBefore(switcher, header.nextSibling);
-    if (host.parentElement !== assistantTab) assistantTab.insertBefore(host, switcher.nextSibling);
-    return { assistantTab, header, switcher, host };
+    if (host.parentElement !== assistantTab) assistantTab.insertBefore(host, header.nextSibling);
+    // Rest aus der Zeit des Umschalters: ein zurückgelassenes Element würde
+    // sonst als leere Leiste über der Seite stehen bleiben.
+    document.getElementById('vx-assistant-root-switch')?.remove();
+    return { assistantTab, header, host };
   }
 
   function mountManagedPages() {
@@ -234,7 +235,8 @@
   function applyAssistantView(view) {
     const shell = ensureAssistantShell();
     if (!shell) return;
-    const selected = ASSISTANT_VIEWS.some((item) => item.key === view) ? view : 'profile';
+    const config = ASSISTANT_VIEWS.find((item) => item.key === view) || ASSISTANT_VIEWS[0];
+    const selected = config.key;
     shell.assistantTab.dataset.vxAssistantView = selected;
 
     ASSISTANT_VIEWS.forEach((item) => {
@@ -245,12 +247,24 @@
       page.style.display = active ? 'block' : 'none';
     });
 
-    shell.switcher.querySelectorAll('[data-vx-assistant-view]').forEach((button) => {
-      const active = button.dataset.vxAssistantView === selected;
-      button.classList.toggle('active', active);
-      button.setAttribute('aria-selected', active ? 'true' : 'false');
-      button.setAttribute('tabindex', active ? '0' : '-1');
-    });
+    const title = document.getElementById('vx-assistant-root-title');
+    const back = document.getElementById('vx-assistant-root-back');
+    if (title) title.textContent = config.label;
+    if (back) back.hidden = Boolean(config.root);
+
+    // Die beiden Formulare sind echte Sub-Screens: sie legen einen
+    // History-Eintrag an, damit Browser-Zurück und Wisch-Geste dasselbe tun wie
+    // der Pfeil. Die Wurzelseite räumt ihn wieder ab.
+    const nav = root.vxScreenNav;
+    if (typeof nav?.enter !== 'function') return;
+    if (!config.root) {
+      nav.enter('assistant:' + selected);
+      return;
+    }
+    // Nur den eigenen Eintrag abräumen: ein offener Einstellungs-Sub-Screen
+    // gehört einem anderen Besitzer und darf hier nicht mitgeschlossen werden.
+    const open = String(nav.current?.() || '');
+    if (open.indexOf('assistant:') === 0) nav.exit(open);
   }
 
   function showAssistantView(view, shouldLoad) {
@@ -264,31 +278,6 @@
     const main = document.getElementById('mehr-main');
     if (main) { main.removeAttribute('style'); main.hidden = false; }
     document.querySelectorAll('#tab-mehr [id^="mehr-sub-"]').forEach((node) => { node.removeAttribute('style'); node.hidden = true; });
-  }
-
-  function simplifyVoiceSelection() {
-    const body = document.getElementById('vx-assistant-profile-body');
-    if (!body) return;
-    const voiceCard = Array.from(body.querySelectorAll('.vx-ap-card')).find((card) => (
-      textLabel(card.querySelector('.vx-ap-title')) === 'Stimme'
-    ));
-    if (!voiceCard || voiceCard.querySelector('.vx-nav-voice-details')) return;
-    const filters = voiceCard.querySelector('.vx-ap-filters');
-    const voices = voiceCard.querySelector('.vx-ap-voices');
-    if (!filters || !voices) return;
-
-    const details = document.createElement('details');
-    details.className = 'vx-nav-voice-details';
-    details.open = voiceSelectionExpanded;
-    details.addEventListener('toggle', () => {
-      voiceSelectionExpanded = details.open;
-    });
-    const summary = document.createElement('summary');
-    summary.textContent = 'Andere Stimme wählen';
-    details.appendChild(summary);
-    details.appendChild(filters);
-    details.appendChild(voices);
-    voiceCard.appendChild(details);
   }
 
   function simplifyCapabilities() {
@@ -410,8 +399,12 @@
     return true;
   }
 
+  // Die Stimmenauswahl klappt customer-runtime-assistant-profile.js seit der
+  // Umgliederung selbst ein — sie sitzt jetzt im Identitäts-Editor, wo die
+  // übrigen Felder desselben Satzes stehen. Ein hier verbliebener Aufruf hätte
+  // stillschweigend nichts mehr getroffen; das ist genau das Fehlermuster, das
+  // die verwaiste Karte erzeugt hat.
   function applyAssistantEnhancements() {
-    simplifyVoiceSelection();
     simplifyCapabilities();
     simplifyTechnicalStatus();
   }
@@ -425,9 +418,21 @@
     assistantObserver.observe(body, { childList: true, subtree: true });
   }
 
+  // Ohne diese Anmeldung öffnet der Pfeil die Wurzelseite, Browser-Zurück aber
+  // nicht — zwei Wege für dieselbe Absicht, die auseinanderlaufen.
+  function registerScreenNavigation() {
+    if (screenNavRegistered || typeof root.vxScreenNav?.register !== 'function') return;
+    root.vxScreenNav.register('assistant:', {
+      open: (view) => showAssistantView(view, true),
+      close: () => showAssistantView('profile', false)
+    });
+    screenNavRegistered = true;
+  }
+
   function boot() {
     normalizeRootNavigation();
     installShowTabBridge();
+    registerScreenNavigation();
     mountManagedPages();
     applyAssistantEnhancements();
     if (!stableRootKey) setStableRootActive(initialRootKey());

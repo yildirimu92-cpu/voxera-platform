@@ -135,7 +135,6 @@ body.vx-customer-design-foundation .vx-ui-card--interactive:hover {
    ============================================================ */
 
 .vx-ui-tabs,
-body.vx-customer-design-foundation #vx-assistant-root-switch,
 body.vx-customer-design-foundation .vx-requests-filters {
   display: flex;
   flex-wrap: wrap;
@@ -152,7 +151,6 @@ body.vx-customer-design-foundation .vx-requests-filters {
 
 .vx-ui-tabs > button,
 body.vx-customer-design-foundation .vx-ui-tab,
-body.vx-customer-design-foundation #vx-assistant-root-switch > button,
 body.vx-customer-design-foundation .vx-requests-filters > .vx-ap-filter {
   display: inline-flex;
   flex: 0 0 auto;
@@ -179,7 +177,6 @@ body.vx-customer-design-foundation .vx-requests-filters > .vx-ap-filter {
 
 .vx-ui-tabs > button:hover,
 body.vx-customer-design-foundation .vx-ui-tab:hover,
-body.vx-customer-design-foundation #vx-assistant-root-switch > button:hover,
 body.vx-customer-design-foundation .vx-requests-filters > .vx-ap-filter:hover {
   background: var(--vx-ui-tab-hover-bg);
   color: var(--vx-ui-tab-hover-text);
@@ -187,7 +184,6 @@ body.vx-customer-design-foundation .vx-requests-filters > .vx-ap-filter:hover {
 
 .vx-ui-tabs > button:is(.active, .is-active, .vx-chip--active, [aria-selected="true"]),
 body.vx-customer-design-foundation .vx-ui-tab:is(.active, .is-active, .vx-chip--active, [aria-selected="true"]),
-body.vx-customer-design-foundation #vx-assistant-root-switch > button:is(.active, .is-active, .vx-chip--active, [aria-selected="true"]),
 body.vx-customer-design-foundation .vx-requests-filters > .vx-ap-filter:is(.active, .is-active, .vx-chip--active, [aria-selected="true"]) {
   background: var(--vx-ui-tab-accent);
   color: var(--vx-ui-tab-accent-text);
@@ -195,7 +191,6 @@ body.vx-customer-design-foundation .vx-requests-filters > .vx-ap-filter:is(.acti
 
 .vx-ui-tabs > button:is(.active, .is-active, .vx-chip--active, [aria-selected="true"]):hover,
 body.vx-customer-design-foundation .vx-ui-tab:is(.active, .is-active, .vx-chip--active, [aria-selected="true"]):hover,
-body.vx-customer-design-foundation #vx-assistant-root-switch > button:is(.active, .is-active, .vx-chip--active, [aria-selected="true"]):hover,
 body.vx-customer-design-foundation .vx-requests-filters > .vx-ap-filter:is(.active, .is-active, .vx-chip--active, [aria-selected="true"]):hover {
   background: var(--vx-ui-tab-accent);
   color: var(--vx-ui-tab-accent-text);
@@ -690,7 +685,6 @@ body.vx-customer-design-foundation .vx-ui-spinner {
      is how the "Anfragen" filters lost Geplant/Erledigt/Archiv on mobile.
      Wrapping keeps every tab reachable without interaction. */
   .vx-ui-tabs,
-  body.vx-customer-design-foundation #vx-assistant-root-switch,
   body.vx-customer-design-foundation .vx-requests-filters {
     flex-wrap: wrap;
     row-gap: var(--vx-ui-tab-gap);
@@ -711,7 +705,6 @@ body.vx-customer-design-foundation .vx-ui-spinner {
 
   .vx-ui-tabs > button,
   body.vx-customer-design-foundation .vx-ui-tab,
-  body.vx-customer-design-foundation #vx-assistant-root-switch > button,
   body.vx-customer-design-foundation .vx-requests-filters > .vx-ap-filter {
     min-height: 34px;
     padding: 7px 13px;

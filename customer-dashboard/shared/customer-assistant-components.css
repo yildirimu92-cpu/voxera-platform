@@ -63,6 +63,120 @@ body.vx-customer-design-foundation .vx-ap-hero-note {
   line-height: 1.5;
 }
 
+/* Der Hinweis auf eine eingefrorene Begrüssung (A4/N7) ist keine Störung,
+   sondern eine Feststellung — deshalb die Warnrolle aus dem Tokenset und
+   nicht Rot, das auf diesem Screen der Notfallnummer gehört (F7). */
+body.vx-customer-design-foundation .vx-ap-hero-note--warn {
+  color: var(--vx-color-warning);
+}
+
+body.vx-customer-design-foundation .vx-ap-linkbtn {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--vx-brand);
+  font: inherit;
+  font-weight: 650;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+body.vx-customer-design-foundation .vx-ap-linkbtn:disabled {
+  cursor: default;
+  opacity: .6;
+}
+
+/* Herkunftsmarke. Sagt für jede Kategorie, wer ihren Inhalt setzt — die
+   zweite Achse der Gliederung (S5/E4). Drei Zustände, keine weiteren:
+   die eigene Eingabe, die Voxera-Vorgabe, die Branchenvorlage. */
+body.vx-customer-design-foundation .vx-ap-origin {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: var(--vx-space-3);
+  padding: 3px 10px 3px 8px;
+  border: 1px solid var(--vx-line);
+  border-radius: 999px;
+  color: var(--vx-muted);
+  font-size: 11.5px;
+  font-weight: 620;
+}
+
+body.vx-customer-design-foundation .vx-ap-origin i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--vx-brand);
+}
+
+body.vx-customer-design-foundation .vx-ap-origin--voxera i {
+  background: var(--vx-color-night);
+}
+
+body.vx-customer-design-foundation .vx-ap-origin--branch i {
+  background: var(--vx-color-gold);
+}
+
+body.vx-customer-design-foundation .vx-ap-subsection {
+  margin-top: var(--vx-space-4);
+  padding-top: var(--vx-space-4);
+  border-top: 1px solid var(--vx-line);
+}
+
+body.vx-customer-design-foundation .vx-ap-subtitle {
+  color: var(--vx-ink);
+  font-size: 13px;
+  font-weight: 650;
+}
+
+body.vx-customer-design-foundation .vx-ap-rules {
+  margin: var(--vx-space-2) 0 0;
+  padding-left: 18px;
+  color: var(--vx-ink);
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+
+body.vx-customer-design-foundation .vx-ap-rules li {
+  margin-top: 4px;
+}
+
+/* Kategorie 4 als Band statt als Reiter: temporäre Abweichungen sind die
+   zweitwichtigste Aussage des Screens und stehen deshalb über allem, aber
+   nur solange es sie gibt. Informationsrolle in Blau — Rot bleibt dem
+   Notfall vorbehalten, auch wenn es hier um eine Ausnahme geht. */
+body.vx-customer-design-foundation .vx-ap-band {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--vx-space-3);
+  padding: 12px 14px;
+  border: 1px solid var(--vx-ui-badge-info-border, var(--vx-line));
+  border-radius: var(--vx-ui-card-radius);
+  background: var(--vx-ui-badge-info-bg);
+}
+
+body.vx-customer-design-foundation .vx-ap-band-copy {
+  display: grid;
+  gap: 3px;
+  flex: 1 1 220px;
+  min-width: 0;
+}
+
+body.vx-customer-design-foundation .vx-ap-band-label {
+  color: var(--vx-ui-badge-info-text);
+  font-size: var(--vx-ui-section-label-size);
+  font-weight: var(--vx-ui-section-label-weight);
+  letter-spacing: .05em;
+  text-transform: uppercase;
+}
+
+body.vx-customer-design-foundation .vx-ap-band-text {
+  color: var(--vx-ink);
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+
 body.vx-customer-design-foundation .vx-ap-hero-foot {
   display: flex;
   flex-wrap: wrap;
@@ -70,6 +184,10 @@ body.vx-customer-design-foundation .vx-ap-hero-foot {
   justify-content: space-between;
   gap: var(--vx-space-3);
   margin-top: var(--vx-space-4);
+}
+
+body.vx-customer-design-foundation .vx-ap-hero-foot:empty {
+  display: none;
 }
 
 body.vx-customer-design-foundation .vx-ap-hero-meta {

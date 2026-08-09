@@ -205,14 +205,6 @@ body.vx-customer-design-foundation :where(
    field component (customer-ui-components.css). This module only sets the
    font family, which belongs to the global typography contract. */
 
-/* Tab shape and states are owned by the canonical pill tab component
-   (customer-ui-components.css); this primitive keeps only block spacing. */
-body.vx-customer-design-foundation .vx-assistant-root-switch {
-  box-sizing: border-box;
-  margin: 0 0 16px;
-  padding: 4px 0 14px;
-}
-
 body.vx-customer-design-foundation :where(
   #mnav-dashboard,
   #mnav-anrufe,
@@ -352,26 +344,6 @@ body.vx-customer-design-foundation [hidden][hidden][hidden] {
     scroll-padding-bottom: calc(var(--vx-mobile-nav-space) + env(safe-area-inset-bottom, 0px) + 28px);
   }
 
-  body.vx-customer-design-foundation .vx-assistant-root-switch {
-    position: sticky;
-    top: 0;
-    z-index: 30;
-    margin-right: -14px;
-    margin-left: -14px;
-    padding: 8px 14px 12px;
-    overflow-x: auto;
-    border-bottom: 1px solid var(--vx-line);
-    background: rgba(246, 248, 251, 0.96);
-    overscroll-behavior-inline: contain;
-    scrollbar-width: none;
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-  }
-
-  body.vx-customer-design-foundation .vx-assistant-root-switch::-webkit-scrollbar {
-    display: none;
-  }
-
   body.vx-customer-design-foundation .vx-as-cap {
     padding: 16px;
   }
@@ -389,12 +361,6 @@ body.vx-customer-design-foundation [hidden][hidden][hidden] {
     padding-left: 12px;
   }
 
-  body.vx-customer-design-foundation .vx-assistant-root-switch {
-    margin-right: -12px;
-    margin-left: -12px;
-    padding-right: 12px;
-    padding-left: 12px;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {

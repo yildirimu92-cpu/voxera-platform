@@ -367,6 +367,52 @@ Die Formulierung aus Abschnitt 6.3 gilt. Im Code drei Stellen:
 
 ---
 
+## 11. Nachtrag 09.08. — E8 entschieden, I1–I8 umgesetzt
+
+**Entscheidung E8: 3 → 0.** Der Assistent-Tab ist eine durchgehende Seite mit vier Abschnitten; Geschäftsprofil und Aktuelle Infos sind Drill-ins. **S6 entfällt** — es ist in dieser Umsetzung aufgegangen.
+
+### Was gebaut wurde
+
+| Schritt | Ergebnis |
+|---|---|
+| **I1** | **Kernidentität.** Kopfbereich, Stimme und „Name und Auftreten" sind ein Abschnitt. Der Satz steht oben, darunter die fünf Felder, die ihn erzeugen (Name, Stimme, Ansprache, Ton, Sprache), darunter ein Editor für alle auf einmal. **D7 ist damit weg** — Ansprache und Ton stehen nicht mehr doppelt. Die Erklärung, warum der Satz kein Eingabefeld ist, steht dort, wo die Frage entsteht. |
+| **I2** | **Grenzen und Eskalation.** Notfallnummer und Weiterleitung wie bisher, dazu zum ersten Mal sichtbar: was der Assistent nicht beantwortet (`ai_response_constraints`, `ai_fallback_escalation` — read-only, sie bleiben in `BLOCKED_CUSTOMER_FIELDS`) und Layer 1 als Kategorienliste. **Der Prompt-Wortlaut bleibt im Admin-Panel** (E4): die fünf Voxera-Regeln stehen als Klartext-Kategorien im Endpoint, nicht aus dem Prompt gelesen. Enthält S5. |
+| **I3** | **Band statt Reiter, Drill-in statt Umschalter.** `#vx-assistant-root-switch` ist gelöscht — Markup, Erzeugung und alle 17 CSS-Regeln in drei Dateien. Die Appbar trägt jetzt den Zurück-Pfeil, und zwar über denselben History-Vertrag wie jeder andere Screen: Pfeil, Browser-Zurück und Wisch-Geste sind eine Operation. Dafür hat `customer-runtime-screen-navigation.js` eine Anmeldung für fremde Sub-Screens bekommen (`vxScreenNav.register`) — ohne sie hätte der Pfeil funktioniert und Browser-Zurück nicht. |
+| **I4** | **Branchenanzeige (A3, Baustein 1+2).** Der Endpoint liefert `industry`, jede betroffene Kategorie zeigt die zugeordnete Branche oder sagt ausdrücklich, dass keine zugeordnet ist. Der Wechsel läuft über den bestehenden Meldeweg. |
+| **I5** | **D3** — siehe Abschnitt 10. |
+| **I6** | **D2 erledigt, D1 nicht.** `VX_BRANCH_CONFIG` ist gelöscht (Inhalt unten gesichert). **D1 bleibt bewusst liegen** — der User bearbeitet ihn im Abo-Datenbug-Fenster, weil es vermutlich derselbe Fehler ist. Zwei Fenster am selben `loadAssistentRequests()` wären genau die Kollision, die dieser Auftrag vermeiden soll. |
+| **I7** | **F7** — siehe Abschnitt 10. |
+| **I8** | **Branchenfelder bearbeitbar,** im Geschäftsprofil-Drill-in. Die Feldliste kommt aus `industry_templates.extra_steps`, nicht aus dem Frontend. |
+
+### D4 gelöst (E10)
+
+`ai_branch_extra` führt jetzt — im Prompt-Builder **und** im Dashboard, in derselben Rangfolge. Die `[WIZARD]`-Zeile in `ai_internal_notes` bleibt Rückfall für Kunden, die seit der Umstellung nicht neu gespeichert wurden. Zwei Quellen sind hinnehmbar, zwei Rangfolgen wären es nicht.
+
+**Das war die Vorbedingung für die kundenseitige Bearbeitbarkeit — und sie hat eine zweite nach sich gezogen.** Seit Prompt-Builder 2.2 werden Branchenantworten zu Prompt-Variablen. Ein frei wählbarer Schlüssel wäre damit eine Schreibberechtigung auf den Prompt. Der Schreibpfad nimmt deshalb **nur** Schlüssel an, die die zugeordnete Vorlage definiert, prüft Auswahlwerte gegen die hinterlegten Optionen, kappt auf 400 Zeichen und entfernt geschweifte Klammern aus Freitext.
+
+### Aus `VX_BRANCH_CONFIG` gesichert, bevor der Code gelöscht wurde
+
+Die Tabelle beantwortete: welche Branche braucht überhaupt eine Notfallnummer, welche eine Weiterleitung. Kein Code hat sie je gelesen, aber die Zuordnung ist für A3 brauchbar:
+
+- **Notfallnummer sinnvoll:** `versicherung`, `facharzt`, `zahnarzt`, `hotel`, `handwerk`, `it-support`, `fitness`
+- **Keine Notfallnummer:** `generic`, `physiotherapie`, `garage` (Pannendienst ist eine eigene Nummer), `restaurant`, `coiffeur`, `kosmetik`, `treuhand`, `immobilien`, `reinigung`, `anwalt`, `baeckerei`, `digitalmarketing`
+- **Keine Weiterleitung nötig:** `coiffeur`, `kosmetik`, `fitness`, `baeckerei`
+
+### Bewusst nicht mitgemacht
+
+- **D6 / S7** (zwei Module streiten um Fähigkeiten- und Betriebsstatus-Karte) bleibt offen. Der Einhängepunkt ist jetzt ein ausdrücklicher Anker statt eines Kartentitel-Regex — vorher hätte die Umbenennung der Karte die Fähigkeiten still ans Ende verschoben. Die eigentliche Entflechtung ist ein eigener Schritt und stand nicht in I1–I8.
+- **Der Admin-Wizard schreibt weiter beide Quellen.** Er lädt vor dem Schreiben den aktuellen Stand, überschreibt Kundeneingaben also nicht — aber die Doppelschreibung sollte fallen, sobald jemand ohnehin am Wizard arbeitet.
+- **Der Bestätigungsdialog** beim Zurückziehen einer aktuellen Änderung (siehe Abschnitt 10).
+
+### Nachträge für die Kommandozentrale
+
+- **Tab „Seiten-Definitionen"/Assistent:** „Enthält 3 Unterbereiche" gilt nicht mehr — eine Seite, vier Abschnitte, zwei Drill-ins.
+- **Tab „Design-System":** die F7-Formulierung aus Abschnitt 6.3.
+- **Tab „Datenbank & Architektur":** `customers.ai_branch_extra` ist ab jetzt die führende Quelle für Branchenantworten; `ai_response_constraints` und `ai_fallback_escalation` sind im Kunden-UI lesbar, bleiben aber nicht schreibbar.
+- **Tab „Offene Entscheidungen":** E8–E12 nach „entschieden".
+
+---
+
 ## Anhang — Prüfmethode und Dateiverweise
 
 **Geprüft wurde gegen:** `main` @ `ed1d95e` (Code), Supabase-Projekt `ulcofbgrovgcvowdjrge` (Tabellen `customers`, `industry_templates`, `plan_config`). Alle Zahlen in diesem Dokument stammen aus diesen zwei Quellen, nicht aus der Kommandozentrale oder den Vorgänger-Dokumenten.

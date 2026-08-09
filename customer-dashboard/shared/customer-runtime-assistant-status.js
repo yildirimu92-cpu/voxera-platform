@@ -124,9 +124,11 @@
 
     const capabilities = Array.isArray(snapshot.capabilities) ? snapshot.capabilities : [];
     const technical = snapshot.technical_status || {};
-    const businessCard = Array.from(stack.querySelectorAll('.vx-ap-card')).find((card) =>
-      /Geschäftswissen/.test(card.querySelector('.vx-ap-title')?.textContent || '')
-    );
+    // Der Einhängepunkt ist ein ausdrücklicher Anker, kein Kartentitel. Vorher
+    // stand hier ein Regex auf "Geschäftswissen" — eine Umbenennung der Karte
+    // hätte die Fähigkeiten still ans Ende verschoben, ohne dass es jemandem
+    // aufgefallen wäre.
+    const businessCard = stack.querySelector('#vx-assistant-capabilities-anchor');
     const phoneDetail = phoneSnapshot?.assigned
       ? `Voxera-Nummer: ${phoneSnapshot.display_phone_number}`
       : 'Voxera-Nummer: Noch nicht zugewiesen';

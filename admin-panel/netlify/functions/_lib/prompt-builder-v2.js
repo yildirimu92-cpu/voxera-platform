@@ -43,6 +43,18 @@ function wizardVariables(wizard, emergencyNumber, reserved) {
   return result;
 }
 
+// D4 / E10 (Entscheidung 09.08.): Die Branchenantworten lagen doppelt — als
+// typisierte Spalte customers.ai_branch_extra und als [WIZARD]-Zeile im
+// Freitextfeld ai_internal_notes. Gelesen wurde bis hierher nur die Freitext-
+// Kopie. Ab jetzt fuehrt die Spalte; die Notiz-Zeile bleibt Rueckfall fuer
+// Kunden, die seit der Umstellung nicht neu gespeichert wurden.
+function branchAnswers(customer) {
+  const legacy = parseMarkedJson(customer.ai_internal_notes, WIZARD_MARKER);
+  const column = customer.ai_branch_extra;
+  const current = column && typeof column === 'object' && !Array.isArray(column) ? column : {};
+  return { ...legacy, ...current };
+}
+
 function neutralizePlaceholders(value) {
   return String(value || '').replace(
     /\{\{\s*([A-Za-z0-9_]+)\s*\}\}/g,
@@ -223,7 +235,7 @@ function qualityReport(customer, profile, industryPrompt) {
 
 function buildPromptV2({ customer = {}, masterPrompt = '', industryPrompt = '', assistantRole = 'die Assistentin', operationalUpdates = [] } = {}) {
   const profile = parsePromptProfile(customer.ai_internal_notes);
-  const wizard = parseMarkedJson(customer.ai_internal_notes, WIZARD_MARKER);
+  const wizard = branchAnswers(customer);
   const assistantName = text(customer.assistant_name) || 'Lara';
   const customerType = text(customer.ai_customer_type) || 'company';
   const addressForm = text(customer.ai_address_form) || 'sie';

@@ -15,6 +15,7 @@
   let bootAttempts = 0;
   let activeView = 'assistant';
   let toneEditorOpen = false;
+  let voiceDetailsOpen = false;
   let loadPromise = null;
   let loadSequence = 0;
   const pageStatus = { assistant: null, business: null };
@@ -136,12 +137,14 @@
   function statusNodes(page) {
     return {
       page: document.getElementById(page === 'business' ? 'vx-business-profile-status' : 'vx-assistant-profile-status'),
-      // Solange der Ansprache-/Ton-Editor offen ist, ist er die Stelle, an der
-      // gearbeitet wird — die Meldung gehoert dorthin und nicht ans Namensfeld
-      // zwei Karten tiefer.
+      // Solange der Identitaets-Editor offen ist, ist er die Stelle, an der
+      // gearbeitet wird — die Meldung gehoert dorthin. Ist er zu, gibt es
+      // keinen naeheren Anker mehr: das Namensfeld sass frueher in einer
+      // eigenen Karte und ist mit der Umgliederung in den Editor gewandert.
+      // Ohne Anker schreibt setStatus an den Seitenknoten.
       anchorId: page === 'business'
         ? 'vx-business-save-status'
-        : (toneEditorOpen ? 'vx-hero-tune-status' : 'vx-assistant-name-status')
+        : (toneEditorOpen ? 'vx-hero-tune-status' : '')
     };
   }
 
@@ -210,8 +213,30 @@
     return '<div class="vx-ap-summary-row"><span class="vx-ap-summary-key">' + esc(item.name) + '</span><span class="vx-ap-summary-value">' + esc(item.number) + (item.trigger ? ' · ' + esc(item.trigger) : '') + '</span></div>';
   }
 
-  function urgentCard() {
+  // Herkunft statt Zustaendigkeitsraten: jede Kategorie sagt, woher ihr Inhalt
+  // kommt. Drei Zustaende, mehr gibt es nicht — "von Ihnen", "von Voxera",
+  // "aus Ihrer Branche". Damit ist die Layer-Sichtbarkeit (S5/E4) Teil der
+  // Gliederung statt eine eigene Karte, und nur Kategorien werden gezeigt,
+  // nie der Prompt-Wortlaut.
+  function originChip(kind, label) {
+    return '<span class="vx-ap-origin vx-ap-origin--' + kind + '"><i aria-hidden="true"></i>' + esc(label) + '</span>';
+  }
+
+  function ruleList(items, limit) {
+    const list = (Array.isArray(items) ? items : []).slice(0, limit || 6);
+    if (!list.length) return '';
+    return '<ul class="vx-ap-rules">' + list.map((item) => '<li>' + esc(item) + '</li>').join('') + '</ul>';
+  }
+
+  function industryLine() {
+    const industry = profile?.industry || {};
+    if (industry.assigned && industry.name) return originChip('branch', 'Aus Ihrer Branche: ' + industry.name);
+    return originChip('branch', 'Noch keine Branche zugeordnet');
+  }
+
+  function boundariesCard() {
     const urgent = profile?.urgent || { emergency_number: '', forwarding: [] };
+    const boundaries = profile?.boundaries || {};
     const forwarding = Array.isArray(urgent.forwarding) ? urgent.forwarding : [];
     const hasEmergency = Boolean(urgent.emergency_number);
     const hasForwarding = forwarding.length > 0;
@@ -228,9 +253,30 @@
       : (root.VoxeraUI
         ? root.VoxeraUI.emptyState({ icon: 'ph-phone-transfer', title: 'Keine Weiterleitung eingerichtet', text: 'Notfallnummer und Weiterleitungsziele erscheinen hier, sobald sie eingerichtet sind.' })
         : '<div class="vx-ap-empty">Keine Weiterleitung eingerichtet.</div>');
+
+    // Antwortgrenzen und Eskalationsstufen sind Kundendaten, aber nicht vom
+    // Kunden bearbeitbar (BLOCKED_CUSTOMER_FIELDS). Lesbar sind sie trotzdem —
+    // sonst weiss niemand, was der eigene Assistent nicht beantwortet.
+    const limits = ruleList(boundaries.response_constraints);
+    const escalation = ruleList(boundaries.fallback_escalation, 4);
+    const limitsBlock = (limits || escalation)
+      ? '<div class="vx-ap-subsection"><div class="vx-ap-subtitle">Was Ihr Assistent nicht beantwortet</div>'
+        + limits + escalation
+        + industryLine()
+        + '</div>'
+      : '';
+
+    const rules = ruleList(profile?.voxera_rules, 6);
+    const rulesBlock = rules
+      ? '<div class="vx-ap-subsection"><div class="vx-ap-subtitle">Immer gültig</div>' + rules
+        + originChip('voxera', 'Von Voxera gesetzt · nicht überschreibbar') + '</div>'
+      : '';
+
     return '<section class="vx-ap-card" id="vx-assistant-urgent-card">'
-      + '<div class="vx-ap-head"><div><div class="vx-ap-title">Wenn es dringend wird</div><div class="vx-ap-meta">Änderungen an Weiterleitung und Notfallnummer bestätigt Voxera vor der Aktivierung.</div></div></div>'
+      + '<div class="vx-ap-head"><div><div class="vx-ap-title">Grenzen und Eskalation</div><div class="vx-ap-meta">Änderungen an Weiterleitung und Notfallnummer bestätigt Voxera vor der Aktivierung.</div></div></div>'
       + body
+      + limitsBlock
+      + rulesBlock
       + '<div class="vx-ap-actions"><button type="button" class="vx-ap-btn secondary" id="vx-urgent-change-toggle" aria-expanded="false" aria-controls="vx-urgent-change-panel">Änderung melden</button></div>'
       + '<div id="vx-urgent-change-panel" class="vx-ap-change-panel" hidden>'
       + '<div class="vx-ap-change-presets">' + CHANGE_PRESETS.map(([label, prefix]) => '<button type="button" class="vx-ap-btn ghost" data-vx-change-preset="' + esc(prefix) + '">' + esc(label) + '</button>').join('') + '</div>'
@@ -310,11 +356,12 @@
     )).join('');
   }
 
-  // Ansprache und Ton werden dort geaendert, wo ihre Wirkung steht: im
-  // Kopfbereich, direkt unter dem Satz, den sie veraendern.
+  // Name, Ansprache und Ton werden dort geaendert, wo ihre Wirkung steht:
+  // direkt unter dem Satz, den sie erzeugen. Vor der Umgliederung lagen sie auf
+  // drei Karten verteilt und Ansprache/Ton standen doppelt auf dem Screen.
   function toneEditor() {
     if (!toneEditorOpen) {
-      return '<div class="vx-ap-hero-tune"><button type="button" class="vx-ap-hero-tune-toggle" data-vx-tone-edit>Ansprache und Ton anpassen</button></div>';
+      return '<div class="vx-ap-hero-tune"><button type="button" class="vx-ap-hero-tune-toggle" data-vx-tone-edit>Anpassen</button></div>';
     }
     // Einzige Quelle fuer die Sperre. Kein Plan-Name im Frontend — sonst waere
     // ein Freischalten wieder ein Deploy statt eines DB-Updates.
@@ -329,12 +376,20 @@
       : '<div class="vx-ap-field"><span class="vx-ap-field-label">Ton <span class="vx-ap-plan-badge">ab Business</span></span>' +
         '<div class="vx-ap-hero-locked-value">' + esc(toneLabel(profile?.assistant?.tone)) + '</div></div>';
 
+    const nameField = profile?.permissions?.can_change_name
+      ? '<div class="vx-ap-field"><label for="vx-assistant-name">Name</label>' +
+        '<input id="vx-assistant-name" maxlength="40" value="' + esc(profile?.assistant?.name || '') + '" placeholder="z. B. Lea"' + (busy ? ' disabled' : '') + '></div>'
+      : '<div class="vx-ap-field"><span class="vx-ap-field-label">Name <span class="vx-ap-plan-badge">ab Business</span></span>' +
+        '<div class="vx-ap-hero-locked-value">' + esc(profile?.assistant?.name || 'Von Voxera eingerichtet') + '</div></div>';
+
     return '<div class="vx-ap-hero-tune is-open">' +
       '<div class="vx-ap-hero-tune-grid">' +
+      nameField +
       '<div class="vx-ap-field"><label for="vx-hero-address">Ansprache</label>' +
       '<select id="vx-hero-address"' + (busy ? ' disabled' : '') + '>' + optionList(ADDRESS_OPTIONS, profile?.assistant?.address_form || 'sie') + '</select></div>' +
       toneField +
       '</div>' +
+      voiceBlock() +
       (canTone ? '' : '<div class="vx-ap-hero-note">Den Ton können Sie ab dem Business-Paket selbst wählen. Die Ansprache bleibt jederzeit änderbar.</div>') +
       '<div class="vx-ap-actions">' +
       '<button type="button" class="vx-ap-btn" id="vx-hero-tune-save"' + (busy ? ' disabled' : '') + '>Übernehmen</button>' +
@@ -347,35 +402,117 @@
       '</div>';
   }
 
-  function heroCard() {
+  // Die Stimmenauswahl sass bis zur Umgliederung in einer eigenen Karte und
+  // wurde von customer-runtime-unified-navigation.js nachtraeglich in ein
+  // <details> gehuellt. Sie gehoert zu den Feldern, die den Satz oben erzeugen —
+  // also in denselben Editor, und die Huelle rendert dieses Modul selbst.
+  function voiceBlock() {
+    if (!profile?.permissions?.can_change_voice) {
+      return '<div class="vx-ap-status warning vx-ap-status--inline">Die Stimmenauswahl ist in Ihrem aktuellen Paket nicht freigeschaltet.</div>';
+    }
+    const filtered = voices.filter((voice) => voiceFilter === 'all' || genderKey(voice.gender) === voiceFilter);
+    return '<details class="vx-nav-voice-details"' + (voiceDetailsOpen ? ' open' : '') + '>'
+      + '<summary>Andere Stimme wählen</summary>'
+      + '<div class="vx-ap-meta">Wählen Sie aus kuratierten Stimmen. Technische Sprachparameter bleiben geschützt.</div>'
+      + '<div class="vx-ap-filters"><button type="button" class="vx-ap-filter' + (voiceFilter === 'all' ? ' active' : '') + '" data-vx-filter="all">Alle</button>'
+      + '<button type="button" class="vx-ap-filter' + (voiceFilter === 'female' ? ' active' : '') + '" data-vx-filter="female">Weiblich</button>'
+      + '<button type="button" class="vx-ap-filter' + (voiceFilter === 'male' ? ' active' : '') + '" data-vx-filter="male">Männlich</button></div>'
+      + '<div class="vx-ap-voices">' + (filtered.length ? filtered.map(voiceCard).join('') : '<div class="vx-ap-empty">Für diesen Filter sind keine Stimmen freigeschaltet.</div>') + '</div>'
+      + '</details>';
+  }
+
+  function identityRow(key, value) {
+    return '<div class="vx-ap-summary-row"><span class="vx-ap-summary-key">' + key + '</span><span class="vx-ap-summary-value">' + value + '</span></div>';
+  }
+
+  function identityCard() {
     const greeting = profile?.greeting || { text: null, source: 'none' };
     const current = selectedVoice();
     const technical = profile?.technical_status || {};
     const summary = statusSummary(technical);
     const lastSync = formatDay(technical.last_successful_sync_at);
-
-    const voicePart = current ? 'Stimme ' + esc(current.display_name || 'Standardstimme') : 'Stimme von Voxera eingerichtet';
-    const addressPart = String(profile?.assistant?.address_form || '').toLowerCase() === 'du' ? 'Du-Form' : 'Sie-Form';
-    const meta = [voicePart, addressPart, esc(toneLabel(profile?.assistant?.tone))].join(' · ');
+    const assistant = profile?.assistant || {};
 
     const spoken = greeting.text
       ? '<p class="vx-ap-hero-greeting">„' + esc(greeting.text) + '"</p>'
       : '<p class="vx-ap-hero-greeting is-pending">Der Begrüssungssatz entsteht, sobald Ihr Assistent aktiviert ist.</p>';
+    // Warum der Satz kein Eingabefeld ist, steht dort, wo die Frage entsteht.
+    const explain = greeting.text
+      ? '<div class="vx-ap-hero-note">Dieser Satz entsteht automatisch aus Name, Ansprache und Sprache und enthält den gesetzlich nötigen Hinweis auf die Aufzeichnung. Ändern Sie die Felder darunter — der Satz zieht mit.</div>'
+      : '';
+    // A4/N7: eine gespeicherte Begruessung zieht bei einer Umbenennung nicht mit.
+    // Der Screen zeigt die Abweichung, statt sie stillschweigend zu verwenden.
+    const stale = greeting.stale_name
+      ? '<div class="vx-ap-hero-note vx-ap-hero-note--warn">Diese Begrüssung nennt einen anderen Namen als Ihr Assistent. '
+        + '<button type="button" class="vx-ap-linkbtn" id="vx-greeting-reset"' + (busy ? ' disabled' : '') + '>Auf Standard zurücksetzen</button></div>'
+      : '';
     const notice = greeting.source === 'custom'
       ? '<div class="vx-ap-hero-note">Noch nicht an den Assistenten übertragen.</div>'
       : '';
+
+    const rows = identityRow('Name', esc(assistant.name || 'Von Voxera eingerichtet'))
+      + identityRow('Stimme', esc(current ? (current.display_name || 'Standardstimme') : 'Von Voxera eingerichtet'))
+      + identityRow('Ansprache', esc(addressLabel(assistant.address_form)))
+      + identityRow('Ton', esc(toneLabel(assistant.tone)))
+      // E9: Sprache ist prompt-wirksam, aber nicht selbst bedienbar. Sie steht
+      // hier als Wert mit Herkunft, nicht als Feld.
+      + identityRow('Sprache', esc(assistant.language_label || 'Deutsch'));
 
     const statusLine = summary.text + (lastSync ? ' · Zuletzt aktualisiert am ' + esc(lastSync) : '');
 
     return '<section class="vx-ap-card vx-ap-hero">' +
       '<div class="vx-ap-hero-label">So meldet sich Ihr Assistent</div>' +
-      spoken + notice +
-      '<div class="vx-ap-hero-foot"><div class="vx-ap-hero-meta">' + meta + '</div>' +
+      spoken + explain + stale + notice +
+      '<div class="vx-ap-summary">' + rows + '</div>' +
+      originChip('self', 'Von Ihnen gesetzt') +
+      '<div class="vx-ap-hero-foot">' +
       (current ? '<button type="button" class="vx-ap-btn secondary" data-vx-preview="' + esc(current.voice_id) + '"' + (previewLoading ? ' disabled' : '') + '><i class="ph-bold ph-play" aria-hidden="true"></i> Anhören</button>' : '') +
       '</div>' +
       toneEditor() +
       '<div class="vx-ap-hero-status ' + summary.tone + '">' + statusLine + '</div>' +
       '</section>';
+  }
+
+  // Kategorie 4: temporaer statt dauerhaft. Sichtbar nur, wenn es tatsaechlich
+  // eine Abweichung gibt — sonst beginnt der Screen direkt mit dem Satz.
+  function bandCard() {
+    const current = profile?.operational_updates?.current;
+    if (!current) return '';
+    const until = formatDay(current.ends_at);
+    const label = current.active ? 'Aktuell abweichend vom Normalbetrieb' : 'Geplante Abweichung';
+    return '<section class="vx-ap-band' + (current.active ? ' is-active' : '') + '">'
+      + '<div class="vx-ap-band-copy"><span class="vx-ap-band-label">' + label + '</span>'
+      + '<span class="vx-ap-band-text">' + esc(current.message || current.title) + (until ? ' Gültig bis ' + esc(until) + '.' : '') + '</span></div>'
+      + '<button type="button" class="vx-ap-btn secondary" id="vx-open-operational">Bearbeiten</button>'
+      + '</section>';
+  }
+
+  function knowledgeCard() {
+    const business = profile?.business_profile || {};
+    const completed = Number(business.completed_fields || 0);
+    const total = Number(business.total_fields || 4);
+    const branchCount = (profile?.branch_sections || []).reduce((sum, section) => sum + section.fields.length, 0);
+    const branchFilled = (profile?.branch_sections || []).reduce(
+      (sum, section) => sum + section.fields.filter((field) => field.value).length, 0
+    );
+    const branchRow = branchCount
+      ? identityRow('Angaben für Ihre Branche', esc(branchFilled + ' von ' + branchCount + ' ausgefüllt'))
+      : '';
+
+    return '<section class="vx-ap-card">'
+      + '<div class="vx-ap-head"><div><div class="vx-ap-title">Was Ihr Assistent weiss</div>'
+      + '<div class="vx-ap-meta">Dauerhaftes Geschäftswissen. Ferien und kurzfristige Änderungen gehören ins Band oben.</div></div>'
+      + '<span class="vx-ap-pill' + (completed === total ? ' selected' : '') + '">' + completed + ' von ' + total + ' Bereichen</span></div>'
+      + '<div class="vx-ap-summary">'
+      + identityRow('Unternehmen', esc(business.company_name || 'Nicht angegeben'))
+      + identityRow('Leistungen', esc(business.services ? 'Hinterlegt' : 'Noch ergänzen'))
+      + identityRow('Öffnungszeiten / Standort', esc(business.location_hours ? 'Hinterlegt' : 'Noch ergänzen'))
+      + identityRow('Häufige Fragen', esc(business.booking_faq ? 'Hinterlegt' : 'Noch ergänzen'))
+      + branchRow
+      + '</div>'
+      + industryLine()
+      + '<div class="vx-ap-actions"><button type="button" class="vx-ap-btn secondary" id="vx-open-business-profile">Geschäftsprofil bearbeiten</button></div>'
+      + '</section>';
   }
 
   function voiceCard(voice) {
@@ -392,20 +529,17 @@
         : '';
       return;
     }
-    const current = selectedVoice();
-    const filtered = voices.filter((voice) => voiceFilter === 'all' || genderKey(voice.gender) === voiceFilter);
-    const business = profile.business_profile || {};
-    const completed = Number(business.completed_fields || 0);
-    const total = Number(business.total_fields || 4);
+    // Vier Abschnitte, sortiert nach Beständigkeit: was sich fast nie ändert
+    // zuerst, das Temporäre als Band darüber. Die Fähigkeiten-Karte und die
+    // Betriebsstatus-Karte hängt customer-runtime-assistant-status.js an den
+    // Anker unten an — deshalb steht dort ein leerer Knoten und keine Karte.
     body.innerHTML = '<div id="vx-assistant-profile-status" class="vx-ap-status" role="status" aria-live="polite"></div><div class="vx-ap-stack">' +
-      heroCard() +
-      '<section class="vx-ap-card"><div class="vx-ap-head"><div><div class="vx-ap-title">Stimme</div><div class="vx-ap-meta">Wählen Sie aus kuratierten Stimmen. Technische Sprachparameter bleiben geschützt.</div></div></div><div class="vx-ap-current"><div class="vx-ap-avatar"><i class="ph-bold ph-waveform" aria-hidden="true"></i></div><div class="vx-ap-current-copy"><div class="vx-ap-title">' + esc(current?.display_name || 'Standardstimme') + '</div><div class="vx-ap-meta">' + esc(current ? genderLabel(current.gender) : 'Von Voxera eingerichtet') + '</div></div>' + '</div>' +
-      (profile.permissions?.can_change_voice ? '<div class="vx-ap-filters"><button type="button" class="vx-ap-filter' + (voiceFilter === 'all' ? ' active' : '') + '" data-vx-filter="all">Alle</button><button type="button" class="vx-ap-filter' + (voiceFilter === 'female' ? ' active' : '') + '" data-vx-filter="female">Weiblich</button><button type="button" class="vx-ap-filter' + (voiceFilter === 'male' ? ' active' : '') + '" data-vx-filter="male">Männlich</button></div><div class="vx-ap-voices">' + (filtered.length ? filtered.map(voiceCard).join('') : '<div class="vx-ap-empty">Für diesen Filter sind keine Stimmen freigeschaltet.</div>') + '</div>' : '<div class="vx-ap-status warning vx-ap-status--inline">Die Stimmenauswahl ist in Ihrem aktuellen Paket nicht freigeschaltet.</div>') + '</section>' +
-      '<section class="vx-ap-card"><div class="vx-ap-title">Name und Auftreten</div><div class="vx-ap-meta">Der Name ist die Bezeichnung, mit der sich der Assistent meldet.</div>' +
-      (profile.permissions?.can_change_name ? '<div class="vx-ap-field"><label>Name des Assistenten</label><input id="vx-assistant-name" maxlength="40" value="' + esc(profile.assistant?.name || '') + '" placeholder="z. B. Lea"></div><div class="vx-ap-actions"><button type="button" class="vx-ap-btn" id="vx-assistant-name-save"' + (busy ? ' disabled' : '') + '>Name speichern</button></div><div id="vx-assistant-name-status" class="vx-ap-status vx-ap-status--inline" role="status" aria-live="polite"></div>' : '<div class="vx-ap-summary"><div class="vx-ap-summary-row"><span class="vx-ap-summary-key">Name</span><span class="vx-ap-summary-value">' + esc(profile.assistant?.name || 'Von Voxera eingerichtet') + '</span></div></div>') +
-      '<div class="vx-ap-summary"><div class="vx-ap-summary-row"><span class="vx-ap-summary-key">Kommunikationsstil</span><span class="vx-ap-summary-value">' + esc(toneLabel(profile.assistant?.tone)) + '</span></div><div class="vx-ap-summary-row"><span class="vx-ap-summary-key">Ansprache</span><span class="vx-ap-summary-value">' + esc(addressLabel(profile.assistant?.address_form)) + '</span></div><div class="vx-ap-summary-row"><span class="vx-ap-summary-key">Assistent</span><span class="vx-ap-summary-value">' + (profile.assistant?.has_agent ? 'Bereit' : 'Noch nicht aktiviert') + '</span></div></div></section>' +
-      '<section class="vx-ap-card"><div class="vx-ap-head"><div><div class="vx-ap-title">Geschäftswissen</div><div class="vx-ap-meta">Dauerhafte Informationen werden zentral im Geschäftsprofil gepflegt.</div></div><span class="vx-ap-pill' + (completed === total ? ' selected' : '') + '">' + completed + ' von ' + total + ' Bereichen</span></div><div class="vx-ap-summary"><div class="vx-ap-summary-row"><span class="vx-ap-summary-key">Unternehmen</span><span class="vx-ap-summary-value">' + esc(business.company_name || 'Nicht angegeben') + '</span></div><div class="vx-ap-summary-row"><span class="vx-ap-summary-key">Leistungen</span><span class="vx-ap-summary-value">' + esc(business.services ? 'Hinterlegt' : 'Noch ergänzen') + '</span></div><div class="vx-ap-summary-row"><span class="vx-ap-summary-key">Öffnungszeiten / Standort</span><span class="vx-ap-summary-value">' + esc(business.location_hours ? 'Hinterlegt' : 'Noch ergänzen') + '</span></div></div><div class="vx-ap-actions"><button type="button" class="vx-ap-btn secondary" id="vx-open-business-profile">Geschäftsprofil öffnen</button></div></section>' +
-      urgentCard() + '</div>';
+      bandCard() +
+      identityCard() +
+      knowledgeCard() +
+      boundariesCard() +
+      '<div id="vx-assistant-capabilities-anchor" hidden></div>' +
+      '</div>';
     bindAssistant();
     restoreStatus('assistant');
   }
@@ -423,9 +557,72 @@
     // vx-ui-brand-rule: der Gold-Streifen auf der fuehrenden Karte des
     // Screens. Genau eine pro Screen, zustandsunabhaengig — siehe
     // customer-ui-components.css, Abschnitt 9.
-    body.innerHTML = '<div id="vx-business-profile-status" class="vx-ap-status" role="status" aria-live="polite"></div><div class="vx-ap-card vx-ui-brand-rule"><div class="vx-ap-head"><div><div class="vx-ap-title">Dauerhaftes Geschäftswissen</div><div class="vx-ap-meta">Diese Informationen verwendet der Assistent im normalen Betrieb. Ferien und kurzfristige Änderungen gehören in „Aktuelle Infos“.</div></div></div><div class="vx-ap-grid"><div class="vx-ap-field"><label>Unternehmensbeschreibung</label><textarea id="vx-business-description" placeholder="Was macht Ihr Unternehmen und für wen?">' + esc(data.description || '') + '</textarea></div><div class="vx-ap-field"><label>Leistungen und Angebote</label><textarea id="vx-business-services" placeholder="Welche Leistungen darf der Assistent erklären?">' + esc(data.services || '') + '</textarea></div><div class="vx-ap-field"><label>Standort und reguläre Öffnungszeiten</label><textarea id="vx-business-location-hours" placeholder="Adresse, Einzugsgebiet und reguläre Öffnungszeiten">' + esc(data.location_hours || '') + '</textarea></div><div class="vx-ap-field"><label>Häufige Fragen und Buchungshinweise</label><textarea id="vx-business-booking-faq" placeholder="Wichtige Antworten, Voraussetzungen oder Hinweise">' + esc(data.booking_faq || '') + '</textarea></div></div><div class="vx-ap-actions"><button type="button" class="vx-ap-btn" id="vx-business-profile-save"' + (busy ? ' disabled' : '') + '>Geschäftsprofil speichern</button></div><div id="vx-business-save-status" class="vx-ap-status vx-ap-status--inline" role="status" aria-live="polite"></div></div>';
+    body.innerHTML = '<div id="vx-business-profile-status" class="vx-ap-status" role="status" aria-live="polite"></div><div class="vx-ap-card vx-ui-brand-rule"><div class="vx-ap-head"><div><div class="vx-ap-title">Dauerhaftes Geschäftswissen</div><div class="vx-ap-meta">Diese Informationen verwendet der Assistent im normalen Betrieb. Ferien und kurzfristige Änderungen gehören in „Aktuelle Infos“.</div></div></div><div class="vx-ap-grid"><div class="vx-ap-field"><label>Unternehmensbeschreibung</label><textarea id="vx-business-description" placeholder="Was macht Ihr Unternehmen und für wen?">' + esc(data.description || '') + '</textarea></div><div class="vx-ap-field"><label>Leistungen und Angebote</label><textarea id="vx-business-services" placeholder="Welche Leistungen darf der Assistent erklären?">' + esc(data.services || '') + '</textarea></div><div class="vx-ap-field"><label>Standort und reguläre Öffnungszeiten</label><textarea id="vx-business-location-hours" placeholder="Adresse, Einzugsgebiet und reguläre Öffnungszeiten">' + esc(data.location_hours || '') + '</textarea></div><div class="vx-ap-field"><label>Häufige Fragen und Buchungshinweise</label><textarea id="vx-business-booking-faq" placeholder="Wichtige Antworten, Voraussetzungen oder Hinweise">' + esc(data.booking_faq || '') + '</textarea></div></div><div class="vx-ap-actions"><button type="button" class="vx-ap-btn" id="vx-business-profile-save"' + (busy ? ' disabled' : '') + '>Geschäftsprofil speichern</button></div><div id="vx-business-save-status" class="vx-ap-status vx-ap-status--inline" role="status" aria-live="polite"></div></div>' + branchCard();
     document.getElementById('vx-business-profile-save')?.addEventListener('click', saveBusiness);
+    document.getElementById('vx-branch-save')?.addEventListener('click', saveBranch);
     restoreStatus('business');
+  }
+
+  // I8 — die Felder kommen aus der Branchenvorlage (industry_templates.
+  // extra_steps), nicht aus dieser Datei. Ohne zugeordnete Branche oder ohne
+  // hinterlegte Zusatzfelder sagt die Karte genau das, statt zu verschwinden:
+  // die fehlende Zuordnung ist die eigentliche Lücke, nicht der Inhalt.
+  function branchField(field) {
+    const id = 'vx-branch-' + field.key;
+    const hint = field.hint ? '<div class="vx-ap-meta">' + esc(field.hint) + '</div>' : '';
+    let control;
+    if (field.type === 'radio' && field.options.length) {
+      control = '<select id="' + esc(id) + '" data-vx-branch-key="' + esc(field.key) + '"' + (busy ? ' disabled' : '') + '>'
+        + '<option value="">Noch nicht gewählt</option>'
+        + field.options.map((option) => (
+          '<option value="' + esc(option.value) + '"' + (field.value === option.value ? ' selected' : '') + '>' + esc(option.label) + '</option>'
+        )).join('')
+        + '</select>';
+    } else if (field.type === 'textarea') {
+      control = '<textarea id="' + esc(id) + '" data-vx-branch-key="' + esc(field.key) + '" maxlength="400" placeholder="' + esc(field.placeholder) + '"'
+        + (busy ? ' disabled' : '') + '>' + esc(field.value) + '</textarea>';
+    } else {
+      control = '<input id="' + esc(id) + '" data-vx-branch-key="' + esc(field.key) + '" maxlength="400" value="' + esc(field.value) + '" placeholder="' + esc(field.placeholder) + '"'
+        + (busy ? ' disabled' : '') + '>';
+    }
+    return '<div class="vx-ap-field"><label for="' + esc(id) + '">' + esc(field.label) + '</label>' + control + hint + '</div>';
+  }
+
+  function branchCard() {
+    const industry = profile?.industry || {};
+    const sections = profile?.branch_sections || [];
+    if (!industry.assigned) {
+      return '<div class="vx-ap-card"><div class="vx-ap-title">Für Ihre Branche</div>'
+        + '<div class="vx-ap-meta">Ihrem Konto ist noch keine Branche zugeordnet. Ihr Assistent arbeitet deshalb ohne branchenspezifische Regeln.</div>'
+        + originChip('branch', 'Noch keine Branche zugeordnet') + '</div>';
+    }
+    if (!sections.length) {
+      return '<div class="vx-ap-card"><div class="vx-ap-title">Für Ihre Branche</div>'
+        + '<div class="vx-ap-meta">Für ' + esc(industry.name) + ' sind aktuell keine Zusatzangaben vorgesehen.</div>'
+        + originChip('branch', 'Aus Ihrer Branche: ' + industry.name) + '</div>';
+    }
+    return '<div class="vx-ap-card"><div class="vx-ap-head"><div><div class="vx-ap-title">Für Ihre Branche</div>'
+      + '<div class="vx-ap-meta">Diese Angaben sieht Ihre Branchenvorlage vor. Ihr Assistent verwendet sie im Gespräch.</div></div></div>'
+      + sections.map((section) => (
+        '<div class="vx-ap-subsection">'
+        + '<div class="vx-ap-subtitle">' + esc(section.title) + '</div>'
+        + (section.hint ? '<div class="vx-ap-meta">' + esc(section.hint) + '</div>' : '')
+        + '<div class="vx-ap-grid">' + section.fields.map(branchField).join('') + '</div>'
+        + '</div>'
+      )).join('')
+      + originChip('branch', 'Aus Ihrer Branche: ' + industry.name)
+      + '<div class="vx-ap-actions"><button type="button" class="vx-ap-btn" id="vx-branch-save"' + (busy ? ' disabled' : '') + '>Branchenangaben speichern</button></div>'
+      + '<div id="vx-branch-status" class="vx-ap-status vx-ap-status--inline" role="status" aria-live="polite"></div>'
+      + '</div>';
+  }
+
+  async function saveBranch() {
+    const payload = {};
+    document.querySelectorAll('[data-vx-branch-key]').forEach((node) => {
+      payload[node.dataset.vxBranchKey] = String(node.value || '').trim();
+    });
+    if (!Object.keys(payload).length) return;
+    await updateAssistant({ ai_branch_extra: payload }, 'business', document.getElementById('vx-branch-save'));
   }
 
   function bindAssistant() {
@@ -435,7 +632,12 @@
     }));
     document.querySelectorAll('[data-vx-preview]').forEach((node) => node.addEventListener('click', () => previewVoice(node.dataset.vxPreview, node)));
     document.querySelectorAll('[data-vx-select-voice]').forEach((node) => node.addEventListener('click', () => openVoiceModal(node.dataset.vxSelectVoice)));
-    document.getElementById('vx-assistant-name-save')?.addEventListener('click', saveName);
+    // Der Aufklapper wird bei jedem Rendern neu erzeugt; ohne gemerkten Zustand
+    // klappt er beim Filterwechsel wieder zu.
+    const voiceDetails = document.querySelector('.vx-nav-voice-details');
+    voiceDetails?.addEventListener('toggle', () => { voiceDetailsOpen = voiceDetails.open; });
+    document.getElementById('vx-greeting-reset')?.addEventListener('click', resetGreeting);
+    document.getElementById('vx-open-operational')?.addEventListener('click', () => root.vxShowAssistantView?.('updates', true));
     document.querySelector('[data-vx-tone-edit]')?.addEventListener('click', () => { toneEditorOpen = true; renderAssistant(); });
     // Zweiter Riegel neben dem disabled-Attribut: ein Klick, der waehrend des
     // Speicherns doch durchkommt, darf den Editor nicht schliessen.
@@ -497,7 +699,7 @@
     // vx-hero-tune-cancel gehoert dazu: sonst laesst sich der Editor waehrend
     // eines laufenden Speicherns wegklicken und der Zustand ist weg, obwohl der
     // Request noch fehlschlagen kann.
-    ['vx-assistant-name-save', 'vx-business-profile-save', 'vx-open-business-profile', 'vx-hero-tune-cancel'].forEach((id) => {
+    ['vx-business-profile-save', 'vx-open-business-profile', 'vx-hero-tune-cancel', 'vx-greeting-reset', 'vx-branch-save'].forEach((id) => {
       const node = document.getElementById(id);
       if (node) node.disabled = disabled;
     });
@@ -558,9 +760,11 @@
     profile = result;
   }
 
-  async function saveName() {
-    const value = String(document.getElementById('vx-assistant-name')?.value || '').trim();
-    await updateAssistant({ assistant_name: value }, 'assistant', document.getElementById('vx-assistant-name-save'));
+  // A4/E11: Der Kunde setzt die eingefrorene Begruessung zurueck, statt sie zu
+  // bearbeiten. Der naechste Sync erzeugt den Satz neu — die Erzeugung bleibt
+  // damit an genau einer Stelle (buildGreeting im Prompt-Builder).
+  async function resetGreeting() {
+    await updateAssistant({ ai_greeting: '' }, 'assistant', document.getElementById('vx-greeting-reset'), 'Setzt zurück …');
   }
 
   async function saveTune() {
@@ -569,6 +773,9 @@
     // seit A1 mit 403 ab, und ein Fehler waere hier reine Selbstverletzung.
     if (profile?.permissions?.can_change_tone === true) {
       payload.ai_tone = document.getElementById('vx-hero-tone')?.value || 'professional';
+    }
+    if (profile?.permissions?.can_change_name === true) {
+      payload.assistant_name = String(document.getElementById('vx-assistant-name')?.value || '').trim();
     }
     const saved = await updateAssistant(payload, 'assistant', document.getElementById('vx-hero-tune-save'), 'Übernimmt …');
     // Bestaetigungsschleife: erst schliessen, wenn es wirklich gespeichert ist.

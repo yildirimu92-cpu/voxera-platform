@@ -176,19 +176,6 @@ body.vx-customer-design-foundation .vx-screen-meta-action:hover {
   display: flex;
 }
 
-/* Shape, fill and active state of the assistant section switch are owned by
-   the canonical pill tab component (customer-ui-components.css). This module
-   keeps only the placement of the switch inside the assistant root. */
-body.vx-customer-design-foundation #vx-assistant-root-switch {
-  width: 100%;
-  margin-bottom: var(--vx-space-4);
-}
-
-body.vx-customer-design-foundation #vx-assistant-root-switch > button:focus-visible {
-  outline: 3px solid var(--vx-focus-ring);
-  outline-offset: 2px;
-}
-
 body.vx-customer-design-foundation .nav-item.vx-root-nav-active {
   background: var(--vx-brand);
   color: #ffffff;
@@ -229,27 +216,7 @@ body.vx-customer-design-foundation .mobile-nav-btn:is(.active, .vx-root-nav-acti
 }
 
 @media (max-width: 720px) {
-  body.vx-customer-design-foundation #vx-assistant-root-switch {
-    width: auto;
-    margin-right: var(--vx-space-3);
-    margin-bottom: var(--vx-space-4);
-    margin-left: var(--vx-space-3);
-  }
-
-  body.vx-customer-design-foundation #vx-assistant-root-switch > button {
-    min-height: 36px;
-    white-space: nowrap;
-  }
 }
 
 @media (max-width: 390px) {
-  body.vx-customer-design-foundation #vx-assistant-root-switch {
-    margin-right: var(--vx-space-2);
-    margin-left: var(--vx-space-2);
-  }
-
-  body.vx-customer-design-foundation #vx-assistant-root-switch > button {
-    padding-right: 11px;
-    padding-left: 11px;
-  }
 }

@@ -11,12 +11,12 @@
       "handlerTokens": ["setStableRootActive(key)"]
     },
     {
-      "id": "assistant-subview-tabs",
+      "id": "assistant-subview-back",
       "area": "navigation",
       "source": "customer-dashboard/shared/customer-runtime-unified-navigation.js",
       "event": "click",
-      "triggerTokens": ["data-vx-assistant-view"],
-      "handlerTokens": ["showAssistantView(button.dataset.vxAssistantView, true)"]
+      "triggerTokens": ["vx-assistant-root-back"],
+      "handlerTokens": ["root.vxScreenBack(() => showAssistantView('profile', true))"]
     },
     {
       "id": "business-profile-shortcut",
@@ -68,12 +68,28 @@
       "handlerTokens": ["confirmVoiceChange"]
     },
     {
-      "id": "assistant-name-save",
+      "id": "assistant-identity-save",
       "area": "assistant",
       "source": "customer-dashboard/shared/customer-runtime-assistant-profile.js",
       "event": "click",
-      "triggerTokens": ["vx-assistant-name-save"],
-      "handlerTokens": ["saveName"]
+      "triggerTokens": ["vx-hero-tune-save"],
+      "handlerTokens": ["saveTune"]
+    },
+    {
+      "id": "assistant-greeting-reset",
+      "area": "assistant",
+      "source": "customer-dashboard/shared/customer-runtime-assistant-profile.js",
+      "event": "click",
+      "triggerTokens": ["vx-greeting-reset"],
+      "handlerTokens": ["resetGreeting"]
+    },
+    {
+      "id": "assistant-branch-save",
+      "area": "assistant",
+      "source": "customer-dashboard/shared/customer-runtime-assistant-profile.js",
+      "event": "click",
+      "triggerTokens": ["vx-branch-save"],
+      "handlerTokens": ["saveBranch"]
     },
     {
       "id": "business-profile-save",

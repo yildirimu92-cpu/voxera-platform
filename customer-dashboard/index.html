@@ -14344,35 +14344,6 @@ async function loadAssistantVoices(forceReload) {
   } catch (e) { vxRenderAssistantVoicesError(); }
 }
 
-// ── Voxera Accordion Logic ────────────────────────────────────────────────────
-// ── Voxera Branchen-Konfiguration ─────────────────────────────────────────────
-// hasEmergency: Notfallnummer im Weiterleitungs-Akkordeon anzeigen
-// hasForwarding: Weiterleitungsziele überhaupt anzeigen
-const VX_BRANCH_CONFIG = {
-  generic:          { hasEmergency: false, hasForwarding: true  },
-  versicherung:     { hasEmergency: true,  hasForwarding: true  }, // Pannenhilfe, Schadenhotline
-  facharzt:         { hasEmergency: true,  hasForwarding: true  }, // 144, Notfalldienst Kanton
-  zahnarzt:         { hasEmergency: true,  hasForwarding: true  }, // Notfalldienst Zahnärzte
-  physiotherapie:   { hasEmergency: false, hasForwarding: true  }, // keine akuten Notfälle
-  garage:           { hasEmergency: false, hasForwarding: true  }, // Pannendienst = eigene Nummer (branchExtra)
-  hotel:            { hasEmergency: true,  hasForwarding: true  }, // Notfall Gast, Night Desk
-  restaurant:       { hasEmergency: false, hasForwarding: true  }, // interne Weiterleitung Küche/Events
-  coiffeur:         { hasEmergency: false, hasForwarding: false }, // keine Weiterleitungen nötig
-  kosmetik:         { hasEmergency: false, hasForwarding: false },
-  treuhand:         { hasEmergency: false, hasForwarding: true  }, // intern: Steuerberater etc.
-  immobilien:       { hasEmergency: false, hasForwarding: true  }, // Hausverwaltung etc.
-  handwerk:         { hasEmergency: true,  hasForwarding: true  }, // 24h Notfalldienst
-  reinigung:        { hasEmergency: false, hasForwarding: true  }, // Disposition
-  'it-support':     { hasEmergency: true,  hasForwarding: true  }, // Systemausfall, Eskalation
-  fitness:          { hasEmergency: true,  hasForwarding: false }, // medizinischer Notfall (144)
-  anwalt:           { hasEmergency: false, hasForwarding: true  }, // intern: zuständiger Anwalt
-  baeckerei:        { hasEmergency: false, hasForwarding: false },
-  digitalmarketing: { hasEmergency: false, hasForwarding: true  }, // intern: Account Manager
-};
-
-
-// Sonderfall Garage: Notfall nur wenn eigener Pannendienst
-
 /* ── Pending Changes System ─────────────────────── */
 var _vxPending = {};
 
