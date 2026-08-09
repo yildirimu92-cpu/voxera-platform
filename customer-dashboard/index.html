@@ -1196,7 +1196,10 @@ body{
   font-size:13px;font-weight:600;color:var(--ink);cursor:pointer;
   font-family:inherit;text-align:left;transition:background var(--fast),color var(--fast);
 }
-.user-menu-item .menu-icon{width:15px;height:15px;flex-shrink:0;stroke-width:2;}
+/* Font-Icon, kein SVG: width/height/stroke-width an dieser Stelle waren
+   Reste aus der Zeit vor Phosphor und ohne Wirkung. Groesse ueber font-size,
+   wie im Icon-System weiter unten fuer Labels/Navigation festgehalten. */
+.user-menu-item .menu-icon{font-size:16px;line-height:1;flex-shrink:0;}
 .user-menu-item:hover{background:var(--blue-light);color:var(--blue-dark);}
 .user-menu-item.danger:hover{background:var(--red-light);color:var(--red);}
 
@@ -7854,22 +7857,22 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
               <button type="button" class="vx-settings-entry" onclick="vxMehrShow('profil')">
                 <span class="vx-settings-entry-icon"><i class="ph-bold ph-user" aria-hidden="true"></i></span>
                 <span class="vx-settings-entry-copy"><span class="vx-settings-entry-title">Profil</span><span id="mehr-profil-sub" class="vx-settings-entry-subtitle">Name, E-Mail, Passwort</span></span>
-                <i class="ph-bold ph-caret-right vx-settings-entry-caret" aria-hidden="true"></i>
+                <i class="ph-light ph-caret-right vx-settings-entry-caret" aria-hidden="true"></i>
               </button>
               <button type="button" class="vx-settings-entry" onclick="vxMehrShow('benachrichtigungen')">
                 <span class="vx-settings-entry-icon"><i class="ph-bold ph-bell" aria-hidden="true"></i></span>
                 <span class="vx-settings-entry-copy"><span class="vx-settings-entry-title">Benachrichtigungen</span><span class="vx-settings-entry-subtitle">E-Mail, SMS, Browser</span></span>
-                <i class="ph-bold ph-caret-right vx-settings-entry-caret" aria-hidden="true"></i>
+                <i class="ph-light ph-caret-right vx-settings-entry-caret" aria-hidden="true"></i>
               </button>
               <button type="button" class="vx-settings-entry" onclick="vxMehrShow('abonnement')">
                 <span class="vx-settings-entry-icon"><i class="ph-bold ph-credit-card" aria-hidden="true"></i></span>
                 <span class="vx-settings-entry-copy"><span class="vx-settings-entry-title">Abonnement &amp; Add-ons</span><span id="mehr-plan-label" class="vx-settings-entry-subtitle">Ihr aktueller Plan</span></span>
-                <i class="ph-bold ph-caret-right vx-settings-entry-caret" aria-hidden="true"></i>
+                <i class="ph-light ph-caret-right vx-settings-entry-caret" aria-hidden="true"></i>
               </button>
               <button type="button" class="vx-settings-entry" onclick="vxMehrShow('hilfe')">
                 <span class="vx-settings-entry-icon"><i class="ph-bold ph-question" aria-hidden="true"></i></span>
                 <span class="vx-settings-entry-copy"><span class="vx-settings-entry-title">Hilfe</span><span class="vx-settings-entry-subtitle">FAQ, Support kontaktieren</span></span>
-                <i class="ph-bold ph-caret-right vx-settings-entry-caret" aria-hidden="true"></i>
+                <i class="ph-light ph-caret-right vx-settings-entry-caret" aria-hidden="true"></i>
               </button>
             </div>
           </div>
@@ -8007,8 +8010,8 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
             <section class="vx-settings-card">
               <div class="vx-settings-card-head"><div><h2 class="vx-settings-card-title">Plan & Optionen</h2><p class="vx-settings-card-meta">Planwechsel und zusätzliches Gesprächsvolumen zentral anfragen.</p></div></div>
               <div class="vx-abo-addon-grid">
-                <button type="button" class="vx-commercial-entry" onclick="vxAboUpgrade()"><span class="vx-commercial-entry-icon"><i class="ph-bold ph-trend-up" aria-hidden="true"></i></span><span><strong>Plan wechseln</strong><small>Verfügbare höhere Pläne vergleichen und verbindlich anfragen.</small></span><i class="ph-bold ph-caret-right" aria-hidden="true"></i></button>
-                <button type="button" class="vx-commercial-entry" onclick="vxAboMinuten()"><span class="vx-commercial-entry-icon"><i class="ph-bold ph-plus-circle" aria-hidden="true"></i></span><span><strong>Zusatzminuten</strong><small>Ein einmaliges Minutenpaket für Spitzenzeiten anfragen.</small></span><i class="ph-bold ph-caret-right" aria-hidden="true"></i></button>
+                <button type="button" class="vx-commercial-entry" onclick="vxAboUpgrade()"><span class="vx-commercial-entry-icon"><i class="ph-bold ph-trend-up" aria-hidden="true"></i></span><span><strong>Plan wechseln</strong><small>Verfügbare höhere Pläne vergleichen und verbindlich anfragen.</small></span><i class="ph-light ph-caret-right" aria-hidden="true"></i></button>
+                <button type="button" class="vx-commercial-entry" onclick="vxAboMinuten()"><span class="vx-commercial-entry-icon"><i class="ph-bold ph-plus-circle" aria-hidden="true"></i></span><span><strong>Zusatzminuten</strong><small>Ein einmaliges Minutenpaket für Spitzenzeiten anfragen.</small></span><i class="ph-light ph-caret-right" aria-hidden="true"></i></button>
               </div>
             </section>
 
@@ -8325,32 +8328,32 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
     <div class="mobile-nav-inner">
       <button class="mobile-nav-btn active" id="mnav-dashboard" onclick="showTab('dashboard',this)">
         <span class="mobile-nav-icon-wrap">
-          <i class="ph-bold ph-squares-four" aria-hidden="true"></i>
+          <i class="ph-light ph-squares-four" aria-hidden="true"></i>
         </span>
         Heute
       </button>
       <button class="mobile-nav-btn" id="mnav-anrufe" onclick="showTab('anrufe',this)">
         <span class="mobile-nav-icon-wrap">
-          <i class="ph-bold ph-tray" aria-hidden="true"></i>
+          <i class="ph-light ph-tray" aria-hidden="true"></i>
           <span class="mobile-nav-badge blue" id="mnav-badge-anrufe" style="display:none"></span>
         </span>
         Anfragen
       </button>
       <button class="mobile-nav-btn" id="mnav-assistent" onclick="showTab('assistent',this)">
         <span class="mobile-nav-icon-wrap">
-          <i class="ph-bold ph-robot" aria-hidden="true"></i>
+          <i class="ph-light ph-robot" aria-hidden="true"></i>
         </span>
         Assistent
       </button>
       <button class="mobile-nav-btn" id="mnav-auswertung" onclick="showTab('auswertung',this)">
         <span class="mobile-nav-icon-wrap">
-          <i class="ph-bold ph-chart-bar" aria-hidden="true"></i>
+          <i class="ph-light ph-chart-bar" aria-hidden="true"></i>
         </span>
         Bericht
       </button>
       <button class="mobile-nav-btn" id="mnav-mehr" onclick="showTab('mehr',this)">
         <span class="mobile-nav-icon-wrap">
-          <i class="ph-bold ph-gear" aria-hidden="true"></i>
+          <i class="ph-light ph-gear" aria-hidden="true"></i>
         </span>
         Einstellungen
       </button>
@@ -10810,7 +10813,7 @@ function dprCloseAll(container) {
   container.querySelectorAll('.dpr-row').forEach(function(r){
     r.style.background = '';
     r.style.borderColor = '';
-    var c = r.querySelector('[class="ph-bold ph-caret-right"]');
+    var c = r.querySelector('[class="ph-light ph-caret-right"]');
     if (c) { c.style.transform = ''; c.style.color = ''; }
   });
 }
@@ -10821,7 +10824,7 @@ function dprOpen(rowEl) {
   var exp = card.querySelector('.dpr-exp');
   if (!exp) return;
   exp.style.display = 'block';
-  var chev = rowEl.querySelector('[class="ph-bold ph-caret-right"]');
+  var chev = rowEl.querySelector('[class="ph-light ph-caret-right"]');
   if (chev) { chev.style.transform = 'rotate(90deg)'; chev.style.color = 'var(--blue)'; }
   rowEl.style.background = '#F7F9FF';
 }
@@ -10843,14 +10846,14 @@ function dprToggle(rowEl) {
       container.querySelectorAll('.dpr-row').forEach(function(r) {
         r.style.background = '';
         r.style.borderColor = '';
-        var c = r.querySelector('[class="ph-bold ph-caret-right"]');
+        var c = r.querySelector('[class="ph-light ph-caret-right"]');
         if (c) { c.style.transform = ''; c.style.color = ''; }
       });
     }
   }
 
   exp.style.display = isOpen ? 'none' : 'block';
-  var chev = rowEl.querySelector('[class="ph-bold ph-caret-right"]');
+  var chev = rowEl.querySelector('[class="ph-light ph-caret-right"]');
   if (chev) {
     chev.style.transform = isOpen ? '' : 'rotate(90deg)';
     chev.style.color = isOpen ? 'var(--slate2)' : 'var(--blue)';
@@ -15384,7 +15387,7 @@ function vxShellSelectProvider(key, btn) {
 
     var secondaryKeys = Object.keys(provider.codes).filter(function(k){ return k !== 'off' && k !== 'miss'; });
     if (secondaryKeys.length) {
-      instrHtml += '<div class="vx-forwarding-secondary"><details class="vx-forwarding-details"><summary><span>Weitere Optionen</span><i class="ph-bold ph-caret-down" aria-hidden="true"></i></summary><div class="vx-forwarding-details-body">';
+      instrHtml += '<div class="vx-forwarding-secondary"><details class="vx-forwarding-details"><summary><span>Weitere Optionen</span><i class="ph-light ph-caret-down" aria-hidden="true"></i></summary><div class="vx-forwarding-details-body">';
       secondaryKeys.forEach(function(k) {
         var item = provider.codes[k];
         instrHtml += makeSecondaryCode(item.code, item.label);
@@ -20506,7 +20509,7 @@ function vxHeuteRenderScopedList(listId, sectionId, countId, records, emptyText)
       + '<div class="vx-row-body"><div class="vx-row-name">'+_esc(title)+'<span class="vx-row-pill">'+_esc(label)+'</span></div>'
       + (time ? '<div class="vx-row-time">'+_esc(time)+'</div>' : '')
       + (summary ? '<div class="vx-row-summary">'+_esc(summary)+'</div>' : '')
-      + '</div><div class="vx-row-btns">'+callBtn+'<button type="button" class="vx-ibtn" data-action="detail" data-rec-id="'+_esc(id)+'" title="Details öffnen"><i class="ph-bold ph-caret-right"></i></button></div>'
+      + '</div><div class="vx-row-btns">'+callBtn+'<button type="button" class="vx-ibtn" data-action="detail" data-rec-id="'+_esc(id)+'" title="Details öffnen"><i class="ph-light ph-caret-right"></i></button></div>'
       + '</div></div>';
   }).join('');
   vxSetHtmlIfChanged(list, scopedHtml);
@@ -32522,14 +32525,23 @@ textarea:focus-visible {
 }
 
 /* ── PHOSPHOR ICON SYSTEM — Voxera v2.30 ──────────────────────
+   Ein Satz, zwei Strichstärken: Phosphor Icons Web 2.1.1, Light und Bold.
    ph-bold:  Icon-Boxen (farbige Hintergründe), Buttons, CTAs
-   ph-light: Navigation, Labels, sekundäre Kontexte
+   ph-light: Navigation, Labels, Chevrons, sekundäre Kontexte
+
+   Die Zuordnung steht ab jetzt in der Markup-Klasse, nicht in einer
+   font-family-Korrektur dahinter. Vorher standen an 19 Stellen ph-bold im
+   Markup, während die Regeln hier "Phosphor-Light" erzwangen — die Klasse
+   log über die gerenderte Strichstärke, und wer nach dem gemischten
+   Erscheinungsbild suchte, fand im Markup ein Bild und im Browser ein
+   anderes. Die betroffenen Stellen (Tab-Leiste, sämtliche Chevrons) tragen
+   jetzt ph-light; die vier Light-Erzwingungen, die genau das korrigiert
+   haben, sind damit gegenstandslos und entfernt.
+
+   Die Bold-Erzwingungen unten bleiben: sie decken Icon-Boxen und Buttons ab,
+   deren Markup zur Laufzeit erzeugt wird und deshalb nicht abschliessend
+   ausgezählt werden kann.
    ─────────────────────────────────────────────────────────── */
-.nav-icon { font-family: "Phosphor-Light" !important; }
-.mobile-nav-btn i { font-family: "Phosphor-Light" !important; }
-.menu-icon { font-family: "Phosphor-Light" !important; }
-/* Chevrons und Trenn-Elemente immer Light */
-.ph-caret-right, .ph-caret-down { font-family: "Phosphor-Light" !important; }
 /* Icon-Boxen: ph-bold (schon Standard) */
 .dpr-type-icon i,
 .vx-cd-avatar i,
@@ -32555,17 +32567,13 @@ textarea:focus-visible {
   line-height: 1 !important;
   opacity: .9;
 }
-.nav-icon {
-  font-size: 18px !important;
-}
-.mobile-nav-btn i {
-  font-size: 20px !important;
-}
-/* Chevrons/Carets immer Light */
+/* Die Icon-Grösse in der Navigation gehört zum Icon-Chip und steht als Token
+   in customer-design-tokens.css (--vx-ui-nav-chip-icon-size). Ein !important
+   an dieser Stelle hätte das Token wirkungslos gemacht. */
+/* Chevrons/Carets: Grösse und Dämpfung. Die Strichstärke steht im Markup. */
 .ph-caret-right, .ph-caret-down,
 .dpr-chevron i, .va-tr-chev {
   font-size: 14px !important;
-  font-family: "Phosphor-Light" !important;
   opacity: .5;
 }
 /* Aktions-Leiste Buttons: konsistente Icon-Grösse */
@@ -37787,7 +37795,7 @@ body:has(#tab-archiv.active) .content{
     return '<details class="' + cls + '"' + (opts.open ? ' open' : '') + (extraAttr || '') + '><summary>' +
       '<span class="vx-summary-acc-label"><i class="ph-bold ph-' + icon + '" aria-hidden="true"></i><span>' + title + '</span></span>' +
       '<span class="vx-summary-acc-right">' + state +
-        '<i class="ph-bold ph-caret-down vx-summary-acc-chevron" aria-hidden="true"></i>' +
+        '<i class="ph-light ph-caret-down vx-summary-acc-chevron" aria-hidden="true"></i>' +
       '</span>' +
       '</summary>' + bodyHtml + '</details>';
   }
