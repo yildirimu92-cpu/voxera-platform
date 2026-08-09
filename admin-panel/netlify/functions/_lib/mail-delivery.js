@@ -53,6 +53,33 @@ function mailDeliveryResult({ attempted = false, accepted = false, status = null
   return { attempted, accepted, status, outbox_id: outboxId, error };
 }
 
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// Der Statusschreiber nach dem Versand darf nicht einfach verschluckt werden.
+// Bleibt die Outbox-Zeile auf 'pending' stehen, obwohl Make die Mail
+// angenommen hat, holt der Retry-Worker sie beim naechsten Lauf erneut und der
+// Kunde bekommt dieselbe Vertrags- oder Aenderungsmail ein zweites Mal.
+//
+// Der realistische Fall ist ein kurzer Supabase-Aussetzer, deshalb ein paar
+// beschraenkte Wiederholungen. Klappt es danach immer noch nicht, wird der
+// Fehlschlag laut protokolliert und im Ergebnisobjekt sichtbar gemacht,
+// statt still zu verschwinden - die Mail selbst ist ja tatsaechlich raus.
+async function recordOutboxState(operation, { attempts = 3, delayMs = 150 } = {}) {
+  let lastError = null;
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      await operation();
+      return { ok: true, error: null };
+    } catch (error) {
+      lastError = error?.message || String(error);
+      if (attempt < attempts) await sleep(delayMs * attempt);
+    }
+  }
+  return { ok: false, error: lastError || 'outbox state write failed' };
+}
+
 // Aufloesung der Ziel-URL inklusive der Fehlkonfiguration, die uns das
 // Admin-Benachrichtigungssystem gekostet hat: auf der Dashboard-Site zeigte
 // MAKE_MAIL_WEBHOOK auf den Call-Intake-Hook eines abgeschalteten Szenarios.
@@ -113,7 +140,7 @@ async function deliverMail(sbAdmin, { mailType, payload, payloadSummary, dedupeK
   }
 
   if (configError) {
-    if (outboxId) await markOutboxFailed(sbAdmin, outboxId, configError).catch(() => {});
+    if (outboxId) await recordOutboxState(() => markOutboxFailed(sbAdmin, outboxId, configError));
     console.error(JSON.stringify({ level: 'error', event: 'mail_webhook_misconfigured', event_type: type, error: configError }));
     return mailDeliveryResult({ outboxId, error: configError });
   }
@@ -128,7 +155,7 @@ async function deliverMail(sbAdmin, { mailType, payload, payloadSummary, dedupeK
     if (!webhookResponse.ok) {
       const responseText = await webhookResponse.text().catch(() => '');
       const error = `Mail-Engine antwortete mit HTTP ${webhookResponse.status}`;
-      if (outboxId) await markOutboxFailed(sbAdmin, outboxId, error).catch(() => {});
+      if (outboxId) await recordOutboxState(() => markOutboxFailed(sbAdmin, outboxId, error));
       console.error(JSON.stringify({
         level: 'error',
         event: 'mail_send_failed',
@@ -140,12 +167,36 @@ async function deliverMail(sbAdmin, { mailType, payload, payloadSummary, dedupeK
       return mailDeliveryResult({ attempted: true, status: webhookResponse.status, outboxId, error });
     }
 
-    if (outboxId) await markOutboxSent(sbAdmin, outboxId).catch(() => {});
+    // Ab hier ist die Mail bei Make angenommen. Scheitert jetzt noch der
+    // Statusschreiber, bleibt die Zeile auf 'pending' und der Retry-Worker
+    // wuerde dieselbe Mail erneut senden - das muss sichtbar sein.
+    let bookkeepingError = null;
+    if (outboxId) {
+      const recorded = await recordOutboxState(() => markOutboxSent(sbAdmin, outboxId));
+      if (!recorded.ok) {
+        bookkeepingError = `Mail versendet, aber der Outbox-Status konnte nicht geschrieben werden (${recorded.error}). `
+          + 'Moeglicher Doppelversand durch den Retry-Worker.';
+        console.error(JSON.stringify({
+          level: 'error',
+          event: 'mail_outbox_state_write_failed',
+          event_type: type,
+          outbox_id: outboxId,
+          error: recorded.error
+        }));
+      }
+    }
+
     console.log(JSON.stringify({ level: 'info', event: 'mail_send_succeeded', event_type: type, outbox_id: outboxId }));
-    return mailDeliveryResult({ attempted: true, accepted: true, status: webhookResponse.status, outboxId });
+    return mailDeliveryResult({
+      attempted: true,
+      accepted: true,
+      status: webhookResponse.status,
+      outboxId,
+      error: bookkeepingError
+    });
   } catch (fetchError) {
     const error = fetchError?.message || 'Mail-Engine nicht erreichbar.';
-    if (outboxId) await markOutboxFailed(sbAdmin, outboxId, error).catch(() => {});
+    if (outboxId) await recordOutboxState(() => markOutboxFailed(sbAdmin, outboxId, error));
     console.error(JSON.stringify({ level: 'error', event: 'mail_send_failed', event_type: type, outbox_id: outboxId, error }));
     return mailDeliveryResult({ attempted: true, outboxId, error });
   }

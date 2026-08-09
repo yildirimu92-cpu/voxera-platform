@@ -14115,7 +14115,15 @@ function showToast(msg,duration=3000){
 function mailDeliveryNote(mailDelivery, recipientLabel) {
   var who = recipientLabel || 'Kunde';
   if (!mailDelivery || typeof mailDelivery !== 'object') return { ok: null, text: '' };
-  if (mailDelivery.accepted) return { ok: true, text: who + ' wurde per E-Mail informiert.' };
+  if (mailDelivery.accepted) {
+    // Zugestellt, aber die Outbox-Buchhaltung hat gehakt: die Mail ist raus,
+    // der Retry-Worker koennte sie jedoch ein zweites Mal senden. Kein Grund
+    // zur Panik, aber auch nichts, was stillschweigend verschwinden darf.
+    if (mailDelivery.error) {
+      return { ok: true, text: who + ' wurde per E-Mail informiert. Hinweis: ' + mailDelivery.error };
+    }
+    return { ok: true, text: who + ' wurde per E-Mail informiert.' };
+  }
 
   var reason = mailDelivery.error || 'Grund unbekannt';
   var retry = mailDelivery.outbox_id
