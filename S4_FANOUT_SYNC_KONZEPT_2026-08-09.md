@@ -62,7 +62,7 @@ der Code, der Master-Prompt oder eine Branchenvorlage, passiert nichts.
 
 ### 2.2 Der Bauplan wird gebaut, aber nie protokolliert
 
-`buildPromptV2()` gibt eine Version zurück (`PROMPT_BUILDER_VERSION = '2.2'`).
+`buildPromptV2()` gibt eine Version zurück (`PROMPT_BUILDER_VERSION`, zum Zeitpunkt der Diagnose `'2.2'`).
 Diese Version wird an genau zwei Stellen verwendet — in der HTTP-Antwort von
 `trigger-elevenlabs-sync.js:292` und in der Prompt-Vorschau
 (`prompt-preview.js:61`). **Gespeichert wird sie nirgends.** Weder in
@@ -433,6 +433,29 @@ Fünf Befunde, alle bestätigt und behoben:
 * **Zeilen konnten dauerhaft in `running` stranden (P1).** Bricht eine Invocation nach `claim()` ab, sah keine spätere Abfrage die Zeile wieder, und der partielle Unique-Index verhinderte gleichzeitig eine Neueinplanung. Der Worker holt solche Zeilen jetzt vor dem Kandidatenlesen zurück (`FANOUT_STALE_RUNNING_MINUTES`), und zwar auf `failed`, damit die Versuchsgrenze greift.
 * **Abbruch stornierte nur `pending` (P2).** Der Worker holt `failed`-Zeilen bewusst zum Wiederholen zurück — ein abgebrochener Lauf hätte also weitersynchronisiert. Jetzt werden beide Status storniert.
 * **Fehlgeschlagene Zustandsspeicherung war unsichtbar (P2).** Steht der Agent, schlägt aber der `customers`-Patch fehl, bleibt der Sync bewusst `ok: true` — ein Wiederholungsversuch würde denselben Prompt ein zweites Mal senden und nichts reparieren. Neu ist `statePersisted`: die Warteschlangenzeile trägt den Grund, der Worker zählt die Fälle, und der Kunde bleibt `unknown` und wird vom nächsten Planungslauf erneut eingeplant. Die Schleife schliesst sich also weiterhin von selbst, aber sichtbar statt still.
+
+### Nachtrag aus dem Selbst-Check: die Builder-Version braucht einen Wächter
+
+Beim Nachziehen von `main` (9 Commits, u.a. #882 Öffnungszeiten) fiel auf, dass
+die Ausgabe des Prompt-Builders geändert wurde, ohne `PROMPT_BUILDER_VERSION`
+anzuheben. Die Konstante ist der **einzige** Teil des Fingerprints, der
+Code-Änderungen abbildet — Master-Prompt und Branchenvorlagen kommen aus der
+Datenbank und werden gehasht, der Builder selbst nicht. Bleibt sie stehen, gilt
+jeder Agent mit gespeichertem Fingerprint weiter als aktuell, obwohl sein Prompt
+inzwischen anders gebaut würde: der Fan-out ist für genau diese Änderung blind.
+
+Zwei Wege standen zur Wahl. **Verworfen**: den Builder-Quelltext hashen statt der
+Konstante. Automatisch, aber das esbuild-Bundling von Netlify könnte den Hash
+zwischen zwei Deploys verändern, ohne dass sich inhaltlich etwas geändert hat —
+und dann liefe bei *jedem* Deploy ein Fan-out über alle Kunden. Das ist exakt das
+unkontrollierte Massen-Sync, gegen das S4 mit Canary und Abbruchkriterium gebaut
+wurde; die Automatik würde die Sicherheitsmechanik gegen sich selbst wenden.
+
+**Gewählt**: `scripts/verify-prompt-builder-version-bump.mjs`. Vergleicht den
+Builder gegen den Zielbranch und schlägt fehl, wenn die Datei sich geändert hat
+und die Version nicht. Deterministisch, kein Laufzeitrisiko — der Preis ist
+Disziplin. `PROMPT_BUILDER_VERSION` wurde einmalig auf `2.3` angehoben, damit der
+Wächter den tatsächlichen Stand abbildet und nicht ab Tag eins rot startet.
 
 ### Was bewusst offen blieb
 
