@@ -449,7 +449,99 @@ Template gesetzt war. Gehört auf die Folgeliste.
 
 ---
 
+## Teil G — Nachtrag 09.08.: Snapshot-Forensik und ein neuer Befund
+
+### S1 hat Produktion nicht getroffen
+
+Nachgeprüft an `elevenlabs_sync_log.prompt_snapshot` des einzigen Kunden mit
+Agent (`cust_1786034079785_z8voxt`, „E2E Test AG"). Namensverlauf über die zehn
+erhaltenen Snapshots:
+
+| Zeit (UTC) | Auslöser | aufgelöste Rolle im Prompt |
+|---|---|---|
+| 08-08 15:41 / 15:44 / 16:55 | customer_self_edit | Du bist **Rolf**, die Assistentin von E2E Test AG |
+| 08-08 17:29 | wizard | Du bist **Rolf** … |
+| 08-08 17:43 | customer_self_edit | Du bist **Laura** … |
+| 08-08 18:08 / 18:45, 08-09 01:36 / 01:47:11 | customer_self_edit | Du bist **Umut** … |
+| 08-09 01:47:26 | customer_self_edit | Du bist **Lara** … |
+
+Der Verlauf endet auf dem Standardnamen und sieht damit auf den ersten Blick
+nach dem Wipe aus. Drei unabhängige Belege sprechen dagegen:
+
+1. **Kein einziger `admin_save`-Sync im gesamten Log** (0 von 20 Zeilen, beide
+   Kunden). Der AI-Setup-Tab wurde im erhaltenen Fenster nie gespeichert, der
+   Wipe-Pfad also nie ausgelöst.
+2. Der Wipe hinterlässt `NULL`. In der Datenbank steht der Literalwert `'Lara'`.
+3. Ein leeres Eingabefeld würde in `customer-update-assistant` über `text()`
+   ebenfalls zu `NULL` — der Wert wurde also getippt, nicht geleert. Auch die
+   übrigen fünf Felder sind gesetzt, nicht `NULL`.
+
+**Grenze der Aussage:** `trimSyncLogs` behält zehn Einträge pro Kunde (S10). Für
+diesen Kunden reicht das Fenster bis 08-08 15:41 zurück. Ein früherer Wipe lässt
+sich aus den Daten nicht ausschliessen, nur aus dem Umstand, dass der Tab
+offenbar nicht benutzt wurde.
+
+Nebenbei: Zehn der zwanzig Log-Zeilen gehören zu `cust_1785533332175_pj98so`,
+einem Kunden, den es nicht mehr gibt. `trimSyncLogs` räumt nur pro Kunde auf,
+ein Kunden-Delete lässt die Log-Zeilen stehen.
+
+### S13 · Der Agent bekommt die interne Dokumentation des Master-Prompts mit — **behoben**
+
+Jeder Snapshot beginnt mit dem Kopf, der eigentlich nur für uns gedacht ist:
+
+```
+# Voxera Master Prompt — Layer 1 (branchenneutral) — v3.0
+> **Datei-Zweck:** Branchenneutrale Basis-Schicht der Voxera Layered-Prompt-Architektur.
+> Wird zur Laufzeit durch `trigger-elevenlabs-sync.js` zusammengesetzt mit L2 und L3.
+> **Variablen (werden zur Laufzeit aufgelöst):**
+> - `{{ASSISTANT_NAME}}` — Name der Assistenz (Standard: "Lara")
+> …
+---
+```
+
+`stripMasterMeta()` soll genau diesen Block abschneiden, suchte dafür aber
+ausschliesslich `'\n---\n'`. Der Wert in `system_config.prompt_master_l1` wird
+aus einer Datei mit CRLF-Zeilenenden gepflegt; dort steht `'\r\n---\r\n'`.
+Gemessen in Produktion: `position('\n---\n' in value)` = **0** (nicht gefunden),
+`position('\r\n---\r\n' in value)` = **695**. Der Trenner wurde nie gefunden, die
+Funktion gab den ganzen Text zurück.
+
+Wirkung: **701 Zeichen** interne Architekturdokumentation gingen bei jedem Sync
+an jeden Agenten (9140 statt 8439 Zeichen Layer 1). Das ist nicht nur Ballast —
+der Block beschreibt dem Modell, das mit Anrufenden spricht, den Aufbau seines
+eigenen Prompts samt Variablennamen. Wer den Agenten dazu bringt, seine
+Anweisungen wiederzugeben, bekommt die Vorlage mitgeliefert.
+
+Er erklärt zusätzlich eine Beobachtung aus der Forensik oben: „Lara" taucht in
+jedem Snapshot mindestens einmal auf, auch als der Assistent Rolf hiess — genau
+aus der Zeile `{{ASSISTANT_NAME}} — Name der Assistenz (Standard: "Lara")`.
+
+**Fix:** Der Trenner wird mit optionalem `\r` gesucht (`/\r?\n---\r?\n/`).
+Bewusst wird nur der Trenner tolerant gesucht und nicht der ganze Text
+normalisiert — eine globale CRLF-Umschreibung würde jeden Kundenprompt in seinen
+Bytes verändern, ohne inhaltlich etwas zu verbessern.
+
+**Regressionsschutz:** `scripts/verify-prompt-builder-v2.mjs` hatte bereits eine
+Probe `meta documentation is stripped` — sie lief grün, weil ihre Vorlage LF
+verwendet, während Produktion CRLF liefert. Die CRLF-Schreibweise ist als
+zweite Probe ergänzt.
+
+Gegenprobe mit einer Vorlage im Format des echten Werts:
+
+```
+vorher (origin/main): erste Zeile "# Voxera Master Prompt — Layer 1"
+                      Datei-Zweck im Prompt: true   Variablenliste: true
+nachher (Fix):        erste Zeile "## ROLLE"
+                      Datei-Zweck im Prompt: false  Variablenliste: false
+```
+
+**Wirksam wird das pro Kunde erst beim nächsten Sync** — S4 gilt unverändert.
+
+---
+
 ## Offen, bewusst nicht heute Nacht
+
+Behoben: S1 (Teil F) und S13 (Teil G).
 
 Entscheidung vom 09.08.: S2 (Kalender), S3 (Ablauf Betriebsinformationen),
 S4 (Master-Prompt/Branchenvorlagen ohne Fan-out), S5 (Kunde-bearbeiten-Modal),
