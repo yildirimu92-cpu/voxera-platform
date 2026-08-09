@@ -341,6 +341,91 @@ select case when not pg_catalog.has_table_privilege('anon', 'public.system_confi
        'F6-grants', 'anon ohne SELECT auf system_config', ''
 where to_regclass('public.system_config') is not null;
 
+-- TRUNCATE. Der einzige Tabellen-Zugriff, auf den RLS NICHT angewandt wird --
+-- es gibt keine Policy-Ebene fuer TRUNCATE, das Grant ist die einzige Huerde.
+-- Fuer jedes andere Recht auf diesen Tabellen laesst sich sagen "davor steht
+-- noch RLS"; hier nicht. Deshalb steht das als harte Invariante hier und nicht
+-- als eingefrorene Baseline-Zeile.
+--
+-- Am 2026-08-09 real nachgemessen (zurueckgerollt): anon und authenticated
+-- konnten public.system_config truncieren, authenticated zusaetzlich
+-- public.calls. Zurueckgenommen in
+-- 2026-08-09_system_config_calls_residual_grants.sql.
+--
+-- Warum das NICHT als Verhaltensprobe in db_security_invariants_behavior.sql
+-- steht: ein TRUNCATE laesst sich nicht wie die D-Proben mit `where false`
+-- entschaerfen. Eine Probe, die im Fehlerfall die Tabelle leert, ist als
+-- Dauerlauf gegen Produktion nicht vertretbar. Der Katalog ist hier die
+-- richtige Ebene.
+select case when not pg_catalog.has_table_privilege(t.role_name, 'public.' || t.tbl, 'TRUNCATE')
+            then 'PASS' else 'FAIL' end,
+       'F6-grants', t.role_name || ' ohne TRUNCATE auf ' || t.tbl,
+       'RLS greift bei TRUNCATE nicht -- das Grant ist die einzige Huerde'
+from (values
+  ('anon', 'system_config'), ('authenticated', 'system_config'),
+  ('anon', 'calls'),         ('authenticated', 'calls')
+) as t(role_name, tbl)
+where to_regclass('public.' || t.tbl) is not null;
+
+-- Die uebrigen Schreibrechte auf system_config. Sie waren durch RLS bereits
+-- wirkungslos (die Tabelle traegt genau eine Policy, und die gilt nur fuer
+-- SELECT) -- aber damit haette die Sicherheit dieser Tabelle allein an dieser
+-- einen Policy gehangen. Kaeme je eine INSERT- oder UPDATE-Policy ohne
+-- Rollenbindung dazu, waere anon sofort schreibberechtigt.
+select case when not pg_catalog.has_table_privilege(t.role_name, 'public.system_config', t.priv)
+            then 'PASS' else 'FAIL' end,
+       'F6-grants', t.role_name || ' ohne ' || t.priv || ' auf system_config', ''
+from (values
+  ('anon', 'INSERT'), ('anon', 'UPDATE'), ('anon', 'DELETE'),
+  ('authenticated', 'INSERT'), ('authenticated', 'UPDATE'), ('authenticated', 'DELETE')
+) as t(role_name, priv)
+where to_regclass('public.system_config') is not null;
+
+-- Gegenrichtung fuer system_config: was zugehen wuerde, wenn jemand die
+-- Rechte oben mit einem pauschalen `revoke all` zurueckgenommen haette, ohne
+-- neu zu granten. Das Admin-Portal laedt system_config als authenticated,
+-- der Prompt-Sync als service_role.
+select case when pg_catalog.has_table_privilege(t.role_name, 'public.system_config', t.priv)
+            then 'PASS' else 'FAIL' end,
+       'F6-grants', t.role_name || ' behaelt ' || t.priv || ' auf system_config', t.grund
+from (values
+  ('authenticated', 'SELECT', 'Admin-Portal laedt system_config im Browser'),
+  ('service_role',  'SELECT', 'Prompt-Sync und Prompt-Vorschau'),
+  ('service_role',  'UPDATE', 'Schreibpfad liegt vollstaendig beim Server')
+) as t(role_name, priv, grund)
+where to_regclass('public.system_config') is not null;
+
+-- Der Lesepfad auf system_config haengt an genau einer Policy. Der F5-Block
+-- oben prueft nur, DASS sie existiert -- ein Austausch des Ausdrucks gegen
+-- etwas Weiteres (z.B. `auth.uid() is not null`) bliebe dort unbemerkt, weil
+-- Name und Anzahl gleich blieben. Der using(true)-Check greift ebenfalls nicht,
+-- weil so ein Ausdruck nicht woertlich `true` ist.
+select case when coalesce((select pg_get_expr(p.polqual, p.polrelid) ~ 'is_admin\(auth\.uid\(\)\)'
+                           from pg_catalog.pg_policy as p
+                           where p.polrelid = to_regclass('public.system_config')
+                             and p.polname = 'system_config_admin_select'), false)
+            then 'PASS' else 'FAIL' end,
+       'F5-policies', 'system_config_admin_select bindet weiterhin an is_admin(auth.uid())',
+       coalesce((select pg_get_expr(p.polqual, p.polrelid)
+                 from pg_catalog.pg_policy as p
+                 where p.polrelid = to_regclass('public.system_config')
+                   and p.polname = 'system_config_admin_select'), '<Policy fehlt>')
+where to_regclass('public.system_config') is not null;
+
+-- Genau eine Policy: eine zweite waere per ODER-Verknuepfung eine Erweiterung
+-- des Lesekreises oder ein neuer Schreibpfad. Beides soll auffallen, nicht
+-- erst wenn jemand danach sucht.
+select case when 1 = (select pg_catalog.count(*) from pg_catalog.pg_policy as p
+                      where p.polrelid = to_regclass('public.system_config'))
+            then 'PASS' else 'FAIL' end,
+       'F5-policies', 'system_config traegt genau eine Policy',
+       -- polcmd ist vom Typ "char": ohne expliziten Cast ist `||` mehrdeutig
+       -- (42725) und die ganze Katalogdatei bricht unter ON_ERROR_STOP ab.
+       coalesce((select pg_catalog.string_agg(p.polname || ':' || p.polcmd::text, ', ' order by p.polname)
+                 from pg_catalog.pg_policy as p
+                 where p.polrelid = to_regclass('public.system_config')), '<keine>')
+where to_regclass('public.system_config') is not null;
+
 -- anon-Grants als Rohdaten fuer den Baseline-Diff. Aktuell haelt anon breite
 -- DML-Rechte auf vielen Tabellen; davor steht ausschliesslich RLS. Diese
 -- Alt-Schuld wird eingefroren, nicht ignoriert: jeder NEUE Grant faellt auf.

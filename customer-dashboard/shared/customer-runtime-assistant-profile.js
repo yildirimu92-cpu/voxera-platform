@@ -41,8 +41,8 @@
   }
 
   function inject() {
-    if (!ensurePage('mehr-sub-assistant-profile', 'vx-assistant-profile-body', 'Mein Assistent')) return false;
-    if (!ensurePage('mehr-sub-business-profile', 'vx-business-profile-body', 'Geschäftsprofil')) return false;
+    if (!ensurePage('vx-assistant-view-profile', 'vx-assistant-profile-body', 'Mein Assistent')) return false;
+    if (!ensurePage('vx-assistant-view-business', 'vx-business-profile-body', 'Geschäftsprofil')) return false;
     if (!document.getElementById('vx-assistant-voice-modal')) {
       const modal = document.createElement('div');
       modal.id = 'vx-assistant-voice-modal';
@@ -633,7 +633,23 @@
       + branchRow
       + '</div>'
       + industryLine()
-      + '<div class="vx-ap-actions"><button type="button" class="vx-ap-btn secondary" id="vx-open-business-profile">Geschäftsprofil bearbeiten</button></div>'
+      // Klick-Test 09.08.: Die Seite dahinter wirkte verwaist, obwohl sie
+      // absichtlich ein Drill-in ist und in ASSISTANT_VIEWS registriert steht.
+      // Gefehlt hat nicht ein zweiter Navigationsweg, sondern die Geste: ohne
+      // Chevron liest sich der Knopf als Aktion auf dieser Karte, nicht als
+      // Weg zu einer eigenen Seite.
+      //
+      // Bewusst NICHT die Drill-in-Zeile des Einstellungen-Tabs, obwohl sie
+      // optisch genau das waere: verify-customer-navigation-unified verbietet
+      // dem Assistent-Runtime jeden Baustein von dort, und zwar als
+      // Substring-Pruefung — dieser Kommentar darf den Klassennamen also nicht
+      // einmal nennen. Die
+      // Sperre stammt aus dem Rueckbau der alten Settings-Bridge und ist
+      // richtig — der Assistent-Tab soll nicht wieder an den Bausteinen eines
+      // anderen Tabs haengen. Der Chevron sitzt deshalb im eigenen Knopf,
+      // genau wie ph-play in der Stimmkarte.
+      + '<div class="vx-ap-actions"><button type="button" class="vx-ap-btn secondary" id="vx-open-business-profile">'
+      + 'Geschäftsprofil bearbeiten<i class="ph-light ph-caret-right" aria-hidden="true"></i></button></div>'
       + '</section>';
   }
 
@@ -679,9 +695,10 @@
     // vx-ui-brand-rule: der Gold-Streifen auf der fuehrenden Karte des
     // Screens. Genau eine pro Screen, zustandsunabhaengig — siehe
     // customer-ui-components.css, Abschnitt 9.
-    body.innerHTML = '<div id="vx-business-profile-status" class="vx-ap-status" role="status" aria-live="polite"></div><div class="vx-ap-card vx-ui-brand-rule"><div class="vx-ap-head"><div><div class="vx-ap-title">Dauerhaftes Geschäftswissen</div><div class="vx-ap-meta">Diese Informationen verwendet der Assistent im normalen Betrieb. Ferien und kurzfristige Änderungen gehören in „Aktuelle Infos“.</div></div></div><div class="vx-ap-grid"><div class="vx-ap-field"><label>Unternehmensbeschreibung</label><textarea id="vx-business-description" placeholder="Was macht Ihr Unternehmen und für wen?">' + esc(data.description || '') + '</textarea></div><div class="vx-ap-field"><label>Leistungen und Angebote</label><textarea id="vx-business-services" placeholder="Welche Leistungen darf der Assistent erklären?">' + esc(data.services || '') + '</textarea></div><div class="vx-ap-field"><label>Standort und reguläre Öffnungszeiten</label><textarea id="vx-business-location-hours" placeholder="Adresse, Einzugsgebiet und reguläre Öffnungszeiten">' + esc(data.location_hours || '') + '</textarea></div><div class="vx-ap-field"><label>Häufige Fragen und Buchungshinweise</label><textarea id="vx-business-booking-faq" placeholder="Wichtige Antworten, Voraussetzungen oder Hinweise">' + esc(data.booking_faq || '') + '</textarea></div></div><div class="vx-ap-actions"><button type="button" class="vx-ap-btn" id="vx-business-profile-save"' + (busy ? ' disabled' : '') + '>Geschäftsprofil speichern</button></div><div id="vx-business-save-status" class="vx-ap-status vx-ap-status--inline" role="status" aria-live="polite"></div></div>' + coreCard() + branchCard();
+    body.innerHTML = '<div id="vx-business-profile-status" class="vx-ap-status" role="status" aria-live="polite"></div><div class="vx-ap-stack"><div class="vx-ap-card vx-ui-brand-rule"><div class="vx-ap-head"><div><div class="vx-ap-title">Dauerhaftes Geschäftswissen</div><div class="vx-ap-meta">Diese Informationen verwendet der Assistent im normalen Betrieb. Ferien und kurzfristige Änderungen gehören in „Aktuelle Infos“.</div></div></div><div class="vx-ap-fieldlist"><div class="vx-ap-field"><label>Unternehmensbeschreibung</label><textarea id="vx-business-description" placeholder="Was macht Ihr Unternehmen und für wen?">' + esc(data.description || '') + '</textarea></div><div class="vx-ap-field"><label>Leistungen und Angebote</label><textarea id="vx-business-services" placeholder="Welche Leistungen darf der Assistent erklären?">' + esc(data.services || '') + '</textarea></div><div class="vx-ap-field"><label>Standort und reguläre Öffnungszeiten</label><textarea id="vx-business-location-hours" placeholder="Adresse, Einzugsgebiet und reguläre Öffnungszeiten">' + esc(data.location_hours || '') + '</textarea></div><div class="vx-ap-field"><label>Häufige Fragen und Buchungshinweise</label><textarea id="vx-business-booking-faq" placeholder="Wichtige Antworten, Voraussetzungen oder Hinweise">' + esc(data.booking_faq || '') + '</textarea></div></div><div class="vx-ap-actions"><button type="button" class="vx-ap-btn" id="vx-business-profile-save"' + (busy ? ' disabled' : '') + '>Geschäftsprofil speichern</button></div><div id="vx-business-save-status" class="vx-ap-status vx-ap-status--inline" role="status" aria-live="polite"></div></div>' + coreCard() + branchCard() + '</div>';
     document.getElementById('vx-business-profile-save')?.addEventListener('click', saveBusiness);
     document.getElementById('vx-core-save')?.addEventListener('click', saveCore);
+    document.getElementById('vx-hours-apply')?.addEventListener('click', applyHoursSuggestion);
     document.getElementById('vx-branch-save')?.addEventListener('click', saveBranch);
     restoreStatus('business');
   }
@@ -694,7 +711,67 @@
   // system_config.core_field_steps und die Branchenfelder aus der Vorlage. Sie
   // unterscheiden sich nur im Speicher (typisierte Spalte gegenüber
   // ai_branch_extra) und deshalb hier nur im Namen des Datenattributs.
+  // J5: Wochenraster. Sieben Zeilen, je bis zu zwei Zeitspannen — mehr kommt in
+  // den 19 Vorlagentexten nicht vor, und jede weitere Spalte macht die Zeile auf
+  // dem Telefon unbedienbar. Leere Felder bedeuten geschlossen; das steht auch
+  // so daneben, damit „leer“ nicht als „noch nicht ausgefüllt“ gelesen wird.
+  const HOURS_DAYS = [
+    ['mon', 'Montag'], ['tue', 'Dienstag'], ['wed', 'Mittwoch'], ['thu', 'Donnerstag'],
+    ['fri', 'Freitag'], ['sat', 'Samstag'], ['sun', 'Sonntag']
+  ];
+
+  function hoursRow(day, label, intervals) {
+    const slot = (index) => {
+      const pair = intervals[index] || ['', ''];
+      return '<input type="time" data-vx-hours="' + day + '" data-vx-slot="' + index + '" data-vx-edge="from"'
+        + ' value="' + esc(pair[0] || '') + '" aria-label="' + esc(label) + ', Zeitspanne ' + (index + 1) + ', von"'
+        + (busy ? ' disabled' : '') + '>'
+        + '<span class="vx-ap-hours-dash">–</span>'
+        + '<input type="time" data-vx-hours="' + day + '" data-vx-slot="' + index + '" data-vx-edge="to"'
+        + ' value="' + esc(pair[1] || '') + '" aria-label="' + esc(label) + ', Zeitspanne ' + (index + 1) + ', bis"'
+        + (busy ? ' disabled' : '') + '>';
+    };
+    return '<div class="vx-ap-hours-row">'
+      + '<div class="vx-ap-hours-day">' + esc(label) + '</div>'
+      + '<div class="vx-ap-hours-slots">' + slot(0) + slot(1) + '</div>'
+      + '<div class="vx-ap-hours-state">' + (intervals.length ? '' : 'geschlossen') + '</div>'
+      + '</div>';
+  }
+
+  function hoursField(field) {
+    const week = (field.value && typeof field.value === 'object') ? field.value : {};
+    const hint = field.hint ? '<div class="vx-ap-meta">' + esc(field.hint) + '</div>' : '';
+    return '<div class="vx-ap-field vx-ap-field--hours">'
+      + '<label>' + esc(field.label) + '</label>'
+      + hint
+      + '<div class="vx-ap-hours">'
+      + HOURS_DAYS.map(([day, label]) => hoursRow(day, label, Array.isArray(week[day]) ? week[day] : [])).join('')
+      + '</div>'
+      + '<div class="vx-ap-meta">Ein leeres Feldpaar bedeutet geschlossen.</div>'
+      + '</div>';
+  }
+
+  // Liest das Raster aus der Oberflaeche. Unvollstaendige Paare (nur von oder
+  // nur bis) werden verworfen statt halb gespeichert — der Server wiese sie
+  // ohnehin ab, und eine halbe Zeitspanne ist keine Aussage.
+  function collectHours() {
+    const week = {};
+    HOURS_DAYS.forEach(([day]) => { week[day] = []; });
+    document.querySelectorAll('[data-vx-hours]').forEach((node) => {
+      const day = node.dataset.vxHours;
+      const slot = Number(node.dataset.vxSlot);
+      if (!week[day]) return;
+      week[day][slot] = week[day][slot] || ['', ''];
+      week[day][slot][node.dataset.vxEdge === 'from' ? 0 : 1] = String(node.value || '').trim();
+    });
+    HOURS_DAYS.forEach(([day]) => {
+      week[day] = (week[day] || []).filter((pair) => pair && pair[0] && pair[1]);
+    });
+    return week;
+  }
+
   function schemaField(field, scope) {
+    if (field.type === 'hours') return hoursField(field);
     const id = 'vx-' + scope + '-' + field.key;
     const attr = scope === 'core' ? 'data-vx-core-key' : 'data-vx-branch-key';
     const hint = field.hint ? '<div class="vx-ap-meta">' + esc(field.hint) + '</div>' : '';
@@ -721,6 +798,37 @@
   // Schicht A. Diese Karte steht vor der Branchenkarte, weil ihre Angaben für
   // jeden Betrieb gelten — auch für die drei von vier Kunden ohne zugeordnete
   // Branche, die die Branchenkarte gar nicht ausfüllen können.
+  // F3: Der Parser schlaegt vor, der Kunde bestaetigt. Der Vorschlag wird erst
+  // beim Speichern zu Daten — vorher fuellt er nur das Raster aus. Deshalb ein
+  // Knopf und keine automatische Uebernahme, und deshalb steht daneben, was der
+  // Parser aus dem Text NICHT lesen konnte.
+  function hoursSuggestionBanner() {
+    const info = profile?.opening_hours || {};
+    if (info.confirmed || !info.suggestion) return '';
+    const unparsed = Array.isArray(info.unparsed_lines) ? info.unparsed_lines : [];
+    return '<div class="vx-ap-suggestion">'
+      + '<div class="vx-ap-suggestion-title">Vorschlag aus Ihrem Standort-Text</div>'
+      + '<div class="vx-ap-meta">Wir haben aus „Standort und reguläre Öffnungszeiten“ ein Wochenraster gelesen. '
+      + 'Es gilt erst, wenn Sie es prüfen und speichern — bis dahin verwendet Ihr Assistent weiterhin den Text.</div>'
+      + (unparsed.length
+        ? '<div class="vx-ap-meta">Diese Zeilen konnten wir nicht zuordnen, bitte selbst eintragen: '
+          + unparsed.map((line) => esc(line)).join(' · ') + '</div>'
+        : '')
+      + '<button type="button" class="vx-ap-btn vx-ap-btn--ghost" id="vx-hours-apply"'
+      + (busy ? ' disabled' : '') + '>Vorschlag ins Raster übernehmen</button>'
+      + '</div>';
+  }
+
+  function applyHoursSuggestion() {
+    const week = profile?.opening_hours?.suggestion;
+    if (!week) return;
+    document.querySelectorAll('[data-vx-hours]').forEach((node) => {
+      const intervals = Array.isArray(week[node.dataset.vxHours]) ? week[node.dataset.vxHours] : [];
+      const pair = intervals[Number(node.dataset.vxSlot)] || ['', ''];
+      node.value = node.dataset.vxEdge === 'from' ? (pair[0] || '') : (pair[1] || '');
+    });
+  }
+
   function coreCard() {
     const sections = profile?.core_sections || [];
     if (!sections.length) return '';
@@ -734,6 +842,7 @@
         + '<div class="vx-ap-fieldlist">' + section.fields.map((field) => schemaField(field, 'core')).join('') + '</div>'
         + '</div>'
       )).join('')
+      + hoursSuggestionBanner()
       + originChip('voxera', 'Gilt für alle Betriebe')
       + '<div class="vx-ap-actions"><button type="button" class="vx-ap-btn" id="vx-core-save"' + (busy ? ' disabled' : '') + '>Betriebsangaben speichern</button></div>'
       + '<div id="vx-core-status" class="vx-ap-status vx-ap-status--inline" role="status" aria-live="polite"></div>'
@@ -745,6 +854,7 @@
     document.querySelectorAll('[data-vx-core-key]').forEach((node) => {
       payload[node.dataset.vxCoreKey] = String(node.value || '').trim();
     });
+    if (document.querySelector('[data-vx-hours]')) payload.opening_hours = collectHours();
     if (!Object.keys(payload).length) return;
     await updateAssistant({ core_fields: payload }, 'business', document.getElementById('vx-core-save'));
   }

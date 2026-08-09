@@ -18,7 +18,15 @@
     "",
     "Aufgenommen ueber pg_catalog.aclexplode(relacl), NICHT ueber die Standard-Grant-Sichten:",
     "die filtern auf enabled_roles und liefern unter der NOINHERIT-CI-Rolle nichts. Deshalb",
-    "steht hier auch MAINTAIN (PostgreSQL 17), das die Sichten nicht auswerfen."
+    "steht hier auch MAINTAIN (PostgreSQL 17), das die Sichten nicht auswerfen.",
+    "",
+    "Nachgezogen am 2026-08-09 (Migration 2026-08-09_system_config_calls_residual_grants.sql):",
+    "system_config aus anonTableGrants entfernt (anon haelt dort nichts mehr), bei",
+    "authenticated auf SELECT reduziert, und TRUNCATE bei calls gestrichen. Anlass war",
+    "die Nachkontrolle der beiden RLS-Nebenfunde aus PR #830: TRUNCATE ist der einzige",
+    "Tabellenzugriff, auf den RLS NICHT angewandt wird -- fuer diese Rechte gilt das",
+    "Argument 'davor steht noch RLS' nicht. Sie stehen deshalb jetzt als harte",
+    "Invariante im Katalog (F6-grants) und nicht mehr als eingefrorene Zeile hier."
   ],
   "anonTableGrants": {
     "admin_emails": [
@@ -221,15 +229,6 @@
       "TRUNCATE",
       "UPDATE"
     ],
-    "system_config": [
-      "DELETE",
-      "INSERT",
-      "MAINTAIN",
-      "REFERENCES",
-      "TRIGGER",
-      "TRUNCATE",
-      "UPDATE"
-    ],
     "telephony_number_assignment_audit": [
       "DELETE",
       "INSERT",
@@ -311,8 +310,7 @@
       "MAINTAIN",
       "REFERENCES",
       "SELECT",
-      "TRIGGER",
-      "TRUNCATE"
+      "TRIGGER"
     ],
     "contracts": [
       "SELECT"
@@ -353,14 +351,7 @@
       "SELECT"
     ],
     "system_config": [
-      "DELETE",
-      "INSERT",
-      "MAINTAIN",
-      "REFERENCES",
-      "SELECT",
-      "TRIGGER",
-      "TRUNCATE",
-      "UPDATE"
+      "SELECT"
     ],
     "users": [
       "DELETE",

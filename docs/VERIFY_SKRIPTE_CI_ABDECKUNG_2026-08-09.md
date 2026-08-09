@@ -97,3 +97,34 @@ statt sie einzeln aufzuzählen, oder eine Prüfung, dass zu jedem `scripts/verif
 ein Workflow existiert. Beides ist hier bewusst **nicht** umgesetzt: es ändert
 die CI-Struktur des Repos und gehört in eine eigene Entscheidung, nicht an das
 Ende einer Reparaturrunde.
+
+---
+
+## Nachtrag 09.08. — der vorhergesagte Fall ist noch am selben Tag eingetreten
+
+Der Abschnitt oben schliesst mit: *„Ein Gate je Skript verhindert nicht, dass
+ein **neues** Skript ohne Workflow angelegt wird — genau so sind die 13
+entstanden."*
+
+Genau das ist wenige Stunden später passiert. Mit PR #882 (J5, Öffnungszeiten)
+kam `scripts/verify-opening-hours.mjs` dazu — 17 Prüfungen, davon neun gegen
+die echten Vorlagentexte — **ohne Workflow**. Der Check lief in den 22
+CI-Läufen dieses PRs nicht mit; grün war er nur lokal. Aufgefallen ist das
+beim Zählen der Checks nach dem Merge, nicht durch eine Prüfung.
+
+Mit diesem Durchgang sind zwei Workflows nachgezogen:
+
+| Skript | Workflow | Warum ohne Pfad-Filter |
+| --- | --- | --- |
+| `verify-prompt-builder-v2` | `verify-prompt-builder-v2.yml` | Sichert den Block VERBINDLICHE SICHERHEITSREGELN, die Neutralisierung beider Platzhalter-Dialekte, die Allowlist der Schicht-A-Spalten und die Regel, dass ein mehrdeutiges Altvokabular die Terminbefugnis nicht ausweitet. Liest ausserdem `admin-panel/index.html` — eine Datei, die praktisch jeder Admin-Auftrag berührt. |
+| `verify-opening-hours` | `verify-opening-hours.yml` | Sichert, dass der Parser nichts erfindet und nur Werte liefert, die der Schreibpfad annimmt. Driften die beiden auseinander, landet entweder ein Vorschlag im Fehler oder ein unbestätigter Zeitplan in der Datenbank. Laufzeit unter einer Sekunde, kein Netz- oder Datenbankzugriff. |
+
+Damit sind es 28 Workflows zu 51 Skripten.
+
+**Was der Vorfall zum offenen Punkt beiträgt:** Er ist kein Argument mehr,
+sondern ein Datenpunkt. Die Lücke entsteht nicht aus Nachlässigkeit bei
+bestehenden Checks, sondern zuverlässig bei jedem neuen — auch dann, wenn die
+Person, die das Skript schreibt, die Doku über genau diese Lücke gelesen hat.
+Eine Prüfung „zu jedem `scripts/verify-*.mjs` existiert ein Workflow" hätte den
+Fall am selben Tag gemeldet. Die Entscheidung darüber bleibt, wie oben
+festgehalten, eine eigene — dieser Nachtrag verschiebt nur die Beweislage.

@@ -2132,7 +2132,9 @@ body.vx-detail-v2-open #confirm-overlay.open {
 .detail-overlay{display:none;position:fixed;inset:0;background:rgba(15,23,42,.44);backdrop-filter:blur(6px);z-index:var(--z-overlay-detail);align-items:center;justify-content:center;padding:16px;}
 .detail-overlay.open{display:flex;}
 .detail-modal{background:var(--surface);border-radius:var(--r-xl);width:100%;max-width:900px;max-height:min(92vh,calc(100dvh - 20px));box-shadow:0 16px 48px rgba(0,0,0,.12);animation:fadeUp .3s var(--ease) both;display:flex;flex-direction:column;overflow:hidden;}
-.detail-head{padding:22px 24px 12px;border-bottom:1px solid var(--surface2);}
+/* .detail-head hatte hier und an drei weiteren Stellen Regeln, ohne dass die
+   Klasse irgendwo im Markup oder in einem Renderer auftaucht — entfernt
+   2026-08-09. Die uebrigen .detail-*-Regeln bleiben unangetastet. */
 .detail-body{padding:16px 24px 18px;overflow:auto;min-height:0;flex:1;}
 .detail-footer{padding:12px 24px calc(var(--space-3) + env(safe-area-inset-bottom));border-top:1px solid var(--surface2);display:flex;justify-content:flex-end;background:var(--surface);}
 .detail-layout{display:flex;flex-direction:column;gap:0;}
@@ -2160,7 +2162,6 @@ body.vx-detail-v2-open #confirm-overlay.open {
   .detail-overlay{align-items:flex-end;padding:0;}
   .detail-modal{border-radius:18px 18px 0 0;max-height:calc(100dvh - 4px);}
   .detail-layout{grid-template-columns:1fr;gap:10px;}
-  .detail-head{padding:14px 14px 10px;}
   .detail-body{padding:10px 12px 14px;}
   .detail-footer{padding:10px 12px calc(14px + env(safe-area-inset-bottom));}
 
@@ -2258,14 +2259,14 @@ body.vx-detail-v2-open #confirm-overlay.open {
 .dash-status-chip.alert{background:rgba(220,38,38,0.22);border-color:rgba(254,202,202,0.55);}
 .dash-status-chip.ok{background:rgba(5,150,105,0.24);border-color:rgba(167,243,208,0.55);}
 .dash-status-chip.note{background:rgba(255,255,255,0.12);}
-.dash-activation-card{background:#FFF9F2;border:1px solid #FDE68A;border-radius:var(--r-lg);padding:18px 20px;margin-bottom:18px;display:none;box-shadow:var(--shadow-card);}
+.dash-activation-card{background:var(--vx-color-warning-bg);border:1px solid var(--vx-color-warning-border);border-radius:var(--r-lg);padding:18px 20px;margin-bottom:18px;display:none;box-shadow:var(--shadow-card);}
 .dash-activation-card.show{display:block;}
 .dash-activation-card.info{background:#F8FAFF;border-color:#BFDBFE;}
 .dash-activation-card.success{background:var(--green-light);border-color:#86EFAC;}
-.dash-activation-title{font-size:14px;font-weight:700;color:#92400E;margin-bottom:8px;}
+.dash-activation-title{font-size:14px;font-weight:700;color:var(--vx-color-warning);margin-bottom:8px;}
 .dash-activation-card.info .dash-activation-title{color:#1A6FE8;}
 .dash-activation-card.success .dash-activation-title{color:#166534;}
-.dash-activation-text{font-size:13px;color:#B45309;line-height:1.6;margin-bottom:14px;}
+.dash-activation-text{font-size:13px;color:var(--vx-color-warning);line-height:1.6;margin-bottom:14px;}
 .dash-activation-card.info .dash-activation-text{color:#1560C8;}
 .dash-activation-card.success .dash-activation-text{color:#166534;}
 .dash-activation-actions{display:flex;gap:8px;flex-wrap:wrap;}
@@ -2868,9 +2869,9 @@ body.vx-detail-v2-open #confirm-overlay.open {
   word-break: break-all;
 }
 
-.hint-box { border: 1px solid #FDE68A; background: #FFFBEB; border-radius: 12px; overflow: hidden; }
-.hint-trigger { padding: 12px 14px; font-size: 13px; font-weight: 600; color: #92400E; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
-.hint-body { padding: 0 14px 12px; font-size: 12px; color: #92400E; line-height: 1.75; display: none; }
+.hint-box { border: 1px solid var(--vx-color-warning-border); background: var(--vx-color-warning-bg); border-radius: 12px; overflow: hidden; }
+.hint-trigger { padding: 12px 14px; font-size: 13px; font-weight: 600; color: var(--vx-color-warning); cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
+.hint-body { padding: 0 14px 12px; font-size: 12px; color: var(--vx-color-warning); line-height: 1.75; display: none; }
 .hint-body.open { display: block; }
 
 .deact-row {
@@ -2963,8 +2964,8 @@ button, a.btn { min-height: 44px; }
 .activation-btn.tertiary:hover{background:var(--surface2);border-color:#CBD5E1;}
 .activation-btn.danger{background:#FEF2F2;color:#B91C1C;border-color:#FECACA;font-weight:600;}
 .activation-btn.danger:hover{background:#FEE2E2;border-color:#FCA5A5;}
-.activation-btn.warning{background:#FEF3C7;color:#92400E;border-color:#FCD34D;font-weight:600;}
-.activation-btn.warning:hover{background:#FDE68A;border-color:#F59E0B;}
+.activation-btn.warning{background:var(--vx-color-warning-bg);color:var(--vx-color-warning);border-color:var(--vx-color-warning-border);font-weight:600;}
+.activation-btn.warning:hover{background:var(--vx-color-warning-border);border-color:var(--vx-color-warning);}
 .activation-btn.ghost{background:transparent;color:#64748B;border-color:transparent;box-shadow:none;font-weight:600;}
 .activation-btn.ghost:hover{background:var(--surface2);border-color:var(--surface-border);}
 .activation-btn.ghost-danger{background:rgba(220,38,38,0.08);color:#B91C1C;border-color:rgba(220,38,38,0.18);font-weight:600;}
@@ -2985,7 +2986,7 @@ button, a.btn { min-height: 44px; }
 .activation-link-btn{width:100%;border:0.5px solid var(--line);background:var(--surface);color:#64748B;font-size:12px;font-weight:600;border-radius:10px;padding:8px 10px;text-align:left;}
 .activation-info-banner{margin-top:8px;background:#ECFDF3;border:1px solid #BBF7D0;color:#166534;border-radius:10px;padding:8px 10px;font-size:12px;line-height:1.45;}
 .activation-banner--info{background:#EFF6FF;border-color:#BFDBFE;color:#1A6FE8;}
-.activation-banner--warning{background:#FFFBEB;border-color:#FDE68A;color:#92400E;}
+.activation-banner--warning{background:var(--vx-color-warning-bg);border-color:var(--vx-color-warning-border);color:var(--vx-color-warning);}
 .activation-banner--error{background:#FEF2F2;border-color:#FECACA;color:#B91C1C;}
 .activation-panel--live{background:var(--vx-night);color:#fff;}
 .activation-panel--live .activation-info-banner{background:rgba(255,255,255,0.1);border-color:rgba(255,255,255,0.2);color:var(--surface-border);}
@@ -4361,8 +4362,6 @@ body,.main{background:var(--vx-bg);}
 .modal-head{background:var(--vx-modal-head)!important;padding:14px 18px!important;border-bottom:none!important;}
 .modal h3{color:var(--vx-modal-head-title)!important;font-size:15px!important;margin-bottom:0!important;letter-spacing:-.01em!important;}
 .modal-sub{color:var(--vx-modal-head-sub)!important;margin-bottom:0!important;}
-.detail-head{background:var(--vx-night)!important;padding:14px 18px!important;}
-.detail-head h3,.detail-head .modal-sub{color:#fff!important;}
 
 /* ── Call-Row Premium Layout ─────────────────────────────── */
 .call-row {
@@ -5189,10 +5188,6 @@ body,.main{background:var(--vx-bg);}
   }
   #detail-overlay {
     align-items: flex-end !important;
-  }
-  .detail-head {
-    border-radius: 16px 16px 0 0 !important;
-    padding: 12px 16px !important;
   }
   .modal-body {
     padding: 14px 16px 20px !important;
@@ -6296,6 +6291,18 @@ body.vx-customer-design-foundation .vx-requests-layout{
   min-height:620px;
   overflow:hidden;
   font-family:var(--vx-ui-row-font);
+  /* Aktiv zuruecknehmen, nicht bloss weglassen (2026-08-09): das Element
+     traegt weiterhin die Alt-Klasse .vx-split, und die setzt Fuellfarbe,
+     Rundung und Rahmen. Solange hier nichts stand, blieb der Kartenrahmen
+     um die Liste bestehen — eine umrandete Flaeche mit weissen Zeilenkarten
+     darin, also der "zwei Schichten"-Eindruck, den Heute nicht hat. Der
+     Rahmen kostete die Liste ausserdem 1px pro Seite (gemessen 336px statt
+     338px bei 390px). Die Naht zwischen Liste und Detail kommt weiterhin
+     aus dem border-right von .vx-requests-panel. */
+  background:transparent;
+  border:0;
+  border-radius:0;
+  box-shadow:none;
 }
 
 /* Beide Spalten liegen auf der Canvas-Fläche, damit die weissen Karten
@@ -6971,7 +6978,7 @@ body.vx-customer-design-foundation .vx-report-highlight-value{margin-top:6px;col
 body.vx-customer-design-foundation .vx-report-voice .vx-ops-message{font-family:var(--vx-ui-voice-font);font-size:var(--vx-ui-voice-size);font-weight:var(--vx-ui-voice-weight);line-height:var(--vx-ui-voice-leading);letter-spacing:var(--vx-ui-voice-tracking);color:var(--vx-ui-voice-color);max-width:var(--vx-ui-voice-measure);}
 @media (max-width:560px){body.vx-customer-design-foundation .vx-report-voice .vx-ops-message{font-size:var(--vx-ui-voice-size-sm);}}
 body.vx-customer-design-foundation .vx-report-insight{display:flex;align-items:flex-start;gap:12px;} body.vx-customer-design-foundation .vx-report-insight-icon{display:flex;align-items:center;justify-content:center;flex:0 0 auto;box-sizing:border-box;width:var(--vx-ui-icon-tile-md);height:var(--vx-ui-icon-tile-md);border-radius:var(--vx-ui-icon-tile-md-radius);}
-body.vx-customer-design-foundation .vx-report-insight.tone-warning{background:#fff7ed;color:#9a3412;} body.vx-customer-design-foundation .vx-report-insight.tone-warning .vx-report-insight-icon{background:#fed7aa;} body.vx-customer-design-foundation .vx-report-insight.tone-info{background:#eff6ff;color:#1d4ed8;} body.vx-customer-design-foundation .vx-report-insight.tone-info .vx-report-insight-icon{background:#dbeafe;} body.vx-customer-design-foundation .vx-report-insight.tone-success{background:#ecfdf5;color:#047857;} body.vx-customer-design-foundation .vx-report-insight.tone-success .vx-report-insight-icon{background:#d1fae5;}
+body.vx-customer-design-foundation .vx-report-insight.tone-warning{background:var(--vx-color-warning-bg);color:var(--vx-color-warning);} body.vx-customer-design-foundation .vx-report-insight.tone-warning .vx-report-insight-icon{background:var(--vx-color-warning-border);} body.vx-customer-design-foundation .vx-report-insight.tone-info{background:#eff6ff;color:#1d4ed8;} body.vx-customer-design-foundation .vx-report-insight.tone-info .vx-report-insight-icon{background:#dbeafe;} body.vx-customer-design-foundation .vx-report-insight.tone-success{background:#ecfdf5;color:#047857;} body.vx-customer-design-foundation .vx-report-insight.tone-success .vx-report-insight-icon{background:#d1fae5;}
 body.vx-customer-design-foundation .vx-report-week-chart{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));align-items:end;gap:8px;min-height:120px;}
 body.vx-customer-design-foundation .vx-report-week-col{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:5px;height:116px;} body.vx-customer-design-foundation .vx-report-week-count,body.vx-customer-design-foundation .vx-report-week-label{color:var(--vx-subtle);font-size:11px;font-weight:700;}
 body.vx-customer-design-foundation .vx-report-week-bar{width:100%;height:calc(5px + 72px * var(--vx-report-level));border-radius:6px 6px 2px 2px;background:#e2e8f0;} body.vx-customer-design-foundation .vx-report-week-bar.current{background:var(--vx-brand);} body.vx-customer-design-foundation .vx-report-week-label.current{color:var(--vx-brand);}
@@ -7877,7 +7884,6 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
 
         <!-- MEIN ASSISTENT TAB -->
         <div class="tab-page" id="tab-assistent"></div>
-        </div>
 
         <!-- MEHR TAB -->
         <div class="tab-page" id="tab-mehr">
@@ -8317,39 +8323,10 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
           </div>
         </div>
 
-        <!-- HILFE TAB -->
-        <div class="tab-page" id="tab-hilfe">
-          <header class="vx-appbar"><button type="button" class="vx-appbar-back" aria-label="Zurück zu Einstellungen" onclick="vxScreenBack(function(){showTab('mehr',document.getElementById('nav-mehr'));})"><i class="ph-bold ph-arrow-left" aria-hidden="true"></i></button><h1 class="vx-appbar-title">Hilfe &amp; Support</h1></header>
-
-          <section class="vx-settings-card">
-            <div class="vx-settings-card-head"><div><h2 class="vx-settings-card-title">Direkte Hilfe</h2><p class="vx-settings-card-meta">Wählen Sie den passenden nächsten Schritt.</p></div></div>
-            <div class="vx-help-action-grid">
-              <button type="button" class="vx-help-action" onclick="requestSupport()"><span><i class="ph-bold ph-envelope-simple" aria-hidden="true"></i></span><strong>E-Mail</strong><small>Support kontaktieren</small></button>
-              <button type="button" class="vx-help-action" onclick="window.open('https://voxera.ch','_blank','noopener')"><span><i class="ph-bold ph-globe" aria-hidden="true"></i></span><strong>Website</strong><small>Informationen öffnen</small></button>
-              <button type="button" class="vx-help-action" onclick="vxOnboardingRestart()"><span><i class="ph-bold ph-play-circle" aria-hidden="true"></i></span><strong>Einrichtung</strong><small>Assistent erneut starten</small></button>
-            </div>
-          </section>
-
-          <section class="vx-settings-card">
-            <div class="vx-settings-card-head"><div><h2 class="vx-settings-card-title">Erste Schritte</h2><p class="vx-settings-card-meta">Die wichtigsten Punkte für einen zuverlässigen Betrieb.</p></div></div>
-            <ol class="vx-help-step-list">
-              <li class="vx-help-step"><span>1</span><div><strong>Rufumleitung einrichten</strong><small>Ihre Geschäftsnummer wird sicher mit Voxera verbunden.</small></div></li>
-              <li class="vx-help-step"><span>2</span><div><strong>Assistent konfigurieren</strong><small>Name, Stimme und Geschäftswissen im Bereich Assistent prüfen.</small></div></li>
-              <li class="vx-help-step"><span>3</span><div><strong>Testanruf durchführen</strong><small>Die Geschäftsnummer anrufen und den Eintrag unter Anfragen kontrollieren.</small></div></li>
-            </ol>
-          </section>
-
-          <section class="vx-settings-card">
-            <div class="vx-settings-card-head"><div><h2 class="vx-settings-card-title">Häufige Fragen</h2></div></div>
-            <div class="vx-help-faq">
-              <details><summary>Wie schnell sind Änderungen aktiv?</summary><p>Gespeicherte Assistenten-Einstellungen werden normalerweise innerhalb weniger Sekunden synchronisiert.</p></details>
-              <details><summary id="vx-settings-faq-lang-q">Welche Sprachen erkennt Lara?</summary><p>Deutsch, Französisch, Italienisch und Englisch werden automatisch erkannt.</p></details>
-              <details><summary>Was mache ich bei Ferien oder Schliesszeiten?</summary><p>Temporäre Änderungen können im Assistenten unter „Aktuelle Infos“ erfasst werden.</p></details>
-              <details><summary>Wo finde ich gebuchte Termine?</summary><p>Durch Voxera erstellte Termine erscheinen unter Anfragen im Status „Geplant“.</p></details>
-            </div>
-          </section>
-        </div>
-
+        <!-- Der frühere zweite Hilfe-Screen (#tab-hilfe) stand hier — als
+             .tab-page INNERHALB von #tab-einstellungen und damit nie
+             erreichbar. Sein Inhalt lebt seit dem Umzug in #mehr-sub-hilfe
+             weiter; showTab('hilfe') führt jetzt dorthin. -->
         </div><!-- /#tab-einstellungen -->
 
         <!-- ── BENACHRICHTIGUNGEN — Mobile Vollseite ── -->
@@ -8370,6 +8347,13 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
             </div>
           </div>
         </div>
+      </div><!-- /.content — schliesst hinter dem LETZTEN Screen, nicht hinter
+                    #tab-assistent. Bis 2026-08-09 stand dieses Tag dort, und
+                    #tab-mehr, #tab-einstellungen und #tab-benachrichtigungen
+                    lagen dadurch als Flex-Geschwister neben .content statt
+                    darin — Ursache des leeren Streifens ueber den
+                    Einstellungen-Screens und der schmaleren Seiteneinfassung
+                    dort (gemessen 14px statt 26px bei 390px). -->
 
 <!-- MOBILE BOTTOM NAV -->
   <div class="mobile-nav">
@@ -8553,7 +8537,7 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
       <div class="modal-body">
         <div id="followup-locked-warning" class="vx-modal-alert vx-modal-alert-warn" style="display:none">
           Dieser Anruf ist erledigt und kann nicht mehr bearbeitet werden.
-          <button onclick="dismissCompletedWarning()" aria-label="Hinweis ausblenden" style="float:right;background:none;border:none;cursor:pointer;color:#92400E;font-size:16px;padding:0;line-height:1;">×</button>
+          <button onclick="dismissCompletedWarning()" aria-label="Hinweis ausblenden" style="float:right;background:none;border:none;cursor:pointer;color:var(--vx-color-warning);font-size:16px;padding:0;line-height:1;">×</button>
         </div>
         <div id="followup-editable" class="followup-editable">
           <div class="vx-modal-grid followup-action-grid">
@@ -14518,7 +14502,7 @@ function vxShowLiveWarning(sectionId) {
   var fb = document.getElementById(fbId);
   if (!fb) return;
   var assistantName = (typeof customerMeta !== 'undefined' && customerMeta && customerMeta.assistantName) ? customerMeta.assistantName : 'Lara';
-  fb.innerHTML = '<div style="display:flex;align-items:center;gap:6px;padding:8px 10px;background:#FFFBEB;border:0.5px solid #FDE68A;border-radius:8px;font-size:12px;color:#92400E;"><i class="ph-bold ph-lightning" style="flex-shrink:0;" style="font-size:13px;" aria-hidden="true"></i>' + _esc(assistantName) + ' wird sofort aktualisiert.</div>';
+  fb.innerHTML = '<div style="display:flex;align-items:center;gap:6px;padding:8px 10px;background:var(--vx-color-warning-bg);border:0.5px solid var(--vx-color-warning-border);border-radius:8px;font-size:12px;color:var(--vx-color-warning);"><i class="ph-bold ph-lightning" style="flex-shrink:0;" style="font-size:13px;" aria-hidden="true"></i>' + _esc(assistantName) + ' wird sofort aktualisiert.</div>';
   if (typeof refreshLucideIcons === 'function') refreshLucideIcons();
   setTimeout(function(){ fb.innerHTML = ''; }, 4000);
 }
@@ -15033,7 +15017,7 @@ async function vxSubmitCancellationRequest() {
         + '<div style="font-size:16px;font-weight:700;color:var(--ink);margin-bottom:8px;">Kündigung bestätigen</div>'
         + '<div style="font-size:13px;color:var(--ink2);line-height:1.55;margin-bottom:8px;">Ausgewählter Grund: <strong>' + (reasonText || '–') + '</strong></div>'
         + '<div style="font-size:13px;color:var(--ink2);line-height:1.55;margin-bottom:8px;">Vertragsende: <strong>' + vxFmtDate(cancellationDate.toISOString()) + '</strong></div>'
-        + '<div style="font-size:12px;color:#B45309;background:#FFFBEB;border:0.5px solid #FDE68A;border-radius:10px;padding:9px 10px;">Nach Ablauf der Kündigungsfrist wird Ihr Zugang deaktiviert.</div>';
+        + '<div style="font-size:12px;color:var(--vx-color-warning);background:var(--vx-color-warning-bg);border:0.5px solid var(--vx-color-warning-border);border-radius:10px;padding:9px 10px;">Nach Ablauf der Kündigungsfrist wird Ihr Zugang deaktiviert.</div>';
     }
     refreshButtons();
   }
@@ -25746,6 +25730,20 @@ function vxCloseTransientViewsForRootTab(nextTab) {
 
 function showTab(name, el, options) {
   if (!name) return;
+  // Hilfe hat keinen eigenen Screen mehr. Der zweite, nie erreichbare
+  // #tab-hilfe ist entfernt; die einzige lebende Hilfe-Seite ist
+  // #mehr-sub-hilfe innerhalb von #tab-mehr. Vorher lief showTab('hilfe')
+  // ins Leere (targetTab lag in einer nicht aktiven .tab-page), womit
+  // openHelpSection() und die versteckten Kompatibilitäts-Einträge
+  // wirkungslos waren.
+  if (name === 'hilfe') {
+    // Bewusst nicht das uebergebene el: die Hilfe-Aufrufer zeigen auf
+    // #nav-hilfe, das seit langem display:none traegt. Die Markierung
+    // gehoert an den Einstellungen-Eintrag, unter dem die Seite liegt.
+    showTab('mehr', document.getElementById('nav-mehr'), options);
+    if (typeof vxMehrShow === 'function') vxMehrShow('hilfe');
+    return;
+  }
   const opts = (options && typeof options === 'object') ? options : {};
   vxCloseTransientViewsForRootTab(name);
   
@@ -28586,9 +28584,9 @@ function _renderTestCallState(state, opts) {
   } else if (state === 'timeout') {
     btn.disabled = false;
     btn.textContent = 'Erneut testen';
-    result.innerHTML = '<div style="display:flex;gap:10px;align-items:flex-start;padding:14px;background:#FFFBEB;border:1px solid #FDE68A;border-radius:10px;">'
+    result.innerHTML = '<div style="display:flex;gap:10px;align-items:flex-start;padding:14px;background:var(--vx-color-warning-bg);border:1px solid var(--vx-color-warning-border);border-radius:10px;">'
       + '<div style="flex-shrink:0;width:24px;height:24px;border-radius:50%;background:#E8C547;color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;">!</div>'
-      + '<div style="flex:1;font-size:13px;color:#92400E;line-height:1.6;">'
+      + '<div style="flex:1;font-size:13px;color:var(--vx-color-warning);line-height:1.6;">'
       + '<strong style="display:block;margin-bottom:2px;">Kein eingehender Anruf erkannt</strong>'
       + 'Die Weiterleitung scheint nicht aktiv zu sein. Bitte überprüfen Sie den Code für Ihren Anbieter und versuchen Sie es erneut.'
       + '</div></div>';
@@ -36629,10 +36627,16 @@ body.vx-requests-focus-mode #call-detail-page.vx-detail-focus #call-detail-banne
 /* PR-FIX 2026-05-23 — Anfragen Inbox nach Mockup: Mail-like Split-View.
    Reiner UI-Layer. Keine Detail-V2-Änderung, keine DB-Änderung. */
 
+/* Fuellfarbe, Rundung und Rahmen sind hier bewusst weg (2026-08-09).
+   Der Aufraeumschritt vom selben Tag hat sie aus .vx-requests-layout
+   entfernt (siehe den langen Kommentar bei #anrufe-list.dpr-command-center),
+   aber diese Regel traegt eine ID und !important und hat sie deshalb
+   weiterhin gesetzt: eine umrandete, abgerundete Flaeche um die Liste, in
+   der wiederum weisse Zeilenkarten liegen — der "zwei Schichten"-Eindruck,
+   den Heute nicht hat. Der 0.5px-Rahmen kostete die Liste ausserdem 1px pro
+   Seite, wodurch die Anfragen-Seite gemessen 336px statt 338px breit war.
+   Die strukturellen Werte (gap, padding) bleiben. */
 #tab-anrufe .vx-split{
-  background:#F7F8FA !important;
-  border-radius:12px !important;
-  border:0.5px solid rgba(0,0,0,.07) !important;
   gap:10px !important;
   padding:0 !important;
 }
@@ -36721,6 +36725,20 @@ body.vx-requests-focus-mode #call-detail-page.vx-detail-focus #call-detail-banne
     border-radius:10px !important;
   }
 }
+
+/* Unter 769px gibt es keine zweite Spalte — #anrufe-split-right und der
+   Resizer stehen dort auf display:none. Die Naht zum Detailpanel
+   (border-right) und die Kartenrundung der Liste haben damit nichts mehr,
+   woran sie sitzen: sie zeichnen eine Linie und zwei Ecken ins Leere.
+   Sichtbar wurde das erst, als der aeussere Kartenrahmen des Splits fiel
+   (2026-08-09) — davor lagen beide innerhalb dieses Rahmens. */
+@media(max-width:768px){
+  #tab-anrufe .vx-split-left,
+  #anrufe-split-left{
+    border-right:0 !important;
+    border-radius:0 !important;
+  }
+}
 </style>
 
 
@@ -36770,60 +36788,17 @@ body.vx-requests-focus-mode #call-detail-page.vx-detail-focus #call-detail-banne
   flex:1 1 auto !important;
 }
 
-/* Der leere Streifen ueber Einstellungen, allen Einstellungen-Unterseiten
-   und der Benachrichtigungs-Vollseite (2026-08-08).
+/* Hier standen bis 2026-08-09 zwei Regeln, die beide dasselbe verirrte
+   </div> umgangen haben (leerer Streifen ueber den Einstellungen-Screens,
+   fehlende Seiteneinfassung derselben Screens): .content wuchs als leere
+   flex:1-Box, weil #tab-mehr, #tab-einstellungen und #tab-benachrichtigungen
+   daneben statt darin lagen, und dieselben Screens sahen die Polsterung von
+   .content nie.
 
-   Ursache: ein verirrtes </div> schliesst <div class="content"> schon nach
-   #tab-assistent. #tab-mehr, #tab-einstellungen und #tab-benachrichtigungen
-   liegen dadurch NEBEN .content statt darin, als Geschwister in der
-   Flex-Spalte <main class="main">. .content traegt flex:1 und waechst als
-   leere Box in die Resthoehe — gemessen 732px auf der Kalenderintegration,
-   308px auf Hilfe & Support, 48px (die eigene Polsterung) auf Profil und
-   Abonnement. Der Bericht liegt innerhalb von .content und war nie
-   betroffen.
-
-   Hier steht bewusst nur die Wirkung ab: sobald .content keinen aktiven Tab
-   mehr enthaelt, hoert sie auf zu wachsen und gibt ihre vertikale Polsterung
-   ab. Das verirrte </div> selbst zu verschieben haengt drei grosse Screens
-   um und wuerde nebenbei #tab-hilfe aus #tab-einstellungen loesen — das ist
-   eine Strukturaenderung und gehoert in einen eigenen Auftrag.
-
-   #incoming-banner bleibt sichtbar: er liegt zwar in .content, ist aber
-   position:fixed und damit nicht Teil des Flusses.
-
-   Das !important gilt nur der vertikalen Polsterung — die Mobile-Regeln
-   weiter oben setzen padding-bottom ihrerseits mit !important. div#app steht
-   im Selektor, weil eine dieser Regeln (`div#app .content, .content`) eine
-   ID traegt: ohne sie verliert diese Regel auf Mobil trotz !important und
-   der Streifen bliebe dort als 80px stehen. */
-body.vx-customer-design-foundation div#app .content:not(:has(> .tab-page.active)){
-  flex:0 0 auto;
-  padding-top:0 !important;
-  padding-bottom:0 !important;
-}
-
-/* Dieselbe Einfassung fuer die Screens neben .content (2026-08-08).
-
-   Gemessen bei 1280px: Heute, Anfragen und Bericht sitzen 28px von den
-   Seiten und 24px von oben eingerueckt — das ist die Polsterung von
-   .content. Einstellungen, die Einstellungen-Unterseiten und die
-   Benachrichtigungs-Vollseite hatten 0/0/0, weil sie durch das verirrte
-   </div> neben .content liegen und deren Polsterung nie sehen. Ihre Karten
-   mit 12-18px Radius standen damit buendig an der Fensterkante und an der
-   Sidebar.
-
-   Der Wert wird hier NICHT wiederholt, sondern aus derselben Quelle
-   gezogen wie .content, damit die beiden Familien nicht wieder
-   auseinanderlaufen. Die untere Polsterung bleibt, wie sie war: sie sorgt
-   fuer die Freihaltung ueber der Mobil-Navigation und ist an diesen
-   Screens bereits gesetzt. */
-body.vx-customer-design-foundation #tab-mehr,
-body.vx-customer-design-foundation #tab-einstellungen,
-body.vx-customer-design-foundation #tab-benachrichtigungen{
-  padding-top:var(--vx-screen-inset-y);
-  padding-right:var(--vx-screen-inset-x);
-  padding-left:var(--vx-screen-inset-x);
-}
+   Das </div> steht jetzt hinter dem letzten Screen (siehe Markup), damit
+   liegen alle .tab-page wieder in .content: die Box ist nie mehr leer, und
+   die Einfassung kommt fuer alle Screens aus derselben Quelle. Beide
+   Umgehungen sind damit gegenstandslos und entfernt. */
 
 /* Content-Wrapper: kein Overflow wenn Archiv aktiv */
 body:has(#tab-archiv.active) .content{
@@ -39432,7 +39407,7 @@ body.vx-dv2-fullscreen-open{overflow:hidden;}
 /* Box, mark and states owned by the choice control in shared/customer-ui-components.css */
 .vx-modal-check-row span {font-size:13px;color:var(--vx-text2);font-weight:500;}
 .vx-modal-alert {border-radius:var(--vx-r-lg);padding:10px 13px;font-size:13px;margin-bottom:14px;display:flex;align-items:flex-start;gap:8px;}
-.vx-modal-alert-warn {background:#FFFBEB;border:1.5px solid #FDE68A;color:#92400E;}
+.vx-modal-alert-warn {background:var(--vx-color-warning-bg);border:1.5px solid var(--vx-color-warning-border);color:var(--vx-color-warning);}
 .vx-modal-alert-info {background:var(--vx-blue-light);border:1.5px solid var(--vx-blue-bd);color:#1256b8;}
 .vx-modal-hint {font-size:11px;color:var(--vx-text3);margin-top:-10px;margin-bottom:12px;}
 .vx-confirm-icon-wrap {width:48px;height:48px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:22px;margin:0 auto 12px;}

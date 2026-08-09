@@ -1,11 +1,17 @@
 'use strict';
 
+const crypto = require('crypto');
 const { createClient } = require('@supabase/supabase-js');
 const { requireCustomerCaller } = require('./_lib/require-customer');
+const { buildGreetingView } = require('./_lib/assistant-greeting');
 
 const DEFAULT_PREVIEW_TEXT = 'Grüezi, ich bin Ihre digitale Telefonassistenz von Voxera. Ich nehme Ihre Anrufe freundlich und zuverlässig entgegen. Wie kann ich Ihnen helfen?';
 const PLAN_TIERS = { starter: 1, business: 2, professional: 3 };
 const MAX_AUDIO_BYTES = 5 * 1024 * 1024;
+// Selbe Grenze wie synthesizePreview() fuer den generischen Text — ElevenLabs
+// verrechnet nach Zeichen, ein einzelner Begruessungssatz bleibt weit darunter.
+const MAX_PERSONALIZED_PREVIEW_CHARS = 500;
+const PERSONALIZED_PREVIEW_BUCKET = 'customer-voice-previews';
 const DEFAULT_PREVIEW_HOSTS = new Set([
   'storage.googleapis.com',
   'storage.googleapisusercontent.com',
@@ -243,6 +249,107 @@ async function synthesizePreview(voiceId, apiKey, metadataFailure, previewText) 
   return audioResponse(buffer, resolvedType, 'generated');
 }
 
+// Cache-Key aus Stimme + tatsaechlich gesprochenem Satz — aendert sich einer
+// von beiden, ist der Hash ein anderer und die alte Datei wird einfach nicht
+// mehr getroffen. Kein Klartext im Dateinamen, das Objekt selbst liegt in
+// einem privaten Bucket.
+function personalizedPreviewHash(voiceId, greetingText) {
+  return crypto.createHash('sha256').update(`${voiceId} ${greetingText}`, 'utf8').digest('hex').slice(0, 32);
+}
+
+function personalizedPreviewStoragePath(customerId, voiceId, hash) {
+  return `${customerId}/${voiceId}/${hash}.mp3`;
+}
+
+async function loadPersonalizedCachedPreview(sbAdmin, customerId, voiceId, hash) {
+  const { data: cacheRow, error: cacheError } = await sbAdmin
+    .from('customer_voice_previews')
+    .select('storage_path')
+    .eq('customer_id', customerId)
+    .eq('voice_id', voiceId)
+    .eq('text_hash', hash)
+    .maybeSingle();
+  if (cacheError) {
+    console.warn('[preview-voice] personalized_cache_lookup_failed', { customer_id: customerId, message: cacheError.message });
+  }
+  if (!cacheRow?.storage_path) return null;
+
+  const { data: fileData, error: downloadError } = await sbAdmin.storage
+    .from(PERSONALIZED_PREVIEW_BUCKET)
+    .download(cacheRow.storage_path);
+  if (downloadError || !fileData) {
+    // Cache-Zeile ohne (mehr) passende Datei im Bucket — nicht fatal, es wird
+    // unten einfach neu erzeugt und die Zeile per Upsert ersetzt.
+    console.warn('[preview-voice] personalized_cache_download_failed', {
+      customer_id: customerId,
+      storage_path: cacheRow.storage_path,
+      message: downloadError?.message || 'no_file_data'
+    });
+    return null;
+  }
+
+  const buffer = Buffer.from(await fileData.arrayBuffer());
+  return buffer.length ? buffer : null;
+}
+
+async function generateAndCachePersonalizedPreview(sbAdmin, customerId, voiceId, hash, apiKey, greetingText) {
+  const response = await fetch(
+    `https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(voiceId)}?output_format=mp3_44100_128`,
+    {
+      method: 'POST',
+      headers: {
+        'xi-api-key': apiKey,
+        'Content-Type': 'application/json',
+        Accept: 'audio/mpeg'
+      },
+      body: JSON.stringify({
+        text: greetingText,
+        model_id: 'eleven_multilingual_v2',
+        voice_settings: { stability: 0.5, similarity_boost: 0.75 }
+      })
+    }
+  );
+
+  if (!response.ok) {
+    const error = new Error('elevenlabs_tts_failed');
+    error.provider = await readProviderError(response);
+    throw error;
+  }
+
+  const buffer = Buffer.from(await response.arrayBuffer());
+  if (!buffer.length || buffer.length > MAX_AUDIO_BYTES) throw new Error('elevenlabs_tts_invalid_audio');
+
+  const declaredType = response.headers.get('content-type');
+  const resolvedType = resolveAudioContentType(declaredType, buffer);
+  if (!resolvedType) throw new Error('elevenlabs_tts_invalid_content_type');
+
+  const storagePath = personalizedPreviewStoragePath(customerId, voiceId, hash);
+  const { error: uploadError } = await sbAdmin.storage
+    .from(PERSONALIZED_PREVIEW_BUCKET)
+    .upload(storagePath, buffer, { contentType: resolvedType, upsert: true });
+
+  if (uploadError) {
+    // Erzeugtes Audio trotzdem ausliefern — ein fehlgeschlagenes Caching darf
+    // den aktuellen Klick nicht scheitern lassen, kostet aber den naechsten
+    // Klick erneut Zeichen. Das ist der einzige Fall, in dem eine Generierung
+    // nicht dauerhaft gecacht wird.
+    console.warn('[preview-voice] personalized_preview_upload_failed', { customer_id: customerId, message: uploadError.message });
+    return { buffer, contentType: resolvedType };
+  }
+
+  const { error: upsertError } = await sbAdmin
+    .from('customer_voice_previews')
+    .upsert(
+      { customer_id: customerId, voice_id: voiceId, text_hash: hash, storage_path: storagePath, char_count: greetingText.length },
+      { onConflict: 'customer_id,voice_id,text_hash' }
+    );
+  if (upsertError) {
+    console.warn('[preview-voice] personalized_preview_cache_row_failed', { customer_id: customerId, message: upsertError.message });
+  }
+
+  return { buffer, contentType: resolvedType };
+}
+
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers, body: '' };
   if (event.httpMethod !== 'POST') return json(405, { error: 'method_not_allowed' });
@@ -273,7 +380,7 @@ exports.handler = async (event) => {
 
   const { data: customer, error: customerError } = await sbAdmin
     .from('customers')
-    .select('plan,plan_code')
+    .select('plan,plan_code,assistant_name,ai_greeting,ai_effective_greeting')
     .eq('id', caller.customerId)
     .maybeSingle();
   if (customerError || !customer) return json(500, { error: 'customer_load_failed' });
@@ -291,6 +398,51 @@ exports.handler = async (event) => {
   if (voiceError) return json(500, { error: 'voices_load_failed' });
   const requiredTier = PLAN_TIERS[String(voice?.available_from_plan || 'starter').toLowerCase()] || PLAN_TIERS.starter;
   if (!voice || requiredTier > customerTier) return json(403, { error: 'voice_not_available_on_plan' });
+
+  const apiKey = String(process.env.ELEVENLABS_API_KEY || '').trim();
+
+  // Hat der Kunde bereits einen echten Begruessungssatz (buildGreetingView —
+  // dieselbe Quelle, die "So meldet sich Ihr Assistent" im Dashboard anzeigt),
+  // hoert "Anhören" IMMER diesen Satz mit der gerade angeklickten Stimme, statt
+  // einer generischen Demo. Ohne konfigurierten Satz (neuer Kunde, Regelfall
+  // vor dem Setup) bleibt es beim bisherigen generischen Verhalten unten.
+  const greetingView = buildGreetingView(customer);
+  const personalizedText = String(greetingView.text || '').trim().slice(0, MAX_PERSONALIZED_PREVIEW_CHARS);
+
+  if (personalizedText) {
+    const previewHash = personalizedPreviewHash(voiceId, personalizedText);
+
+    const cachedBuffer = await loadPersonalizedCachedPreview(sbAdmin, caller.customerId, voiceId, previewHash);
+    if (cachedBuffer) return audioResponse(cachedBuffer, 'audio/mpeg', 'personalized-cached');
+
+    if (!apiKey) {
+      return json(503, { error: 'voice_preview_unavailable', reason: 'elevenlabs_api_key_missing' });
+    }
+
+    try {
+      const { buffer, contentType } = await generateAndCachePersonalizedPreview(
+        sbAdmin, caller.customerId, voiceId, previewHash, apiKey, personalizedText
+      );
+      return audioResponse(buffer, contentType, 'personalized-generated');
+    } catch (error) {
+      console.error('[preview-voice] personalized_preview_failed', {
+        voice_id: voiceId,
+        customer_id: caller.customerId,
+        message: error?.message || String(error),
+        provider_status: error?.provider?.provider_status || null,
+        provider_code: error?.provider?.provider_code || null
+      });
+      // Bewusst kein stiller Rueckfall auf die generische Demo: der Kunde hat
+      // um seinen eigenen Satz gebeten, ein anderer Satz waere ein falsches
+      // "fertig". Das Frontend zeigt bei jedem Fehlerstatus einen Toast.
+      return json(502, {
+        error: 'voice_preview_unavailable',
+        reason: 'personalized_generation_failed',
+        provider_status: error?.provider?.provider_status || null,
+        provider_code: error?.provider?.provider_code || null
+      });
+    }
+  }
 
   const managedPreviewText = String(voice.preview_text || '').trim();
   const hasManagedPreviewText = managedPreviewText.length >= 20;
@@ -316,8 +468,6 @@ exports.handler = async (event) => {
       legacy_path: isLegacyManagedPreviewUrl(catalogPreviewUrl)
     });
   }
-
-  const apiKey = String(process.env.ELEVENLABS_API_KEY || '').trim();
 
   // Customer clicks must never consume TTS credits. Until the managed audio file exists,
   // play ElevenLabs' provider sample and mark it visibly as a temporary fallback.
@@ -385,5 +535,8 @@ exports._test = {
   isManagedPreviewUrl,
   isLegacyManagedPreviewUrl,
   detectAudioContentType,
-  resolveAudioContentType
+  resolveAudioContentType,
+  personalizedPreviewHash,
+  personalizedPreviewStoragePath,
+  MAX_PERSONALIZED_PREVIEW_CHARS
 };

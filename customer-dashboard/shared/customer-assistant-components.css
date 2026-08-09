@@ -380,9 +380,9 @@ body.vx-customer-design-foundation .vx-ap-status.success {
 }
 
 body.vx-customer-design-foundation .vx-ap-status.warning {
-  border-color: #fed7aa;
-  background: #fff7ed;
-  color: #9a3412;
+  border-color: var(--vx-color-warning-border);
+  background: var(--vx-color-warning-bg);
+  color: var(--vx-color-warning);
 }
 
 body.vx-customer-design-foundation .vx-ap-status.error {
@@ -1118,8 +1118,8 @@ body.vx-customer-design-foundation .vx-ops-status.success {
 }
 
 body.vx-customer-design-foundation .vx-ops-status.warning {
-  background: #fff7ed;
-  color: #9a3412;
+  background: var(--vx-color-warning-bg);
+  color: var(--vx-color-warning);
 }
 
 body.vx-customer-design-foundation .vx-ops-status.error {
@@ -1279,4 +1279,21 @@ body.vx-customer-design-foundation .vx-nav-voice-details[open] > summary::after 
     padding-bottom: calc(110px + env(safe-area-inset-bottom));
   }
 
+}
+
+/* J5 — Wochenraster der Öffnungszeiten. Unter 560px rutschen die Zeitspannen
+   unter den Tag statt zu schrumpfen: zwei Zeitfelder nebeneinander sind auf
+   390px nicht treffsicher bedienbar. */
+body.vx-customer-design-foundation .vx-ap-hours { display: grid; gap: var(--vx-space-2, 8px); margin-top: var(--vx-space-2, 8px); }
+body.vx-customer-design-foundation .vx-ap-hours-row { display: grid; grid-template-columns: 8.5rem 1fr auto; align-items: center; gap: var(--vx-space-3, 12px); }
+body.vx-customer-design-foundation .vx-ap-hours-day { font-size: 13px; }
+body.vx-customer-design-foundation .vx-ap-hours-slots { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+body.vx-customer-design-foundation .vx-ap-hours-slots input[type="time"] { min-width: 6.5rem; }
+body.vx-customer-design-foundation .vx-ap-hours-dash { opacity: .6; padding: 0 2px; }
+body.vx-customer-design-foundation .vx-ap-hours-state { font-size: 12px; opacity: .7; white-space: nowrap; }
+body.vx-customer-design-foundation .vx-ap-suggestion { margin-top: var(--vx-space-4, 16px); padding: var(--vx-space-3, 12px); border: 1px dashed var(--vx-color-border, currentColor); border-radius: var(--vx-radius-md, 10px); display: grid; gap: 6px; }
+body.vx-customer-design-foundation .vx-ap-suggestion-title { font-size: 13px; font-weight: 600; }
+@media (max-width: 560px) {
+  body.vx-customer-design-foundation .vx-ap-hours-row { grid-template-columns: 1fr auto; }
+  body.vx-customer-design-foundation .vx-ap-hours-slots { grid-column: 1 / -1; }
 }
