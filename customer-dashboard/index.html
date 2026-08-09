@@ -24010,9 +24010,13 @@ function openFollowup(recordId, callerName, existingNotiz, currentStatus, nextAc
   if (titleEl) titleEl.textContent = (mode === 'due') ? (hasExistingDue ? 'Fälligkeit ändern' : 'Fälligkeit setzen') : 'Folgeaktion planen';
   var subtitleEl = document.getElementById('followup-sub');
   if (subtitleEl) {
+    // Benennt die beiden Felder darunter — "Nächste Aktion" und den Termin —
+    // statt zwei der drei Optionen ("Rückruf oder Folgekontakt"). Der alte
+    // Wortlaut zählte auf, was der Titel seit der Umbenennung zusammenfasst,
+    // und liess "Termin bestätigen" und "Offerte senden" ungenannt.
     subtitleEl.textContent = (mode === 'due')
       ? 'Lege fest, wann dieser Eintrag wieder fällig ist.'
-      : 'Plane einen Rückruf oder Folgekontakt.';
+      : 'Wähle die nächste Aktion und wann sie fällig ist.';
   }
   document.getElementById('followup-input').value = existingNotiz || '';
   // Altbestand ("Erneut versuchen" / "Information senden") auf die übernehmende
