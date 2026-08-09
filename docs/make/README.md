@@ -44,7 +44,20 @@ nur repariert.
 | Kundenauflösung | HTTP-Aufruf auf `call-intake-resolve-customer` | in-process über `sbAdmin`, aus der `calls`-Zeile |
 | Protokoll | keins | `outbox_events` |
 | Retry | keiner | `outbox-retry-worker.js` (greift automatisch über `isMailEngineType`) |
-| Doppelversand | ungeschützt | `dedupe_key` = `<mail_type>:<calls.id>` + Vorabprüfung |
+| Doppelversand | ungeschützt | `dedupe_key` = `<mail_type>:<calls.id>` + Vorabprüfung + Unique-Index |
+
+Zum Doppelversand: der Unique-Index `uq_outbox_events_type_dedupe_key` wurde am
+09.08.2026 angewendet (`supabase/sql/2026-08-09_outbox_dedupe_unique.sql`). Er
+schliesst die Lücke nicht ganz — `deliverMail` wertet `outbox.duplicate` nicht
+aus und verschickt auch bei einer Kollision. Bei zwei exakt gleichzeitigen
+Läufen entsteht deshalb weiterhin eine zweite Mail, nur keine zweite
+Outbox-Zeile. Der reale Fall, die erneute Zustellung Minuten später, wird von
+der Vorabprüfung in `_lib/call-notification.js` abgefangen.
+
+`invoice-mail-dispatch.js` macht es bereits richtig und verzweigt vollständig
+auf `outbox.duplicate`. `deliverMail` auf dasselbe Verhalten zu bringen, wäre
+der konsequente nächste Schritt — betrifft aber auch Vertrags- und
+Lifecycle-Mails und gehört deshalb in einen eigenen Auftrag.
 
 Abgelöst und damit ohne Aufgabe: Szenario 01, der Hook
 `01_call_intake_webhook`, die Netlify-Variable `MAKE_CALL_INTAKE_WEBHOOK`, die
