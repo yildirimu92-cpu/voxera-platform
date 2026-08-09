@@ -4,6 +4,7 @@ const { createClient } = require('@supabase/supabase-js');
 const { requireCustomerCaller } = require('./_lib/require-customer');
 const { buildGreetingView } = require('./_lib/assistant-greeting');
 const { parseOpeningHours } = require('./_lib/opening-hours');
+const { parseServiceList, parseFaqList } = require('./_lib/service-faq');
 const { canEditForwarding } = require('./_lib/assistant-write-policy');
 
 const headers = {
@@ -29,7 +30,9 @@ const CORE_FIELD_COLUMNS = new Set([
   // J6
   'ai_short_description', 'ai_public_address', 'ai_target_groups', 'ai_service_area',
   'ai_arrival_note', 'ai_visit_preparation',
-  'ai_pricing_mode', 'ai_pricing_amount', 'ai_pricing_unit', 'ai_pricing_validity'
+  'ai_pricing_mode', 'ai_pricing_amount', 'ai_pricing_unit', 'ai_pricing_validity',
+  // J7
+  'ai_service_list', 'ai_faq_list'
 ]);
 
 // J6 / G7: street, zip und city sind gefuellt, stammen aber aus Offerte und
@@ -61,9 +64,10 @@ function coreValues(customer, steps) {
       const column = text(field?.column);
       if (!key || !CORE_FIELD_COLUMNS.has(column)) return;
       const raw = customer?.[column];
-      // Ein jsonb-Wert (Oeffnungszeiten) darf nicht durch text() laufen.
-      if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
-        if (Object.keys(raw).length) values[key] = raw;
+      // Ein jsonb-Wert darf nicht durch text() laufen: Wochenraster (Objekt,
+      // J5) ebenso wenig wie Leistungs- und Fragenliste (Array, J7).
+      if (raw && typeof raw === 'object') {
+        if (Array.isArray(raw) ? raw.length : Object.keys(raw).length) values[key] = raw;
         return;
       }
       const value = text(raw);
@@ -313,7 +317,9 @@ const VOXERA_RULES = Object.freeze([
 // erfindet keine Felder — gibt es keine Vorlage oder keine extra_steps, ist die
 // Liste leer und das UI sagt genau das.
 function objectOrText(raw) {
-  if (raw && typeof raw === 'object' && !Array.isArray(raw)) return raw;
+  // J5: Wochenraster (Objekt). J7: Leistungs- und Fragenliste (Array). Beides
+  // darf nicht durch text() -- daraus wuerde "[object Object]" im Formular.
+  if (raw && typeof raw === 'object') return raw;
   return text(raw);
 }
 
@@ -348,7 +354,7 @@ function buildBranchSections(template, values) {
         // und war dort nicht sichtbar, weil kein Kunde bestaetigte Zeiten
         // hatte und die Pruefskripte den Endpoint nicht mit einem
         // Wochenraster-Feld aufgerufen haben.
-        type: ['radio', 'text', 'textarea', 'hours'].includes(text(field.type)) ? text(field.type) : 'text',
+        type: ['radio', 'text', 'textarea', 'hours', 'list', 'faq'].includes(text(field.type)) ? text(field.type) : 'text',
         options: (Array.isArray(field.options) ? field.options : [])
           .filter((option) => text(option?.val))
           .map((option) => ({ value: text(option.val), label: text(option.label) || text(option.val), hint: text(option.sub) })),
@@ -456,6 +462,7 @@ exports.handler = async (event) => {
       'ai_short_description', 'ai_public_address', 'ai_target_groups', 'ai_service_area',
       'ai_arrival_note', 'ai_visit_preparation',
       'ai_pricing_mode', 'ai_pricing_amount', 'ai_pricing_unit', 'ai_pricing_validity',
+      'ai_service_list', 'ai_faq_list',
       // Nur als Quelle fuer den Adressvorschlag, siehe addressSuggestion().
       'street', 'zip', 'city'
     ].join(','))
@@ -570,6 +577,8 @@ exports.handler = async (event) => {
   const coreSteps = parseCoreSteps(coreResult.data?.value);
   const coreValueMap = coreValues(customer, coreSteps);
   const openingHoursSuggestion = parseOpeningHours(customer.ai_location_hours);
+  const serviceSuggestion = parseServiceList(customer.ai_services);
+  const faqSuggestion = parseFaqList(customer.ai_booking_faq);
   const parsedProfile = promptProfile(customer.ai_internal_notes);
   // Rangfolge wie im Prompt-Builder: die typisierte Spalte fuehrt. Sonst zeigte
   // diese Seite eine andere Terminbefugnis an, als der Agent tatsaechlich hat.
@@ -642,7 +651,20 @@ exports.handler = async (event) => {
     // Schema-Schluessel; die Oberflaeche bietet den Wert nur an, wenn das Feld
     // noch leer ist. Gespeichert wird ausschliesslich, was der Kunde abschickt.
     core_suggestions: {
-      public_address: coreValueMap.public_address ? null : (addressSuggestion(customer) || null)
+      public_address: coreValueMap.public_address ? null : (addressSuggestion(customer) || null),
+      // J7: Wie bei den Oeffnungszeiten schlaegt der Parser aus dem gewachsenen
+      // Freitext vor. `ignored` nennt die Zeilen mit Inhalt, die er nicht
+      // verwerten konnte, `rules` die Zeilen vor der Ueberschrift "Häufige
+      // Fragen:" -- in 15 von 19 Vorlagen die Aufnahme-Checkliste, die
+      // woandershin gehoert (G6). Ohne diese beiden Listen suggerierte der
+      // Vorschlag eine Vollstaendigkeit, die er nicht hat.
+      service_list: coreValueMap.service_list ? null : (serviceSuggestion.items.length ? serviceSuggestion.items : null),
+      faq_list: coreValueMap.faq_list ? null : (faqSuggestion.items.length ? faqSuggestion.items : null)
+    },
+    list_suggestions: {
+      service_unparsed_lines: coreValueMap.service_list ? [] : serviceSuggestion.ignored,
+      faq_unparsed_lines: coreValueMap.faq_list ? [] : faqSuggestion.ignored,
+      faq_rule_lines: coreValueMap.faq_list ? [] : faqSuggestion.rules
     },
     branch_sections: buildBranchSections(industryResult.data, branchValues(customer)),
     operational_updates: {

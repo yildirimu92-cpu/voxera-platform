@@ -79,7 +79,12 @@ const PROMPT_RELEVANT_FIELDS = new Set([
   'ai_pricing_mode',
   'ai_pricing_amount',
   'ai_pricing_unit',
-  'ai_pricing_validity'
+  'ai_pricing_validity',
+  // J7: bestaetigte Listen fuehren im Prompt vor dem Freitext. Ohne Sync
+  // spraeche der Agent weiter den alten Block, waehrend das Dashboard die
+  // Liste zeigt -- derselbe Fall wie bei den Oeffnungszeiten.
+  'ai_service_list',
+  'ai_faq_list'
 ]);
 
 // Die sieben Spalten, die der Kunde ueber den Weiterleitungs-Editor bearbeitet.

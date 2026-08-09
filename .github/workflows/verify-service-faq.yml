@@ -1,0 +1,31 @@
+name: Verify Service and FAQ Lists
+
+# Ohne Pfad-Filter, gleiche Begruendung wie bei verify-opening-hours und
+# verify-prompt-builder-v2: wer eine gelesene Datei anfasst, sie aber nicht in
+# die Pfadliste eingetragen hat, bekommt einen uebersprungenen statt eines
+# bestandenen Laufs -- und uebersprungen sieht in der PR-Ansicht nicht nach
+# einer Luecke aus.
+#
+# Der Check sichert dieselben zwei Dinge wie bei den Oeffnungszeiten: dass der
+# Parser aus dem Freitext nichts erfindet (er ist an den echten Vorlagentexten
+# geprueft) und dass er nur Werte liefert, die der Schreibpfad auch annimmt.
+# Zusaetzlich haelt er fest, dass eine Frage ohne Antwort abgewiesen wird --
+# aus einer halb gespeicherten Zeile wuerde sonst eine Auskunft am Telefon.
+#
+# Reine Rechenpruefung ohne Netz- oder Datenbankzugriff, Laufzeit unter einer
+# Sekunde.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: node scripts/verify-service-faq.mjs

@@ -551,6 +551,58 @@ check('J6: the schema still may not choose the target column', () => {
   assert.ok(!built.prompt.includes('professional'), 'Eine system_config-Zeile holt eine fremde Kundenspalte in den Preisabschnitt');
 });
 
+// ── J7: Leistungen und haeufige Fragen als Listen ───────────────────────────
+const CORE_STEPS_J7 = JSON.stringify([
+  ...JSON.parse(CORE_STEPS_J6),
+  { id:'betrieb_angebot', title:'Leistungen und häufige Fragen', fields:[
+    { key:'service_list', column:'ai_service_list', type:'list', label:'Leistungen' },
+    { key:'faq_list', column:'ai_faq_list', type:'faq', label:'Häufige Fragen' }
+  ] }
+]);
+
+const j7 = (extra) => buildPromptV2({
+  customer:{ ...coreCustomer, ...extra },
+  masterPrompt:'{{CUSTOMER_LAYER}}',
+  coreFields:CORE_STEPS_J7
+});
+
+check('J7: without a confirmed list the free text still leads', () => {
+  const built = j7({});
+  assert.match(built.prompt, /## LEISTUNGEN\nTelefonannahme, Lead-Qualifizierung/);
+  assert.match(built.prompt, /## TERMINLOGIK & FAQ\nTermine werden nach interner Prüfung/);
+});
+
+check('J7: a confirmed list replaces the free text instead of standing next to it', () => {
+  const built = j7({ ai_service_list:['Schnitt', 'Färbung'] });
+  assert.match(built.prompt, /## LEISTUNGEN\n- Schnitt\n- Färbung/);
+  assert.ok(!built.prompt.includes('Telefonannahme, Lead-Qualifizierung'), 'Der ersetzte Freitext steht weiter im Prompt');
+});
+
+check('J7: questions and answers stay paired', () => {
+  const built = j7({ ai_faq_list:[{ q:'Brauche ich einen Termin?', a:'Ja, wir arbeiten auf Termin.' }] });
+  assert.match(built.prompt, /## TERMINLOGIK & FAQ\n- Frage: Brauche ich einen Termin\?\n {2}Antwort: Ja, wir arbeiten auf Termin\./);
+  assert.ok(!built.prompt.includes('nach interner Prüfung'), 'Der ersetzte FAQ-Freitext steht weiter im Prompt');
+});
+
+check('J7: a half pair never reaches the prompt', () => {
+  const built = j7({ ai_faq_list:[{ q:'Kostet das etwas?', a:'' }, { q:'', a:'Ja' }] });
+  assert.ok(!built.prompt.includes('Kostet das etwas'), 'Eine Frage ohne Antwort steht im Prompt');
+  // Faellt die Liste ganz weg, fuehrt wieder der Freitext — nicht ein leerer
+  // Abschnitt, der wie "keine Leistungen" aussieht.
+  assert.match(built.prompt, /## TERMINLOGIK & FAQ\nTermine werden nach interner Prüfung/);
+});
+
+check('J7: an empty list is not a statement', () => {
+  const built = j7({ ai_service_list:[] });
+  assert.match(built.prompt, /## LEISTUNGEN\nTelefonannahme/);
+});
+
+check('J7: the lists do not appear a second time as configuration lines', () => {
+  const built = j7({ ai_service_list:['Schnitt'], ai_faq_list:[{ q:'Wie lange?', a:'Eine Stunde.' }] });
+  assert.equal((built.prompt.match(/Schnitt/g) || []).length, 1, 'Die Leistung steht doppelt im Prompt');
+  assert.ok(!built.prompt.includes('[object Object]'), 'Ein Listenwert wurde als Text gerendert');
+});
+
 // ── J10 / G8: es gibt nur noch eine Quelle fuer den Prompt ───────────────────
 check('G8: the admin page no longer assembles a prompt in the browser', () => {
   assert.ok(!adminIndex.includes('function buildAiPrompt'), 'Der lokale Prompt-Bauer ist zurueck');
