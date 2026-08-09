@@ -93,7 +93,15 @@ test('das Detail-Panel bleibt auf dem geteilten --vx-ui-row-* Satz, nicht den Li
       `${selector} zieht faelschlich einen Listen-Token — das Panel darf vom Listen-Pass nicht betroffen sein`);
   }
   assert.match(rule('.vx-dv2-action-icon'), /background:var\(--vx-ui-row-icon-bg\)/);
-  assert.match(rule('.vx-dv2-action-title'), /font-size:var\(--vx-ui-row-title-size\)/);
+  // Der Aktionstitel stand hier bis 2026-08-09 auf --vx-ui-row-title-size
+  // (14px). Er zieht jetzt die geteilte Zeilentitel-Stufe (15px), weil der
+  // Block strukturgleich mit einer Einstellungs-Zeile ist und als einziger
+  // dieser Art eine Stufe darunter lag — siehe Leiter-Angleichung.
+  // Der Zweck DIESES Tests bleibt unveraendert und wird oben geprueft: das
+  // Panel darf keine --vx-ui-list-* Tokens ziehen, damit ein Listen-Pass es
+  // nicht mitreskinnt. --vx-ui-entry-title-* ist kein Listen-Token, sondern
+  // die produktweit geteilte Stufe, die auch die Einstellungen lesen.
+  assert.match(rule('.vx-dv2-action-title'), /font-size:var\(--vx-ui-entry-title-size\)/);
 });
 
 // Diese Regel hiess bis Etappe 5 "der Audio-Player bleibt unangetastet
