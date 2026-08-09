@@ -28,8 +28,11 @@ function response(statusCode, payload) {
 
 async function loadPromptInputs(sb, customerId, customer) {
   const nowIso = new Date().toISOString();
-  const [masterResult, operationalResult, calendarResult] = await Promise.all([
+  const [masterResult, coreResult, operationalResult, calendarResult] = await Promise.all([
     sb.from('system_config').select('value').eq('key', 'prompt_master_l1').maybeSingle(),
+    // J4: Schema der generischen Betriebsfelder. Eine Quelle fuer beide
+    // Netlify-Sites — ein gemeinsames JS-Modul gibt es zwischen ihnen nicht.
+    sb.from('system_config').select('value').eq('key', 'core_field_steps').maybeSingle(),
     sb.from('customer_operational_updates')
       .select('id,type,title,message,behavior,starts_at,ends_at,status')
       .eq('customer_id', customerId)
@@ -41,6 +44,7 @@ async function loadPromptInputs(sb, customerId, customer) {
   ]);
 
   if (masterResult.error) throw masterResult.error;
+  if (coreResult.error) throw coreResult.error;
   if (operationalResult.error) {
     const error = new Error('operational_updates_lookup_failed');
     error.cause = operationalResult.error;
@@ -49,13 +53,18 @@ async function loadPromptInputs(sb, customerId, customer) {
   if (calendarResult.error) throw calendarResult.error;
 
   let industryPrompt = '';
+  // J1: extra_steps liefert Label und Optionstexte zu den Branchenantworten.
+  // Ohne sie kann der Builder eine Antwort nur als rohen Schluesselwert
+  // wiedergeben — und tat es deshalb bisher gar nicht.
+  let industryFields = [];
   if (customer.industry_template_id) {
     const { data, error } = await sb.from('industry_templates')
-      .select('prompt_block')
+      .select('prompt_block,extra_steps')
       .eq('id', customer.industry_template_id)
       .maybeSingle();
     if (error) throw error;
     industryPrompt = data?.prompt_block || '';
+    industryFields = Array.isArray(data?.extra_steps) ? data.extra_steps : [];
   }
 
   let assistantRole = 'die Assistentin';
@@ -70,9 +79,11 @@ async function loadPromptInputs(sb, customerId, customer) {
 
   return {
     masterPrompt: masterResult.data?.value || '',
+    coreFields: coreResult.data?.value || '',
     operationalUpdates: operationalResult.data || [],
     calendarSettings: calendarResult.data || null,
     industryPrompt,
+    industryFields,
     assistantRole
   };
 }
@@ -162,6 +173,8 @@ exports.handler = async (event) => {
       customer,
       masterPrompt: inputs.masterPrompt,
       industryPrompt: inputs.industryPrompt,
+      industryFields: inputs.industryFields,
+      coreFields: inputs.coreFields,
       assistantRole: inputs.assistantRole,
       operationalUpdates: inputs.operationalUpdates
     });
