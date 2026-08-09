@@ -85,7 +85,7 @@ assert.ok(lineCount(navigationCss) <= 390, 'navigation component CSS exceeded it
 
 for (const token of [
   'Styling lives exclusively in explicit CSS modules.',
-  '/shared/customer-design-system.css?v=20260809-2',
+  '/shared/customer-design-system.css?v=20260809-3',
   '/shared/customer-assistant-components.css?v=20260809-3',
   '/shared/customer-assistant-status.css?v=20260803-1',
   '/shared/customer-settings-components.css?v=20260809-3',
@@ -197,9 +197,14 @@ assert.ok(
 // Sub-screens keep an arrow, and no arrow may hard-code its destination:
 // every static one routes through vxScreenBack (browser history), and the
 // request detail routes through vxHandleDetailBack (its own origin stack).
+// 7 statt 8 seit 2026-08-09: der zweite Hilfe-Screen (#tab-hilfe) ist
+// entfernt. Er lag als .tab-page innerhalb von #tab-einstellungen und war
+// deshalb nie erreichbar — sein Pfeil hat hier mitgezaehlt, ohne dass ihn
+// jemand sehen konnte. Die lebende Hilfe-Seite (#mehr-sub-hilfe) bringt
+// ihren eigenen Pfeil mit und steckt weiterhin in dieser Zahl.
 const staticBackArrows = (dashboard.match(/onclick="vxScreenBack\(/g) || []).length;
 assert.ok(
-  staticBackArrows >= 8,
+  staticBackArrows >= 7,
   `expected the settings sub-screens, help and notifications to carry a back arrow, found ${staticBackArrows}`
 );
 assert.equal(
@@ -948,6 +953,46 @@ assert.ok(dashboard.includes('<script src="/shared/offer-brand.js?v=20260807-4">
 assert.ok(!dashboard.includes('<script src="/shared/offer-brand.js"></script>'), 'dashboard still loads unversioned offer-brand');
 assert.ok(loader.includes('/shared/customer-runtime-design-foundation.js?v=20260809-1'), 'offer-brand missing current design loader version');
 assert.ok(!loader.includes('/shared/customer-runtime-design-foundation.js?v=20260803-4'), 'offer-brand still references stale design loader version');
-for (const stale of ['/shared/customer-settings-components.css?v=20260807-3','/shared/customer-design-system.css?v=20260804-1','/shared/customer-assistant-components.css?v=20260803-1','/shared/customer-assistant-components.css?v=20260808-2','/shared/customer-assistant-components.css?v=20260808-3','/shared/customer-assistant-components.css?v=20260809-1','/shared/customer-assistant-components.css?v=20260809-2','/shared/customer-navigation-components.css?v=20260803-1','/shared/customer-navigation-components.css?v=20260809-1','/shared/customer-design-system.css?v=20260809-1','/shared/customer-ui-components.css?v=20260809-1']) assert.ok(!runtime.includes(stale), `design loader still contains stale CSS URL: ${stale}`);
-const cssOrder=['/shared/customer-design-system.css?v=20260809-2','/shared/customer-assistant-components.css?v=20260809-3','/shared/customer-assistant-status.css?v=20260803-1','/shared/customer-navigation-components.css?v=20260809-2','/shared/customer-settings-components.css?v=20260809-3','/shared/customer-support-components.css?v=20260802-2','/shared/customer-ui-components.css?v=20260809-2'];
+for (const stale of ['/shared/customer-settings-components.css?v=20260807-3','/shared/customer-design-system.css?v=20260804-1','/shared/customer-assistant-components.css?v=20260803-1','/shared/customer-assistant-components.css?v=20260808-2','/shared/customer-assistant-components.css?v=20260808-3','/shared/customer-assistant-components.css?v=20260809-1','/shared/customer-assistant-components.css?v=20260809-2','/shared/customer-navigation-components.css?v=20260803-1','/shared/customer-navigation-components.css?v=20260809-1','/shared/customer-design-system.css?v=20260809-1','/shared/customer-ui-components.css?v=20260809-1','/shared/customer-design-system.css?v=20260809-2']) assert.ok(!runtime.includes(stale), `design loader still contains stale CSS URL: ${stale}`);
+const cssOrder=['/shared/customer-design-system.css?v=20260809-3','/shared/customer-assistant-components.css?v=20260809-3','/shared/customer-assistant-status.css?v=20260803-1','/shared/customer-navigation-components.css?v=20260809-2','/shared/customer-settings-components.css?v=20260809-3','/shared/customer-support-components.css?v=20260802-2','/shared/customer-ui-components.css?v=20260809-2'];
 for(let i=1;i<cssOrder.length;i+=1) assert.ok(runtime.indexOf(cssOrder[i-1])<runtime.indexOf(cssOrder[i]),`design CSS module order changed: ${cssOrder[i-1]} before ${cssOrder[i]}`);
+
+// Alle Screens liegen in .content — der Waechter gegen das verirrte </div>.
+//
+// Bis 2026-08-09 schloss ein zusaetzliches </div> den Container schon hinter
+// #tab-assistent. #tab-mehr, #tab-einstellungen und #tab-benachrichtigungen
+// standen dadurch als Geschwister daneben, sahen dessen Polsterung nie und
+// waren auf Mobil sichtbar breiter als die uebrigen Screens (gemessen 14px
+// statt 26px Einfassung bei 390px). Zwei CSS-Umgehungen haben zwei Symptome
+// davon einzeln abgefangen, ohne die Ursache zu beruehren.
+//
+// Der Waechter zaehlt die Verschachtelung ab <div class="content"> und
+// verlangt, dass jede .tab-page vor dem schliessenden Tag steht. Kommentare
+// werden vorher entfernt, damit ein <div> im Fliesstext nicht mitzaehlt.
+{
+  const markup = dashboard.replace(/<!--[\s\S]*?-->/g, '');
+  const start = markup.indexOf('<div class="content">');
+  assert.ok(start >= 0, 'the dashboard must keep a single .content wrapper');
+
+  let depth = 0;
+  let close = -1;
+  const tag = /<div\b|<\/div>/g;
+  tag.lastIndex = start;
+  for (let m = tag.exec(markup); m; m = tag.exec(markup)) {
+    depth += m[0] === '</div>' ? -1 : 1;
+    if (depth === 0) { close = m.index; break; }
+  }
+  assert.ok(close > start, '.content is never closed');
+
+  const screens = [...markup.matchAll(/<div class="tab-page[^"]*" id="(tab-[a-z-]+)"/g)];
+  assert.ok(screens.length >= 7, `expected at least seven screens, found ${screens.length}`);
+  const outside = screens.filter((m) => m.index > close).map((m) => m[1]);
+  assert.deepEqual(outside, [], `these screens sit outside .content again: ${outside.join(', ')}`);
+}
+
+// Die beiden Umgehungen von 2026-08-08 duerfen nicht zurueckkehren: sie haben
+// die Wirkung des verirrten </div> abgefangen, nicht seine Ursache.
+assert.ok(
+  !dashboard.includes('.content:not(:has(> .tab-page.active))'),
+  'the collapsed-.content workaround is back — the screens belong inside .content instead'
+);

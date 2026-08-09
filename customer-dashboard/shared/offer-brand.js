@@ -185,7 +185,7 @@
     ['__vxAssistantStatusLoaderInstalled', '/shared/customer-runtime-assistant-status.js?v=20260809-1'],
     ['__vxCustomerHelpRouteLoaderInstalled', '/shared/customer-runtime-help-route.js?v=20260807-2'],
     ['__voxeraCustomerMobileNavRepairLoaded', '/shared/customer-runtime-mobile-nav-repair.js?v=20260808-2'],
-    ['__vxCustomerSettingsPolishLoaded', '/shared/customer-runtime-settings-polish.js?v=20260807-3'],
+    ['__vxCustomerSettingsPolishLoaded', '/shared/customer-runtime-settings-polish.js?v=20260809-1'],
     ['__voxeraCustomerUnifiedNavigationLoaded', '/shared/customer-runtime-unified-navigation.js?v=20260809-1'],
     ['__voxeraCustomerDesignFoundationLoaded', '/shared/customer-runtime-design-foundation.js?v=20260809-1']
   ].forEach(([flag, src]) => {

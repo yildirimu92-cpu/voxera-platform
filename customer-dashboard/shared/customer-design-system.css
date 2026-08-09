@@ -358,12 +358,18 @@ body.vx-customer-design-foundation [hidden][hidden][hidden] {
     font-size: var(--vx-font-size-body-mobile);
   }
 
+  /* Diese Liste ist die einzige Quelle der mobilen Seiteneinfassung. Jeder
+     Screen, der nicht darin steht, sitzt sichtbar weiter aussen als die
+     anderen — genau der Unterschied, den #tab-einstellungen zeigte, solange
+     es fehlte (2026-08-09). Die Benachrichtigungs-Vollseite steht bewusst
+     nicht hier: ihre Einfassung kommt aus .vx-notif-mobile-shell. */
   body.vx-customer-design-foundation :where(
     #tab-dashboard,
     #tab-anrufe,
     #tab-assistent,
     #tab-auswertung,
-    #tab-mehr
+    #tab-mehr,
+    #tab-einstellungen
   ) {
     width: 100%;
     min-height: 100svh;
@@ -385,7 +391,8 @@ body.vx-customer-design-foundation [hidden][hidden][hidden] {
     #tab-anrufe,
     #tab-assistent,
     #tab-auswertung,
-    #tab-mehr
+    #tab-mehr,
+    #tab-einstellungen
   ) {
     padding-right: 12px;
     padding-left: 12px;
