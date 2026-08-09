@@ -380,9 +380,9 @@ body.vx-customer-design-foundation .vx-ap-status.success {
 }
 
 body.vx-customer-design-foundation .vx-ap-status.warning {
-  border-color: #fed7aa;
-  background: #fff7ed;
-  color: #9a3412;
+  border-color: var(--vx-color-warning-border);
+  background: var(--vx-color-warning-bg);
+  color: var(--vx-color-warning);
 }
 
 body.vx-customer-design-foundation .vx-ap-status.error {
@@ -1118,8 +1118,8 @@ body.vx-customer-design-foundation .vx-ops-status.success {
 }
 
 body.vx-customer-design-foundation .vx-ops-status.warning {
-  background: #fff7ed;
-  color: #9a3412;
+  background: var(--vx-color-warning-bg);
+  color: var(--vx-color-warning);
 }
 
 body.vx-customer-design-foundation .vx-ops-status.error {

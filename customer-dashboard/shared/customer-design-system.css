@@ -36,7 +36,10 @@
   --vx-focus-ring-on-dark: #ffffff;
   --vx-overlay: rgba(15, 35, 71, 0.42);
   --vx-success: #178a55;
-  --vx-warning: #b76a00;
+  /* War #b76a00 — ein eigener Warnton neben --vx-color-warning aus
+     customer-design-tokens.css. Jetzt Alias auf den kanonischen Wert, damit
+     Warnbanner/-flächen im ganzen Dashboard denselben Ton tragen. */
+  --vx-warning: var(--vx-color-warning, #D97706);
   --vx-danger: #c83c4a;
   --vx-radius-card: 18px;
   --vx-radius-panel: 18px;
