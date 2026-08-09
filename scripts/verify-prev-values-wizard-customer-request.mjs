@@ -12,7 +12,9 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 
 const indexPath = 'admin-panel/index.html';
-const triggerPath = 'admin-panel/netlify/functions/trigger-elevenlabs-sync.js';
+// Seit S4 / Stufe 2 liegt diffPrevValues() im Sync-Kern, nicht mehr im
+// Handler. Die Aufrufer-Pruefungen unten lesen weiterhin index.html.
+const triggerPath = 'admin-panel/netlify/functions/_lib/elevenlabs-sync.js';
 const indexSource = fs.readFileSync(indexPath, 'utf8');
 const triggerSource = fs.readFileSync(triggerPath, 'utf8');
 

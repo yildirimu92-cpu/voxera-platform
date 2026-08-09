@@ -11,7 +11,8 @@ const paths = {
   preflight: new URL('../supabase/verification/p0_security_preflight.sql', import.meta.url),
   postflight: new URL('../supabase/verification/p0_security_post_migration.sql', import.meta.url),
   adminIndex: new URL('../admin-panel/index.html', import.meta.url),
-  adminSync: new URL('../admin-panel/netlify/functions/trigger-elevenlabs-sync.js', import.meta.url),
+  adminSyncHandler: new URL('../admin-panel/netlify/functions/trigger-elevenlabs-sync.js', import.meta.url),
+  adminSyncCore: new URL('../admin-panel/netlify/functions/_lib/elevenlabs-sync.js', import.meta.url),
   adminPromptSyncGuard: new URL('../admin-panel/netlify/functions/_lib/require-prompt-sync-caller.js', import.meta.url),
   adminProvision: new URL('../admin-panel/netlify/functions/elevenlabs-provision-agent.js', import.meta.url),
   adminAiApply: new URL('../admin-panel/netlify/functions/ai-apply-change.js', import.meta.url),
@@ -30,7 +31,8 @@ const [
   preflight,
   postflight,
   adminIndex,
-  adminSync,
+  adminSyncHandler,
+  adminSyncCore,
   adminPromptSyncGuard,
   adminProvision,
   adminAiApply,
@@ -55,8 +57,8 @@ const directProtectedAudioSrc = /(?:<audio[^>]+src|audio\.src\s*=)[^\n>]*elevenl
 
 const checks = [
   ['admin sync requires authorized customer write',
-    /requirePromptSyncCaller/.test(adminSync)
-      && /requestedCustomerId:\s*customer_id/.test(adminSync)
+    /requirePromptSyncCaller/.test(adminSyncHandler)
+      && /requestedCustomerId:\s*customer_id/.test(adminSyncHandler)
       && /requireAdminCaller/.test(adminPromptSyncGuard)
       && /requiredCapability:\s*'customer:write'/.test(adminPromptSyncGuard)
   ],
@@ -78,7 +80,7 @@ const checks = [
   ['admin privileged calls have no direct unauthenticated fetch', !/fetch\('\/\.netlify\/functions\/(elevenlabs-provision-agent|trigger-elevenlabs-sync|ai-apply-change|scrape-website)/.test(adminIndex)],
   ['admin workspace refresh does not reload all operational data', !/await loadDataFromSupabase\(\{ silent: true \}\)/.test(adminIndex) && /loadSyncLog\(customerId\)/.test(adminIndex)],
   ['ElevenLabs provisioning enforces 90-day retention', /AUDIO_TRANSCRIPT_RETENTION_DAYS = 90/.test(adminProvision) && /retention_days: AUDIO_TRANSCRIPT_RETENTION_DAYS/.test(adminProvision) && !/retention_days: -1/.test(adminProvision)],
-  ['ElevenLabs sync enforces 90-day retention for existing agents', /AUDIO_TRANSCRIPT_RETENTION_DAYS = 90/.test(adminSync) && /retention_days: AUDIO_TRANSCRIPT_RETENTION_DAYS/.test(adminSync) && !/retention_days: -1/.test(adminSync)],
+  ['ElevenLabs sync enforces 90-day retention for existing agents', /AUDIO_TRANSCRIPT_RETENTION_DAYS = 90/.test(adminSyncCore) && /retention_days: AUDIO_TRANSCRIPT_RETENTION_DAYS/.test(adminSyncCore) && !/retention_days: -1/.test(adminSyncCore)],
   ['database retention separates raw and operational call data', /TRANSCRIPT_RETENTION_DAYS = 90/.test(retentionJob) && /CALL_RECORD_RETENTION_DAYS = 180/.test(retentionJob) && /transcript: null/.test(retentionJob) && /transcript_json: null/.test(retentionJob) && /elevenlabs_conversation_id: null/.test(retentionJob) && /\.delete\(\)/.test(retentionJob)],
   ['database retention is gated and scheduled daily', /DATA_RETENTION_ENFORCEMENT_ENABLED !== 'true'/.test(retentionJob) && /\[functions\."enforce-data-retention"\]/.test(customerNetlify) && /schedule = "17 3 \* \* \*"/.test(customerNetlify)],
   ['customer retention messaging distinguishes 90 and 180 days', /vollständige Transkripte werden nach\s*<strong>\s*90 Tagen\s*<\/strong>/.test(dashboard) && /Archiveinträge nach\s*<strong>\s*180 Tagen\s*<\/strong>/.test(dashboard)],

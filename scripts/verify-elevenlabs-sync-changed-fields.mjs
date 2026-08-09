@@ -8,13 +8,20 @@
 // aus (nicht nachgebaut) und prueft: pro geaendertem Feld einzeln, dass genau
 // dieses Feld erscheint -- keins zu viel, keins zu wenig. Ausserdem, dass der
 // Handler prev_values nicht mehr verwirft und beide Spalten in den Insert legt.
+//
+// Seit S4 / Stufe 2 liegt der Sync-Kern in _lib/elevenlabs-sync.js; der Handler
+// ist nur noch Guard, Parsing und Antwortform. Der Guard liest deshalb die Lib
+// -- und zusaetzlich den Handler, damit ein Regress "Handler reicht prev_values
+// nicht mehr durch" nicht durch die Verlagerung unsichtbar wird.
 
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 
-const triggerPath = 'admin-panel/netlify/functions/trigger-elevenlabs-sync.js';
+const triggerPath = 'admin-panel/netlify/functions/_lib/elevenlabs-sync.js';
+const handlerPath = 'admin-panel/netlify/functions/trigger-elevenlabs-sync.js';
 const source = fs.readFileSync(triggerPath, 'utf8');
+const handler = fs.readFileSync(handlerPath, 'utf8');
 
 let failed = 0;
 const check = (name, passed, detail) => {
@@ -38,9 +45,17 @@ function extractFunction(text, signature) {
 
 // ── prev_values wird nicht mehr verworfen ────────────────────────────────────
 check('void prev_values ist entfernt', !/void\s+prev_values/.test(source));
-check('Handler verwendet diffPrevValues fuer changed_fields', /diffPrevValues\(prev_values, customer\)/.test(source));
+check('Sync-Kern verwendet diffPrevValues fuer changed_fields', /diffPrevValues\(prevValues, customer\)/.test(source));
 check('Insert schreibt changed_fields', /changed_fields:\s*Object\.keys\(changedFields\)/.test(source));
-check('Insert schreibt prev_values', /prev_values:\s*Object\.keys\(prev_values/.test(source));
+check('Insert schreibt prev_values', /prev_values:\s*Object\.keys\(prevValues/.test(source));
+
+// Die Verlagerung in die Lib darf die Kette nicht unterbrechen: der Handler
+// muss prev_values aus dem Request weiterhin durchreichen, sonst kommt in der
+// Lib immer {} an und changed_fields bleibt fuer immer leer.
+check('Handler reicht prev_values an den Sync-Kern durch',
+  /prevValues: prev_values/.test(handler));
+check('Handler reicht triggered_by an den Sync-Kern durch',
+  /triggeredBy: triggered_by/.test(handler));
 
 // ── diffPrevValues() isoliert ausfuehren ─────────────────────────────────────
 const fnSource = extractFunction(source, 'function diffPrevValues(');

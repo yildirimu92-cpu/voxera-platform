@@ -6,11 +6,17 @@ import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const files = {
   helper: 'admin-panel/netlify/functions/_lib/elevenlabs-calendar-tool.js',
-  sync: 'admin-panel/netlify/functions/trigger-elevenlabs-sync.js',
+  sync: 'admin-panel/netlify/functions/_lib/elevenlabs-sync.js',
+  syncHandler: 'admin-panel/netlify/functions/trigger-elevenlabs-sync.js',
   adapter: 'customer-dashboard/netlify/functions/calendar-agent-tool.js',
   core: 'customer-dashboard/netlify/functions/calendar-tool.js'
 };
 const source = Object.fromEntries(Object.entries(files).map(([key, path]) => [key, fs.readFileSync(path, 'utf8')]));
+// S4 / Stufe 2: Der Sync-Kern liegt in _lib/elevenlabs-sync.js, der Handler
+// haelt nur noch Guard, Parsing und Antwortform. Beide zusammen sind der
+// Sync-Pfad -- dieser Guard prueft ihn als Ganzes, damit die Verlagerung
+// keine Aussage verliert.
+const syncPath = source.sync + '\n' + source.syncHandler;
 const failures = [];
 
 for (const key of Object.keys(files)) {
@@ -47,14 +53,14 @@ for (const forbidden of [
 }
 
 for (const token of [
-  "require('./_lib/elevenlabs-calendar-tool')",
+  "require('./elevenlabs-calendar-tool')",
   'ensureWorkspaceTool()',
-  'mergedAgentToolIds(agent_id, calendarToolId)',
+  'mergedAgentToolIds(agentId, calendarToolId)',
   'calendarPromptBlock(inputs.calendarSettings || {})',
   'promptPatch.tool_ids = toolIds',
   'calendar_tool_status'
 ]) {
-  if (!source.sync.includes(token)) failures.push('Prompt sync integration missing: ' + token);
+  if (!syncPath.includes(token)) failures.push('Prompt sync integration missing: ' + token);
 }
 
 for (const token of [
@@ -68,7 +74,7 @@ for (const token of [
   if (!source.adapter.includes(token)) failures.push('Calendar agent adapter missing: ' + token);
 }
 
-if (source.sync.includes('prompt: { tools:') || source.helper.includes('prompt.tools')) {
+if (syncPath.includes('prompt: { tools:') || source.helper.includes('prompt.tools')) {
   failures.push('Legacy ElevenLabs prompt.tools must not be used');
 }
 if (!source.core.includes('calendar_request_id_required')) {

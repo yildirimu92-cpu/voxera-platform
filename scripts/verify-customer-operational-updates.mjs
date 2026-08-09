@@ -14,7 +14,9 @@ const files = {
   components: 'customer-dashboard/shared/customer-operational-components.css',
   loader: 'customer-dashboard/shared/offer-brand.js',
   prompt: 'admin-panel/netlify/functions/_lib/prompt-builder-v2.js',
-  trigger: 'admin-panel/netlify/functions/trigger-elevenlabs-sync.js',
+  // Seit S4 / Stufe 2 laedt der Sync-Kern die Betriebsinformationen, nicht
+  // mehr der Handler.
+  trigger: 'admin-panel/netlify/functions/_lib/elevenlabs-sync.js',
   guard: 'admin-panel/netlify/functions/_lib/require-prompt-sync-caller.js',
   assistant: 'customer-dashboard/netlify/functions/customer-update-assistant.js',
   proxy: 'customer-dashboard/netlify/functions/elevenlabs-sync-prompt.js'
