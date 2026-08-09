@@ -478,6 +478,77 @@ begin
     end loop;
   end if;
 
+  -- ═══ Probe D3: system_config bleibt admin-only ═══════════════════════════
+  -- system_config faellt aus dem Raster der Proben A-D2: die Tabelle hat kein
+  -- customer_id, steht also nicht in tenant_tbl, und `authenticated` HAELT
+  -- dort SELECT -- der D-Block misst aber nur, ob ein Recht ganz fehlt. Der
+  -- Lesekreis haengt damit allein an der Policy system_config_admin_select.
+  -- Das ist exakt die Konstellation des P0-Vorfalls: eine einzige Policy
+  -- zwischen einem breiten Grant und den Daten.
+  --
+  -- Inhalt der Tabelle: prompt_master_l1, core_field_steps,
+  -- default_assistant_name -- die Grundlage jedes Assistenten-Prompts.
+  --
+  -- Grenze dieser Probe, offen benannt: waere system_config leer, waeren
+  -- 0 sichtbare Zeilen kein Beweis. Eine Grundgesamtheit steht hier nicht zur
+  -- Verfuegung -- ci_security_probe_census() deckt nur Mandantentabellen ab,
+  -- und die Verifier-Rolle kommt an system_config ausschliesslich ueber
+  -- `set role authenticated`, also selbst nur durch die Policy hindurch. Die
+  -- Gegenprobe dazu liegt deshalb im Katalog: dort wird geprueft, dass die
+  -- Policy existiert, dass sie die EINZIGE ist und dass ihr Ausdruck
+  -- weiterhin an is_admin(auth.uid()) bindet.
+  if to_regclass('public.system_config') is null then
+    insert into probe_result values ('SKIP', 'D3-system-config',
+      'Nicht-Admin sieht keine Zeile in system_config', 'Tabelle existiert nicht');
+  else
+    -- Zwei Identitaeten: ein Subject, das es gar nicht gibt, und ein echter
+    -- Nicht-Admin-Nutzer. Nur die zweite faengt eine Policy, die auf
+    -- "eingeloggt" statt auf "Admin" prueft -- bei einem Phantom-Subject
+    -- laeuft auch so eine Policy ins Leere.
+    for r in
+      select * from (values
+        ('Phantom-Subject', bogus_sub),
+        ('echter Nicht-Admin', coalesce(i_user_id::text, ''))
+      ) as v(wer, sub)
+      where v.sub <> ''
+    loop
+      begin
+        perform set_config('role', 'authenticated', true);
+        perform set_config('request.jwt.claims',
+          pg_catalog.json_build_object('sub', r.sub, 'role', 'authenticated')::text, true);
+        execute 'select pg_catalog.count(*) from public.system_config' into visible;
+        perform set_config('role', probe_owner, true);
+        insert into probe_result values (
+          case when visible = 0 then 'PASS' else 'FAIL' end,
+          'D3-system-config',
+          'Nicht-Admin (' || r.wer || ') sieht keine Zeile in system_config',
+          visible::text || ' Zeilen sichtbar');
+      exception when others then
+        txt := sqlstate;
+        perform set_config('role', probe_owner, true);
+        -- 42501 waere hier ebenfalls in Ordnung (dann fehlt schon das Grant),
+        -- alles andere ist ein Defekt der Probe oder der Tabelle.
+        insert into probe_result values (
+          case when txt = '42501' then 'PASS' else 'FAIL' end,
+          'D3-system-config',
+          'Nicht-Admin (' || r.wer || ') sieht keine Zeile in system_config',
+          case when txt = '42501' then 'insufficient_privilege -- kein SELECT-Grant'
+               else 'unerwarteter Fehler SQLSTATE ' || txt end);
+      end;
+    end loop;
+
+    -- Gegenkontrolle zum Lesekreis: anon darf gar nicht erst an die Tabelle.
+    -- Steht auch in Probe D; hier wiederholt, damit die Gruppe fuer sich
+    -- gelesen werden kann und ein "0 Zeilen" nicht mit "Tabelle gesperrt"
+    -- verwechselt wird.
+    insert into probe_result values (
+      case when not pg_catalog.has_table_privilege('authenticated', 'public.system_config', 'SELECT')
+           then 'FAIL' else 'PASS' end,
+      'D3-system-config',
+      'authenticated haelt ueberhaupt ein SELECT-Grant auf system_config',
+      'ohne Grant messen die Proben oben nur eine Pauschalsperre, nicht die Policy');
+  end if;
+
   -- ═══ Probe E: Funktionsverhalten zur Laufzeit ════════════════════════════
   -- Der argumentlose Aufruf ist der Kern: bekaeme is_admin(uuid) je wieder ein
   -- DEFAULT, waere `is_admin()` mehrdeutig ("function is not unique") und die
