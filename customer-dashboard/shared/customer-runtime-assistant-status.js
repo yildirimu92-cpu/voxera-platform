@@ -52,7 +52,8 @@
       appointments: 'ph-calendar-check',
       appointment_changes: 'ph-calendar-dots',
       transfer: 'ph-phone-transfer',
-      notifications: 'ph-bell-ringing'
+      notifications: 'ph-bell-ringing',
+      faq: 'ph-question'
     }[id] || 'ph-check-circle';
   }
 
