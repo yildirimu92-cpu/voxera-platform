@@ -32,8 +32,22 @@ const checks = [
   // Speichern unbedingt auf false gesetzt, egal was im Formular steht. Geprueft
   // wird deshalb die staerkere Zusage -- erzwungenes Aus, und kein Pfad, der es
   // wieder einschaltet.
-  ['Stripe wird unbedingt deaktiviert', stripeValues.includes('false')],
-  ['kein Pfad aktiviert Stripe', stripeValues.length > 0 && stripeValues.every((value) => value === 'false')],
+  // Beide Zusagen gelten fuer die Admin-OBERFLAECHE, nicht fuer den Endpunkt --
+  // gelesen wird ausschliesslich admin-runtime-payment-account.js. Der Name
+  // sagt das jetzt, denn die erste Fassung dieser Pruefung hiess "kein Pfad
+  // aktiviert Stripe" und behauptete damit mehr, als sie misst:
+  // admin-payment-account.js:62 uebernimmt stripe_link_enabled === true aus dem
+  // Request-Body und persistiert es. Ein Admin, der direkt gegen den Endpunkt
+  // postet, kann die Einstellung also einschalten.
+  //
+  // Wirksam wird das heute nirgends: der Wert landet nur im
+  // payment_account_snapshot der Rechnung (_lib/invoice-payment-context.js:40),
+  // kein Pfad erzeugt daraus einen Zahlungslink, und invoice-mail-dispatch.js
+  // setzt has_payment_link fest auf false. Der Endpunkt gehoert trotzdem
+  // nachgezogen -- das waere eine Aenderung an Produktivcode und keine an
+  // dieser Pruefung, deshalb hier nur festgehalten.
+  ['Admin-Oberflaeche deaktiviert Stripe unbedingt', stripeValues.includes('false')],
+  ['Admin-Oberflaeche hat keinen aktivierenden Pfad', stripeValues.length > 0 && stripeValues.every((value) => value === 'false')],
   ['runtime loaded', loader.includes('admin-runtime-payment-account.js')]
 ];
 
