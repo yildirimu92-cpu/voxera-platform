@@ -51,9 +51,29 @@ const CORE_FIELD_COLUMNS = new Set([
   'ai_arrival_note', 'ai_visit_preparation',
   'ai_pricing_mode', 'ai_pricing_amount', 'ai_pricing_unit', 'ai_pricing_validity',
   // J7
-  'ai_service_list', 'ai_faq_list'
+  'ai_service_list', 'ai_faq_list',
+  // E1: Regeln rund um Termine. Bis hierher lagen sie als Regelzeilen im
+  // Freitext ai_booking_faq und waeren beim Bestaetigen der FAQ-Liste aus dem
+  // Prompt verschwunden.
+  'ai_appointment_rules'
 ]);
 const CORE_TEXT_LIMIT = 400;
+// Ein Feld darf sein Limit im Schema anheben ("max"), aber nicht beliebig: eine
+// Zeile in system_config waere sonst ein unbegrenztes Schreibrecht. Gleiche
+// Begruendung wie bei CORE_FIELD_COLUMNS -- das Schema bestimmt die Frage, der
+// Code die Grenzen.
+const CORE_TEXT_HARD_LIMIT = 2000;
+
+// E3: Felder, die nur der Admin-Wizard stellt. Der Filter greift hier im
+// Schreibpfad und nicht nur in der Darstellung -- eine Sperre, die allein im
+// Formular sitzt, umgeht ein direkter POST.
+const ADMIN_ONLY_AUDIENCE = 'admin';
+
+function coreTextLimit(field) {
+  const raw = Number(field?.max);
+  if (!Number.isFinite(raw) || raw <= 0) return CORE_TEXT_LIMIT;
+  return Math.min(Math.floor(raw), CORE_TEXT_HARD_LIMIT);
+}
 
 // Alle Spalten, die dieser Endpoint schreiben kann. Sie werden vor dem Patch
 // gelesen, damit der Sync `prev_values` mitbekommt und `changed_fields` im
@@ -87,10 +107,14 @@ function coreFieldRules(steps) {
       const key = String(field?.key || '').trim();
       const column = String(field?.column || '').trim();
       if (!/^[A-Za-z0-9_]+$/.test(key) || !CORE_FIELD_COLUMNS.has(column) || rules.has(key)) return;
+      // E3: Ein Admin-Feld bekommt hier gar keine Regel. Damit landet es nicht
+      // in `rules`, und sanitizeCoreFields weist es als unbekannten Schluessel
+      // ab -- dieselbe Antwort wie auf einen frei erfundenen Schluessel.
+      if (String(field?.audience || '').trim() === ADMIN_ONLY_AUDIENCE) return;
       const options = (Array.isArray(field?.options) ? field.options : [])
         .map((option) => String(option?.val || '').trim())
         .filter(Boolean);
-      rules.set(key, { column, options, type: String(field?.type || 'text').trim() });
+      rules.set(key, { column, options, type: String(field?.type || 'text').trim(), limit: coreTextLimit(field) });
     });
   });
   return rules;
@@ -137,7 +161,7 @@ function sanitizeCoreFields(input, rules) {
       patch[rule.column] = list;
       return;
     }
-    const cleaned = String(value ?? '').replace(/[{}]/g, '').trim().slice(0, CORE_TEXT_LIMIT);
+    const cleaned = String(value ?? '').replace(/[{}]/g, '').trim().slice(0, rule.limit || CORE_TEXT_LIMIT);
     if (!cleaned) {
       patch[rule.column] = null;
       return;

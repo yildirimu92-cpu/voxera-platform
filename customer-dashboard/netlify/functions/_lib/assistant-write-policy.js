@@ -84,7 +84,11 @@ const PROMPT_RELEVANT_FIELDS = new Set([
   // spraeche der Agent weiter den alten Block, waehrend das Dashboard die
   // Liste zeigt -- derselbe Fall wie bei den Oeffnungszeiten.
   'ai_service_list',
-  'ai_faq_list'
+  'ai_faq_list',
+  // E1: die Regeln rund um Termine stehen als eigener Prompt-Abschnitt REGELN
+  // RUND UM TERMINE. Ohne Sync spraeche der Agent weiter die alte Absagefrist,
+  // waehrend das Dashboard die neue zeigt -- derselbe Fall wie bei den Listen.
+  'ai_appointment_rules'
 ]);
 
 // Die sieben Spalten, die der Kunde ueber den Weiterleitungs-Editor bearbeitet.

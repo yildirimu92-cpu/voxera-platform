@@ -84,20 +84,12 @@
       "handlerTokens": ["resetGreeting"]
     },
     {
-      "id": "assistant-branch-save",
-      "area": "assistant",
-      "source": "customer-dashboard/shared/customer-runtime-assistant-profile.js",
-      "event": "click",
-      "triggerTokens": ["vx-branch-save"],
-      "handlerTokens": ["saveBranch"]
-    },
-    {
       "id": "business-profile-save",
       "area": "assistant",
       "source": "customer-dashboard/shared/customer-runtime-assistant-profile.js",
       "event": "click",
-      "triggerTokens": ["vx-business-profile-save"],
-      "handlerTokens": ["saveBusiness"]
+      "triggerTokens": ["vx-business-save"],
+      "handlerTokens": ["saveBusinessPage"]
     },
     {
       "id": "calendar-settings-open",

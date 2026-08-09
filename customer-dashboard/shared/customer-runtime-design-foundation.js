@@ -7,7 +7,7 @@
   // Styling lives exclusively in explicit CSS modules.
   const stylesheets = [
     '/shared/customer-design-system.css?v=20260809-3',
-    '/shared/customer-assistant-components.css?v=20260809-6',
+    '/shared/customer-assistant-components.css?v=20260809-7',
     // Direkt dahinter: die Betriebsinformations-Oberflaeche wurde aus der Datei
     // darueber herausgeloest. Die Position haelt die urspruengliche
     // Kaskadenreihenfolge, auch wenn die beiden Klassenfamilien sich nicht

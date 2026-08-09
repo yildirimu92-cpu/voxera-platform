@@ -230,6 +230,34 @@ function sanitizeFaqList(value) {
   return { value: items.length ? items : null, errors: [] };
 }
 
+// ── Regeln rund um Termine (E1) ─────────────────────────────────────────────
+
+// `parseFaqList()` trennt die Regelzeilen schon heute sauber heraus -- es fehlte
+// bis hierher nur das Feld, in das sie gehoeren. Diese Funktion macht aus den
+// gemeldeten Zeilen den Vorschlagstext; sie steht bewusst hier und nicht in der
+// Oberflaeche, damit "was ist eine Regelzeile" an genau einer Stelle beantwortet
+// wird.
+//
+// Gekuerzt wird an einer Zeilengrenze und nicht mitten im Satz: ein auf
+// halbem Wort abgeschnittener Vorschlag sieht aus wie ein Fehler und wuerde,
+// unbesehen bestaetigt, als halbe Regel am Telefon landen.
+const MAX_APPOINTMENT_RULES_LENGTH = 1200;
+
+function formatRuleLines(rules, limit = MAX_APPOINTMENT_RULES_LENGTH) {
+  if (!Array.isArray(rules)) return '';
+  const kept = [];
+  let used = 0;
+  for (const entry of rules) {
+    const line = String(entry == null ? '' : entry).trim();
+    if (!line) continue;
+    const cost = line.length + (kept.length ? 1 : 0);
+    if (used + cost > limit) break;
+    kept.push(line);
+    used += cost;
+  }
+  return kept.join('\n');
+}
+
 function formatFaqList(items) {
   if (!Array.isArray(items) || !items.length) return '';
   return items
@@ -249,6 +277,8 @@ module.exports = {
   parseFaqList,
   sanitizeFaqList,
   formatFaqList,
+  formatRuleLines,
   MAX_SERVICES,
-  MAX_FAQ
+  MAX_FAQ,
+  MAX_APPOINTMENT_RULES_LENGTH
 };

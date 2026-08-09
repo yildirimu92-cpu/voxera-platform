@@ -166,7 +166,7 @@ for (const forbidden of [
   if (source.statusRuntime.includes(forbidden)) failures.push(`status runtime exposes protected field: ${forbidden}`);
 }
 
-assert.match(source.loader, /customer-runtime-assistant-profile\.js\?v=20260809-8/);
+assert.match(source.loader, /customer-runtime-assistant-profile\.js\?v=20260809-9/);
 assert.match(source.loader, /customer-runtime-assistant-status\.js\?v=20260809-1/);
 assert.doesNotMatch(source.loader, /customer-runtime-assistant-business-menu\.js/);
 assert.doesNotMatch(source.loader, /customer-runtime-voice-preview-fallback\.js/);
@@ -352,14 +352,14 @@ assert.doesNotMatch(source.runtime, /vx-settings-entry/);
 // Der mehr-sub-Präfix gehört zum Einstellungen-Tab und darf auf den
 // Assistent-Seiten nicht zurückkehren.
 assert.doesNotMatch(source.runtime, /mehr-sub-(assistant|business)-profile/);
-assert.match(source.runtime, /vx-business-profile-status[\s\S]{0,80}vx-ap-stack/);
+assert.match(source.runtime, /vx-business-profile-status[\s\S]{0,140}vx-ap-stack/);
 
 // J5: Öffnungszeiten
 assert.match(source.profile, /opening_hours/);
 assert.match(source.profile, /unparsed_lines/);
 assert.match(source.update, /sanitizeOpeningHours/);
 assert.match(source.runtime, /data-vx-hours/);
-assert.match(source.runtime, /payload\.opening_hours = collectHours\(\)/);
+assert.match(source.runtime, /core\.opening_hours = collectHours\(\)/);
 // Der Vorschlag darf nur ins Formular, nie direkt in die Daten (Entscheid F3).
 assert.doesNotMatch(source.profile, /ai_opening_hours:\s*openingHoursSuggestion/);
 assert.match(source.runtime, /function applyHoursSuggestion/);
@@ -367,7 +367,7 @@ assert.match(source.runtime, /function applyHoursSuggestion/);
 assert.match(source.update, /core_field_not_in_schema/);
 assert.match(source.profile, /core_sections/);
 assert.match(source.runtime, /data-vx-core-key/);
-assert.match(source.runtime, /core_fields: payload/);
+assert.match(source.runtime, /payload\.core_fields = core/);
 
 // ── J6: die restlichen Schicht-A-Felder ─────────────────────────────────────
 // Der erste Block prueft den Lesepfad an der Funktion selbst und nicht am
@@ -447,27 +447,73 @@ try {
 // Der Vorschlag reist mit, er wird nicht gespeichert -- gleiche Regel wie bei
 // den Oeffnungszeiten (Entscheid F3).
 assert.match(source.profile, /list_suggestions/);
-assert.match(source.profile, /faq_rule_lines/);
+// E1: Die Regelzeilen reisen als Vorschlag zum Regelfeld, nicht mehr als
+// Nebenbemerkung beim FAQ-Vorschlag -- sonst stehen sie zweimal untereinander.
+assert.match(source.profile, /appointment_rules: coreValueMap\.appointment_rules/);
+assert.doesNotMatch(source.runtime, /faq_rule_lines/);
 assert.doesNotMatch(source.profile, /ai_service_list:\s*serviceSuggestion/);
 assert.doesNotMatch(source.profile, /ai_faq_list:\s*faqSuggestion/);
 assert.match(source.runtime, /data-vx-list-apply/);
 assert.match(source.runtime, /function collectList/);
-assert.match(source.runtime, /function replacedByListNote/);
-// Ein ersetzter Freitext muss als solcher erkennbar sein, sonst bearbeitet der
-// Kunde ein Feld ohne Wirkung.
-assert.match(source.runtime, /Dieser Text wird nicht mehr verwendet/);
+
+// ── Geschäftsprofil entschlacken: die Doppelerfassung ist aufgeloest ───────
+// Der Klick-Test am 09.08. fand vier Themen, die jeweils zweimal abgefragt
+// wurden -- oben als Freitext, unten strukturiert. Diese Pruefungen halten die
+// Freitext-Karte weg. Sie stehen bewusst als "darf nicht mehr vorkommen":
+// zurueckkommen wuerde sie nicht durch einen Fehler, sondern durch einen
+// gutgemeinten Rueckbau.
+for (const gone of [
+  'id="vx-business-services"',
+  'id="vx-business-location-hours"',
+  'id="vx-business-booking-faq"',
+  // Der Kartentitel, nicht der Begriff: "Dauerhaftes Geschäftswissen" steht
+  // weiterhin als Erklaersatz in der Karte "Was Ihr Assistent weiss" auf der
+  // Assistent-Seite -- dort ist er richtig, als Formular-Ueberschrift war er
+  // die halbe Doppelerfassung.
+  '<div class="vx-ap-title">Dauerhaftes Geschäftswissen</div>',
+  'Geschäftsprofil speichern',
+  'Betriebsangaben speichern',
+  'Branchenangaben speichern',
+  'function replacedByListNote'
+]) {
+  if (source.runtime.includes(gone)) failures.push(`Doppelerfassung zurueck: ${gone}`);
+}
+// Genau ein Speicher-Knopf auf der Seite, und er schickt genau einen Request.
+assert.match(source.runtime, /id="vx-business-save"/);
+assert.match(source.runtime, /async function saveBusinessPage/);
+assert.equal((source.runtime.match(/updateAssistant\(payload, 'business'/g) || []).length, 1,
+  'Die Geschäftsprofil-Seite schickt mehr als einen Sammel-Request');
+// Branchenfelder nur mitschicken, wenn es welche gibt: ohne zugeordnete Vorlage
+// antwortet der Endpoint mit 409 und die vollstaendige Vorpruefung liesse damit
+// auch alles andere scheitern.
+assert.match(source.runtime, /if \(Object\.keys\(branch\)\.length\) payload\.ai_branch_extra = branch/);
+
+// Der Herkunftstext ersetzt das fruehere Eingabefeld: eingeklappt, mit seinem
+// Zustand im Summary statt im zweiten Absatz eines Feldhinweises.
+assert.match(source.runtime, /function legacyTextRow/);
+assert.match(source.runtime, /Ihr ursprünglicher Text/);
+assert.match(source.runtime, /nicht mehr in Verwendung/);
+// Die Vorrangregel wird EINMAL ausgewertet -- auf dem Server. Baut der Browser
+// sie nach, driften die beiden Fassungen auseinander.
+assert.match(source.profile, /legacy_texts/);
+assert.match(source.runtime, /business_profile\?\.legacy_texts/);
+assert.doesNotMatch(source.runtime, /retired\s*[:=]\s*/);
 
 // ── J9 / G5: Beschriftung und Prompt-Ueberschrift sagen dasselbe ───────────
 // Der Befund war nicht kosmetisch: das Feld hiess fuer den Kunden anders, als
 // es beim Agenten wirkt -- "Buchungshinweise" fuer einen Abschnitt, der im
 // Prompt TERMINLOGIK hiess. Terminregeln landeten deshalb im FAQ-Feld.
-for (const label of ['<label>Leistungen</label>', '<label>Standort und Erreichbarkeit</label>',
-  '<label>Terminregeln und häufige Fragen</label>', '<label>Unternehmensbeschreibung</label>']) {
-  if (!source.runtime.includes(label)) failures.push(`J9 label missing: ${label}`);
-}
+//
+// Die Beschriftungen der drei abgeloesten Felder stehen jetzt im Schema
+// (system_config.core_field_steps) und nicht mehr im Runtime -- geprueft wird
+// deshalb, dass die alten, widersprechenden Beschriftungen nicht zurueckkommen
+// und dass der Herkunftstext seinen Namen weiterhin vom Server bekommt.
 for (const stale of ['Leistungen und Angebote', 'Standort und reguläre Öffnungszeiten',
   'Häufige Fragen und Buchungshinweise']) {
   if (source.runtime.includes(stale)) failures.push(`J9 stale label: ${stale}`);
+}
+for (const label of ['Leistungen', 'Standort und Erreichbarkeit', 'Terminregeln und häufige Fragen']) {
+  if (!source.profile.includes(`label: '${label}'`)) failures.push(`J9 label missing: ${label}`);
 }
 
 // Der Adressvorschlag ist ein Vorschlag und keine Auskunft: street/zip/city
