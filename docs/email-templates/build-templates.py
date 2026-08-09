@@ -75,20 +75,59 @@ def hint(tone, html, bg=None, border=None, text=None, bar=None):
             f'line-height:1.6;color:{tx};">{html}</td></tr></table>')
 
 
-def button(href, text, note=True):
+# Wie lang die sichtbare Fassung eines Links hoechstens sein darf.
+#
+# Gemessen bei 390 px und 13 px Schriftgroesse: mit dem Vorspann
+# "Knopf geht nicht? " bleibt eine 35 Zeichen lange Adresse einspaltig auf
+# einer Zeile. Der laengere Vorspann "Knopf funktioniert nicht? " brach bei
+# derselben Adresse auf zwei Zeilen um — deshalb der kuerzere. Zwei Zeilen
+# Rueckfall-Link neben einem Knopf lesen sich wie ein technisches Artefakt.
+URL_LIMIT = 34
+
+
+def short_url(inner, sample, limit=URL_LIMIT):
+    """Sichtbare Fassung eines Links: Schema weg, ab `limit` Zeichen gekuerzt.
+
+    Die volle Adresse bleibt im href — gekuerzt wird nur, was der Empfaenger
+    liest. `inner` ist der Make-Ausdruck ohne geschweifte Klammern.
+    """
+    bare = f'replace({inner}; "https://"; "")'
+    make = ('{{if(length(' + bare + f') > {limit}; substring(' + bare
+            + f'; 0; {limit}) + "…"; ' + bare + ')}}')
+    plain = sample.replace('https://', '')
+    return V(make, plain if len(plain) <= limit else plain[:limit] + '…')
+
+
+def link(inner, sample):
+    """Gibt (href, sichtbare Fassung) zurueck. `inner` ist der Make-Ausdruck
+    ohne geschweifte Klammern, `sample` die Adresse fuer die Vorschau."""
+    return V('{{' + inner + '}}', sample), short_url(inner, sample)
+
+
+def button(href, text, label=None, note=True):
+    """Aktions-Knopf mit dem Klartext-Link darunter.
+
+    `label` ist die sichtbare Fassung des Links; ohne Angabe wird bei einer
+    festen Adresse einfach das Schema abgeschnitten. Der Link traegt bewusst
+    dieselbe gedaempfte Farbe wie der Hinweistext davor: er ist der Rueckfall
+    fuer Clients, die Knoepfe verstuemmeln, und soll neben dem Knopf nicht als
+    zweite Aktion gelesen werden.
+    """
+    if label is None:
+        label = href.replace('https://', '')
     out = ('<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">'
-           '<tr><td align="center" style="padding:2px 0 10px;">'
+           '<tr><td align="center" style="padding:2px 0 8px;">'
            '<table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>'
            f'<td align="center" bgcolor="#0D1F3C" style="background-color:#0D1F3C;border-radius:10px;">'
            f'<a href="{href}" style="display:inline-block;padding:15px 34px;font-family:{F};'
            f'font-size:16px;font-weight:700;line-height:1.2;color:#FFFFFF;text-decoration:none;'
            f'border-radius:10px;">{text}</a></td></tr></table></td></tr>')
     if note:
-        out += ('<tr><td align="center" style="padding:0 0 22px;">'
-                f'<p style="margin:0;font-family:{F};font-size:14px;font-weight:400;line-height:1.6;'
-                f'color:#5B6472;">Falls der Knopf nicht funktioniert:<br>'
-                f'<a href="{href}" style="color:#1A6FE8;text-decoration:underline;'
-                f'word-break:break-all;">{href}</a></p></td></tr>')
+        out += ('<tr><td align="center" style="padding:0 0 20px;">'
+                f'<p style="margin:0;font-family:{F};font-size:13px;font-weight:400;line-height:1.55;'
+                f'color:#5B6472;">Knopf geht nicht? '
+                f'<a href="{href}" style="color:#5B6472;text-decoration:underline;'
+                f'word-break:break-all;">{label}</a></p></td></tr>')
     else:
         out += '<tr><td style="height:12px;line-height:12px;font-size:0;">&nbsp;</td></tr>'
     return out + '</table>'
@@ -337,7 +376,7 @@ def t_contract_expired():
 
 
 def t_password_changed():
-    dash = V('{{if(1.dashboard_url; 1.dashboard_url; "https://dashboard.voxera.ch")}}', 'https://dashboard.voxera.ch')
+    dash, dash_label = link('if(1.dashboard_url; 1.dashboard_url; "https://dashboard.voxera.ch")', 'https://dashboard.voxera.ch')
     return document(
         'Passwort geändert – Voxera',
         '  Voxera E-Mail-Vorlage · mail_type: password_changed_email\n'
@@ -355,11 +394,12 @@ def t_password_changed():
             hint('danger', '<strong>Waren Sie das nicht?</strong> Dann melden Sie sich bitte sofort bei '
                  'uns: <a href="mailto:info@voxera.ch" style="color:#C0362C;text-decoration:underline;">'
                  'info@voxera.ch</a>. Wir sperren den Zugang und klären den Vorfall mit Ihnen.'),
-            button(dash, 'Zum Dashboard'),
+            button(dash, 'Zum Dashboard', dash_label),
         ])
 
 
 def t_password_reset():
+    reset_link = link('1.activation_link', 'https://dashboard.voxera.ch/reset/8c31-77ab')
     return document(
         'Passwort zurücksetzen – Voxera',
         '  Voxera E-Mail-Vorlage · mail_type: password_reset\n'
@@ -374,7 +414,7 @@ def t_password_reset():
                 [('Konto', value(V('{{1.recipient.email}}', 'marc.schneider@schneider-sanitaer.ch'))),
                  ('Angefordert am', value(V('{{formatDate(now; "DD.MM.YYYY, HH:mm"; "Europe/Zurich")}} Uhr', '09.08.2026, 17:24 Uhr')))],
             ]),
-            button(V('{{1.activation_link}}', 'https://dashboard.voxera.ch/reset/8c31-77ab'), 'Passwort zurücksetzen'),
+            button(*reset_link[:1], 'Passwort zurücksetzen', reset_link[1]),
             hint('info', '<strong>Waren Sie das nicht?</strong> Dann können Sie diese E-Mail ignorieren '
                  '— Ihr Passwort bleibt unverändert. Bei Fragen erreichen Sie uns unter '
                  '<a href="mailto:info@voxera.ch" style="color:#1558BF;text-decoration:underline;">'
@@ -383,7 +423,7 @@ def t_password_reset():
 
 
 def t_assistant_updated():
-    dash = V('{{if(1.dashboard_url; 1.dashboard_url; "https://dashboard.voxera.ch")}}', 'https://dashboard.voxera.ch')
+    dash, dash_label = link('if(1.dashboard_url; 1.dashboard_url; "https://dashboard.voxera.ch")', 'https://dashboard.voxera.ch')
     return document(
         'Ihr KI-Assistent wurde aktualisiert',
         '  Voxera E-Mail-Vorlage · mail_type: assistant_updated_email\n'
@@ -405,12 +445,12 @@ def t_assistant_updated():
             ]),
             hint('info', 'Diese Einstellungen können Sie jederzeit selbst im Dashboard anpassen. '
                  'Änderungen werden innerhalb weniger Minuten übernommen.'),
-            button(dash, 'Im Dashboard öffnen'),
+            button(dash, 'Im Dashboard öffnen', dash_label),
         ])
 
 
 def t_welcome():
-    link = V('{{1.activation_link}}', 'https://dashboard.voxera.ch/aktivieren/4d17-2b90')
+    activate, activate_label = link('1.activation_link', 'https://dashboard.voxera.ch/aktivieren/4d17-2b90')
     num = V('{{1.voxera_number}}', '+41445053662')
     return document(
         'Willkommen bei Voxera',
@@ -430,7 +470,7 @@ def t_welcome():
                 [('Ihre E-Mail', value(V('{{1.email}}', 'marc.schneider@schneider-sanitaer.ch'))),
                  ('Dashboard', value(V('{{if(1.dashboard_url; replace(replace(1.dashboard_url; "https://"; ""); "/"; ""); "dashboard.voxera.ch")}}', 'dashboard.voxera.ch')))],
             ]),
-            button(link, 'Konto aktivieren'),
+            button(activate, 'Konto aktivieren', activate_label),
             hint('warning', 'Der Aktivierungslink ist <strong>24 Stunden gültig</strong>. Danach '
                  'fordern Sie über die Anmeldeseite einen neuen an.'),
 
@@ -450,6 +490,7 @@ def t_welcome():
 
 
 def t_contract_signed():
+    signed = link('1.contract.signed_page_url', 'https://voxera.ch/vertrag/7b12-9e04')
     months = V('{{1.contract.duration_months}}', '12')
     return document(
         'Ihr unterzeichneter Voxera-Vertrag',
@@ -473,7 +514,7 @@ def t_contract_signed():
                  ('Laufzeit', value(f'{months} Monate'))],
                 [('Beidseitig unterzeichnet am', value(V('{{formatDate(1.contract.countersigned_at; "DD.MM.YYYY"; "Europe/Zurich")}}', '09.08.2026')))],
             ]),
-            button(V('{{1.contract.signed_page_url}}', 'https://voxera.ch/vertrag/7b12-9e04'), 'Unterzeichneten Vertrag ansehen'),
+            button(*signed[:1], 'Unterzeichneten Vertrag ansehen', signed[1]),
             section('So geht es weiter'),
             steps([
                 ('Assistent und Attribute festlegen',
@@ -502,7 +543,7 @@ def t_contract_signed():
 
 
 def t_ai_change_request():
-    admin = V('{{if(1.admin_url; 1.admin_url; "https://admin.voxera.ch")}}', 'https://admin.voxera.ch')
+    admin, admin_label = link('if(1.admin_url; 1.admin_url; "https://admin.voxera.ch")', 'https://admin.voxera.ch')
     return document(
         'Neue KI-Änderungsanfrage',
         '  Voxera E-Mail-Vorlage · mail_type: ai_change_request  (INTERN, an info@voxera.ch)\n'
@@ -517,7 +558,7 @@ def t_ai_change_request():
                 [('Anfrage', value(V('{{1.message}}', 'Lara soll bei Notfällen ausserhalb der Öffnungszeiten direkt auf die Handynummer von Herrn Schneider verweisen statt nur eine Nachricht aufzunehmen.'),
                                    weight=400, color='#3D4A60', lh='1.6'))],
             ]),
-            button(admin, 'Im Admin-Portal öffnen'),
+            button(admin, 'Im Admin-Portal öffnen', admin_label),
         ])
 
 
@@ -628,7 +669,7 @@ def t_callback_request():
 
 def t_offer():
     valid = V('{{formatDate(1.offer.valid_until; "DD.MM.YYYY"; "Europe/Zurich")}}', '31.08.2026')
-    url = V('{{1.offer.acceptance_url}}', 'https://voxera.ch/offerte/9f2c-4a71')
+    url, url_label = link('1.offer.acceptance_url', 'https://voxera.ch/offerte/9f2c-4a71')
     cycle = V('{{if(1.offer.billing_cycle = "yearly"; "Jährlich"; "Monatlich")}}', 'Monatlich')
     # Die Rabattzeile erscheint nur, wenn ein Rabatt vorliegt. Einziger Ausdruck
     # im Vorlagensatz, der Markup zurueckgibt; Attribute deshalb in Hochkommas.
@@ -672,7 +713,7 @@ def t_offer():
                 [('Gültig bis', value(valid))],
             ]),
             price,
-            button(url, 'Offerte einsehen &amp; unterzeichnen'),
+            button(url, 'Offerte einsehen &amp; unterzeichnen', url_label),
             hint('info', f'Diese Offerte ist bis <strong>{valid}</strong> gültig. Bei Annahme '
                  'erhalten Sie umgehend eine Bestätigung.'),
         ],

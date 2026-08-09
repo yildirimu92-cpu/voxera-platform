@@ -100,10 +100,21 @@ function checkTemplate(file, source, { isPreview, isCatalog = false }) {
   }
 
   // Zu jedem Knopf gehoert der Klartext-Link darunter. Grundsatz 15: wer den
-  // Knopf nicht als Knopf erkennt, muss trotzdem ans Ziel kommen.
-  if (/display:inline-block;padding:15px 34px/.test(html)
-      && !/Falls der Knopf nicht funktioniert/.test(html)) {
-    fail(file, 'Knopf ohne Klartext-Link darunter');
+  // Knopf nicht als Knopf erkennt oder in einem Client liest, der
+  // Hintergrundfarben unterdrueckt, muss trotzdem ans Ziel kommen.
+  //
+  // Geprueft wird die Adresse, nicht die Beschriftung: dieselbe href muss ein
+  // zweites Mal vorkommen. Wie der Link aussieht, ist frei — seit 09.08.2026
+  // steht dort die gekuerzte Fassung (Schema weg, ab 34 Zeichen mit
+  // Auslassungszeichen), weil die volle Token-URL auf dem Telefon ueber zwei
+  // Zeilen lief und dem Knopf die Aufmerksamkeit nahm. Diese Regel haelt genau
+  // das auseinander: kuerzen darf man die Anzeige, nicht das Ziel.
+  const BUTTON_ANCHOR = /<a href="([^"]+)"[^>]*display:inline-block;padding:15px 34px/g;
+  for (const [, href] of html.matchAll(BUTTON_ANCHOR)) {
+    const occurrences = html.split(`href="${href}"`).length - 1;
+    if (occurrences < 2) {
+      fail(file, `Knopf ohne Klartext-Link darunter (href kommt nur ${occurrences}x vor): ${href.slice(0, 60)}`);
+    }
   }
 
   // lead_quality steht in der Datenbank klein. Der Vergleich muss das

@@ -108,7 +108,9 @@ steht für einen Fund aus der Inventarisierung:
 - Preheader-Zeile, `color-scheme`- und `supported-color-schemes`-Meta
 - jeder Hex-Wert liegt in der 31-Werte-Palette
 - jede `<table>` trägt `role="presentation"`, jedes `<img>` hat `width`, `height` und `alt`
-- unter jedem Knopf steht der Klartext-Link
+- unter jedem Knopf steht der Klartext-Link — geprüft wird die Adresse, nicht die Beschriftung:
+  dieselbe `href` muss ein zweites Mal vorkommen. Wie der Link aussieht, ist frei; die Vorlagen
+  zeigen die gekürzte Fassung (Schema weg, ab 34 Zeichen mit Auslassungszeichen)
 - `lead_quality` wird nur über `lower()` und nur gegen kleingeschriebene Werte verglichen
 - keine Bedingung auf `callback_requested`
 - zu jeder Vorlage existiert eine Vorschau, und in der Vorschau steht kein `{{` mehr

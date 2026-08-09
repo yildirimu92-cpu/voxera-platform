@@ -423,6 +423,12 @@ Verbindlich für alle Vorlagen. Der vorgeschlagene Wächter prüft genau diese L
    ist ein gehostetes PNG (Supabase Public Bucket) — Inline-SVG (Generation E) zeigt Outlook nicht an.
 8. **Jeder Knopf bekommt darunter den Klartext-Link.** Wer den Knopf nicht als Knopf erkennt oder in
    einem Client liest, der Hintergrundfarben unterdrückt, kommt trotzdem ans Ziel. Grundsatz 15.
+   **Gekürzt dargestellt, vollständig verlinkt** (Änderung vom 09.08.2026 nach dem ersten Testlauf):
+   sichtbar ist die Adresse ohne `https://` und ab 34 Zeichen mit Auslassungszeichen, in 13 px und im
+   gedämpften `#5B6472` statt in Linkblau. Grund: die volle Annahme-URL mit Token lief auf dem Telefon
+   über zwei Zeilen und trat fast so stark auf wie der Knopf selbst — ein Rückfall, der wie ein
+   technisches Artefakt aussieht, ist kein guter Rückfall. Die volle Adresse steht unverändert im
+   `href`; der Wächter prüft genau diese Trennung.
 9. **Preheader-Zeile** als erstes Element im `<body>`, versteckt — sonst zieht sich der Client die erste
    sichtbare Textzeile in die Vorschau, und das ist heute in mehreren Vorlagen „VOXERA“.
 10. **Dark Mode:** `<meta name="color-scheme" content="light">` und
@@ -455,7 +461,7 @@ Schritt-Liste) und weil sie die geschäftlich wichtigste Mail ist — was hier t
 | Markenlinie | keine | 3 px Gold über dem Kopf |
 | Fliesstext | 15 px `#475569` | 16 px `#3D4A60` |
 | Fusszeile | 11,5 px `#94A3B8` (2,56:1) | 12 px `#5B6472` (5,98:1) |
-| Knopf | nur Knopf | Knopf + Klartext-Link darunter |
+| Knopf | nur Knopf | Knopf + gedämpfter, gekürzter Klartext-Link darunter |
 | Preheader | keiner | „Ihre persönliche Offerte, gültig bis …“ |
 | Rabattzeile | dauerhaft sichtbar, „—“ bei 0 | verschwindet bei 0 |
 | Betragsformat | `formatNumber(…; 2; "."; "'")` | unverändert (Schweizer Format ist korrekt) |
@@ -502,7 +508,9 @@ vier zu ändernden Betreffzeilen.
 Regeln aus Abschnitt 5 plus die Palette und die beiden Bugfix-Regeln. Mit Gegenprobe gebaut: die sechs
 Regeln, die einem Fund aus Abschnitt 2 entsprechen, wurden einzeln verletzt und schlagen einzeln an —
 `display:flex`, `white-space:pre-line`, eine Farbe ausserhalb der Palette, `lead_quality = "Hot"`, eine
-Bedingung auf `callback_requested`, fehlende Vorschaudatei.
+Bedingung auf `callback_requested`, fehlende Vorschaudatei. Dazu die Link-Regel in zwei Fassungen:
+Rückfall-Link entfernt, und gekürzte Adresse versehentlich im `href` statt nur in der Beschriftung —
+beide schlagen an.
 
 Was der Wächter **nicht** kann: er sieht den Make-Blueprint nicht und merkt deshalb nicht, wenn jemand
 direkt im Make-Editor ändert. Das bleibt die offene Flanke von Variante 1,5 und hängt an der Regel
