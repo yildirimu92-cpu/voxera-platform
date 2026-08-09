@@ -99,7 +99,7 @@ Duplikat-Endpunkt (HTTP 410) und schreibt nichts.
 
 ## Teil C — Befunde
 
-### S1 · Kritisch, aktiv: Der AI-Setup-Tab löscht sechs Identitätsfelder und synct die Löschung
+### S1 · Kritisch, aktiv — **behoben am 09.08., verifiziert** (siehe Teil F)
 
 `saveCustomerAiConfig()` (`admin-panel/index.html:8226-8248`) schreibt in jedem Fall:
 
@@ -133,6 +133,10 @@ Sync, der zerstörte Daten zuverlässig ausliefert.
 Nebenbefund: Der Button ist doppelt verdrahtet (`onclick` in `index.html:2552`
 **und** `addEventListener` in `index.html:14745`) — ein Klick löst den Speichervorgang
 zweimal aus.
+
+> **Status:** behoben. Die sechs Felder stehen nicht mehr im Patch, der doppelte
+> Listener ist entfernt. Regressionsschutz:
+> `scripts/verify-ai-setup-identity-preservation.mjs`. Verifikation in Teil F.
 
 ### S2 · Kritisch: Kalendereinstellungen ändern den Prompt, lösen aber nie einen Sync aus
 
@@ -346,9 +350,113 @@ weder S2/S4/S7 (andere Tabelle) noch S3 (kein Schreibvorgang). Dafür braucht es
 zusätzlich einen Fan-out über betroffene Kunden und einen zeitgesteuerten
 Re-Sync. Das ist bewusst noch keine Empfehlung — erst gemeinsam entscheiden.
 
-## Nächster Schritt
+---
 
-Rückmeldung, welche Befunde in welcher Reihenfolge angegangen werden. Aus meiner
-Sicht sticht S1 heraus: dort geht es nicht um einen verspäteten Sync, sondern um
-Datenverlust, der bei jedem Speichern im AI-Setup-Tab entsteht und sofort an den
-Agenten weitergereicht wird.
+## Teil F — Behebung und Verifikation von S1 (09.08.)
+
+### Änderung
+
+Zwei Stellen in `admin-panel/index.html`:
+
+1. Die sechs Identitätsspalten sind aus dem Patch von `saveCustomerAiConfig()`
+   entfernt. Ein Formular ohne Eingabefeld für ein Feld darf dieses Feld nicht
+   schreiben. Geändert wird Identität weiterhin über den Setup-Assistenten
+   (`openAiWizard`) und kundenseitig über `customer-update-assistant` — beide
+   Pfade synchronisieren.
+2. Der doppelte Klick-Handler auf `#ai-save-customer` ist entfernt; der Button
+   behält sein `onclick`.
+
+Der Sync-Aufruf darunter bleibt unverändert — er war nie das Problem.
+
+### Regressionsschutz
+
+`scripts/verify-ai-setup-identity-preservation.mjs`, eingebunden über
+`.github/workflows/verify-ai-setup-identity-preservation.yml`.
+
+Der Test prüft nicht auf Feldnamen, sondern auf die Fehlerklasse: Er schneidet
+`saveCustomerAiConfig()` aus `index.html`, leitet aus der Hydrierung ab, welche
+`cfg`-Schlüssel es überhaupt gibt, befüllt alle Eingabefelder und alle
+hydrierten Schlüssel mit Werten — und lässt den Test scheitern, sobald der
+resultierende Patch auch nur ein `null` enthält. Ein Feld, das aus einer
+nicht existierenden Quelle geschrieben wird, fällt damit auf, unabhängig davon
+wie es heisst.
+
+Gegenprobe gegen `40ba07e` (Stand vor dem Fix):
+
+```
+FAIL kein Feld wird auf NULL geschrieben … — NULL: assistant_name,
+     ai_customer_type, ai_address_form, ai_tone, ai_language, ai_greeting
+FAIL Identitaetsfelder bleiben dem Setup-Assistenten vorbehalten
+FAIL Speichern-Button ist genau einmal verdrahtet — onclick: 1, addEventListener: 1
+```
+
+Auf dem gefixten Stand laufen alle sechs Prüfungen durch. Die angrenzenden
+Guards (`verify-p0-security-foundation`, `verify-prompt-builder-v2`,
+`verify-admin-customer-write-integrity`, `verify-launch-sync-website`,
+`verify-admin-runtime-patches`) bleiben grün.
+
+### Verifikation am Wegwerf-Kunden
+
+Angelegt: `cust_s1_verify_20260809` („Wegwerf Test AG"), Plan `professional`,
+**ohne** ElevenLabs-Agent — der Fix betrifft den Patch vor dem Sync, ein echter
+Agent wäre für den Nachweis nicht nötig und hätte eine Live-Konfiguration
+angefasst. Ausgangszustand wie nach einem Setup-Assistenten: `assistant_name`
+`Nadia`, `ai_customer_type` `consultant`, `ai_address_form` `du`, `ai_tone`
+`casual`, `ai_language` `de_en`, eigene `ai_greeting`.
+
+Auf diesen Datensatz wurden nacheinander die beiden Patches angewandt, die die
+echte Funktion erzeugt (aus der jeweiligen Fassung von `index.html` extrahiert
+und ausgeführt, nicht nachgebaut):
+
+| | `assistant_name` | `ai_customer_type` | `ai_address_form` | `ai_tone` | `ai_language` | `ai_greeting` |
+|---|---|---|---|---|---|---|
+| Ausgangszustand | Nadia | consultant | du | casual | de_en | eigener Satz |
+| nach altem Patch | **NULL** | **NULL** | **NULL** | **NULL** | **NULL** | **NULL** |
+| nach neuem Patch | Nadia | consultant | du | casual | de_en | eigener Satz |
+
+Die Wissensfelder des Tabs (`ai_business_description`, `ai_services`,
+`ai_location_hours`, `ai_booking_faq`, `ai_instructions`,
+`ai_fallback_escalation`, `ai_response_constraints`, `ai_internal_notes`,
+`ai_summary`) werden in beiden Fassungen korrekt geschrieben — der Fix nimmt dem
+Tab nichts weg, was er tatsächlich bedient.
+
+Was der Verlust am Telefon bedeutet hätte, mit `buildPromptV2` gegengerechnet:
+
+```
+vorher:  "Grüezi, hier ist Nadia von der Wegwerf Test AG. Wie kann ich helfen?"
+         Ton: locker und direkt …   Anrede: … konsequent mit du …
+         Sprache: Deutsch (Standard), Englisch bei englischsprachigen Anrufenden
+
+nachher: "Grüezi, hier ist Lara von Wegwerf Test AG. Das Gespräch wird zur
+          Bearbeitung aufgezeichnet. Wie kann ich Ihnen helfen?"
+         Ton: warm-professionell …  Anrede: … konsequent mit Sie …
+         Sprache: Deutsch (Standard)
+```
+
+Der Testkunde wurde nach der Prüfung gelöscht; `select count(*) … like
+'cust_s1_verify%'` liefert 0. Sonst wurde in Produktion nichts verändert.
+
+### Beobachtung am Rand, nicht gefixt
+
+`renderAiSetup()` setzt `#ai-template-select` auf `cfg.industryTemplateId`
+(`index.html:6988-6992`), der asynchrone Nachlauf von `loadIndustryTemplates()`
+baut die Optionen aber erneut auf (`index.html:7035`). Kommt der Nachlauf nach
+dem Rendern, steht der Select wieder auf `''` — und ein Speichern danach würde
+`industry_template_id` auf `NULL` setzen, also den Branchen-Layer entfernen.
+Gleiche Wirkung wie S1, andere Ursache (Reihenfolge statt nie gesetzter
+Variable). In der heutigen Verifikation nicht beobachtet, weil dort kein
+Template gesetzt war. Gehört auf die Folgeliste.
+
+---
+
+## Offen, bewusst nicht heute Nacht
+
+Entscheidung vom 09.08.: S2 (Kalender), S3 (Ablauf Betriebsinformationen),
+S4 (Master-Prompt/Branchenvorlagen ohne Fan-out), S5 (Kunde-bearbeiten-Modal),
+S6 (`skipped_forwarding_only`) sowie die Audit-Trail-Lücke S9
+(`changed_fields`/`prev_values`) bleiben dokumentierte Folgepunkte. Dazu die
+Beobachtung zum Branchen-Template oben.
+
+S9 ist dabei Voraussetzung für die anderen: Solange kein Sync-Eintrag sagt,
+*welches* Feld ihn ausgelöst hat, lässt sich die Wirkung jedes weiteren Fixes
+nur über den Code belegen, nicht über die Daten.
