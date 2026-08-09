@@ -13,6 +13,11 @@ on:
       - 'customer-dashboard/shared/customer-design-tokens.css'
       - 'customer-dashboard/shared/customer-settings-components.css'
       - 'customer-dashboard/shared/customer-runtime-inline-save-status.js'
+      # Diese drei rufen toast() über root./w. auf und fallen damit unter den
+      # Tonalitäts-Wächter.
+      - 'customer-dashboard/shared/customer-runtime-commercial-controller.js'
+      - 'customer-dashboard/shared/customer-runtime-case-intake.js'
+      - 'customer-dashboard/shared/customer-runtime-help-route.js'
       - 'scripts/verify-zustandsanzeigen.mjs'
       - '.github/workflows/verify-zustandsanzeigen.yml'
   workflow_dispatch:

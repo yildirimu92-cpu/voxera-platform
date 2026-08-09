@@ -1,7 +1,8 @@
 # Inventar: Zustandsanzeigen dashboardweit (Toasts, Live-Anruf-Karte, Speicher-Rückmeldungen)
 
 **Datum:** 2026-08-09 · **Branch:** `claude/toasts-zustandsanzeige-7fghjh`
-**Status: Inventar (Teil 1) + Umsetzung (Teil 2, siehe Abschnitt "Umsetzung" am Ende).**
+**Status: Inventar (Teil 1) · Umsetzung (Teil 2, PR #902 gemergt) · Tonalitäts-Bereinigung
+(Teil 3, Folgeauftrag aus Nebenfund 1).**
 
 Auftragsgrundlage: Briefing "Alle Zustandsanzeigen dashboardweit aufs Design-System bringen".
 Auftragspunkt 2 verlangt die Rückmeldung der Liste, bevor grossflächig geändert wird — das ist
@@ -420,12 +421,10 @@ gesamtes Styling, weil die Regel ein ID-Selektor ist). Beide hätten zu einem fa
 
 ## Nebenfunde, nicht behoben (eigene Aufträge)
 
-1. **Die Tonalität wird bei ~118 von ~167 Toast-Aufrufen per Regex geraten.** Nur 49 übergeben
-   einen expliziten Typ. `toast('Rückruf als neue Aufgabe geplant')` wird zu `success`,
-   `toast('Bitte bestätigen Sie das Ergebnis.')` zu `warning`. Das war bisher fast unsichtbar,
-   weil sich die vier Tonalitäten kaum unterschieden — jetzt, wo sie es tun, werden auch die
-   Fehlableitungen sichtbar. **Bewertung, nicht gemessen:** die Trefferquote der Regex ist
-   nicht ausgezählt. Sinnvoller eigener Auftrag: Aufrufstellen durchgehen und Typ setzen.
+1. **Die Tonalität wird bei ~118 von ~167 Toast-Aufrufen per Regex geraten.**
+   → **In Teil 3 erledigt, siehe unten.** Die Schätzung war leicht zu hoch: nachgezählt waren
+   es 109 von 163 echten Aufrufstellen — der Rest waren Kommentar-Erwähnungen und der
+   `showToast()`-Adapter, die eine grobe Zählung mitgenommen hatte.
 2. **Zwei Verblassungsgrade für denselben Zustand.** `.btn:disabled` liegt bei `opacity:.45`,
    `.vx-ap-btn:disabled` bei `.55` — derselbe „Gespeichert ✓"-Zustand sieht in den
    Einstellungen anders aus als im Assistent-Tab. Angleichen wäre eine Design-System-Änderung
@@ -448,3 +447,128 @@ gesamtes Styling, weil die Regel ein ID-Selektor ist). Beide hätten zu einem fa
   (`top:96px`, über der Content-Spalte zentriert), kein Abgleich mit dem User-Screenshot.
 - **Kein Klicktest in der laufenden Anwendung** — Speichern auf der Profil-Seite, Notiz-Speichern
   im Anfragen-Detail und der Fehlerpfad sind nicht gegen echte Supabase-Antworten gelaufen.
+
+---
+---
+
+# Teil 3 — Tonalitäts-Bereinigung (Folgeauftrag, 09.08.)
+
+Direkter Anschluss an Teil 2, ausgelöst durch dessen Nebenfund 1. **Begründung, warum das
+kein optionales Aufräumen ist:** Solange die vier Tonalitäten fast gleich aussahen, war eine
+falsch abgeleitete Rolle folgenlos. Seit Teil 2 tragen linke Kante und Icon-Kachel sie
+sichtbar — eine falsch abgeleitete Rolle ist damit ein sichtbarer Bruch der
+Vier-Familien-Regel. Teil 2 hat das Problem nicht verursacht, aber sichtbar gemacht.
+
+## Was die Heuristik falsch machte
+
+Der alte Renderer leitete die Tonalität aus dem Meldungstext ab, wenn der Aufrufer keine
+angab:
+
+```js
+if (/fehler|nicht|ungültig|konnte nicht|fehlgeschlagen/i.test(rawMsg)) → error
+else if (/bitte|warn|achtung/i.test(rawMsg))                          → warning
+else if (/info|hinweis/i.test(rawMsg))                                → info
+else                                                                   → success
+```
+
+**Der systematische Fehler: Verneinungen mit „kein/keine" kommen in keinem der Muster vor.**
+Alles, was mit „Keine …" oder „Kein …" beginnt, fiel durch bis zum Standard `success`. Gezählt
+wurden **109 von 163** Aufrufstellen ohne expliziten Typ; die Heuristik entschied also über
+zwei Drittel aller Farbrollen im Produkt. Beispiele, die dadurch **grün** waren:
+
+| Meldung | abgeleitet | richtig |
+|---|---|---|
+| `Keine Telefonnummer vorhanden` | success | warning |
+| `Kein Code verfügbar.` | success | warning |
+| `Keine Nummer verfügbar.` | success | warning |
+| `Testanruf läuft bereits.` | success | info |
+| `Dieser Eintrag ist bereits erledigt.` | success | info |
+| `Status bereits gesetzt` | success | info |
+| `Keine Einträge zum Exportieren` | success | info |
+| `⚠️ Authentifizierung erforderlich` | success | error |
+| `Verbindung fehlt.` | success | error |
+| `Für Ihren aktuellen Plan ist kein höherer Plan verfügbar.` | success | info |
+
+Die 34 als `error` abgeleiteten Meldungen waren dagegen fast alle korrekt — die Heuristik war
+nicht durchgehend schlecht, sondern in genau einer Richtung blind.
+
+## Einordnungsregeln (jetzt im Verifier dokumentiert)
+
+| Rolle | gilt für |
+|---|---|
+| **success** | Eine vom Nutzer ausgelöste Aktion ist abgeschlossen. |
+| **error** | Eine Aktion ist fehlgeschlagen oder konnte nicht ausgeführt werden. |
+| **warning** | Die Aktion braucht erst eine Eingabe/Entscheidung, oder eine Voraussetzung fehlt. |
+| **info** | Nichts ist fehlgeschlagen und nichts wurde erreicht — reine Zustandsauskunft. |
+| **neutral** | Keine Tonalität angegeben. Night-Akzent, ausdrücklich keine der vier Bedeutungen. |
+
+`info` ist die Kategorie, die vorher praktisch nicht existierte und die meisten Fehlgriffe
+erklärt: „schon erledigt", „läuft bereits", „nichts vorhanden" sind weder Erfolg noch Fehler.
+
+## Was geändert wurde
+
+- **111 Aufrufstellen tragen ihre Tonalität jetzt selbst** — 108 in `index.html`, 3 in den
+  Shared-Modulen (`commercial-controller`, `case-intake`, `help-route`, die defensiv über
+  `root.toast` / `w.toast` aufrufen).
+- **Die Heuristik ist ersatzlos entfernt.** Ohne Angabe gilt `neutral`: Night-Akzent und ein
+  neutraler Punkt als Icon — kein Haken (das wäre ein behaupteter Erfolg), kein
+  Ausrufezeichen (eine behauptete Dringlichkeit). *Lieber keine Aussage als eine geratene.*
+- **Der Icon-Rückfall zeigt nicht mehr auf `success`.** `icons[t] || icons.success` hätte auch
+  nach dem Umbau bei jedem unbekannten Typ einen grünen Haken gezeigt.
+- **23 Zustands-Emoji aus Meldungstexten entfernt** (`⚠️`, `⚠`, `✓`). Sie waren der Behelf
+  einer Zeit, in der die Tonalität unsichtbar war — die Meldung musste ihre Dringlichkeit
+  selbst mitbringen. Neben einer Icon-Kachel derselben Bedeutung sind sie ein dritter,
+  redundanter Träger, und in mehreren Fällen widersprachen sie der tatsächlichen Rolle
+  (`⚠️ Keine gültige Telefonnummer vorhanden` war grün).
+
+## Der Wächter
+
+`scripts/verify-zustandsanzeigen.mjs` bekommt vier zusätzliche Prüfungen:
+
+1. **Jede Aufrufstelle nennt ihre Tonalität.** Obergrenze `ERLAUBT_OHNE_TONALITAET = 0`, mit
+   der ausdrücklichen Regel, dass sie sinken, nie steigen darf — plus einer zweiten Zusicherung
+   gegen genau dieses Anheben. Die Fehlermeldung listet die Fundstellen und druckt die
+   Einordnungsregeln mit aus, damit der nächste Entwickler nicht raten muss.
+2. **Die Heuristik darf nicht zurückkehren** (`inferredType`, `.test(rawMsg)`).
+3. **Der neutrale Rückfall bleibt neutral** — weder Rolle noch Icon dürfen wieder eine
+   Bedeutung behaupten.
+4. **Kein Zustands-Emoji am Anfang einer Meldung.**
+
+**Gegenprobe: 8 neue Mutationen, 8/8 gefangen** — plus die 21 aus Teil 2 erneut, also 29/29.
+
+**Die Gegenprobe fand eine echte Lücke, die der grüne Wächter verdeckt hatte:** die
+Fundstellensuche lief auf `/(?<![\w.$])toast\(/` und übersah damit **sämtliche Aufrufe über
+einen Empfänger** — genau die Form, in der die Shared-Module aufrufen (`root.toast(...)`). Der
+Wächter war für `index.html` grün und für drei Dateien blind. Behoben, indem der Empfänger
+mitgelesen wird; fremde `.toast()`-Methoden bleiben ausgeschlossen. Eine zweite, kleinere
+Lücke meldete sich sofort selbst: die Kommentar-Maskierung kannte keine HTML-Kommentare, und
+der erste Lauf beanstandete prompt den eigenen Erklärtext neben dem Toast-Markup.
+
+## Prüfstand
+
+- **157/157 Dashboard-Tests grün**, alle Inline-Scripts parsebar.
+- **Verifier-Sweep 58/59.** Einziger Ausfall: `verify-db-security-invariants` (keine
+  DB-Zugangsdaten in dieser Umgebung), unverändert gegenüber `main`.
+- **Sichtprüfung beider Breakpoints** mit denselben echten Renderfunktionen wie in Teil 2,
+  diesmal mit fünf Zuständen. Gemessene Kantenfarben: `rgb(5,150,105)` / `rgb(26,111,232)` /
+  `rgb(217,119,6)` / `rgb(220,38,38)` / `rgb(13,31,60)`. Die Beispiele sind bewusst echte
+  Meldungen aus der Korrekturliste — „Keine Telefonnummer vorhanden" erscheint jetzt
+  bernsteinfarben statt grün.
+
+## Bewusst nicht mitgemacht
+
+- **Die Meldungstexte selbst wurden nicht umformuliert**, nur die vorangestellten Emoji
+  entfernt. Wortlaut-Politur ist ein eigenes Thema (Sie-Form, Satzzeichen, Länge) und hätte
+  einen 111-Stellen-Diff zusätzlich mit Sprachentscheidungen belastet.
+- **`vxTaskDetailNotify()`** reicht `type || 'info'` durch, statt eine feste Rolle zu setzen —
+  die Funktion ist ein Weiterleiter, ihre Aufrufer entscheiden. Nur der `showToast()`-Zweig
+  daneben bekam denselben Durchreicher, er hatte ihn als einziger nicht.
+- **Das Admin-Portal** — nach wie vor kein einziger `toast(`-Aufruf.
+
+## Nicht verifiziert
+
+- **Die Einordnung der 111 Stellen ist Textprüfung, kein Durchspielen.** Jede Meldung wurde
+  im Quelltext-Kontext eingeordnet, aber nicht jede Stelle wurde in der laufenden Anwendung
+  ausgelöst. Bei Meldungen, deren Rolle vom Auslöser abhängt (`taskSpec.toast`,
+  `followUpSaveToastMessage(...)`), ist die Zuordnung eine Bewertung.
+- **Kein Klicktest gegen die laufende Anwendung.**

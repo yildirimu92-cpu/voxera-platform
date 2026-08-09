@@ -1992,6 +1992,10 @@ body.vx-detail-v2-open #confirm-overlay.open {
 .toast.t-info{--vx-toast-role:var(--vx-color-info);--vx-toast-role-bg:var(--vx-color-info-bg);}
 .toast.t-warning{--vx-toast-role:var(--vx-color-warning);--vx-toast-role-bg:var(--vx-color-warning-bg);}
 .toast.t-error{--vx-toast-role:var(--vx-color-danger);--vx-toast-role-bg:var(--vx-color-danger-bg);}
+/* Ohne angegebene Tonalitaet: Night. Ausdruecklich keine der vier
+   Bedeutungen — die Regel steht hier nur, damit der Fall benannt ist und
+   nicht als vergessene Zuordnung gelesen wird. */
+.toast.t-neutral{--vx-toast-role:var(--vx-color-night);--vx-toast-role-bg:var(--vx-color-surface-soft);}
 .toast.show{
   opacity:1;
   transform:translateX(-50%) translateY(0);
@@ -8777,7 +8781,8 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
 <!-- COMMERCIAL LEGACY MODALS REMOVED -->
 
         <!-- TOAST -->
-<div class="toast t-success" id="toast"><div class="toast-icon success" id="toast-icon"><svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M1.5 5l2.5 2.5L8.5 2"/></svg></div><span id="toast-text"></span></div>
+<!-- Startzustand neutral, nicht success: der Knoten ist bis zum ersten Aufruf leer und unsichtbar, eine Erfolgs-Tonalitaet waere hier eine Aussage ueber nichts. toast() setzt Klasse und Icon bei jedem Aufruf neu. -->
+<div class="toast t-neutral" id="toast"><div class="toast-icon neutral" id="toast-icon"><svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="5" cy="5" r="2.2"/></svg></div><span id="toast-text"></span></div>
 <div id="copy-feedback-live" class="sr-only" aria-live="polite" aria-atomic="true"></div>
 
 <script>
@@ -10153,7 +10158,7 @@ function vxHandleDprButtonClick(e) {
   var phone = (btn.dataset && btn.dataset.phone) || (menuPortal && menuPortal.dataset && menuPortal.dataset.phone) || (exp && exp.dataset.phone) || (card && card.dataset.phone) || (vxRow && vxRow.dataset && vxRow.dataset.phone) || '';
   if (!recId) {
     if (typeof toast === 'function') toast('Aktion konnte nicht ausgeführt werden: fehlende Referenz.', 'warning');
-    else if (typeof showToast === 'function') showToast('⚠️ Aktion konnte nicht ausgeführt werden: fehlende Referenz.');
+    else if (typeof showToast === 'function') showToast('Aktion konnte nicht ausgeführt werden: fehlende Referenz.', 'error');
     return;
   }
   if (typeof dprAction === 'function') dprAction(action, recId, phone);
@@ -10997,14 +11002,14 @@ function dprAction(action, recId, extra) {
     } else {
       var dialPhone = String(phoneForDial || '').replace(/[^+0-9]/g, '');
       if (dialPhone) window.location.href = 'tel:' + dialPhone;
-      else if (typeof showToast === 'function') showToast('⚠️ Keine gültige Telefonnummer vorhanden');
+      else if (typeof showToast === 'function') showToast('Keine gültige Telefonnummer vorhanden', 'warning');
     }
     return;
   }
   if (action === 'done') {
     if (actionIsDone) {
       if (typeof toast === 'function') toast('Dieser Eintrag ist bereits erledigt.', 'info');
-      else if (typeof showToast === 'function') showToast('Dieser Eintrag ist bereits erledigt.');
+      else if (typeof showToast === 'function') showToast('Dieser Eintrag ist bereits erledigt.', 'info');
       return;
     }
     if (typeof vxGuardDoneAction === 'function' && vxGuardDoneAction(recId, 'dprAction.done')) return;
@@ -11019,7 +11024,7 @@ function dprAction(action, recId, extra) {
   if (action === 'archive') {
     if (actionIsArchived) {
       if (typeof toast === 'function') toast('Dieser Eintrag ist bereits archiviert.', 'info');
-      else if (typeof showToast === 'function') showToast('Dieser Eintrag ist bereits archiviert.');
+      else if (typeof showToast === 'function') showToast('Dieser Eintrag ist bereits archiviert.', 'info');
       return;
     }
     var archiveRow = document.querySelector('.dpr-card[data-id="'+recId+'"]');
@@ -15192,7 +15197,7 @@ async function vxSubmitCancellationRequest() {
       }
       vxRenderContractDetails();
       vxRenderCancellationSection();
-      toast('Kündigung eingereicht.');
+      toast('Kündigung eingereicht.', 'success');
       return true;
     }
   });
@@ -15356,7 +15361,7 @@ async function vxSubmitReactivationRequest() {
       }
       vxRenderContractDetails();
       vxRenderCancellationSection();
-      toast('Kündigung zurückgezogen. Ihr Abonnement läuft weiter.');
+      toast('Kündigung zurückgezogen. Ihr Abonnement läuft weiter.', 'success');
       return true;
     }
   });
@@ -15578,7 +15583,7 @@ function vxCopyCode(btn) {
   if (!code) return;
   if (navigator.clipboard) {
     navigator.clipboard.writeText(code).then(function() {
-      if (typeof showToast === 'function') showToast('✓ Code kopiert.');
+      if (typeof showToast === 'function') showToast('Code kopiert.', 'success');
     });
   }
 }
@@ -16169,13 +16174,24 @@ function toast(msg, type) {
   if (!el) return;
   if (textEl) textEl.textContent = msg;
   else el.textContent = msg;
-  // Icon by type
-  var rawMsg = String(msg || '').trim();
-  var inferredType = 'success';
-  if (/fehler|nicht|ungültig|konnte nicht|fehlgeschlagen/i.test(rawMsg)) inferredType = 'error';
-  else if (/bitte|warn|achtung/i.test(rawMsg)) inferredType = 'warning';
-  else if (/info|hinweis/i.test(rawMsg)) inferredType = 'info';
-  var t = type || inferredType;
+  // Die Tonalitaet kommt ausschliesslich vom Aufrufer.
+  //
+  // Hier stand bis zur Tonalitaets-Bereinigung eine Ableitung aus dem
+  // Meldungstext: /fehler|nicht|ungültig|.../ -> error, /bitte|warn/ ->
+  // warning, /info|hinweis/ -> info, sonst success. Sie entschied ueber 109
+  // der damals 163 Aufrufe, also ueber zwei Drittel der Farbrollen — und sie
+  // lag systematisch daneben, weil Verneinungen mit "kein/keine" in keinem
+  // ihrer Muster vorkommen: "Keine Telefonnummer vorhanden", "Kein Code
+  // verfuegbar", "Testanruf laeuft bereits" landeten alle bei success, also
+  // Gruen. Solange sich die vier Tonalitaeten kaum unterschieden, war das
+  // fast unsichtbar; seit Kante und Icon-Kachel sie tragen, waere es an
+  // jeder dieser Stellen ein sichtbarer Bruch der Vier-Familien-Regel.
+  //
+  // Ohne Angabe gilt jetzt "neutral": Night-Akzent, also die Marke und
+  // ausdruecklich keine der vier Bedeutungen. Lieber keine Aussage als eine
+  // geratene — eine falsche Farbrolle ist schlechter als gar keine.
+  var TOAST_TONES = { success: 1, info: 1, warning: 1, error: 1 };
+  var t = TOAST_TONES[type] ? type : 'neutral';
   // stroke="currentColor": die Strichfarbe kommt aus der Icon-Kachel, die
   // ihrerseits das Rollen-Token der Tonalitaet traegt. Vorher standen hier
   // vier feste Hexwerte neben vier weiteren im CSS — zwei Quellen fuer
@@ -16184,11 +16200,15 @@ function toast(msg, type) {
     success: '<svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M1.5 5l2.5 2.5L8.5 2"/></svg>',
     info:    '<svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="5" cy="5" r="4"/><path d="M5 4.5v3M5 3h.01"/></svg>',
     warning: '<svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M5 1L9 9H1L5 1z"/><path d="M5 5v2M5 7.5h.01"/></svg>',
-    error:   '<svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="5" cy="5" r="4"/><path d="M3.7 3.7l2.6 2.6M6.3 3.7L3.7 6.3"/></svg>'
+    error:   '<svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="5" cy="5" r="4"/><path d="M3.7 3.7l2.6 2.6M6.3 3.7L3.7 6.3"/></svg>',
+    // Neutral: ein Punkt. Kein Haken (das waere ein behaupteter Erfolg), kein
+    // Ausrufezeichen (eine behauptete Dringlichkeit) — die Form sagt "es gibt
+    // eine Meldung" und sonst nichts.
+    neutral: '<svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="5" cy="5" r="2.2"/></svg>'
   };
   if (iconEl) {
     iconEl.className = 'toast-icon ' + t;
-    iconEl.innerHTML = icons[t] || icons.success;
+    iconEl.innerHTML = icons[t] || icons.neutral;
   }
   // Die Tonalitaet muss auch am Container haengen: linke Kante und
   // Icon-Kachel lesen dieselbe Rollenvariable, und die wird auf .toast
@@ -16832,7 +16852,7 @@ function vxAboUpgrade() {
       meta: (price > 0 ? ('CHF ' + price + ' / Mt') : 'Preis wird geprüft') + (minutes > 0 ? (' · ' + minutes + ' Min. inklusive') : '')
     };
   });
-  if (!options.length) { toast('Für Ihren aktuellen Plan ist kein höherer Plan verfügbar.'); return; }
+  if (!options.length) { toast('Für Ihren aktuellen Plan ist kein höherer Plan verfügbar.', 'info'); return; }
   vxCommercialState = { type: 'plan_upgrade', selected: '', options, estimatedAmount: null, submitting: false };
   vxCommercialRender();
   vxCommercialOpen();
@@ -16896,7 +16916,7 @@ async function vxCommercialSubmit() {
       status.innerHTML = '<strong>Anfrage übermittelt</strong><span>Referenz: ' + reference + '</span><small>Voxera bestätigt die Vertrags- oder Abrechnungsänderung separat.</small>';
     }
     if (submit) { submit.textContent = 'Übermittelt'; submit.disabled = true; }
-    toast('Anfrage verbindlich übermittelt.');
+    toast('Anfrage verbindlich übermittelt.', 'success');
   } catch (error) {
     vxCommercialState.submitting = false;
     if (status) { status.dataset.state = 'error'; status.textContent = error.message || 'Übermittlung fehlgeschlagen.'; }
@@ -19613,9 +19633,9 @@ function vxCallDetailAnrufen() {
   if (!callId) return;
   var recordsSource = (typeof allRecords !== 'undefined' && allRecords) ? allRecords : (window.allRecords || []);
   var rec = recordsSource.find(function(r) { return r.id === callId; });
-  if (!rec) { showToast('⚠️ Anruf nicht gefunden'); return; }
+  if (!rec) { showToast('Anruf nicht gefunden', 'error'); return; }
   var phone = (rec.fields && (rec.fields.caller_phone || rec.fields.phone || rec.fields.tel_link)) || '';
-  if (!phone) { showToast('⚠️ Keine Telefonnummer vorhanden'); return; }
+  if (!phone) { showToast('Keine Telefonnummer vorhanden', 'warning'); return; }
   if (typeof vxOpenTelHref === 'function') vxOpenTelHref(phone, 'Keine gültige Telefonnummer vorhanden');
   else window.location.href = 'tel:' + String(phone).replace(/[^+0-9]/g, '');
 }
@@ -19631,7 +19651,7 @@ function vxCallDetailMail() {
   if (!callId) return;
   var recordsSource = (typeof allRecords !== 'undefined' && allRecords) ? allRecords : (window.allRecords || []);
   var rec = recordsSource.find(function(r) { return r.id === callId; });
-  if (!rec) { showToast('⚠️ Anruf nicht gefunden'); return; }
+  if (!rec) { showToast('Anruf nicht gefunden', 'error'); return; }
   var f = rec.fields || {};
   var email = f.caller_email || '';
   var name = f.caller_name || '';
@@ -19640,7 +19660,7 @@ function vxCallDetailMail() {
   if (email) {
     window.location.href = 'mailto:' + email + '?subject=' + subject + '&body=' + body;
   } else {
-    showToast('Keine E-Mail-Adresse vorhanden — öffne leere E-Mail');
+    showToast('Keine E-Mail-Adresse vorhanden — öffne leere E-Mail', 'info');
     window.location.href = 'mailto:?subject=' + subject + '&body=' + body;
   }
 }
@@ -19671,8 +19691,8 @@ function vxCallDetailArchivieren() {
     ? window._vxCurrentTaskId
     : window._vxCurrentCallId;
   if (!id) {
-    if (typeof showToast === 'function') showToast('⚠️ Eintrag nicht gefunden');
-    else if (typeof toast === 'function') toast('Eintrag nicht gefunden');
+    if (typeof showToast === 'function') showToast('Eintrag nicht gefunden', 'error');
+    else if (typeof toast === 'function') toast('Eintrag nicht gefunden', 'error');
     return;
   }
 
@@ -19845,17 +19865,17 @@ function vxCallDetailErledigt() {
     var sb = (typeof getSupabaseAuthClient === 'function') ? getSupabaseAuthClient() : null;
     if (!sb) {
       resetBtn();
-      showToast('⚠️ Authentifizierung erforderlich');
+      showToast('Authentifizierung erforderlich', 'error');
       return;
     }
     sb.from('calls').update({ dashboard_status: 'closed', updated_at: new Date().toISOString() }).eq('id', callId).then(function(r) {
       resetBtn();
       if (r.error) {
-        showToast('⚠️ Fehler beim Speichern');
+        showToast('Fehler beim Speichern', 'error');
       } else {
         var b = document.getElementById('vx-cd-qa-done');
         if (b) b.classList.add('is-success');
-        showToast('✓ Als erledigt markiert');
+        showToast('Als erledigt markiert', 'success');
         setTimeout(function() { if (typeof hideCallDetail === 'function') hideCallDetail(); }, 1200);
       }
     });
@@ -19865,15 +19885,15 @@ window.vxCallDetailErledigt = vxCallDetailErledigt;
 
 function saveFollowUp(callId) {
   var sb = (typeof getSupabaseAuthClient === 'function') ? getSupabaseAuthClient() : null;
-  if (!sb) { showToast('⚠️ Authentifizierung erforderlich'); return; }
+  if (!sb) { showToast('Authentifizierung erforderlich', 'error'); return; }
   const call = (state && state.calls) ? state.calls.find(function(c){ return c.id === callId; }) : null;
-  if (!call) { showToast('⚠️ Anruf nicht gefunden'); return; }
+  if (!call) { showToast('Anruf nicht gefunden', 'error'); return; }
   const callback = document.getElementById('followup-callback') && document.getElementById('followup-callback').checked;
   const email = document.getElementById('followup-email') && document.getElementById('followup-email').checked;
   const task = document.getElementById('followup-task') && document.getElementById('followup-task').checked;
   const dueDateInput = document.getElementById('followup-date') ? document.getElementById('followup-date').value : '';
-  if (!callback && !email && !task) { showToast('⚠️ Bitte mindestens eine Aktion wählen'); return; }
-  if (!dueDateInput) { showToast('⚠️ Bitte Datum/Uhrzeit wählen'); return; }
+  if (!callback && !email && !task) { showToast('Bitte mindestens eine Aktion wählen', 'warning'); return; }
+  if (!dueDateInput) { showToast('Bitte Datum/Uhrzeit wählen', 'warning'); return; }
   // Determine task type (callback > email > task)
   const taskType = callback ? 'callback' : (email ? 'email' : 'task');
   const taskTitle = callback ? 'Rückruf' : (email ? 'E-Mail senden' : 'Aufgabe');
@@ -19882,7 +19902,7 @@ function saveFollowUp(callId) {
   const legacyFollowUpValue = normalizeFollowUpLocalValue(dueDateInput) || String(dueDateInput || '').trim();
   const legacyFollowUpDueAt = legacyFollowUpValue.slice(0, 10);
   const legacyFollowUpDueTime = normalizeManualTaskDueTime(legacyFollowUpValue.slice(11, 16));
-  if (!legacyFollowUpDueAt || !legacyFollowUpDueTime) { showToast('⚠️ Bitte Datum und Uhrzeit wählen'); return; }
+  if (!legacyFollowUpDueAt || !legacyFollowUpDueTime) { showToast('Bitte Datum und Uhrzeit wählen', 'warning'); return; }
   const taskData = {
     customer_id: call.customer_id,
     phone: call.caller_phone || call.phone_number || '',
@@ -19895,9 +19915,9 @@ function saveFollowUp(callId) {
   };
   sb.from('customer_tasks').insert([taskData]).then(function(r) {
     if (r.error) {
-      showToast('⚠️ Fehler beim Speichern');
+      showToast('Fehler beim Speichern', 'error');
     } else {
-      showToast('✓ Nachfassen gespeichert');
+      showToast('Nachfassen gespeichert', 'success');
       ['followup-callback', 'followup-email', 'followup-task'].forEach(function(id) {
         const el = document.getElementById(id);
         if (el) el.checked = false;
@@ -19965,7 +19985,7 @@ function toggleBrowserNotif() {
     if (perm === 'granted') {
       vxSafeLocalStorageSet('voxera_browser_notif_off', '0');
       updateBrowserNotifToggleUI();
-      toast('Browser-Benachrichtigungen aktiviert.');
+      toast('Browser-Benachrichtigungen aktiviert.', 'success');
     } else {
       toast('Berechtigung nicht erteilt. Bitte im Browser erlauben.', 'warning');
       updateBrowserNotifToggleUI();
@@ -21321,7 +21341,7 @@ function handleDashboardActivationPrimaryCta(event){
   }
   var hasBusinessNumber = !!((customerMeta && customerMeta.telNr) ? String(customerMeta.telNr).trim() : '');
   if (!hasBusinessNumber) {
-    toast('Ihre Geschäftsnummer ist noch nicht hinterlegt.');
+    toast('Ihre Geschäftsnummer ist noch nicht hinterlegt.', 'warning');
     return;
   }
   openSetupHelpOverlay(event, 'testcall');
@@ -21377,7 +21397,7 @@ function vxGuardDoneAction(recordId, source) {
   var rec = vxResolveActionRecord(recordId);
   if (!vxIsReadonlyDoneRecord(rec)) return false;
   if (typeof toast === 'function') toast('Dieser Eintrag ist bereits erledigt.', 'info');
-  else if (typeof showToast === 'function') showToast('Dieser Eintrag ist bereits erledigt.');
+  else if (typeof showToast === 'function') showToast('Dieser Eintrag ist bereits erledigt.', 'info');
   console.info('[Voxera Action Guard] blocked duplicate done action', { id: String(recordId || ''), source: source || 'unknown' });
   return true;
 }
@@ -22809,16 +22829,16 @@ async function vxInboxRunBulkStatusChange(actionType) {
 
   if (failed > 0) {
     if (typeof toast === 'function') toast('Einige Einträge konnten nicht aktualisiert werden.', 'warning');
-    else if (typeof showToast === 'function') showToast('Einige Einträge konnten nicht aktualisiert werden.');
+    else if (typeof showToast === 'function') showToast('Einige Einträge konnten nicht aktualisiert werden.', 'error');
   } else if (success > 0 && skipped > 0) {
     if (typeof toast === 'function') toast(success + ' von ' + selected.length + ' Einträgen ' + (isArchive ? 'archiviert' : 'erledigt') + '. ' + skipped + ' übersprungen.', 'info');
-    else if (typeof showToast === 'function') showToast(success + ' von ' + selected.length + ' Einträgen ' + (isArchive ? 'archiviert' : 'erledigt') + '. ' + skipped + ' übersprungen.');
+    else if (typeof showToast === 'function') showToast(success + ' von ' + selected.length + ' Einträgen ' + (isArchive ? 'archiviert' : 'erledigt') + '. ' + skipped + ' übersprungen.', 'success');
   } else if (success > 0) {
     if (typeof toast === 'function') toast(success + ' Einträge ' + (isArchive ? 'archiviert' : 'erledigt') + '.', 'success');
-    else if (typeof showToast === 'function') showToast(success + ' Einträge ' + (isArchive ? 'archiviert' : 'erledigt') + '.');
+    else if (typeof showToast === 'function') showToast(success + ' Einträge ' + (isArchive ? 'archiviert' : 'erledigt') + '.', 'success');
   } else if (selected.length > 0) {
     if (typeof toast === 'function') toast('Keine passenden Einträge für diese Aktion ausgewählt.', 'info');
-    else if (typeof showToast === 'function') showToast('Keine passenden Einträge für diese Aktion ausgewählt.');
+    else if (typeof showToast === 'function') showToast('Keine passenden Einträge für diese Aktion ausgewählt.', 'warning');
   }
 }
 function vxInboxResolveRowRecordId(target) {
@@ -23142,7 +23162,7 @@ async function vxArchivRestore(recordId) {
       rec.fields.completed_at = null;
     }
 
-    if (typeof showToast === 'function') showToast('✓ Eintrag wiederhergestellt');
+    if (typeof showToast === 'function') showToast('Eintrag wiederhergestellt', 'success');
     else if (typeof toast === 'function') toast('Eintrag wiederhergestellt', 'success');
 
     renderArchiv(records);
@@ -23151,7 +23171,7 @@ async function vxArchivRestore(recordId) {
 
   } catch(e) {
     console.error('[vxArchivRestore]', e);
-    if (typeof showToast === 'function') showToast('⚠ Fehler: ' + (e.message || 'Unbekannter Fehler'));
+    if (typeof showToast === 'function') showToast('Fehler: ' + (e.message || 'Unbekannter Fehler'), 'error');
     var btn2 = document.querySelector('[data-restore-id="'+recordId+'"]');
     if (btn2) {
       btn2.disabled = false;
@@ -23164,7 +23184,7 @@ window.vxArchivRestore = vxArchivRestore;
 function exportArchiv() {
   var done = _archivAllDone.length ? _archivAllDone :
     (allRecords||[]).filter(function(r){ return normalizeStatus((r.fields||{}).dashboard_status) === CALL_STATUS.ARCHIVED; });
-  if (!done.length) { toast('Keine Einträge zum Exportieren'); return; }
+  if (!done.length) { toast('Keine Einträge zum Exportieren', 'info'); return; }
   var rows = [['Name','Telefon','Kategorie','Datum','Uhrzeit','Zusammenfassung','Nachfassen','Notiz']];
   done.forEach(function(r) {
     var f = r.fields || {};
@@ -23196,7 +23216,7 @@ function exportArchiv() {
   a.download = 'voxera-archiv-'+new Date().toISOString().slice(0,10)+'.csv';
   document.body.appendChild(a); a.click();
   document.body.removeChild(a); URL.revokeObjectURL(url);
-  toast('CSV exportiert ('+done.length+' Einträge)');
+  toast('CSV exportiert ('+done.length+' Einträge)', 'success');
 }
 
 function activateTab(name) {
@@ -23614,7 +23634,7 @@ async function runConfirmModalAction() {
       closeConfirmModal();
     }
   } catch (e) {
-    toast(' ' + toManualTaskUserMessage(e, 'Aktion konnte nicht gespeichert werden.'));
+    toast(toManualTaskUserMessage(e, 'Aktion konnte nicht gespeichert werden.'), 'error');
   } finally {
     confirmModalBusy = false;
     if (okBtn) {
@@ -23679,7 +23699,7 @@ async function doStatusChange(recordId, newStatus, rowElement) {
     renderAnrufe();
     renderRueckrufe(allRecords, allManualTaskRecords);
     renderArchiv(allRecords);
-    toast('Status bereits gesetzt');
+    toast('Status bereits gesetzt', 'info');
     return true;
   }
 
@@ -23773,7 +23793,7 @@ async function doStatusChange(recordId, newStatus, rowElement) {
         cached.fields.dashboard_status = currentStatus;
       }
     } else {
-      toast('⚠ ' + toManualTaskUserMessage(e, 'Fehler beim Status-Update'));
+      toast(toManualTaskUserMessage(e, 'Fehler beim Status-Update'), 'error');
     }
     if (row) { row.style.opacity='1'; row.style.background=''; row.style.borderColor=''; }
     return false;
@@ -23784,7 +23804,7 @@ async function doStatusChange(recordId, newStatus, rowElement) {
 function directCall(recordId, encodedTarget) {
   const raw = decodeURIComponent(encodedTarget || '').trim();
   if (!raw) {
-    toast('Keine Telefonnummer vorhanden');
+    toast('Keine Telefonnummer vorhanden', 'warning');
     return;
   }
   pendingFollowupRecordId = recordId;
@@ -23995,7 +24015,7 @@ async function saveFollowup() {
         modal: 'followup'
       });
       notizRecordId = null;
-      toast(taskSpec.toast);
+      toast(taskSpec.toast, 'success');
       vxScheduleSingleDataRefresh(500);
       return;
     }
@@ -24013,12 +24033,12 @@ async function saveFollowup() {
     notizRecordId = null;
 
     // Bestätigung folgt der gewählten Aktion statt immer "Rückruf geplant".
-    toast(followUpSaveToastMessage(nextAction, followUpAt));
+    toast(followUpSaveToastMessage(nextAction, followUpAt), 'success');
 
     vxScheduleSingleDataRefresh(500);
   } catch(e) {
     const detail = e && e.message ? String(e.message) : '';
-    toast(detail ? 'Speichern fehlgeschlagen: ' + detail : 'Speichern fehlgeschlagen');
+    toast(detail ? 'Speichern fehlgeschlagen: ' + detail : 'Speichern fehlgeschlagen', 'error');
     // Error contract: keep modal open and preserve inputs.
   } finally {
     vxSetActionButtonLoading(btn, false);
@@ -24173,7 +24193,7 @@ function openManualTaskEditModal(recordId) {
   vxTaskModalMode = 'edit';
   const rec = allManualTaskRecords.find(function(item) { return String(item.id) === String(recordId); });
   if (!rec || !rec.fields) {
-    toast('Aufgabe nicht gefunden.');
+    toast('Aufgabe nicht gefunden.', 'error');
     return;
   }
   const f = rec.fields;
@@ -24280,7 +24300,7 @@ function saveManualRequest() {
   vxSetActionButtonLoading(btn, true, 'Erstelle...');
   try {
   var name = String(document.getElementById('manual-request-name').value || '').trim();
-  if (!name) { toast('Bitte Name / Firma ausfüllen.'); return; }
+  if (!name) { toast('Bitte Name / Firma ausfüllen.', 'warning'); return; }
   var phone = String(document.getElementById('manual-request-phone').value || '').trim();
   var category = String(document.getElementById('manual-request-category').value || 'anruf');
   var priority = String(document.getElementById('manual-request-priority').value || 'hot');
@@ -24307,7 +24327,7 @@ function saveManualRequest() {
   renderDashboard(allRecords, allManualTaskRecords);
   renderAnrufe();
   vxUpdateAnfragenCount();
-  toast('Anfrage erstellt');
+  toast('Anfrage erstellt', 'success');
   } finally {
     vxSetActionButtonLoading(btn, false);
   }
@@ -24352,19 +24372,19 @@ async function saveManualTask() {
   const priority = String((legacyPriority && legacyPriority.value) || '').trim();
 
   if (!title || !type) {
-    toast('Bitte Titel und Typ ausfüllen.');
+    toast('Bitte Titel und Typ ausfüllen.', 'warning');
     return;
   }
   if (!dueAt) {
-    toast('Bitte einen Zeitpunkt wählen.');
+    toast('Bitte einen Zeitpunkt wählen.', 'warning');
     return;
   }
   if (dueTime === null && legacyDue) {
-    toast(MANUAL_TASKS_DUE_TIME_INVALID_MESSAGE);
+    toast(MANUAL_TASKS_DUE_TIME_INVALID_MESSAGE, 'warning');
     return;
   }
   if (!dueTime) {
-    toast(MANUAL_TASKS_DUE_TIME_REQUIRED_MESSAGE);
+    toast(MANUAL_TASKS_DUE_TIME_REQUIRED_MESSAGE, 'warning');
     return;
   }
   const btn = document.getElementById('manual-task-save-btn');
@@ -24394,12 +24414,12 @@ async function saveManualTask() {
       const updatedTask = await updateManualTask(editingManualTaskRecordId, basePayload);
       const idx = allManualTaskRecords.findIndex(function(item) { return String(item.id) === String(editingManualTaskRecordId); });
       if (idx >= 0) allManualTaskRecords[idx] = updatedTask;
-      toast('Änderungen gespeichert');
+      toast('Änderungen gespeichert', 'success');
     } else {
       const createdTask = await createManualTask(basePayload);
       if (createdTask && createdTask.id) savedTaskId = String(createdTask.id);
       allManualTaskRecords.unshift(createdTask);
-      toast('Task erstellt');
+      toast('Task erstellt', 'success');
     }
     vxAfterActionSuccess({
       recordId: isEditMode ? activeEditId : '',
@@ -24415,7 +24435,7 @@ async function saveManualTask() {
       editingTaskId: editingManualTaskRecordId,
       error: e
     });
-    toast(toManualTaskUserMessage(e, isEditMode ? 'Task konnte nicht gespeichert werden.' : 'Task konnte nicht gespeichert werden.'));
+    toast(toManualTaskUserMessage(e, isEditMode ? 'Task konnte nicht gespeichert werden.' : 'Task konnte nicht gespeichert werden.'), 'error');
   } finally {
     vxSetActionButtonLoading(btn, false);
   }
@@ -24811,7 +24831,7 @@ function vxFindManualTaskRecord(taskId) {
 
 function vxTaskDetailNotify(message, type) {
   if (typeof toast === 'function') { toast(message, type || 'info'); return; }
-  if (typeof showToast === 'function') { showToast(message); }
+  if (typeof showToast === 'function') { showToast(message, type || 'info'); }
 }
 
 function vxTaskDetailPhone(fields) {
@@ -25072,11 +25092,11 @@ async function saveNotiz() {
     }
     vxRefreshOperationalViews(allRecords, allManualTaskRecords);
     closeNotiz();
-    toast('Notiz gespeichert');
+    toast('Notiz gespeichert', 'success');
     vxScheduleSingleDataRefresh(600);
   } catch(e) {
     const detail = e && e.message ? String(e.message) : '';
-    toast(detail ? 'Speichern fehlgeschlagen: ' + detail : 'Speichern fehlgeschlagen');
+    toast(detail ? 'Speichern fehlgeschlagen: ' + detail : 'Speichern fehlgeschlagen', 'error');
     // Error contract: keep modal open and preserve inputs.
   } finally {
     vxSetActionButtonLoading(btn, false);
@@ -25380,7 +25400,7 @@ async function saveNotifSettings(opts) {
         requestId: requestId
       });
       _notifSaveInFlight = null;
-      toast('Fehler: Kundendaten nicht geladen');
+      toast('Fehler: Kundendaten nicht geladen', 'error');
       return;
     }
   }
@@ -25412,7 +25432,7 @@ async function saveNotifSettings(opts) {
       recordId: finalRecordId,
       error: e && e.message ? e.message : String(e)
     });
-    toast(isContractInactiveError(e) ? getRestrictedContractMessage('Benachrichtigungen') : 'Fehler beim Speichern der Benachrichtigungen');
+    toast(isContractInactiveError(e) ? getRestrictedContractMessage('Benachrichtigungen') : 'Fehler beim Speichern der Benachrichtigungen', 'error');
     console.error('Notif save error:', e);
   } finally {
     _notifSaveInFlight = null;
@@ -25617,7 +25637,7 @@ function copyForwardingTemplateCode(event, btnEl) {
   var template = btnEl && btnEl.getAttribute('data-code-template');
   var code = resolveForwardingCode(template);
   if (!code) {
-    toast('Ihre Voxera-Nummer ist noch nicht verfügbar.');
+    toast('Ihre Voxera-Nummer ist noch nicht verfügbar.', 'warning');
     return;
   }
   return copyForwardingCode(event, code);
@@ -25706,7 +25726,7 @@ function openFullHelpFromWizard(anchorId) {
 async function copyForwardingCode(event, code) {
   if (event) event.stopPropagation();
   if (!code) {
-    toast('Code nicht verfügbar');
+    toast('Code nicht verfügbar', 'warning');
     return;
   }
   try {
@@ -25752,8 +25772,8 @@ function applyForwardingCode(event, linkEl) {
   var reason = linkEl.getAttribute('data-direct-reason') || '';
   if (disabled || !code) {
     if (event) event.preventDefault();
-    if (reason === 'missing_number') toast('Ihre Voxera-Nummer ist noch nicht verfügbar.');
-    else toast('Direktes Anwenden ist auf diesem Gerät nicht verfügbar. Bitte Code kopieren.');
+    if (reason === 'missing_number') toast('Ihre Voxera-Nummer ist noch nicht verfügbar.', 'warning');
+    else toast('Direktes Anwenden ist auf diesem Gerät nicht verfügbar. Bitte Code kopieren.', 'warning');
     return;
   }
   applyForwarding(code);
@@ -26232,20 +26252,20 @@ async function resetActivationTestContext(recId, context) {
     context.customerRecord.activation_test_mode = null;
     context.customerRecord.activation_test_candidate_call_id = null;
   }
-  toast('Aktivierung wurde zurückgesetzt. Bitte starten Sie den Test erneut.');
+  toast('Aktivierung wurde zurückgesetzt. Bitte starten Sie den Test erneut.', 'warning');
   renderActivationV2();
 }
 
 async function persistSetupDeviceType(type) {
   var normalized = type === 'mobile' ? 'mobile' : type === 'landline' ? 'landline' : null;
   if (!normalized) {
-    toast('Ungültiger Aktivierungsweg.');
+    toast('Ungültiger Aktivierungsweg.', 'error');
     return null;
   }
   try {
     const context = await resolveCustomerContext();
     var recId = (context && context.customerRecord && context.customerRecord.id) ? context.customerRecord.id : '';
-    if (!recId) { toast('Fehler: Kundendatensatz nicht gefunden.'); return null; }
+    if (!recId) { toast('Fehler: Kundendatensatz nicht gefunden.', 'error'); return null; }
     // Reset activation test context if currently in pending_test
     if (customerMeta.forwardingStatus === 'pending_test') {
       await resetActivationTestContext(recId, context);
@@ -26256,7 +26276,7 @@ async function persistSetupDeviceType(type) {
     return normalized;
   } catch(e) {
     console.error('setup_device_type save failed', e);
-    toast(isContractInactiveError(e) ? getRestrictedContractMessage('Aktivierung') : 'Aktivierungsweg konnte nicht gespeichert werden.');
+    toast(isContractInactiveError(e) ? getRestrictedContractMessage('Aktivierung') : 'Aktivierungsweg konnte nicht gespeichert werden.', 'error');
     return null;
   }
 }
@@ -26265,14 +26285,14 @@ async function persistForwardingSetupCompleted() {
   try {
     const context = await resolveCustomerContext();
     var recId = (context && context.customerRecord && context.customerRecord.id) ? context.customerRecord.id : '';
-    if (!recId) { toast('Fehler: Kundendatensatz nicht gefunden.'); return false; }
+    if (!recId) { toast('Fehler: Kundendatensatz nicht gefunden.', 'error'); return false; }
     await patchCustomerRecord(recId, { forwarding_setup_completed: true });
     customerMeta.forwardingSetupCompleted = true;
     if (context && context.customerRecord) context.customerRecord.forwarding_setup_completed = true;
     return true;
   } catch(e) {
     console.error('forwarding_setup_completed save failed', e);
-    toast(isContractInactiveError(e) ? getRestrictedContractMessage('Erreichbarkeit') : 'Rufumleitungsstatus konnte nicht gespeichert werden.');
+    toast(isContractInactiveError(e) ? getRestrictedContractMessage('Erreichbarkeit') : 'Rufumleitungsstatus konnte nicht gespeichert werden.', 'error');
     return false;
   }
 }
@@ -26281,13 +26301,13 @@ async function persistForwardingMode(mode) {
   var validModes = ['no_answer', 'unreachable', 'always', 'busy'];
   if (!validModes.includes(mode)) {
     console.error('persistForwardingMode: ungültiger Modus', mode);
-    toast('Ungültiger Weiterleitungsmodus.');
+    toast('Ungültiger Weiterleitungsmodus.', 'error');
     return false;
   }
   try {
     const context = await resolveCustomerContext();
     var recId = (context && context.customerRecord && context.customerRecord.id) ? context.customerRecord.id : '';
-    if (!recId) { toast('Fehler: Kundendatensatz nicht gefunden.'); return false; }
+    if (!recId) { toast('Fehler: Kundendatensatz nicht gefunden.', 'error'); return false; }
     // Reset activation test context if currently in pending_test
     if (customerMeta.forwardingStatus === 'pending_test') {
       await resetActivationTestContext(recId, context);
@@ -26298,7 +26318,7 @@ async function persistForwardingMode(mode) {
     return true;
   } catch(e) {
     console.error('forwarding_mode save failed', e);
-    toast(isContractInactiveError(e) ? getRestrictedContractMessage('Erreichbarkeit') : 'Weiterleitungsmodus konnte nicht gespeichert werden.');
+    toast(isContractInactiveError(e) ? getRestrictedContractMessage('Erreichbarkeit') : 'Weiterleitungsmodus konnte nicht gespeichert werden.', 'error');
     return false;
   }
 }
@@ -26437,7 +26457,7 @@ function renderActivationActionCard(meta) {
 
 async function activationCopyCode(event, code) {
   if (event) event.stopPropagation();
-  if (!code) { toast('Kein Code verfügbar.'); return; }
+  if (!code) { toast('Kein Code verfügbar.', 'warning'); return; }
   await copyForwardingCode(event, code);
 }
 
@@ -26455,7 +26475,7 @@ async function activationSkipTest(event) {
   try {
     const context = await resolveCustomerContext();
     var recId = (context && context.customerRecord && context.customerRecord.id) ? context.customerRecord.id : '';
-    if (!recId) { toast('Fehler: Kundendatensatz nicht gefunden.'); if (btn) { btn.disabled = false; btn.textContent = 'Ohne Test fortfahren'; } return; }
+    if (!recId) { toast('Fehler: Kundendatensatz nicht gefunden.', 'error'); if (btn) { btn.disabled = false; btn.textContent = 'Ohne Test fortfahren'; } return; }
     await patchCustomerRecord(recId, {
       forwarding_status: 'active',
       forwarding_setup_completed: true,
@@ -26480,13 +26500,13 @@ async function activationSkipTest(event) {
     candidateCall = null;
     activationFlowSuccessToken = '';
     stopActivationPolling();
-    toast('Rufumleitung erfolgreich aktiviert.');
+    toast('Rufumleitung erfolgreich aktiviert.', 'success');
     renderActivationV2();
     scrollToStatusCard();
     triggerStatusHighlight('success');
   } catch(e) {
     console.error('activationSkipTest failed', e);
-    toast('Aktivierung konnte nicht abgeschlossen werden.');
+    toast('Aktivierung konnte nicht abgeschlossen werden.', 'error');
     if (btn) { btn.disabled = false; btn.textContent = 'Ohne Test fortfahren'; }
   }
 }
@@ -26511,7 +26531,7 @@ function activationMobileDeactivate(event) {
   // Just show the next-step helper box and allow the dialer to open.
   var nextStep = document.getElementById('act-deact-mobile-nextstep');
   if (nextStep) nextStep.style.display = 'block';
-  toast('Deaktivierung gestartet. Bitte testen Sie jetzt Ihre Nummer.');
+  toast('Deaktivierung gestartet. Bitte testen Sie jetzt Ihre Nummer.', 'info');
 }
 
 function openActivationDeactivateSection() {
@@ -26547,12 +26567,12 @@ function activationDeactivationCheckboxChanged() {
 async function activationConfirmDeactivation(event) {
   if (event) event.preventDefault();
   var checkbox = document.getElementById('act-deact-checkbox');
-  if (!checkbox || !checkbox.checked) { toast('Bitte bestätigen Sie das Ergebnis.'); return; }
+  if (!checkbox || !checkbox.checked) { toast('Bitte bestätigen Sie das Ergebnis.', 'warning'); return; }
   var btn = document.getElementById('act-deact-btn');
   if (btn) { btn.disabled = true; btn.textContent = 'Wird gespeichert...'; }
   var ok = await persistForwardingStatus('inactive');
   if (ok) {
-    toast('Rufumleitung erfolgreich deaktiviert.');
+    toast('Rufumleitung erfolgreich deaktiviert.', 'success');
     renderActivationV2();
     scrollToStatusCard();
     triggerStatusHighlight('neutral');
@@ -26565,20 +26585,20 @@ async function persistForwardingStatus(status) {
   var validStatuses = ['not_started', 'pending_test', 'active', 'inactive'];
   if (!validStatuses.includes(status)) {
     console.error('persistForwardingStatus: ungültiger Status', status);
-    toast('Ungültiger Weiterleitungsstatus.');
+    toast('Ungültiger Weiterleitungsstatus.', 'error');
     return false;
   }
   try {
     const context = await resolveCustomerContext();
     var recId = (context && context.customerRecord && context.customerRecord.id) ? context.customerRecord.id : '';
-    if (!recId) { toast('Fehler: Kundendatensatz nicht gefunden.'); return false; }
+    if (!recId) { toast('Fehler: Kundendatensatz nicht gefunden.', 'error'); return false; }
     await patchCustomerRecord(recId, { forwarding_status: status });
     customerMeta.forwardingStatus = status;
     if (context && context.customerRecord) context.customerRecord.forwarding_status = status;
     return true;
   } catch(e) {
     console.error('persistForwardingStatus failed', e);
-    toast('Weiterleitungsstatus konnte nicht gespeichert werden.');
+    toast('Weiterleitungsstatus konnte nicht gespeichert werden.', 'error');
     return false;
   }
 }
@@ -26991,7 +27011,7 @@ async function activationStartSmartphone(event, code) {
   try {
     const context = await resolveCustomerContext();
     var recId = (context && context.customerRecord && context.customerRecord.id) ? context.customerRecord.id : '';
-    if (!recId) { toast('Fehler: Kundendatensatz nicht gefunden.'); return; }
+    if (!recId) { toast('Fehler: Kundendatensatz nicht gefunden.', 'error'); return; }
     if (btn) { btn.disabled = true; btn.textContent = 'Wird gespeichert…'; }
     var now = new Date().toISOString();
     clearActivationStateForRunStart();
@@ -27026,7 +27046,7 @@ async function activationStartSmartphone(event, code) {
     activationRunStartLocalIso = '';
     customerMeta.forwardingStatus = previousStatus;
     customerMeta.activationStartedAt = previousStartedAt;
-    toast('Aktivierung konnte nicht gestartet werden.');
+    toast('Aktivierung konnte nicht gestartet werden.', 'error');
     if (btn) { btn.disabled = false; btn.textContent = 'Jetzt aktivieren'; }
     renderActivationV2();
   } finally {
@@ -27047,7 +27067,7 @@ async function activationStartLandlineTest(event) {
   try {
     const context = await resolveCustomerContext();
     var recId = (context && context.customerRecord && context.customerRecord.id) ? context.customerRecord.id : '';
-    if (!recId) { toast('Fehler: Kundendatensatz nicht gefunden.'); if (btn) { btn.disabled = false; btn.textContent = 'Testanruf starten'; } return; }
+    if (!recId) { toast('Fehler: Kundendatensatz nicht gefunden.', 'error'); if (btn) { btn.disabled = false; btn.textContent = 'Testanruf starten'; } return; }
     var now = new Date().toISOString();
     clearActivationStateForRunStart();
     markActivationFreshRunStarted(now);
@@ -27076,7 +27096,7 @@ async function activationStartLandlineTest(event) {
     activationRunStartLocalIso = '';
     customerMeta.forwardingStatus = previousStatus;
     customerMeta.activationStartedAt = previousStartedAt;
-    toast('Aktivierung konnte nicht gestartet werden.');
+    toast('Aktivierung konnte nicht gestartet werden.', 'error');
     if (btn) { btn.disabled = false; btn.textContent = 'Testanruf starten'; }
     renderActivationV2();
   } finally {
@@ -27093,12 +27113,12 @@ async function confirmActivationTestCall(event) {
   try {
     const context = await resolveCustomerContext();
     var recId = (context && context.customerRecord && context.customerRecord.id) ? context.customerRecord.id : '';
-    if (!recId) { toast('Fehler: Kundendatensatz nicht gefunden.'); if (btn) { btn.disabled = false; btn.textContent = 'Aktivierung abschliessen'; } return false; }
+    if (!recId) { toast('Fehler: Kundendatensatz nicht gefunden.', 'error'); if (btn) { btn.disabled = false; btn.textContent = 'Aktivierung abschliessen'; } return false; }
     // Aktivierung erlauben wenn: automatisch erkannt ODER User hat manuell bestätigt
     // (forwarding_status = pending_test = User hat Code eingegeben und Testanruf gemacht)
     var isPendingTest = customerMeta && customerMeta.forwardingStatus === 'pending_test';
     if (!isPendingTest) {
-      toast('Aktivierung ist nur im Status "Wird geprüft" möglich.');
+      toast('Aktivierung ist nur im Status "Wird geprüft" möglich.', 'warning');
       if (btn) { btn.disabled = false; btn.textContent = 'Aktivierung abschliessen'; }
       return false;
     }
@@ -27142,7 +27162,7 @@ async function confirmActivationTestCall(event) {
     // Deactivation-State zurücksetzen – verhindert Flicker auf deactivation_success
     // falls der User in einer früheren Session deaktiviert hatte.
     erreichbarkeitDeactivationDoneAt = '';
-    toast('Rufumleitung erfolgreich aktiviert.');
+    toast('Rufumleitung erfolgreich aktiviert.', 'success');
     renderActivationV2();
     // Nochmals nach kurzem Delay rendern falls ein paralleler loadData-Lauf
     // den State zwischenzeitlich überschrieben hat.
@@ -27158,7 +27178,7 @@ async function confirmActivationTestCall(event) {
     return true;
   } catch(e) {
     console.error('confirmActivationTestCall failed', e);
-    toast('Aktivierung konnte nicht abgeschlossen werden.');
+    toast('Aktivierung konnte nicht abgeschlossen werden.', 'error');
     if (btn) { btn.disabled = false; btn.textContent = 'Aktivierung abschliessen'; }
     return false;
   } finally {
@@ -27206,7 +27226,7 @@ async function startActivationTestFromManualCta(event) {
     if (sessionLockKey) activationSystemCallSessionLock = sessionLockKey;
     startActivationPolling();
     renderActivationV2();
-    toast('Wir warten bereits auf die Erkennung des Testanrufs auf Ihrer hinterlegten Hauptnummer.');
+    toast('Wir warten bereits auf die Erkennung des Testanrufs auf Ihrer hinterlegten Hauptnummer.', 'info');
     return;
   }
   var started = await startSystemActivationTestCall(event);
@@ -27251,12 +27271,12 @@ async function activationDeactivateFast(event) {
     candidateCall = null;
     clearActivationFreshRunTracking();
     stopActivationPolling();
-    toast('Weiterleitung deaktiviert.');
+    toast('Weiterleitung deaktiviert.', 'success');
     renderActivationV2();
     return;
   } catch (e) {
     console.error('activationDeactivateFast failed', e);
-    toast('Weiterleitung konnte nicht deaktiviert werden.');
+    toast('Weiterleitung konnte nicht deaktiviert werden.', 'error');
   }
   if (btn) { btn.disabled = false; btn.textContent = 'Weiterleitung deaktivieren'; }
 }
@@ -27264,7 +27284,7 @@ async function activationDeactivateFast(event) {
 async function activationCopyOwnNumber(event) {
   if (event) event.stopPropagation();
   var nr = customerMeta && customerMeta.telNr;
-  if (!nr) { toast('Keine Nummer verfügbar.'); return; }
+  if (!nr) { toast('Keine Nummer verfügbar.', 'warning'); return; }
   await copyForwardingCode(event, nr);
 }
 
@@ -27515,7 +27535,7 @@ function saveNotificationAndContinue(event){
   if (event) event.stopPropagation();
   var selected = selectedSetupNotificationOption || getSelectedNotificationMode('setup-notification-mode');
   if (!selected) {
-    toast('Bitte wählen Sie eine Benachrichtigungsoption.');
+    toast('Bitte wählen Sie eine Benachrichtigungsoption.', 'warning');
     return;
   }
   saveSetupNotifications();
@@ -27531,7 +27551,7 @@ function finishSetup(){
 function copyVoxeraNumber(e){
   if(e)e.stopPropagation();
   var num = customerMeta.voxeraNumber || '';
-  if(!num){toast('Keine Nummer vorhanden');return;}
+  if(!num){toast('Keine Nummer vorhanden', 'warning');return;}
   navigator.clipboard.writeText(num)
     .then(function(){ announceCopyFeedback('Nummer kopiert', 'success'); })
     .catch(function(){ announceCopyFeedback('Kopieren fehlgeschlagen', 'error'); });
@@ -27548,7 +27568,7 @@ async function saveSetupNotifications(){
   }
   var notificationMode = selectedSetupNotificationOption || getSelectedNotificationMode('setup-notification-mode');
   if(!notificationMode){
-    toast('Bitte wählen Sie eine Benachrichtigungsoption.');
+    toast('Bitte wählen Sie eine Benachrichtigungsoption.', 'warning');
     return;
   }
   if(recordId){
@@ -27557,7 +27577,7 @@ async function saveSetupNotifications(){
       applyNotificationModeToInputs(notificationMode);
     }catch(e){}
   }
-  toast('Benachrichtigungen gespeichert');
+  toast('Benachrichtigungen gespeichert', 'success');
   completeSetupStep('s3');
 }
 
@@ -28015,11 +28035,11 @@ async function performActivationInternalReset(successMessage) {
     activationResetFlowState.open = false;
     activationResetFlowState.stage = 'choice';
     renderActivationV2();
-    toast(successMessage || 'Einrichtung vollständig zurückgesetzt.');
+    toast(successMessage || 'Einrichtung vollständig zurückgesetzt.', 'success');
     return true;
   } catch (e) {
     console.error('performActivationInternalReset failed', e);
-    toast('Lokaler Reset ausgeführt. Backend-Reset bitte erneut versuchen.');
+    toast('Lokaler Reset ausgeführt. Backend-Reset bitte erneut versuchen.', 'warning');
     return false;
   }
 }
@@ -28445,7 +28465,7 @@ async function persistErreichbarkeitDeactivation(){
         updateSidebarStatus();
       }
     }, 800);
-    toast('Weiterleitung deaktiviert. Sie können jetzt neu einrichten.');
+    toast('Weiterleitung deaktiviert. Sie können jetzt neu einrichten.', 'success');
   } catch (e) {
     console.error(e);
     toast('Deaktivierung konnte nicht gespeichert werden.', 'error');
@@ -28458,7 +28478,7 @@ async function persistErreichbarkeitDeactivation(){
 async function startErreichbarkeitTestCall(event) {
   if (event) event.stopPropagation();
   if (activationSystemCallPending || activationSystemCallTriggerInFlight) {
-    toast('Testanruf läuft bereits.');
+    toast('Testanruf läuft bereits.', 'info');
     return;
   }
   var previousStatus = customerMeta && customerMeta.forwardingStatus;
@@ -28476,7 +28496,7 @@ async function startErreichbarkeitTestCall(event) {
       isForwardingReady = !!(customerMeta && (customerMeta.forwardingStatus === 'active' || customerMeta.forwardingStatus === 'pending_test'));
     }
     if (!isForwardingReady) {
-      toast('Testanruf ist erst möglich, nachdem die Weiterleitung eingerichtet wurde.');
+      toast('Testanruf ist erst möglich, nachdem die Weiterleitung eingerichtet wurde.', 'warning');
       return;
     }
 
@@ -28503,7 +28523,7 @@ async function startErreichbarkeitTestCall(event) {
     showErreichbarkeitState('test_pending');
     var started = await startSystemActivationTestCall(event);
     if (!started) throw new Error('system test not started');
-    toast('Automatischer Testanruf wird gestartet. Wir rufen Ihre hinterlegte Hauptnummer an.');
+    toast('Automatischer Testanruf wird gestartet. Wir rufen Ihre hinterlegte Hauptnummer an.', 'info');
   } catch (e) {
     console.error('startErreichbarkeitTestCall failed', e);
     try {
@@ -28642,13 +28662,13 @@ function selectProvider(key, btn) {
 }
 
 function copyCode(code) {
-  navigator.clipboard.writeText(code).then(function() { showToast && showToast('✓ Code kopiert.'); });
+  navigator.clipboard.writeText(code).then(function() { showToast && showToast('Code kopiert.', 'success'); });
 }
 
 function copyVoxeraNumber() {
   var nr = (customerMeta && customerMeta.voxeraNumber) ? String(customerMeta.voxeraNumber) : '';
   if (!nr) return;
-  navigator.clipboard.writeText(nr).then(function() { showToast && showToast('✓ Nummer kopiert.'); });
+  navigator.clipboard.writeText(nr).then(function() { showToast && showToast('Nummer kopiert.', 'success'); });
 }
 
 function renderProviderInstructions() {
@@ -29340,7 +29360,7 @@ async function handleLogout(triggerEl, beforeLogout) {
     await doLogout();
   } catch (e) {
     var msg = (e && e.message) ? String(e.message) : 'Abmelden fehlgeschlagen';
-    toast(msg);
+    toast(msg, 'error');
     if (btn) {
       btn.disabled = oldDisabled;
       btn.innerHTML = oldHtml || 'Abmelden';
@@ -31181,7 +31201,7 @@ function toggleCallRow(event, row) {
     if (!field) return;
     var noteText = field.value.trim();
     var sb = window.getSupabaseAuthClient ? getSupabaseAuthClient() : window._sb;
-    if (!sb) { if (window.toast) toast('Verbindung fehlt.'); return; }
+    if (!sb) { if (window.toast) toast('Verbindung fehlt.', 'error'); return; }
     window.vxInlineSaveStatus(btn, function() {
       return sb.from('calls').update({ notes_customer_voxera: noteText, updated_at: new Date().toISOString() }).eq('id', recId)
         .then(function(result) {
@@ -31195,7 +31215,7 @@ function toggleCallRow(event, row) {
         });
     }, { savingLabel: 'Speichert …', doneLabel: 'Gespeichert ✓', holdMs: 2000 })
       .catch(function() {
-        if (window.toast) toast('Notiz konnte nicht gespeichert werden.');
+        if (window.toast) toast('Notiz konnte nicht gespeichert werden.', 'error');
       });
   };
 
