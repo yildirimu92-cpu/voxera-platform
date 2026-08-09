@@ -145,6 +145,14 @@
   --vx-shadow-sm: 0 1px 3px rgba(13, 31, 60, .06), 0 1px 2px rgba(13, 31, 60, .04);
   --vx-shadow-md: 0 4px 12px rgba(13, 31, 60, .06), 0 2px 4px rgba(13, 31, 60, .04);
   --vx-shadow-lg: 0 12px 32px rgba(13, 31, 60, .08), 0 4px 8px rgba(13, 31, 60, .04);
+  /* Zwischenstufe fuer Flaechen, die ueber dem Inhalt schweben, ohne ihn zu
+     sperren: Toast, Anruf-Hinweis, Glocken-Popover, mobiles Nutzermenue. Die
+     Leiter kannte bisher nur "Karte" (--vx-shadow-lg) und "Dialog"
+     (--vx-shadow-modal). Toast und Anruf-Hinweis lagen deshalb auf der
+     Kartenstufe und waren so flach wie eine ruhende Flaeche, waehrend sich
+     das Popover mit einem handgeschriebenen Wert half — drei Antworten auf
+     dieselbe Frage. */
+  --vx-shadow-overlay: 0 16px 40px rgba(13, 31, 60, .14), 0 4px 10px rgba(13, 31, 60, .06);
   --vx-shadow-modal: 0 24px 64px rgba(13, 31, 60, .18), 0 8px 22px rgba(13, 31, 60, .10);
   --vx-shadow-modal-sheet: 0 -18px 50px rgba(13, 31, 60, .22), 0 -2px 12px rgba(13, 31, 60, .10); /* bottom-sheet variant: shadow casts upward */
 

@@ -1,7 +1,7 @@
 # Diagnose: Toast-Erscheinungsbild dashboardweit + „Neuer Anruf"-Karte
 
-**Datum:** 2026-08-09 · **Branch:** `claude/toast-ll32rf` · **Status: Diagnose (Teil 1).
-Keine Umsetzung — Freigabe abwarten.**
+**Datum:** 2026-08-09 · **Branch:** `claude/toast-ll32rf` · **Status: Diagnose (Teil 1) ·
+Umsetzung (Teil 2, freigegeben).**
 
 Auftragsgrundlage: `briefing-live-anruf-toast.md`. Punkt 1 verlangt ausdrücklich, vor jedem
 Eingriff zu klären, ob ein Fix am zentralen Renderer aus PR #902 reicht oder ob eigenständige
@@ -270,3 +270,119 @@ macht bereits die Live-Karte im Fluss.
   gemessene Position über dem Gruss) und auf die nachgestellte Ansicht — nicht auf einen
   Bildabgleich.
 - **Nicht angefasst, wie im Briefing verlangt:** Make, die E-Mail-Vorlagen und Szenario 09.
+
+---
+---
+
+# Teil 2 — Umsetzung
+
+Freigabe vom 09.08.: Spur-Ansatz für den Anruf-Hinweis, Kante entfällt zugunsten der zwei
+geschlossenen Träger, Admin-Portal bleibt draussen (eigener Folgeauftrag), beide Nebenfunde
+mit abdecken.
+
+## Was geändert wurde
+
+### Grundform — die Kante entfällt
+
+- **`.toast` und `.incoming-banner` tragen die Rollenfarbe jetzt umlaufend** (`border:1px solid`)
+  statt als 3-px-Kante links. Zwei Träger bleiben es — Rahmen und Icon-Kachel —, beide jetzt
+  geschlossene Formen. Damit ist die Klammer weg, und die Toasts folgen derselben Grammatik, auf
+  die sich die Anfragen-Karte am 2026-08-08 festgelegt hat.
+- **Neues Token `--vx-shadow-overlay`** (`customer-design-tokens.css`), Zwischenstufe zwischen
+  Karte und Dialog. `.toast` und `.incoming-banner` liegen jetzt darauf statt auf der
+  Kartenstufe `--vx-shadow-lg`.
+
+### Eine Spur statt zwei schwebender Flächen
+
+- **Neu: `#vx-overlay-lane`.** Trägt Position, Achse, Abstand, Stapelung und z-Stufe für alle
+  Meldungen, die über dem Inhalt erscheinen. Die Mitglieder positionieren sich nicht mehr selbst
+  — das ist die Zusicherung, dass sie nicht wieder auseinanderlaufen.
+- **Vier Pixelliterale sind weg** (`bottom:100px`, `top:96px`, `top:76px`, `top:68px`) und durch
+  drei benannte Werte ersetzt: `--vx-overlay-axis`, `--vx-overlay-inset`,
+  `--vx-overlay-lane-bottom`, je mit Breakpoint für Mobil und Mobil-Querformat.
+- **Der Anruf-Hinweis ist aus `.content` heraus in die Spur gezogen** und steht dort über dem
+  Toast (längerer Atem, Klickziel). Beide Flächen sind unsichtbar `display:none`, damit eine
+  nicht sichtbare Meldung der anderen nicht den Platz wegnimmt.
+- **Ein- und Ausblenden sind symmetrisch** (`vxOverlayShow()` / `vxOverlayHide()`). Vorher
+  verschwanden beide hart.
+
+### Nebenfund 1 — der Hinweis lag unter der Vollansicht
+
+Die Spur liegt auf `--z-toast` (13060) statt auf dem rohen Literal 9990. **Mit Gegenprobe im
+Browser belegt:** bei geöffneter Detail-Vollansicht (`z-index:10040`) liefert
+`elementFromPoint()` auf der Mitte des Hinweises jetzt `#incoming-banner-text`; mit dem alten
+Wert 9990 an derselben Stelle `#vx-detail-v2-fullscreen` — der Hinweis war dort tatsächlich
+unerreichbar.
+
+### Nebenfund 2 — die Live-Anruf-Karte
+
+**Fläche, Abzeichen, Avatar, Text und Abstand sind unverändert** — gemessen, nicht behauptet:
+alle Kastenwerte auf Heute stehen vorher wie nachher bei y 24/104/160/238 (Desktop). Geändert
+ist nur das Verschwinden: die Karte blendet symmetrisch zu `liveRowEnter` aus, statt hart aus
+dem DOM zu fallen.
+
+Dabei fiel eine Falle auf, in die die Sichtprüfung zu PR #902 schon einmal gelaufen war: das
+Aussehen der Karte hing **allein am ID-Selektor** `#live-call-row`. Das Ausblenden nimmt der
+Karte die ID ab (sonst fände ein sofort folgender Anruf die abtretende Karte und patchte ihren
+Text, statt eine neue zu bauen) — ohne zweiten Träger hätte sie mitten in der Animation ihr
+komplettes Styling verloren. Die Regel trägt jetzt `#live-call-row, .vx-live-row`. Die
+abtretende Karte bekommt zusätzlich `aria-hidden`, weil der Host eine `aria-live`-Region ist.
+
+## Messwerte vorher / nachher (1440×900)
+
+| | vorher | nachher |
+|---|---|---|
+| Appbar „Heute" | 24–88 | 24–88 |
+| Gruss | 104–132 | 104–132 |
+| Live-Anruf-Karte | 160–222 | 160–222 |
+| Lara-Übergabe | 238–324 | 238–324 |
+| **Anruf-Hinweis** | **96–163, x 706–966 — quer über Gruss und Karte** | **802–868, in der Spur** |
+| Toast | 756–800, x-Mitte 720 | 824–868, x-Mitte 836 |
+
+Beide sichtbar: Hinweis 742–808, Toast 824–868 — 16 px Abstand, gemeinsame Achse.
+Mobil 390×844: Spur 12 px randbündig, Unterkante 764, Bottom-Nav ab 776 → 12 px Luft. Der
+Bildschirmtitel „Heute" ist nicht mehr verdeckt. Mobil-Querformat 844×390: 20 px über der Nav.
+Tablet 1024×768: Achse 628 (Mitte der Inhaltsfläche, Sidebar sichtbar), Unterkante 736.
+
+Fünf Tonalitäten, gemessene Rahmen- und Kachelfarben: success `rgb(5,150,105)`, info
+`rgb(26,111,232)`, warning `rgb(217,119,6)`, error `rgb(220,38,38)`, neutral `rgb(13,31,60)` —
+jeweils mit der zugehörigen Kachel.
+
+## Prüfstand
+
+- **160/160 Dashboard-Tests grün** (3 neue in `live-call-lifecycle.test.cjs`: Ausblendphase,
+  ein während der Ausblendung eintreffender Anruf, Klassen-Träger des Aussehens).
+- **Verifier-Sweep 59/61.** Die zwei Ausfälle sind umgebungsbedingt und auf dem `main`-Stand
+  identisch rot: `verify-db-security-invariants` (keine DB-Zugangsdaten gesetzt) und
+  `verify-prompt-builder-version-bump` (keine gemeinsame Basis mit `origin/main` im flachen
+  Klon).
+- **`verify-zustandsanzeigen.mjs` um sechs Prüfungen erweitert:** keine einseitige Kante mehr,
+  Overlay-Elevation, Spur trägt Position/Achse/z-Stufe, Mitglieder positionieren sich nicht
+  selbst, beide hängen in der Spur und in dieser Reihenfolge, `top:96px` kehrt nicht zurück,
+  Ein-/Ausblendhelfer bleiben, Live-Karte blendet aus, Klassen-Träger bleibt.
+- **Gegenprobe: 13 gezielte Mutationen, 13/13 gefangen**, jede mit einer Meldung, die den
+  Fehler benennt.
+- **Laufzeitprobe im Browser** mit den echten Renderern (`toast()`, `showToast()`,
+  `showIncomingBanner()`, `vxOverlayShow/Hide()` aus `index.html` extrahiert, nicht nachgebaut):
+  Einblenden, Tonalitätswechsel bei Ablösung, gleichzeitige Anzeige mit 16 px Abstand,
+  Ausblenden mit gemessener Zwischenopazität, Aufräumen der Klassen.
+- **`?v=`-Bump** auf `customer-design-tokens.css` (`20260809-2` → `-3`), weil eine gemeinsam
+  genutzte CSS-Datei angefasst wurde.
+
+## Bewusst nicht mitgemacht
+
+- **Admin-Portal** (109 Aufrufstellen, dunkle Pille ohne Tonalität) — eigener Folgeauftrag,
+  wie freigegeben.
+- **Lesebreite des Heute-Screens** (Befund 2G) — betrifft alle Karten, eigene Entscheidung.
+- **Ablösung eines sichtbaren Toasts** blendet die Fläche neu ein, statt den alten Toast erst
+  vollständig auszublenden und den neuen danach zu zeigen. Der Textwechsel unter dem Leser ist
+  damit weg; ein echtes Nacheinander würde jede Meldung um 200 ms verzögern und alle 162
+  Aufrufstellen betreffen. Bewusst so gelassen.
+- **Make, E-Mail-Vorlagen, Szenario 09** — unangetastet.
+
+## Nicht verifiziert
+
+- **Kein echter Anrufzustand.** Gemessen wurde gegen das echte `index.html` mit echten
+  Stylesheets und echten Renderfunktionen; ein echter Realtime-Eingang wurde nicht hergestellt.
+- **Kein Klicktest in der laufenden Anwendung** — `handleIncomingBannerClick()` (Navigation ins
+  Anfragen-Detail) lief nicht gegen echte Daten.
