@@ -29080,7 +29080,15 @@ function showApp(user) {
     window._vxRefreshIntervalMs = 12000;
     autoRefreshTimer = setInterval(function() { safeLoadData({ periodic: true }); }, 12000);
     showAppInProgress = false;
-  }).catch(function() {
+  }).catch(function(err) {
+    // Fail-open statt Fail-closed: bricht die Loader-Kette unerwartet ab
+    // (z.B. Fehler in runInitialLoader selbst), soll die Seite nicht auf
+    // "nur Splash weg, App bleibt display:none" haengen bleiben - sonst
+    // sieht der Nutzer nur noch den aeusserhalb von #app liegenden
+    // .mobile-header (Logo/Glocke/Avatar) ohne jede Navigation.
+    console.error('[voxera-dashboard] runInitialLoader failed, showing app anyway', err);
+    var appEl = document.getElementById('app');
+    if (appEl) appEl.style.display = 'flex';
     showAppInProgress = false; // Guard freigeben bei Fehler
   });
 }
@@ -35402,7 +35410,108 @@ body.vx-requests-focus-mode #call-detail-page.vx-detail-focus #call-detail-banne
     padding-bottom: calc(80px + env(safe-area-inset-bottom)) !important;
   }
 }
+/* Querformat-Pendant zum Block oben: dieselbe Verstaerkung, die fuer
+   max-width:768px besteht, fehlte bisher fuer die Hochformat->Querformat-
+   Sicherheitsnetz-Regel (max-height:500px + orientation:landscape) weiter
+   oben im Stylesheet. Ohne dieses Pendant konnte die Nav auf iPhone Safari
+   im Querformat komplett verschwinden (Sidebar UND Bottom-Nav ausgeblendet),
+   waehrend der von @media(max-width:768px) unabhaengige .mobile-header
+   sichtbar blieb. */
+@media screen and (max-height: 500px) and (orientation: landscape) {
+  div.sidebar {
+    display: none !important;
+  }
+  div.main {
+    margin-left: 0 !important;
+  }
+  div.mobile-nav {
+    display: flex !important;
+    flex-direction: row !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    z-index: 9500 !important;
+    background: #0D1F3C !important;
+    padding: 6px 0 max(env(safe-area-inset-bottom), 10px) !important;
+    pointer-events: auto !important;
+  }
+  div.mobile-nav .mobile-nav-inner {
+    display: flex !important;
+    flex-direction: row !important;
+    width: 100% !important;
+    justify-content: space-around !important;
+    align-items: center !important;
+  }
+  div.mobile-nav .mobile-nav-btn {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+  div#app .content,
+  .content {
+    padding-bottom: calc(64px + env(safe-area-inset-bottom)) !important;
+  }
+}
 </style>
+<script>
+/* VOXERA — Querformat-Watchdog (Briefing "NAV verschwindet", 2026-08-09).
+   iOS Safari kann window.innerHeight beim ersten Paint im Querformat anders
+   auswerten als kurz danach (Werkzeugleiste noch nicht final positioniert;
+   window.visualViewport.height ist dort verlaesslicher). Media Queries
+   werten zwar automatisch neu aus, aber falls hier doch ein Race auftritt,
+   erzwingt dieser Watchdog nach kurzer Verzoegerung denselben Zustand wie
+   die CSS-Regeln oben — zusaetzliche Absicherung, kein Ersatz dafuer. */
+(function vxLandscapeNavWatchdog(){
+  var LANDSCAPE_MAX_HEIGHT = 500;
+  function currentViewport(){
+    if (window.visualViewport) {
+      return { w: window.visualViewport.width, h: window.visualViewport.height };
+    }
+    return { w: window.innerWidth, h: window.innerHeight };
+  }
+  function apply(){
+    var vp = currentViewport();
+    var isShortLandscape = vp.h <= LANDSCAPE_MAX_HEIGHT && vp.w > vp.h;
+    var sidebar = document.querySelector('.sidebar');
+    var mobileNav = document.querySelector('.mobile-nav');
+    var main = document.querySelector('div.main');
+    if (!mobileNav) return;
+    if (isShortLandscape) {
+      if (sidebar) sidebar.style.setProperty('display', 'none', 'important');
+      if (main) main.style.setProperty('margin-left', '0', 'important');
+      mobileNav.style.setProperty('display', 'flex', 'important');
+    } else if (vp.w > 768) {
+      // Zurueck auf Desktop-Breite ohne Querformat-Kurzhoehe: erzwungene
+      // Inline-Styles wieder freigeben, normale Kaskade uebernimmt wieder.
+      if (sidebar) sidebar.style.removeProperty('display');
+      if (main) main.style.removeProperty('margin-left');
+      mobileNav.style.removeProperty('display');
+    }
+  }
+  var settleTimer = null;
+  function scheduleApply(delay){
+    if (settleTimer) clearTimeout(settleTimer);
+    settleTimer = setTimeout(apply, delay || 0);
+  }
+  document.addEventListener('DOMContentLoaded', function(){ scheduleApply(0); });
+  window.addEventListener('resize', function(){ scheduleApply(120); }, { passive: true });
+  window.addEventListener('orientationchange', function(){
+    // Safari braucht nach der Drehung einen Moment, bis die Werkzeugleiste
+    // ihre endgueltige Position/Groesse hat — mehrfach pruefen statt einmal.
+    scheduleApply(50);
+    scheduleApply(350);
+    scheduleApply(700);
+  });
+  if (window.visualViewport && window.visualViewport.addEventListener) {
+    window.visualViewport.addEventListener('resize', function(){ scheduleApply(80); });
+  }
+  if (document.readyState !== 'loading') scheduleApply(0);
+  window.vxLandscapeNavWatchdog = apply;
+})();
+</script>
 <script>
 (function vxAssertGlobalDomPlacement(){
   var globalSelectors = [
