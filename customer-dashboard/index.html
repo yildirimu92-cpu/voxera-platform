@@ -6901,17 +6901,32 @@ body.vx-customer-design-foundation .vx-requests-resizer{display:none;}
     background:transparent;
     box-shadow:none;
   }
+  /* Waagrecht 0 statt 12px (2026-08-09): diese drei Zeilen trugen noch die
+     Innenpolsterung aus der Zeit, als die Spalte eine weisse Karte war. Seit
+     der Regel direkt darueber ist sie durchsichtig — die Polsterung hat damit
+     keinen sichtbaren Traeger mehr und schob nur noch jeden Inhalt 12px nach
+     innen, waehrend an der Seitenkante nichts gezeichnet wird, das die
+     Einrueckung erklaeren wuerde. Gemessen bei 390px: erste sichtbare Flaeche
+     bei 38px statt 26px, Anfragen also 24px schmaler als Heute und Bericht.
+     Bis PR #885 kaschierte das der Kartenrahmen des Splits (0.5px-Haarlinie
+     bei 26px); seit der weg ist, faellt die Differenz auf.
+
+     Die senkrechte Polsterung bleibt unveraendert — sie traegt den
+     Zeilenrhythmus und hat nichts mit der Seitenbreite zu tun. Die
+     Basisregeln weiter oben (ausserhalb dieses Blocks) bleiben ebenfalls
+     unangetastet: auf Desktop sind Filterzeile und Suche der weisse
+     Kartenkopf und sitzen dort korrekt eingerueckt. */
   body.vx-customer-design-foundation .vx-requests-filter-row{
-    padding:12px 12px 8px;
+    padding:12px 0 8px;
     background:transparent;
   }
   body.vx-customer-design-foundation .vx-requests-search{
-    padding:0 12px 12px;
+    padding:0 0 12px;
     background:transparent;
     border-bottom:0;
   }
   body.vx-customer-design-foundation .vx-requests-scroll{
-    padding:0 12px 12px;
+    padding:0 0 12px;
     background:transparent;
   }
   body.vx-customer-design-foundation .vx-requests-panel .vx-requests-date{
