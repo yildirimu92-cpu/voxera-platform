@@ -10,7 +10,13 @@
 // 2.3: Oeffnungszeiten werden als Wochenraster gerendert (#882). Der Bump
 // wurde nachgezogen, als der Fan-out gebaut wurde; scripts/verify-prompt-builder-version-bump.mjs
 // verhindert kuenftig, dass eine Builder-Aenderung ohne ihn durchgeht.
-const PROMPT_BUILDER_VERSION = '2.3';
+// 2.4 (J6): Der Abschnitt PREISAUSKUNFT steht neu in jedem Prompt -- auch ohne
+// hinterlegten Preis, dann mit der Anweisung, keine Betraege zu nennen. Dazu
+// eine zusaetzliche Sicherheitsregel, die Kurzbeschreibung im
+// GESCHÄFTSPROFIL, die bestaetigte Adresse mit Vorrang vor dem Freitext und
+// die uebrigen Schicht-A-Zeilen. Die Ausgabe aendert sich damit fuer jeden
+// Agenten, nicht nur fuer die mit neuen Antworten.
+const PROMPT_BUILDER_VERSION = '2.4';
 const PROFILE_MARKER = 'PROMPT_V2';
 const WIZARD_MARKER = 'WIZARD';
 
