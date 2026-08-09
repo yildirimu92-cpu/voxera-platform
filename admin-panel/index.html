@@ -7666,6 +7666,26 @@ async function wizardFinish(){
   state.aiConfigs[id]=cfg;
   // Write praxis fields into customer local state
   const c=customerById(id);
+  // Capture prev values BEFORE local state / DB mutation, same pattern as
+  // admin_save (Prev-Values-Erweiterung): all scalar fields praxisPatch below
+  // writes, minus updated_at and the two non-scalar fields (ai_branch_extra,
+  // selected_languages) diffPrevValues can't diff by reference.
+  const wizardPrevValues={};
+  if(c){
+    [
+      'spezialgebiet','kanton','sprechstunden_modus','notfallnummer_lebensgefahr',
+      'notfallnummer_dringend','notfall_service_name','industry_template_id',
+      'ai_business_description','ai_services','ai_location_hours','ai_booking_faq',
+      'ai_website_url','ai_short_description',
+      'ai_forwarding_1_name','ai_forwarding_1_number','ai_forwarding_1_trigger',
+      'ai_forwarding_2_name','ai_forwarding_2_number','ai_forwarding_2_trigger',
+      'ai_emergency_number','ai_instructions','ai_fallback_escalation',
+      'ai_response_constraints','ai_summary','assistant_name','ai_customer_type',
+      'customer_display_name','customer_legal_name','ai_person_name',
+      'ai_address_form','ai_tone','ai_language','ai_greeting','voice_id',
+      'ai_internal_notes'
+    ].forEach(k => { wizardPrevValues[k] = c[k] || ''; });
+  }
   if(c){
     c.spezialgebiet=d.spezialgebiet||null;
     c.kanton=d.kanton||null;
@@ -7756,7 +7776,8 @@ async function wizardFinish(){
           await callAdminFunction('trigger-elevenlabs-sync',{
             customer_id: id,
             agent_id: cAfterSave.elevenlabs_agent_id,
-            triggered_by: 'wizard'
+            triggered_by: 'wizard',
+            prev_values: wizardPrevValues
           });
           showToast('✓ Wizard gespeichert + ElevenLabs aktualisiert.');
         }catch(e){
@@ -16519,6 +16540,11 @@ async function confirmApplyChange(requestId, customerId) {
 
     // 2. Update local customer state
     const c = customerById(customerId);
+    // Capture prev values BEFORE Object.assign overwrites them, same pattern
+    // as admin_save (Prev-Values-Erweiterung): only the fields this request
+    // actually changes.
+    const prevValues = {};
+    if (c) Object.keys(changes).forEach(k => { prevValues[k] = c[k] || ''; });
     if (c) Object.assign(c, changes);
 
     // 3. Trigger ElevenLabs sync if agent exists
@@ -16526,7 +16552,8 @@ async function confirmApplyChange(requestId, customerId) {
       await callAdminFunction('trigger-elevenlabs-sync', {
         customer_id: customerId,
         agent_id: c.elevenlabs_agent_id,
-        triggered_by: 'customer_request'
+        triggered_by: 'customer_request',
+        prev_values: prevValues
       });
     }
 
