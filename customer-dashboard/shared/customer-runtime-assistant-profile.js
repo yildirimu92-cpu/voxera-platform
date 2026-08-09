@@ -257,25 +257,33 @@
     // Antwortgrenzen und Eskalationsstufen sind Kundendaten, aber nicht vom
     // Kunden bearbeitbar (BLOCKED_CUSTOMER_FIELDS). Lesbar sind sie trotzdem —
     // sonst weiss niemand, was der eigene Assistent nicht beantwortet.
-    const limits = ruleList(boundaries.response_constraints);
+    // Vorher standen drei Aufzählungen ohne Zwischenüberschrift direkt
+    // untereinander — beim ersten Testkunden 13 Punkte am Stück, die wie eine
+    // einzige lange Liste wirkten. Jetzt trägt jede Liste ihre eigene Frage,
+    // und die Voxera-Regeln sind eingeklappt: sie sind für jeden Kunden
+    // identisch und im Alltag der uninteressanteste der drei Blöcke.
+    const limits = ruleList(boundaries.response_constraints, 5);
     const escalation = ruleList(boundaries.fallback_escalation, 4);
-    const limitsBlock = (limits || escalation)
-      ? '<div class="vx-ap-subsection"><div class="vx-ap-subtitle">Was Ihr Assistent nicht beantwortet</div>'
-        + limits + escalation
-        + industryLine()
-        + '</div>'
+    const limitsBlock = limits
+      ? '<div class="vx-ap-subsection"><div class="vx-ap-subtitle">Was Ihr Assistent nicht beantwortet</div>' + limits + '</div>'
       : '';
+    const escalationBlock = escalation
+      ? '<div class="vx-ap-subsection"><div class="vx-ap-subtitle">Was bei dringenden Fällen gilt</div>' + escalation + '</div>'
+      : '';
+    const industryBlock = (limits || escalation) ? '<div class="vx-ap-origin-row">' + industryLine() + '</div>' : '';
 
     const rules = ruleList(profile?.voxera_rules, 6);
     const rulesBlock = rules
-      ? '<div class="vx-ap-subsection"><div class="vx-ap-subtitle">Immer gültig</div>' + rules
-        + originChip('voxera', 'Von Voxera gesetzt · nicht überschreibbar') + '</div>'
+      ? '<details class="vx-ap-subsection vx-ap-rules-details"><summary>Immer gültig — von Voxera gesetzt</summary>'
+        + rules + originChip('voxera', 'Nicht überschreibbar') + '</details>'
       : '';
 
     return '<section class="vx-ap-card" id="vx-assistant-urgent-card">'
       + '<div class="vx-ap-head"><div><div class="vx-ap-title">Grenzen und Eskalation</div><div class="vx-ap-meta">Änderungen an Weiterleitung und Notfallnummer bestätigt Voxera vor der Aktivierung.</div></div></div>'
       + body
       + limitsBlock
+      + escalationBlock
+      + industryBlock
       + rulesBlock
       + '<div class="vx-ap-actions"><button type="button" class="vx-ap-btn secondary" id="vx-urgent-change-toggle" aria-expanded="false" aria-controls="vx-urgent-change-panel">Änderung melden</button></div>'
       + '<div id="vx-urgent-change-panel" class="vx-ap-change-panel" hidden>'
@@ -329,12 +337,42 @@
   // Einzige Stelle, an der aus den vier Einzelzuständen ein Satz wird. Die
   // Betriebsstatus-Karte rendert bewusst keine eigene Zusammenfassung mehr —
   // ein Screen, eine Statuszeile.
+  //
+  // Grundsatz 13: Jeder angezeigte Status braucht eine erreichbare Handlung
+  // oder eine Erklärung. „Mindestens eine Einrichtung benötigt noch Ihre
+  // Aufmerksamkeit" hatte weder das eine noch das andere — es nannte weder die
+  // Einrichtung noch sagte es, wer am Zug ist. Die Angaben dafür liegen alle
+  // vor: technical_status trägt pro Bereich einen Klartext-Satz.
+  const STATUS_AREAS = [
+    { key: 'calendar', label: 'Kalender', action: { label: 'Kalender einrichten', open: 'kalender' } },
+    { key: 'forwarding', label: 'Telefonie', hint: 'Rufnummer und Weiterleitung bestätigt Voxera — Sie müssen nichts tun.' },
+    { key: 'assistant', label: 'Assistent', hint: 'Die Einrichtung übernimmt Voxera.' },
+    { key: 'voice_sync', label: 'Stimme & Einstellungen', hint: 'Wird beim nächsten Speichern erneut übertragen.' }
+  ];
+
   function statusSummary(technical) {
-    const states = [technical?.assistant, technical?.forwarding, technical?.voice_sync, technical?.calendar]
-      .map((item) => String(item?.status || '').toLowerCase());
-    if (states.includes('error')) return { tone: 'error', text: 'Mindestens eine Verbindung ist aktuell nicht betriebsbereit.' };
-    if (states.includes('attention')) return { tone: 'attention', text: 'Mindestens eine Einrichtung benötigt noch Ihre Aufmerksamkeit.' };
-    return { tone: 'active', text: 'Die wichtigsten Verbindungen sind betriebsbereit.' };
+    const deviations = STATUS_AREAS
+      .map((area) => ({ ...area, state: technical?.[area.key] }))
+      .filter((area) => ['error', 'attention'].includes(String(area.state?.status || '').toLowerCase()));
+
+    if (!deviations.length) {
+      return { tone: 'active', text: 'Die wichtigsten Verbindungen sind betriebsbereit.', hint: '', action: null };
+    }
+
+    const first = deviations[0];
+    const others = deviations.length - 1;
+    const detail = String(first.state?.detail || first.state?.label || '').trim();
+    const tone = deviations.some((area) => String(area.state?.status).toLowerCase() === 'error') ? 'error' : 'attention';
+    // Mehrere Detailsaetze beginnen bereits mit dem Bereichsnamen ("Kalender ist
+    // aktiviert, aber ..."). Ein Praefix davor ergaebe "Kalender: Kalender ist".
+    const named = detail && detail.toLowerCase().startsWith(first.label.toLowerCase());
+    return {
+      tone,
+      text: (named ? detail : first.label + ': ' + (detail || 'Einrichtung noch nicht abgeschlossen.'))
+        + (others > 0 ? ' (und ' + others + ' weitere' + (others === 1 ? 'r Bereich' : ' Bereiche') + ')' : ''),
+      hint: first.hint || '',
+      action: first.action || null
+    };
   }
 
   // Kopfbereich: der Satz, den Anrufende hören, in der Serifen-Schrift —
@@ -389,7 +427,6 @@
       '<select id="vx-hero-address"' + (busy ? ' disabled' : '') + '>' + optionList(ADDRESS_OPTIONS, profile?.assistant?.address_form || 'sie') + '</select></div>' +
       toneField +
       '</div>' +
-      voiceBlock() +
       (canTone ? '' : '<div class="vx-ap-hero-note">Den Ton können Sie ab dem Business-Paket selbst wählen. Die Ansprache bleibt jederzeit änderbar.</div>') +
       '<div class="vx-ap-actions">' +
       '<button type="button" class="vx-ap-btn" id="vx-hero-tune-save"' + (busy ? ' disabled' : '') + '>Übernehmen</button>' +
@@ -402,10 +439,12 @@
       '</div>';
   }
 
-  // Die Stimmenauswahl sass bis zur Umgliederung in einer eigenen Karte und
-  // wurde von customer-runtime-unified-navigation.js nachtraeglich in ein
-  // <details> gehuellt. Sie gehoert zu den Feldern, die den Satz oben erzeugen —
-  // also in denselben Editor, und die Huelle rendert dieses Modul selbst.
+  // Die Stimmenauswahl sass bis zur Umgliederung in einer eigenen Karte mit
+  // einem Aufklapper darin — ein Klick. Die erste Fassung dieser Umgliederung
+  // hat sie in den Editor gelegt und damit zwei Ebenen tief vergraben; im
+  // Live-Test war sie schlicht nicht auffindbar. Sie steht deshalb wieder
+  // direkt auf der Karte, nur eben in der Kernidentitaet statt in einer
+  // eigenen Karte daneben.
   function voiceBlock() {
     if (!profile?.permissions?.can_change_voice) {
       return '<div class="vx-ap-status warning vx-ap-status--inline">Die Stimmenauswahl ist in Ihrem aktuellen Paket nicht freigeschaltet.</div>';
@@ -450,15 +489,27 @@
       ? '<div class="vx-ap-hero-note">Noch nicht an den Assistenten übertragen.</div>'
       : '';
 
+    // Das Geschlecht der Stimme steht in der Zeile, statt dass die Software aus
+    // dem Namen eines auf eines schliesst. Wer „Lara" mit einer maennlichen
+    // Stimme kombiniert, sieht den Widerspruch selbst — eine Namensauswertung
+    // waere bei Schweizer KMU-Namen eine Behauptung mit hoher Irrtumsquote.
+    const voiceName = current
+      ? (current.display_name || 'Standardstimme') + ' · ' + genderLabel(current.gender)
+      : 'Von Voxera eingerichtet';
+
     const rows = identityRow('Name', esc(assistant.name || 'Von Voxera eingerichtet'))
-      + identityRow('Stimme', esc(current ? (current.display_name || 'Standardstimme') : 'Von Voxera eingerichtet'))
+      + identityRow('Stimme', esc(voiceName))
       + identityRow('Ansprache', esc(addressLabel(assistant.address_form)))
       + identityRow('Ton', esc(toneLabel(assistant.tone)))
       // E9: Sprache ist prompt-wirksam, aber nicht selbst bedienbar. Sie steht
       // hier als Wert mit Herkunft, nicht als Feld.
       + identityRow('Sprache', esc(assistant.language_label || 'Deutsch'));
 
-    const statusLine = summary.text + (lastSync ? ' · Zuletzt aktualisiert am ' + esc(lastSync) : '');
+    const statusLine = esc(summary.text) + (lastSync ? ' · Zuletzt aktualisiert am ' + esc(lastSync) : '')
+      + (summary.hint ? '<span class="vx-ap-hero-status-hint">' + esc(summary.hint) + '</span>' : '')
+      + (summary.action
+        ? '<button type="button" class="vx-ap-linkbtn" data-vx-status-open="' + esc(summary.action.open) + '">' + esc(summary.action.label) + '</button>'
+        : '');
 
     return '<section class="vx-ap-card vx-ap-hero">' +
       '<div class="vx-ap-hero-label">So meldet sich Ihr Assistent</div>' +
@@ -468,6 +519,7 @@
       '<div class="vx-ap-hero-foot">' +
       (current ? '<button type="button" class="vx-ap-btn secondary" data-vx-preview="' + esc(current.voice_id) + '"' + (previewLoading ? ' disabled' : '') + '><i class="ph-bold ph-play" aria-hidden="true"></i> Anhören</button>' : '') +
       '</div>' +
+      voiceBlock() +
       toneEditor() +
       '<div class="vx-ap-hero-status ' + summary.tone + '">' + statusLine + '</div>' +
       '</section>';
@@ -601,13 +653,18 @@
         + '<div class="vx-ap-meta">Für ' + esc(industry.name) + ' sind aktuell keine Zusatzangaben vorgesehen.</div>'
         + originChip('branch', 'Aus Ihrer Branche: ' + industry.name) + '</div>';
     }
+    // Der Zwecksatz sagt, was die Angaben bewirken, nicht woher sie kommen —
+    // „Ihre Branchenvorlage sieht das vor" beantwortete im Test die falsche
+    // Frage. Und die Felder stehen einspaltig: zweispaltig standen Beschriftung,
+    // Feld und Hinweistext so eng, dass die Karte als Block wirkte.
     return '<div class="vx-ap-card"><div class="vx-ap-head"><div><div class="vx-ap-title">Für Ihre Branche</div>'
-      + '<div class="vx-ap-meta">Diese Angaben sieht Ihre Branchenvorlage vor. Ihr Assistent verwendet sie im Gespräch.</div></div></div>'
+      + '<div class="vx-ap-meta">Antworten auf Fragen, die in ' + esc(industry.name) + ' häufig vorkommen. '
+      + 'Was Sie hier ausfüllen, kann Ihr Assistent im Gespräch verwenden; was leer bleibt, erwähnt er nicht.</div></div></div>'
       + sections.map((section) => (
         '<div class="vx-ap-subsection">'
         + '<div class="vx-ap-subtitle">' + esc(section.title) + '</div>'
         + (section.hint ? '<div class="vx-ap-meta">' + esc(section.hint) + '</div>' : '')
-        + '<div class="vx-ap-grid">' + section.fields.map(branchField).join('') + '</div>'
+        + '<div class="vx-ap-fieldlist">' + section.fields.map(branchField).join('') + '</div>'
         + '</div>'
       )).join('')
       + originChip('branch', 'Aus Ihrer Branche: ' + industry.name)
@@ -637,6 +694,15 @@
     const voiceDetails = document.querySelector('.vx-nav-voice-details');
     voiceDetails?.addEventListener('toggle', () => { voiceDetailsOpen = voiceDetails.open; });
     document.getElementById('vx-greeting-reset')?.addEventListener('click', resetGreeting);
+    // Die Statuszeile fuehrt dorthin, wo sich der gemeldete Zustand aendern
+    // laesst — ohne Ziel bliebe sie eine Feststellung ohne Ausweg.
+    document.querySelector('[data-vx-status-open]')?.addEventListener('click', (event) => {
+      const target = event.currentTarget.dataset.vxStatusOpen;
+      if (target && typeof root.vxMehrShow === 'function') {
+        root.showTab?.('mehr');
+        root.vxMehrShow(target);
+      }
+    });
     document.getElementById('vx-open-operational')?.addEventListener('click', () => root.vxShowAssistantView?.('updates', true));
     document.querySelector('[data-vx-tone-edit]')?.addEventListener('click', () => { toneEditorOpen = true; renderAssistant(); });
     // Zweiter Riegel neben dem disabled-Attribut: ein Klick, der waehrend des
@@ -719,11 +785,19 @@
     let finalMessage = '';
     let finalTone = null;
     try {
-      result = await root.vxInlineSaveStatus(button, async () => {
-        const response = await request('customer-update-assistant', { method: 'POST', body: payload });
-        await reloadProfile();
-        return response;
-      }, { savingLabel: savingLabel || 'Speichert …', doneLabel: 'Gespeichert ✓' });
+      // Das Neuladen des Profils steckte bis hierher mit im Wartefenster des
+      // Knopfs. Es ist eine vollständige zusätzliche Runde — der Knopf blieb
+      // dadurch auch dann noch auf „Speichert …", wenn längst gespeichert war.
+      // Jetzt quittiert er, sobald der Endpoint geantwortet hat; der frische
+      // Stand kommt danach und löst das erneute Rendern aus. Ein Fehler beim
+      // Nachladen darf eine erfolgreiche Speicherung nicht als solchen
+      // ausgeben, deshalb der eigene Fang.
+      result = await root.vxInlineSaveStatus(
+        button,
+        () => request('customer-update-assistant', { method: 'POST', body: payload }),
+        { savingLabel: savingLabel || 'Speichert …', doneLabel: 'Gespeichert ✓' }
+      );
+      try { await reloadProfile(); } catch (_error) { /* gespeicherte Werte bleiben gültig */ }
       const syncStatus = String(result.sync_status || '');
       if (syncStatus === 'failed') {
         finalMessage = 'Gespeichert, aber noch nicht mit dem Assistenten synchronisiert. Bitte später erneut versuchen.';

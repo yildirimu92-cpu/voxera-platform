@@ -426,6 +426,36 @@ Ein Fund aus dem Rendern, direkt behoben: `.vx-ap-summary-row` stapelt auf Mobil
 
 ---
 
+## 12. Nachtrag 09.08. — fünf Funde aus dem Live-Test auf der Preview
+
+Getestet auf `deploy-preview-859` mit echten Daten (`E2E Test AG`).
+
+### Vorweg: die Preview hatte Produktionsrechte
+
+Der Test hat in die Produktion geschrieben. Nachweis: `customers.updated_at = 01:47:26`, dazu drei Einträge `customer_self_edit` im `elevenlabs_sync_log` um 01:36:41, 01:47:11 und 01:47:26 — alle nach dem Preview-Deploy um 01:43, alle mit Status `success`. Der Netlify-Schritt aus `RUNTIME_CONFIG_UND_PREVIEW_ISOLATION.md` ist also **nicht aktiv**; die Preview-Functions liefen mit `SUPABASE_SERVICE_ROLE_KEY`, `ELEVENLABS_API_KEY`, Twilio und den Make-Hooks. Kein Schaden — es war der Testkunde — aber genau der Unfallpfad, den das Dokument als „heute wahrscheinlichsten" bezeichnet. **Offener Punkt beim User.**
+
+Nebenbefund: Der eingefrorene Begrüssungssatz aus N7 existiert nicht mehr (`assistant_name` = Lara, `ai_greeting` leer). Der dafür vorgesehene Testpunkt konnte deshalb nicht anschlagen.
+
+### Behoben
+
+| # | Fund | Ursache | Behebung |
+|---|---|---|---|
+| **5** | Stimmenauswahl nicht auffindbar | **Regression aus dieser Umgliederung.** Vorher eine eigene Karte mit Aufklapper — ein Klick. Danach hinter „Anpassen" **und** darin nochmal hinter „Andere Stimme wählen" — zwei Ebenen. Verschärfend: alle vier Kunden haben `voice_id = null`, dadurch entfiel auch der „Anhören"-Knopf. | Aufklapper wieder direkt auf der Karte, eine Ebene. |
+| **5b** | Kein Hinweis auf Name/Stimme-Widerspruch | — | Das Geschlecht steht in der Zeile („Sofia · Weiblich"). **Bewusst keine Namensauswertung:** aus „Lara" auf ein Geschlecht zu schliessen wäre bei Schweizer KMU-Namen eine Behauptung mit hoher Irrtumsquote. Wer die Kombination sieht, urteilt selbst. |
+| **2** | „Mindestens eine Einrichtung benötigt noch Ihre Aufmerksamkeit" | Grundsatz 13 verletzt — und zwar an der Stelle, aus welcher der Grundsatz entstanden ist. | Die Zeile nennt jetzt den Bereich und den Klartext-Satz aus `technical_status`, zählt weitere Bereiche und trägt **entweder** eine Handlung (Kalender → Kalendereinstellungen) **oder** eine Erklärung („Rufnummer und Weiterleitung bestätigt Voxera — Sie müssen nichts tun."). Fünf Zustände im Browser durchgespielt. |
+| **4** | „Für Ihre Branche" zu dicht, Zweck unklar; lange Liste bei „Was Ihr Assistent nicht beantwortet" | Beides meins: drei Aufzählungen ohne Zwischenüberschrift direkt untereinander (beim Testkunden 13 Punkte am Stück), und die Branchenfelder zweispaltig mit Label, Feld und Hinweis auf engstem Raum. | Zwei benannte Listen statt einer; die Voxera-Regeln eingeklappt (für jeden Kunden identisch, im Alltag der uninteressanteste Block); Branchenfelder einspaltig; Zwecksatz sagt jetzt, was die Angaben **bewirken**, statt woher sie kommen. |
+| **1** | Speichern dauert lange — schneller Teil | Das Neuladen des Profils steckte mit im Wartefenster des Knopfs. | Der Knopf quittiert, sobald der Endpoint geantwortet hat; der frische Stand kommt danach. Spart eine vollständige Runde. |
+
+### Offen
+
+**#1, Hauptteil — eigener Auftrag, Entscheidung zuerst.** Der Speicherpfad ist: DB-Update → **HTTP-Sprung auf die Admin-Site** → vier DB-Abfragen, bis zu vier ElevenLabs-Aufrufe, ein PATCH mit ~16'700 Zeichen Prompt, Sync-Log schreiben und trimmen → zurück. Alles blockierend. Die Kette ist älter als diese Umgliederung; neu ist nur, dass der Editor Name, Ansprache und Ton zusammen speichert und man den langsamen Pfad dadurch an einer Stelle trifft, an der vorher drei kleinere Speicherungen standen. Zu entscheiden: Sync blockierend lassen (sofort ehrlich, aber langsam) oder anstossen und den Zustand in der Statuszeile führen.
+
+**#3 Freitextfelder — eigener Auftrag, Opus/Hoch, Diagnose zuerst.** Preise, Zielgruppe und Beschreibung landen vermischt in vier Freitextkästen. Der strukturierte Weg existiert bereits (`extra_steps`), deckt aber nur 7 der 19 Branchen und dort nur wenige Felder ab. Gehört fachlich zu A3 und I8.
+
+**Kleiner offener Punkt aus dem Screenshot:** „Andere Stimme wählen" und „Anpassen" stehen jetzt als zwei gleich aussehende Zeilen untereinander und lesen sich eher wie eine Linkliste als wie zwei Aktionen. Nicht angefasst, weil es eine Gestaltungsentscheidung ist und kein Fehler.
+
+---
+
 ## Anhang — Prüfmethode und Dateiverweise
 
 **Geprüft wurde gegen:** `main` @ `ed1d95e` (Code), Supabase-Projekt `ulcofbgrovgcvowdjrge` (Tabellen `customers`, `industry_templates`, `plan_config`). Alle Zahlen in diesem Dokument stammen aus diesen zwei Quellen, nicht aus der Kommandozentrale oder den Vorgänger-Dokumenten.

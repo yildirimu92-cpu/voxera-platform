@@ -141,6 +141,36 @@ body.vx-customer-design-foundation .vx-ap-rules li {
   margin-top: 4px;
 }
 
+/* Die Voxera-Regeln sind für jeden Kunden identisch und im Alltag der
+   uninteressanteste der drei Blöcke — eingeklappt bleiben sie erreichbar,
+   ohne die kundenspezifischen Listen zu erdrücken. */
+body.vx-customer-design-foundation .vx-ap-rules-details > summary {
+  color: var(--vx-ink);
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+body.vx-customer-design-foundation .vx-ap-origin-row {
+  margin-top: var(--vx-space-3);
+}
+
+/* Einspaltig: zweispaltig standen Beschriftung, Feld und Hinweistext der
+   Branchenangaben so dicht, dass die Karte als Block gelesen wurde. */
+body.vx-customer-design-foundation .vx-ap-fieldlist {
+  display: grid;
+  gap: var(--vx-space-5, 20px);
+  margin-top: var(--vx-space-3);
+}
+
+/* Erklärung und Handlung der Statuszeile stehen unter der Aussage, nicht
+   dahinter — sonst reisst die Zeile auf 390px in drei Fragmente. */
+body.vx-customer-design-foundation .vx-ap-hero-status-hint,
+body.vx-customer-design-foundation .vx-ap-hero-status .vx-ap-linkbtn {
+  display: block;
+  margin-top: 4px;
+}
+
 /* Kategorie 4 als Band statt als Reiter: temporäre Abweichungen sind die
    zweitwichtigste Aussage des Screens und stehen deshalb über allem, aber
    nur solange es sie gibt. Informationsrolle in Blau — Rot bleibt dem

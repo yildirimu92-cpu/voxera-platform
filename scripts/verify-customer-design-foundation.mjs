@@ -51,10 +51,13 @@ assert.ok(lineCount(foundationCss) <= 500, 'foundation CSS exceeded the initial 
 // Regellisten, Unterabschnitte, das "Aktuell"-Band, das den dritten Reiter
 // ersetzt, und die zweispaltige Ausnahme fuer die Kernidentitaet auf Mobile
 // (fuenf kurze Werte gestapelt kosteten dort rund 100px fuer nichts).
+// Nachtrag aus dem Live-Test (09.08.): +32 fuer die Entdichtung — eingeklappte
+// Voxera-Regeln, einspaltige Branchenfelder, Erklaerung und Handlung unter der
+// Statuszeile (Grundsatz 13).
 // Alles neue Komponenten, kein Wildwuchs. Budget behaelt denselben Spielraum
 // wie zuvor (~15 Zeilen), damit der Waechter weiterhin anschlaegt, bevor die
 // Datei unbemerkt waechst.
-assert.ok(lineCount(assistantCss) <= 1270, 'assistant component CSS exceeded its consolidated size budget');
+assert.ok(lineCount(assistantCss) <= 1300, 'assistant component CSS exceeded its consolidated size budget');
 assert.ok(lineCount(statusCss) <= 300, 'assistant status CSS exceeded its consolidated size budget');
 // Design-Nachzug 4 (2026-08-08): +46 Zeilen. Der groessere Teil davon ist
 // EIN Block — die Zuruecknahme der geerbten Feldbeschriftungs-Typografie auf
@@ -72,7 +75,7 @@ assert.ok(lineCount(navigationCss) <= 260, 'navigation component CSS exceeded it
 for (const token of [
   'Styling lives exclusively in explicit CSS modules.',
   '/shared/customer-design-system.css?v=20260809-1',
-  '/shared/customer-assistant-components.css?v=20260809-2',
+  '/shared/customer-assistant-components.css?v=20260809-3',
   '/shared/customer-assistant-status.css?v=20260803-1',
   '/shared/customer-settings-components.css?v=20260809-1',
   '/shared/customer-support-components.css?v=20260802-2',
@@ -907,6 +910,6 @@ assert.ok(dashboard.includes('<script src="/shared/offer-brand.js?v=20260807-4">
 assert.ok(!dashboard.includes('<script src="/shared/offer-brand.js"></script>'), 'dashboard still loads unversioned offer-brand');
 assert.ok(loader.includes('/shared/customer-runtime-design-foundation.js?v=20260809-1'), 'offer-brand missing current design loader version');
 assert.ok(!loader.includes('/shared/customer-runtime-design-foundation.js?v=20260803-4'), 'offer-brand still references stale design loader version');
-for (const stale of ['/shared/customer-settings-components.css?v=20260807-3','/shared/customer-design-system.css?v=20260804-1','/shared/customer-assistant-components.css?v=20260803-1','/shared/customer-assistant-components.css?v=20260808-2','/shared/customer-assistant-components.css?v=20260808-3','/shared/customer-assistant-components.css?v=20260809-1','/shared/customer-navigation-components.css?v=20260803-1']) assert.ok(!runtime.includes(stale), `design loader still contains stale CSS URL: ${stale}`);
-const cssOrder=['/shared/customer-design-system.css?v=20260809-1','/shared/customer-assistant-components.css?v=20260809-2','/shared/customer-assistant-status.css?v=20260803-1','/shared/customer-navigation-components.css?v=20260809-1','/shared/customer-settings-components.css?v=20260809-1','/shared/customer-support-components.css?v=20260802-2','/shared/customer-ui-components.css?v=20260809-1'];
+for (const stale of ['/shared/customer-settings-components.css?v=20260807-3','/shared/customer-design-system.css?v=20260804-1','/shared/customer-assistant-components.css?v=20260803-1','/shared/customer-assistant-components.css?v=20260808-2','/shared/customer-assistant-components.css?v=20260808-3','/shared/customer-assistant-components.css?v=20260809-1','/shared/customer-assistant-components.css?v=20260809-2','/shared/customer-navigation-components.css?v=20260803-1']) assert.ok(!runtime.includes(stale), `design loader still contains stale CSS URL: ${stale}`);
+const cssOrder=['/shared/customer-design-system.css?v=20260809-1','/shared/customer-assistant-components.css?v=20260809-3','/shared/customer-assistant-status.css?v=20260803-1','/shared/customer-navigation-components.css?v=20260809-1','/shared/customer-settings-components.css?v=20260809-1','/shared/customer-support-components.css?v=20260802-2','/shared/customer-ui-components.css?v=20260809-1'];
 for(let i=1;i<cssOrder.length;i+=1) assert.ok(runtime.indexOf(cssOrder[i-1])<runtime.indexOf(cssOrder[i]),`design CSS module order changed: ${cssOrder[i-1]} before ${cssOrder[i]}`);
