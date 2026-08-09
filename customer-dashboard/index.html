@@ -35513,6 +35513,120 @@ body.vx-requests-focus-mode #call-detail-page.vx-detail-focus #call-detail-banne
 })();
 </script>
 <script>
+/* VOXERA — On-Screen-Debug-Overlay fuer das Querformat-Nav-Problem.
+   Aktivierung per URL-Parameter ?debug=nav (kein Web-Inspector noetig).
+   Zeigt denselben Diagnose-Schnappschuss, den wir sonst per Konsole
+   ausgelesen haetten, direkt sichtbar auf dem Bildschirm an und
+   protokolliert zusaetzlich jede Aenderung (resize/orientationchange),
+   damit ein Timing-Race sichtbar wird statt nur ein Einzel-Snapshot. */
+(function vxNavDebugOverlay(){
+  var params;
+  try { params = new URLSearchParams(window.location.search); } catch(e) { return; }
+  if (params.get('debug') !== 'nav') return;
+
+  function elInfo(sel){
+    var el = document.querySelector(sel);
+    if (!el) return { found: false };
+    var cs = getComputedStyle(el);
+    var rect = el.getBoundingClientRect();
+    return {
+      found: true,
+      display: cs.display,
+      visibility: cs.visibility,
+      inlineStyle: el.getAttribute('style') || '',
+      rect: { x: Math.round(rect.x), y: Math.round(rect.y), w: Math.round(rect.width), h: Math.round(rect.height) },
+      closestTabPage: el.closest('.tab-page') ? el.closest('.tab-page').id : null
+    };
+  }
+
+  function snapshot(){
+    var vv = window.visualViewport;
+    return {
+      innerWidth: window.innerWidth,
+      innerHeight: window.innerHeight,
+      visualViewport: vv ? { w: Math.round(vv.width), h: Math.round(vv.height), scale: vv.scale } : null,
+      mq768: window.matchMedia('(max-width:768px)').matches,
+      mqLandscape500: window.matchMedia('(max-height:500px) and (orientation:landscape)').matches,
+      appDisplay: (function(){ var a = document.getElementById('app'); return a ? getComputedStyle(a).display : 'NOT FOUND'; })(),
+      appInlineStyle: (function(){ var a = document.getElementById('app'); return a ? (a.getAttribute('style') || '') : null; })(),
+      loginScreenDisplay: (function(){ var l = document.getElementById('login-screen'); return l ? getComputedStyle(l).display : 'NOT FOUND'; })(),
+      sidebar: elInfo('.sidebar'),
+      mobileNav: elInfo('.mobile-nav'),
+      mobileHeader: elInfo('.mobile-header'),
+      watchdogPresent: typeof window.vxLandscapeNavWatchdog === 'function'
+    };
+  }
+
+  var startedAt = Date.now();
+  var log = [];
+  var MAX_ENTRIES = 25;
+
+  function render(){
+    var pre = document.getElementById('vx-nav-debug-pre');
+    if (!pre) return;
+    var text = log.map(function(entry){
+      return '── t+' + entry.t + 'ms — ' + entry.label + ' ──\n' + JSON.stringify(entry.data, null, 1);
+    }).reverse().join('\n\n');
+    pre.textContent = text;
+  }
+
+  function record(label){
+    log.push({ t: Date.now() - startedAt, label: label, data: snapshot() });
+    if (log.length > MAX_ENTRIES) log.shift();
+    render();
+  }
+
+  function buildOverlay(){
+    var wrap = document.createElement('div');
+    wrap.id = 'vx-nav-debug-overlay';
+    wrap.style.cssText = 'position:fixed;inset:0;z-index:2147483647;background:rgba(8,12,24,0.96);color:#7CFFB2;font:11px/1.4 ui-monospace,Menlo,monospace;overflow:auto;padding:10px;box-sizing:border-box;';
+    var bar = document.createElement('div');
+    bar.style.cssText = 'position:sticky;top:0;display:flex;gap:8px;margin-bottom:8px;background:rgba(8,12,24,0.96);padding-bottom:6px;';
+    var refreshBtn = document.createElement('button');
+    refreshBtn.textContent = 'Jetzt aktualisieren';
+    refreshBtn.style.cssText = 'padding:8px 12px;font-size:12px;background:#1A6FE8;color:#fff;border:none;border-radius:8px;';
+    refreshBtn.onclick = function(){ record('manueller Refresh'); };
+    var closeBtn = document.createElement('button');
+    closeBtn.textContent = 'Schliessen';
+    closeBtn.style.cssText = 'padding:8px 12px;font-size:12px;background:#334155;color:#fff;border:none;border-radius:8px;';
+    closeBtn.onclick = function(){ wrap.remove(); };
+    var label = document.createElement('span');
+    label.textContent = 'Nav-Debug — dreh das Geraet, Aenderungen werden mitprotokolliert';
+    label.style.cssText = 'color:#94A3B8;align-self:center;font-size:11px;';
+    bar.appendChild(refreshBtn);
+    bar.appendChild(closeBtn);
+    bar.appendChild(label);
+    var pre = document.createElement('pre');
+    pre.id = 'vx-nav-debug-pre';
+    pre.style.cssText = 'white-space:pre-wrap;word-break:break-word;margin:0;';
+    wrap.appendChild(bar);
+    wrap.appendChild(pre);
+    document.documentElement.appendChild(wrap);
+  }
+
+  function start(){
+    buildOverlay();
+    record('initial load');
+    window.addEventListener('resize', function(){ record('resize'); }, { passive: true });
+    window.addEventListener('orientationchange', function(){
+      setTimeout(function(){ record('orientationchange +50ms'); }, 50);
+      setTimeout(function(){ record('orientationchange +350ms'); }, 350);
+      setTimeout(function(){ record('orientationchange +700ms'); }, 700);
+      setTimeout(function(){ record('orientationchange +1500ms'); }, 1500);
+    });
+    if (window.visualViewport && window.visualViewport.addEventListener) {
+      window.visualViewport.addEventListener('resize', function(){ record('visualViewport.resize'); });
+    }
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', start);
+  } else {
+    start();
+  }
+})();
+</script>
+<script>
 (function vxAssertGlobalDomPlacement(){
   var globalSelectors = [
     '.mobile-nav',
