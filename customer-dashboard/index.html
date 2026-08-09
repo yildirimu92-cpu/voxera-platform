@@ -118,13 +118,23 @@
   /* Backward-compatible aliases */
   --r:6px;--r-2xl:16px;
   --radius:8px;--radius-lg:12px;
-  /* Shadows – identical to admin */
-  --shadow-xs:0 1px 2px rgba(0,0,0,0.04);
-  --shadow-sm:0 1px 3px rgba(0,0,0,0.06),0 1px 2px rgba(0,0,0,0.04);
-  --shadow-md:0 4px 12px rgba(0,0,0,0.06),0 2px 4px rgba(0,0,0,0.04);
-  --shadow-lg:0 12px 32px rgba(0,0,0,0.08),0 4px 8px rgba(0,0,0,0.04);
+  /* Schatten — eine Leiter, ein Eigentuemer.
+     Diese Namen wurden hier mit eigenen Werten neu definiert und schlugen
+     dabei die gleichnamigen Aliasse aus customer-design-tokens.css, weil der
+     Inline-Block nach der verlinkten Datei kommt. Ergebnis waren zwei
+     Leitern nebeneinander: dieselbe Stufe warf im Token-Satz einen
+     Night-getoenten Schatten (rgba(13,31,60,...)) und hier einen schwarzen —
+     und der schwarze gewann. Zusammen mit --vx-shadow-card/-panel aus
+     customer-design-system.css und den --surface-shadow-* weiter unten waren
+     es vier Leitern fuer dieselbe Aussage.
+     Jetzt verweisen alle auf die kanonische Leiter. Kein Aufrufort musste
+     dafuer angefasst werden. */
+  --shadow-xs:var(--vx-shadow-xs);
+  --shadow-sm:var(--vx-shadow-sm);
+  --shadow-md:var(--vx-shadow-md);
+  --shadow-lg:var(--vx-shadow-lg);
   --shadow-blue:0 4px 14px rgba(26,111,232,0.18);
-  --shadow-card:0 1px 3px rgba(0,0,0,0.05),0 1px 2px rgba(0,0,0,0.04);
+  --shadow-card:var(--vx-shadow-sm);
   /* Motion – identical to admin */
   --ease:cubic-bezier(0.16,1,0.3,1);
   --fast:0.12s var(--ease);
@@ -143,9 +153,11 @@
   /* Surface + button harmonization */
   --surface-border:#E2E8F0;
   --surface-border-strong:#D6E0F0;
-  --surface-shadow:0 2px 8px rgba(13,31,60,0.05);
-  --surface-shadow-focus:0 8px 22px rgba(13,31,60,0.09);
-  --surface-shadow-soft:0 1px 4px rgba(13,31,60,0.04);
+  /* Dritte Namensfamilie fuer dieselbe Leiter — auf die kanonischen Stufen
+     gelegt statt mit eigenen Werten gefuehrt. */
+  --surface-shadow:var(--vx-shadow-md);
+  --surface-shadow-focus:var(--vx-shadow-lg);
+  --surface-shadow-soft:var(--vx-shadow-xs);
   --btn-height:44px;
   --btn-radius:10px;
   /* ── Layering ────────────────────────────────────────────────────────────
@@ -1042,10 +1054,9 @@ body{
    ausschliesslich shared/customer-navigation-components.css. Die frueheren
    Blau-Fill-Regeln (.nav-item.active mit Hintergrund, Rand, Schatten und
    font-weight:700) sind dort entfernt worden, nicht ueberschrieben. */
-.nav-item:focus-visible{
-  outline:2px solid rgba(26,111,232,0.45);
-  outline-offset:1px;
-}
+/* Fokusring: shared/customer-navigation-components.css — beide
+   Erscheinungsformen der Navigation stehen auf Night und brauchen den
+   hellen Ring, nicht den blauen fuer helle Flaechen. */
 .nav-icon{flex-shrink:0;}
 /* ═══════════════════════════════════════════
    UNIFIED BADGE / CHIP SYSTEM
@@ -1490,7 +1501,10 @@ body{
   transform:translateY(-1px);
 }
 .call-row:active{transform:none;}
-.call-row:focus,.call-row:focus-visible{outline:none;}
+/* Der Mausklick soll keinen Ring hinterlassen, die Tastatur schon — vorher
+   war beides abgeschaltet und die Zeile im Fokus ohne jede Anzeige. */
+.call-row:focus{outline:none;}
+.call-row:focus-visible{outline:3px solid var(--vx-focus-ring);outline-offset:2px;}
 .call-row,.call-row *{-webkit-tap-highlight-color:rgba(0,0,0,0);}
 @media (hover:none){
   .call-row:hover{transform:none;}
@@ -2077,11 +2091,8 @@ body.vx-detail-v2-open #confirm-overlay.open {
   font-weight:500;position:relative;border:none;background:none;font-family:inherit;
   min-width:44px;min-height:44px;justify-content:center;
 }
-.mobile-nav-btn:focus-visible{
-  outline:2px solid rgba(147,197,253,.95);
-  outline-offset:2px;
-  border-radius:12px;
-}
+/* Fokusring: shared/customer-navigation-components.css, siehe .nav-item. */
+.mobile-nav-btn:focus-visible{border-radius:12px;}
 .mobile-nav-icon-wrap{
   position:relative;
   width:24px;
@@ -32370,14 +32381,14 @@ textarea { border-radius: 8px !important; }
 }
 
 /* ── 7. FOCUS-RING EINHEITLICH ──────────────────────────────── */
-.btn:focus-visible,
-button:focus-visible,
-input:focus-visible,
-select:focus-visible,
-textarea:focus-visible {
-  outline: none !important;
-  box-shadow: 0 0 0 3px rgba(26,111,232,.18) !important;
-}
+/* Der Block, der hier stand, nahm jedem Knopf und jedem Eingabefeld per
+   !important die outline und ersetzte sie durch ein Blau bei 18 % Deckkraft.
+   Er hat damit den Fokusring des Design-Systems (--vx-focus-ring) zu totem
+   Code gemacht und auf jeder dunklen Flaeche die Tastaturbedienung ohne
+   sichtbare Position gelassen. Aufgeloest gemaess
+   docs/BACKLOG_FOKUSRING_DESIGN_SYSTEM_2026-08-08.md, Variante 1:
+   zustaendig ist wieder shared/customer-design-system.css, mit einem
+   deckenden Ring fuer helle und einem weissen fuer dunkle Flaechen. */
 
 /* ── 8. DARK MODE TOKENS ────────────────────────────────────── */
 /* Hardcoded weiße Hintergründe in Dark Mode korrigieren */
@@ -40333,28 +40344,21 @@ body.vx-dv2-fullscreen-open{overflow:hidden;}
 .vx-audio-modern__tool:hover{color:var(--vx-ui-row-title-color,#0D1F3C);background:var(--vx-ui-row-icon-bg,#F1F5F9);}
 .vx-audio-modern__tool--speed{color:var(--vx-ui-row-title-color,#0D1F3C);background:var(--vx-ui-row-icon-bg,#F1F5F9);font-weight:700;}
 .vx-audio-modern__tool svg{display:block;}
-/* Der globale Fokus-Reset weiter oben ("FOCUS-RING EINHEITLICH") nimmt allen
-   Knoepfen und Eingaben per !important die outline und ersetzt sie durch
-   box-shadow:0 0 0 3px rgba(26,111,232,.18) — ein Blau bei 18 % Deckkraft,
-   das auf keiner Flaeche wirklich traegt. Die drei Bedienelemente holen sich
-   hier ihren Ring zurueck; !important ist dabei kein Stilmittel, sondern die
-   einzige Moeglichkeit, den Reset zu schlagen.
-   Der Ring ist Night (16,4:1 auf der weissen Karte). Auf dem frueheren
-   Night-Block war er weiss — mit der hellen Flaeche muss er mitkippen, sonst
-   ist er unsichtbar. */
-.vx-audio-modern__tool:focus-visible,
-.vx-audio-modern__range:focus-visible{
-  outline:2px solid var(--vx-color-night,#0D1F3C) !important;
-  outline-offset:2px !important;
-  box-shadow:none !important;
-}
+/* Hier stand die oertliche Ausnahme aus PR #850: die drei Bedienelemente des
+   Players holten sich per !important einen eigenen Ring zurueck, weil der
+   globale Reset ihnen die outline genommen hatte. Der Reset ist aufgeloest,
+   damit ist die Ausnahme gegenstandslos — die Elemente bekommen jetzt
+   denselben Ring wie jedes andere Bedienelement im Produkt. Der Player steht
+   auf der weissen Karte, also den hellen. */
 /* Der Knopf traegt seine Night-Kontur als box-shadow. Ein pauschales
    box-shadow:none wie bei den beiden Regeln darueber wuerde sie im Fokus
    abraeumen — der Ring wird also ergaenzt, nicht ersetzt. */
+/* Der Ring kommt vom Design-System. Was der Knopf selbst mitbringen muss, ist
+   seine Night-Kontur — die ist ein box-shadow und wuerde von einer Regel, die
+   im Fokus box-shadow setzt, abgeraeumt. Hier steht sie deshalb ausdruecklich
+   noch einmal; die outline bleibt dem System ueberlassen. */
 .vx-audio-modern__play:focus-visible{
-  outline:2px solid var(--vx-color-night,#0D1F3C) !important;
-  outline-offset:2px !important;
-  box-shadow:inset 0 0 0 1.5px var(--vx-color-night,#0D1F3C) !important;
+  box-shadow:inset 0 0 0 1.5px var(--vx-color-night,#0D1F3C);
 }
 
 .vx-audio-modern__feedback{

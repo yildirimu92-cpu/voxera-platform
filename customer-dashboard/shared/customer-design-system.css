@@ -27,7 +27,13 @@
   --vx-canvas: #f6f8fb;
   --vx-line: #e4eaf2;
   --vx-line-strong: #d5deea;
-  --vx-focus-ring: rgba(26, 111, 232, 0.24);
+  /* Zwei Werte, weil ein Wert nicht reicht: ein Ring, der auf Weiss trägt,
+     verschwindet auf Night, und umgekehrt. Siehe
+     docs/BACKLOG_FOKUSRING_DESIGN_SYSTEM_2026-08-08.md.
+     Deckend statt 24 % — der frühere Wert war blass genug, um auf hellen
+     Flächen eher zu ahnen als zu sehen, und auf dunklen gar nicht zu tragen. */
+  --vx-focus-ring: #1a6fe8;
+  --vx-focus-ring-on-dark: #ffffff;
   --vx-overlay: rgba(15, 35, 71, 0.42);
   --vx-success: #178a55;
   --vx-warning: #b76a00;
@@ -35,8 +41,11 @@
   --vx-radius-card: 18px;
   --vx-radius-panel: 18px;
   --vx-radius-control: 12px;
-  --vx-shadow-card: 0 1px 2px rgba(16, 24, 40, 0.04);
-  --vx-shadow-panel: 0 8px 28px rgba(15, 35, 71, 0.06);
+  /* Vierte Namensfamilie derselben Leiter. Beide trugen bisher eine eigene
+     Tönung (rgba(16,24,40) bzw. rgba(15,35,71)) und lagen damit neben der
+     Night-Tönung des Token-Satzes. Jetzt Aliasse auf die kanonischen Stufen. */
+  --vx-shadow-card: var(--vx-shadow-xs);
+  --vx-shadow-panel: var(--vx-shadow-md);
   --vx-space-1: 4px;
   --vx-space-2: 8px;
   --vx-space-3: 12px;
@@ -73,6 +82,24 @@ body.vx-customer-design-foundation :where(button, input, select, textarea) {
 body.vx-customer-design-foundation :where(button, [role="button"], a, input, select, textarea):focus-visible {
   outline: 3px solid var(--vx-focus-ring);
   outline-offset: 2px;
+}
+
+/* Auf dunklen Flächen kippt nur die Farbe des Rings, nicht seine Geometrie.
+   Der Ring bleibt damit überall derselbe Ring.
+
+   Die Liste nennt die dunklen Flächen, die es heute gibt. Für jede weitere
+   ist [data-vx-surface="night"] der vorgesehene Weg: ein Attribut am
+   Flächen-Container, keine neue Ausnahmeregel pro Bedienelement. Genau diese
+   Vervielfachung von Einzelausnahmen war der Grund, warum der Fokusring als
+   Backlog-Punkt festgehalten wurde statt nebenbei repariert. */
+body.vx-customer-design-foundation :where(
+  .sidebar,
+  .mobile-nav,
+  .vx-help-cta,
+  .activation-panel--night,
+  [data-vx-surface="night"]
+) :where(button, [role="button"], a, input, select, textarea):focus-visible {
+  outline-color: var(--vx-focus-ring-on-dark);
 }
 
 body.vx-customer-design-foundation :where(
