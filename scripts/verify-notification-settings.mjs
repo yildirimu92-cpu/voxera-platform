@@ -31,6 +31,7 @@ const paths = {
   adminSettings: 'admin-panel/netlify/functions/admin-notification-settings.js',
   adminMigration: 'supabase/migrations/2026-08-09_admin_notification_settings.sql',
   adminPanel: 'admin-panel/index.html',
+  notificationBridge: 'customer-dashboard/shared/customer-runtime-notifications.js',
   aiChangeRequest: 'customer-dashboard/netlify/functions/ai-change-request-create.js'
 };
 const src = Object.fromEntries(
@@ -363,6 +364,62 @@ check(
   /\.eq\('admin_id',\s*adminId\)/.test(src.adminSettings)
     && !/body\.admin_id/.test(src.adminSettings),
   'sonst kann ein Admin die Benachrichtigungen eines anderen abschalten'
+);
+
+
+
+// ─── Der globale Glocken-Abfaenger ──────────────────────────────────────────
+//
+// customer-runtime-notifications.js haengt vier Listener in der Capture-Phase
+// an document und schliesst mit preventDefault() + stopImmediatePropagation()
+// ab. Solange die Erkennung heuristisch war -- jedes Element mit einer
+// Glocken-Glyphe oder "Benachrichtigung" in aria-label/title --, hat sie damit
+// jeden korrekten Handler darunter ueberstimmt. Getroffen hat es die Zeile
+// "Benachrichtigungen" in der Einstellungsliste: Klick aufs Icon oeffnete den
+// globalen Feed, Klick auf den Titeltext daneben die Einstellungsseite.
+//
+// Die Pruefungen hier halten die Umkehrung fest: nur ausdruecklich
+// gekennzeichnete Elemente sind Ausloeser.
+const bridgeExecutable = src.notificationBridge
+  .split('\n')
+  .filter((line) => !line.trim().startsWith('//'))
+  .join('\n');
+
+check(
+  'Die Glyphen-Erkennung ist zurueckgebaut',
+  !bridgeExecutable.includes('BELL_ICON_SELECTOR'),
+  'jede kuenftige ph-bell-Glyphe wuerde sonst wieder zum Ausloeser'
+);
+for (const heuristic of ['aria-label*="Benachrichtigung"', 'title*="Benachrichtigung"', 'aria-label*="notification"']) {
+  check(
+    `Die Textheuristik ${heuristic} ist zurueckgebaut`,
+    !bridgeExecutable.includes(heuristic),
+    'bindTrigger() setzt selbst aria-label -- die Heuristik war selbstverstaerkend'
+  );
+}
+check(
+  'bindTrigger() haertet nichts, was in einem Bedienelement liegt',
+  /isInsideInteractiveControl/.test(bridgeExecutable),
+  'sonst bekommt ein Icon-span in einem <button> role=button und einen eigenen Tab-Stopp'
+);
+
+// Genau zwei echte Glocken, beide mit eigenem Bell-Handler.
+const markedBells = [...src.dashboard.matchAll(/<[^>]*data-notifications-trigger[^>]*>/g)].map(match => match[0]);
+check(
+  'Genau zwei Elemente sind als Glocke gekennzeichnet',
+  markedBells.length === 2,
+  `gefunden: ${markedBells.length}`
+);
+check(
+  'Beide gekennzeichneten Glocken tragen ihren eigenen vxBellToggle-Handler',
+  markedBells.every(tag => tag.includes('vxBellToggle')),
+  markedBells.join(' | ')
+);
+check(
+  'Die Einstellungszeile ist nicht als Glocke gekennzeichnet',
+  !/vx-settings-entry[^>]*data-notifications-trigger/.test(src.dashboard)
+    && !/data-notifications-trigger[^>]*vx-settings-entry/.test(src.dashboard),
+  'sie oeffnet die Einstellungsseite, nicht den Feed'
 );
 
 

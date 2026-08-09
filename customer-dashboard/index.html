@@ -7226,7 +7226,7 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
   </div>
   <div class="mobile-header-right">
     <!-- Glocke — identischer Style wie Avatar-Button -->
-    <div class="mobile-header-user" id="mobile-header-bell" onclick="vxBellToggle(event)" aria-label="Benachrichtigungen" style="position:relative;">
+    <div class="mobile-header-user" id="mobile-header-bell" data-notifications-trigger onclick="vxBellToggle(event)" aria-label="Benachrichtigungen" style="position:relative;">
       <i class="ph-bold ph-bell" style="font-size:16px;" aria-hidden="true"></i>
       <span id="vx-bell-badge-mobile" style="display:none;position:absolute;top:-5px;right:-5px;min-width:16px;height:16px;border-radius:999px;background:#DC2626;color:#fff;font-size:9px;font-weight:700;line-height:16px;text-align:center;padding:0 4px;box-shadow:0 0 0 2px rgba(255,255,255,0.9);"></span>
     </div>
@@ -7269,7 +7269,7 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
           </div>
         </div>
         <!-- Glocke rechts neben VOXERA Schriftzug -->
-        <button class="vx-logo-bell" id="vx-sidebar-bell-item" onclick="vxBellToggle(event)" aria-label="Benachrichtigungen" title="Benachrichtigungen">
+        <button class="vx-logo-bell" id="vx-sidebar-bell-item" data-notifications-trigger onclick="vxBellToggle(event)" aria-label="Benachrichtigungen" title="Benachrichtigungen">
           <i class="ph-light ph-bell" style="font-size:18px;" aria-hidden="true"></i>
           <span class="vx-bell-badge" id="vx-bell-badge" style="display:none;">0</span>
         </button>
