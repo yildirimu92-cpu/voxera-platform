@@ -794,12 +794,16 @@ body.vx-customer-design-foundation .vx-ops-btn {
 
 body.vx-customer-design-foundation .vx-ops-btn.secondary {
   background: var(--vx-ui-badge-info-bg);
-  color: #1a6fe8;
+  color: var(--vx-brand);
 }
 
-body.vx-customer-design-foundation .vx-ops-btn.danger {
-  background: #fef2f2;
-  color: #b91c1c;
+/* „Zurückziehen" war rot (#fef2f2/#b91c1c, beides hartkodiert). Rot ist auf
+   diesem Screen der Notfallnummer vorbehalten (F7, Entscheidung 09.08.), und
+   Zurückziehen ist ohnehin keine gefährliche Aktion — die Änderung lässt sich
+   jederzeit neu erfassen. Dieselbe stille Fläche wie .vx-ap-btn.ghost. */
+body.vx-customer-design-foundation .vx-ops-btn.quiet {
+  background: var(--vx-surface-soft);
+  color: var(--vx-muted);
 }
 
 body.vx-customer-design-foundation .vx-ops-form {

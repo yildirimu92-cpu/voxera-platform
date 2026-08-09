@@ -1,7 +1,7 @@
 # Assistent-Tab — Informationsarchitektur: Diagnose und Zielgliederung
 
 **Datum:** 09.08.2026
-**Status:** Diagnose und Empfehlung — **kein Umsetzungsauftrag.** Umsetzung erst nach Freigabe.
+**Status:** Diagnose und Empfehlung. **D3 und F7 sind am 09.08. freigegeben und umgesetzt** (siehe Nachtrag unten); alles Übrige wartet weiterhin auf Freigabe.
 **Prüfstand:** `main` @ `ed1d95e`, Produktionsdatenbank `ulcofbgrovgcvowdjrge` (Live-Abgleich, nicht aus Dokumenten übernommen).
 **Grundlage:** `docs/ASSISTENT_TAB_NORTH_STAR_2026-08-08.md`, `docs/ETAPPE_6_BRIEFINGS_2026-08-08.md`, Auftrag „Assistent-Tab — Informationsarchitektur überarbeiten" (09.08.).
 
@@ -328,6 +328,42 @@ Bewusst so geschnitten, dass jeder Schritt einzeln lieferbar ist. **Nichts davon
 | **E10** | **`ai_branch_extra` oder `[WIZARD]`** als führende Quelle für Branchenantworten (D4)? | `ai_branch_extra` — es ist eine typisierte Spalte statt einer JSON-Zeile in einem Freitextfeld. Bedeutet: Prompt-Builder umstellen, Wizard-Doppelschreibung beenden. Betrifft I8. |
 | **E11** | **A4 (eingefrorene Begrüssung)** in I1 mitnehmen oder separat lassen? | Mitnehmen, als Abweichungshinweis mit „auf Standard zurücksetzen". Kleiner als die Automatik-Variante und passt genau in Kategorie 1. |
 | **E12** | **D3 vor A3** — akzeptiert, dass das Nachziehen der Branchenzuordnung wartet, bis die Platzhalter aufgelöst sind? | Ja. Andernfalls hören Anrufende bei drei Branchen einen Platzhalter statt einer Notfallnummer. |
+
+---
+
+## 10. Nachtrag 09.08. — D3 und F7 umgesetzt
+
+Beide vom User freigegeben und in derselben Sitzung gebaut. **Kein Eingriff in die Informationsarchitektur** — die wartet auf E8.
+
+### D3 — Branchen-Platzhalter werden aufgelöst
+
+`prompt-builder-v2.js` auf **Version 2.2**. Zwei Regeln, in dieser Reihenfolge:
+
+1. **Wizard-Antworten werden zu Prompt-Variablen** (`wizardVariables()`), datengetrieben aus `ai_internal_notes` → `[WIZARD]`. Neue `extra_steps`-Felder funktionieren damit ohne Codeänderung. Zwei Sperren: Schlüssel müssen `^[A-Za-z0-9_]+$` erfüllen (sie werden in `resolve()` zu einem RegExp — ohne Allowlist wäre das eine Injektionsstelle), und ein Wizard-Schlüssel kann keine der 14 festen Variablen überschreiben.
+2. **Was danach übrig bleibt, wird neutralisiert** (`neutralizePlaceholders()`, nur auf dem Branchen-Layer): Der Platzhalter wird durch eine ausdrückliche Nicht-Anweisung ersetzt statt wörtlich stehen zu bleiben.
+
+`notfallnummer_lebensgefahr` fällt auf `customers.ai_emergency_number` zurück — dieselbe Sache, eine Quelle. Ein Standardwert wird **nicht** erfunden: ist auch die Spalte leer, lautet die Anweisung „nenne keine Nummer".
+
+Wirkung, gegen den echten `handwerk`-Vorlagentext geprüft:
+
+| | vorher | nachher (ohne Wizard-Antwort) |
+|---|---|---|
+| Prompt-Zeile | `Notfall-Nummer nennen: {{notfallnummer_dringend}}` | `Notfall-Nummer nennen: keine eigene Notfallnummer hinterlegt; nenne keine Nummer und nimm stattdessen Kontaktdaten und Anliegen auf` |
+| mit Wizard-Antwort | — | `Notfall-Nummer nennen: 0800 33 66 55` |
+
+**Fünf neue Prüfungen** in `scripts/verify-prompt-builder-v2.mjs` (läuft in `p0-security-verification.yml`), darunter der Injektionsfall und die Zusicherung, dass im fertigen Prompt kein `{{…}}` mehr vorkommt. **Damit ist die Vorbedingung für A3 (E12) erfüllt** — die Branchenzuordnung darf nachgezogen werden.
+
+### F7 — Regel entschieden, Code angeglichen
+
+Die Formulierung aus Abschnitt 6.3 gilt. Im Code drei Stellen:
+
+- `.vx-ops-btn.danger` → `.vx-ops-btn.quiet`: „Zurückziehen" ist nicht mehr rot. Rot bleibt auf diesem Screen der Notfallnummer vorbehalten. Klasse mit umbenannt, damit der Name nicht das Gegenteil des Aussehens behauptet.
+- Zwei hartkodierte Werte (`#1a6fe8`, `#fef2f2`/`#b91c1c`) auf Tokens gezogen.
+- Cache-Buster für die zwei geänderten Dateien gebumpt, die drei Verifier-Pins nachgezogen.
+
+**Nicht mitgemacht, bewusst:** Der Bestätigungsdialog beim Zurückziehen (`root.confirm()`) bleibt. Die Interaktions-Richtlinien verlangen dort Undo statt Dialog — das ist eine Verhaltensänderung und gehört nicht in eine Farbentscheidung.
+
+**Offen für den User:** Der Nachtrag im Tab „Design-System" der Kommandozentrale (Wortlaut in Abschnitt 6.3) — die Datei liegt nicht im Repo.
 
 ---
 
