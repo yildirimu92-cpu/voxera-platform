@@ -46,11 +46,18 @@ const lineCount = (value) => value.split(/\r?\n/).length;
 assert.ok(lineCount(runtime) <= 55, `design runtime is too large: ${lineCount(runtime)} lines`);
 assert.ok(lineCount(foundationCss) <= 500, 'foundation CSS exceeded the initial size budget');
 // Etappe 6 / S2: +83 Zeilen fuer den Kopfbereich "So meldet sich Ihr
-// Assistent". S3: +50 fuer den Ansprache-/Ton-Editor darin. Beides neue
-// Komponenten, kein Wildwuchs. Budget behaelt denselben Spielraum wie zuvor
-// (~65 Zeilen), damit der Waechter weiterhin anschlaegt, bevor die Datei
-// unbemerkt waechst.
-assert.ok(lineCount(assistantCss) <= 1130, 'assistant component CSS exceeded its consolidated size budget');
+// Assistent". S3: +50 fuer den Ansprache-/Ton-Editor darin. Umgliederung
+// (E8, 09.08.): +134 fuer die zweite Achse der neuen Struktur — Herkunftsmarke,
+// Regellisten, Unterabschnitte, das "Aktuell"-Band, das den dritten Reiter
+// ersetzt, und die zweispaltige Ausnahme fuer die Kernidentitaet auf Mobile
+// (fuenf kurze Werte gestapelt kosteten dort rund 100px fuer nichts).
+// Nachtrag aus dem Live-Test (09.08.): +32 fuer die Entdichtung — eingeklappte
+// Voxera-Regeln, einspaltige Branchenfelder, Erklaerung und Handlung unter der
+// Statuszeile (Grundsatz 13).
+// Alles neue Komponenten, kein Wildwuchs. Budget behaelt denselben Spielraum
+// wie zuvor (~15 Zeilen), damit der Waechter weiterhin anschlaegt, bevor die
+// Datei unbemerkt waechst.
+assert.ok(lineCount(assistantCss) <= 1300, 'assistant component CSS exceeded its consolidated size budget');
 assert.ok(lineCount(statusCss) <= 300, 'assistant status CSS exceeded its consolidated size budget');
 // Design-Nachzug 4 (2026-08-08): +46 Zeilen. Der groessere Teil davon ist
 // EIN Block — die Zuruecknahme der geerbten Feldbeschriftungs-Typografie auf
@@ -67,13 +74,13 @@ assert.ok(lineCount(navigationCss) <= 260, 'navigation component CSS exceeded it
 
 for (const token of [
   'Styling lives exclusively in explicit CSS modules.',
-  '/shared/customer-design-system.css?v=20260807-2',
-  '/shared/customer-assistant-components.css?v=20260808-3',
+  '/shared/customer-design-system.css?v=20260809-1',
+  '/shared/customer-assistant-components.css?v=20260809-3',
   '/shared/customer-assistant-status.css?v=20260803-1',
   '/shared/customer-settings-components.css?v=20260809-1',
   '/shared/customer-support-components.css?v=20260802-2',
-  '/shared/customer-navigation-components.css?v=20260807-3',
-  '/shared/customer-ui-components.css?v=20260807-3',
+  '/shared/customer-navigation-components.css?v=20260809-1',
+  '/shared/customer-ui-components.css?v=20260809-1',
   "link.rel = 'stylesheet'",
   'vx-customer-design-foundation-html',
   'vx-customer-design-foundation',
@@ -103,7 +110,6 @@ for (const token of [
   '#mnav-assistent',
   '#mnav-auswertung',
   '#mnav-mehr',
-  '.vx-assistant-root-switch',
   '.vx-ap-btn',
   '.vx-ops-btn',
   '.vx-as-capability-toggle',
@@ -161,9 +167,16 @@ assert.ok(
   dashboard.includes('<header class="vx-appbar"><h1 class="vx-appbar-title">Einstellungen</h1></header>'),
   'Einstellungen must open with a back-arrow-free app bar'
 );
+// E8 (09.08.): Der Assistent-Tab ist eine durchgehende Seite; seine beiden
+// Formulare sind Drill-ins. Die Leiste traegt deshalb jetzt auch den
+// Zurueck-Pfeil — aber nur dort, nicht auf der Wurzelseite.
 assert.ok(
-  navigationRuntime.includes('<h1 class="vx-appbar-title">Assistent</h1>'),
+  navigationRuntime.includes('<h1 class="vx-appbar-title" id="vx-assistant-root-title">Assistent</h1>'),
   'the assistant root must open with the shared app bar'
+);
+assert.ok(
+  navigationRuntime.includes('back.hidden = Boolean(config.root)'),
+  'the assistant root view must stay free of a back arrow'
 );
 assert.ok(
   !navigationRuntime.includes('vx-assistant-root-subtitle'),
@@ -301,16 +314,19 @@ for (const token of [
   'var(--vx-ui-appbar-title-size)',
   '#nav-assistent.nav-item',
   '#mnav-assistent.mobile-nav-btn',
-  '#vx-assistant-root-switch',
   '.nav-item.vx-root-nav-active',
   '.mobile-nav-btn:is(.active, .vx-root-nav-active)'
 ]) {
   assert.ok(navigationCss.includes(token), `navigation CSS missing: ${token}`);
 }
+// E8 (09.08.): Der Umschalter ist entfallen — mit ihm seine Mobil-Regeln.
+// Statt der Trefferflaeche der Reiter wird jetzt die des Zurueck-Pfeils
+// gesichert; er ist auf Mobile das einzige verbleibende Navigationselement
+// innerhalb des Screens.
 assert.match(
   navigationCss,
-  /@media\s*\(max-width:\s*720px\)[\s\S]*?body\.vx-customer-design-foundation\s+#vx-assistant-root-switch\s*>\s*button\s*\{[^}]*min-height:\s*36px;?[^}]*\}/,
-  'navigation CSS missing mobile assistant switch min-height'
+  /\.vx-appbar-back\s*\{[^}]*width:\s*var\(--vx-ui-appbar-back-size\)/,
+  'navigation CSS missing the app bar back target size'
 );
 
 for (const token of [
@@ -533,8 +549,8 @@ for (const [name, css] of [
 
 assert.match(loader, /customer-runtime-case-intake\.js\?v=20260808-1/);
 assert.match(loader, /customer-runtime-calendar-settings\.js\?v=20260809-1/);
-assert.match(loader, /customer-runtime-assistant-status\.js\?v=20260803-1/);
-assert.match(loader, /customer-runtime-design-foundation\.js\?v=20260808-1/);
+assert.match(loader, /customer-runtime-assistant-status\.js\?v=20260809-1/);
+assert.match(loader, /customer-runtime-design-foundation\.js\?v=20260809-1/);
 assert.match(loader, /__voxeraCustomerCaseIntakeLoaded/);
 assert.match(loader, /__voxeraCustomerDesignFoundationLoaded/);
 
@@ -578,7 +594,6 @@ for (const token of [
   'var(--vx-ui-card-border-width)',
   'var(--vx-ui-card-radius)',
   'var(--vx-ui-tab-accent)',
-  '#vx-assistant-root-switch > button',
   '.vx-requests-filters > .vx-ap-filter',
   '@keyframes vxUiSkeletonShimmer',
   'prefers-reduced-motion'
@@ -855,8 +870,12 @@ assert.match(
 // warnings/errors); the loading/success state moved onto the save button
 // itself via the shared vxInlineSaveStatus helper, and the page must never
 // scrollIntoView to reveal it.
+// E8 (09.08.): Das Namensfeld hat mit der Umgliederung seine eigene Karte
+// verloren und sitzt jetzt im Identitaets-Editor — dessen Statusanker ist
+// vx-hero-tune-status. Ein Pin auf den alten Knoten wuerde eine Regression
+// behaupten, wo eine Zusammenfuehrung stattgefunden hat.
 for (const token of [
-  'vx-assistant-name-status',
+  'vx-hero-tune-status',
   'vx-business-save-status',
   'function paintStatus',
   'vxInlineSaveStatus'
@@ -889,8 +908,8 @@ assert.doesNotMatch(navigationRuntime, /function addStyles|createElement\('style
 for (const forbidden of ['#tab-assistent > :not(#vx-assistant-root-header):not(#vx-assistant-root-switch):not(#vx-assistant-root-host)','#vx-assistant-root-host > [data-vx-assistant-managed-page]:not([hidden])','.vx-nav-voice-details','#vx-assistant-profile-body .vx-ap-card:first-child']) assert.ok(!navigationCss.includes(forbidden), `navigation CSS still owns assistant structure: ${forbidden}`);
 assert.ok(dashboard.includes('<script src="/shared/offer-brand.js?v=20260807-4"></script>'), 'dashboard missing versioned offer-brand loader');
 assert.ok(!dashboard.includes('<script src="/shared/offer-brand.js"></script>'), 'dashboard still loads unversioned offer-brand');
-assert.ok(loader.includes('/shared/customer-runtime-design-foundation.js?v=20260808-1'), 'offer-brand missing current design loader version');
+assert.ok(loader.includes('/shared/customer-runtime-design-foundation.js?v=20260809-1'), 'offer-brand missing current design loader version');
 assert.ok(!loader.includes('/shared/customer-runtime-design-foundation.js?v=20260803-4'), 'offer-brand still references stale design loader version');
-for (const stale of ['/shared/customer-settings-components.css?v=20260807-3','/shared/customer-design-system.css?v=20260804-1','/shared/customer-assistant-components.css?v=20260803-1','/shared/customer-assistant-components.css?v=20260808-2','/shared/customer-navigation-components.css?v=20260803-1']) assert.ok(!runtime.includes(stale), `design loader still contains stale CSS URL: ${stale}`);
-const cssOrder=['/shared/customer-design-system.css?v=20260807-2','/shared/customer-assistant-components.css?v=20260808-3','/shared/customer-assistant-status.css?v=20260803-1','/shared/customer-navigation-components.css?v=20260807-3','/shared/customer-settings-components.css?v=20260809-1','/shared/customer-support-components.css?v=20260802-2','/shared/customer-ui-components.css?v=20260807-3'];
+for (const stale of ['/shared/customer-settings-components.css?v=20260807-3','/shared/customer-design-system.css?v=20260804-1','/shared/customer-assistant-components.css?v=20260803-1','/shared/customer-assistant-components.css?v=20260808-2','/shared/customer-assistant-components.css?v=20260808-3','/shared/customer-assistant-components.css?v=20260809-1','/shared/customer-assistant-components.css?v=20260809-2','/shared/customer-navigation-components.css?v=20260803-1']) assert.ok(!runtime.includes(stale), `design loader still contains stale CSS URL: ${stale}`);
+const cssOrder=['/shared/customer-design-system.css?v=20260809-1','/shared/customer-assistant-components.css?v=20260809-3','/shared/customer-assistant-status.css?v=20260803-1','/shared/customer-navigation-components.css?v=20260809-1','/shared/customer-settings-components.css?v=20260809-1','/shared/customer-support-components.css?v=20260802-2','/shared/customer-ui-components.css?v=20260809-1'];
 for(let i=1;i<cssOrder.length;i+=1) assert.ok(runtime.indexOf(cssOrder[i-1])<runtime.indexOf(cssOrder[i]),`design CSS module order changed: ${cssOrder[i-1]} before ${cssOrder[i]}`);

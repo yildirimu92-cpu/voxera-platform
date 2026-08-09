@@ -176,18 +176,18 @@
 (function loadCustomerRuntimes(root) {
   if (!root || !root.document) return;
   [
-    ['__voxeraCustomerScreenNavigationLoaded', '/shared/customer-runtime-screen-navigation.js?v=20260807-2'],
+    ['__voxeraCustomerScreenNavigationLoaded', '/shared/customer-runtime-screen-navigation.js?v=20260809-1'],
     ['__voxeraCustomerCaseIntakeLoaded', '/shared/customer-runtime-case-intake.js?v=20260808-1'],
     ['__voxeraCustomerInlineSaveStatusLoaded', '/shared/customer-runtime-inline-save-status.js?v=20260808-1'],
     ['__voxeraCustomerCalendarSettingsLoaded', '/shared/customer-runtime-calendar-settings.js?v=20260809-1'],
-    ['__voxeraCustomerOperationalUpdatesLoaded', '/shared/customer-runtime-operational-updates.js?v=20260808-1'],
-    ['__voxeraCustomerAssistantProfileLoaded', '/shared/customer-runtime-assistant-profile.js?v=20260808-4'],
-    ['__vxAssistantStatusLoaderInstalled', '/shared/customer-runtime-assistant-status.js?v=20260803-1'],
+    ['__voxeraCustomerOperationalUpdatesLoaded', '/shared/customer-runtime-operational-updates.js?v=20260809-1'],
+    ['__voxeraCustomerAssistantProfileLoaded', '/shared/customer-runtime-assistant-profile.js?v=20260809-2'],
+    ['__vxAssistantStatusLoaderInstalled', '/shared/customer-runtime-assistant-status.js?v=20260809-1'],
     ['__vxCustomerHelpRouteLoaderInstalled', '/shared/customer-runtime-help-route.js?v=20260807-2'],
     ['__voxeraCustomerMobileNavRepairLoaded', '/shared/customer-runtime-mobile-nav-repair.js?v=20260808-2'],
     ['__vxCustomerSettingsPolishLoaded', '/shared/customer-runtime-settings-polish.js?v=20260807-3'],
-    ['__voxeraCustomerUnifiedNavigationLoaded', '/shared/customer-runtime-unified-navigation.js?v=20260807-2'],
-    ['__voxeraCustomerDesignFoundationLoaded', '/shared/customer-runtime-design-foundation.js?v=20260808-1']
+    ['__voxeraCustomerUnifiedNavigationLoaded', '/shared/customer-runtime-unified-navigation.js?v=20260809-1'],
+    ['__voxeraCustomerDesignFoundationLoaded', '/shared/customer-runtime-design-foundation.js?v=20260809-1']
   ].forEach(([flag, src]) => {
     if (root[flag]) return;
     root[flag] = true;

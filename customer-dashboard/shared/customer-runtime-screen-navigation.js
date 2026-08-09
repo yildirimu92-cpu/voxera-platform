@@ -86,10 +86,33 @@
     if (stateKey()) writeState('', 'replace');
   }
 
+  // Sub-Screens ausserhalb der Einstellungen melden hier an, wie sie geöffnet
+  // und geschlossen werden. Ohne diese Anmeldung wüsste ein zurückgespieltes
+  // History-Ereignis zwar, dass der Screen zu sein sollte, könnte ihn aber
+  // nicht schliessen — der Pfeil würde funktionieren und Browser-Zurück nicht.
+  const owners = new Map();
+
+  function registerOwner(prefix, handler) {
+    if (!prefix || !handler) return;
+    owners.set(String(prefix), handler);
+  }
+
+  function ownerFor(key) {
+    for (const [prefix, handler] of owners) {
+      if (String(key).indexOf(prefix) === 0) return { prefix, handler };
+    }
+    return null;
+  }
+
   function closeCurrent() {
     if (!openKey) return false;
     if (openKey.indexOf('mehr:') === 0 && typeof root.vxMehrBack === 'function') {
       root.vxMehrBack();
+      return true;
+    }
+    const owned = ownerFor(openKey);
+    if (owned && typeof owned.handler.close === 'function') {
+      owned.handler.close(openKey.slice(owned.prefix.length));
       return true;
     }
     return false;
@@ -121,11 +144,21 @@
     try {
       if (!key) {
         if (openKey.indexOf('mehr:') === 0 && typeof root.vxMehrBack === 'function') root.vxMehrBack();
+        else {
+          const owned = ownerFor(openKey);
+          if (owned && typeof owned.handler.close === 'function') owned.handler.close(openKey.slice(owned.prefix.length));
+        }
         openKey = '';
         return;
       }
       if (key.indexOf('mehr:') === 0 && typeof root.vxMehrShow === 'function') {
         root.vxMehrShow(key.slice(5));
+        openKey = key;
+        return;
+      }
+      const owned = ownerFor(key);
+      if (owned && typeof owned.handler.open === 'function') {
+        owned.handler.open(key.slice(owned.prefix.length));
         openKey = key;
         return;
       }
@@ -179,7 +212,7 @@
   }
 
   root.vxScreenBack = back;
-  root.vxScreenNav = { enter, exit, back, current: () => openKey };
+  root.vxScreenNav = { enter, exit, back, register: registerOwner, current: () => openKey };
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', install, { once: true });
   else install();

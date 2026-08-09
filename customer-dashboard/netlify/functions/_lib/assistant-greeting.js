@@ -15,12 +15,30 @@
 
 const text = (value) => String(value == null ? '' : value).trim();
 
-function buildGreetingView(customer) {
-  const effective = text(customer?.ai_effective_greeting);
-  if (effective) return { text: effective, source: 'effective' };
-  const custom = text(customer?.ai_greeting);
-  if (custom) return { text: custom, source: 'custom' };
-  return { text: null, source: 'none' };
+// A4 / E11 — der Satz, den Anrufende hoeren, kann den Namen des Assistenten
+// ueberleben: buildPromptV2 bevorzugt eine gespeicherte ai_greeting gegenueber
+// der erzeugten, und eine Umbenennung zieht dort nicht mit (Befund N7).
+// Erkannt wird das ueber den Namen, nicht ueber ein zweites Erzeugen des
+// Satzes — eine zweite Erzeugungslogik im Dashboard waere genau die doppelte
+// Quelle, die dieses Modul vermeidet. Faellt der Name im Satz, ist der Satz alt.
+function hasStaleName(sentence, assistantName) {
+  const name = text(assistantName);
+  const value = text(sentence);
+  if (!name || !value) return false;
+  return !new RegExp(`(^|[^\\p{L}])${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}([^\\p{L}]|$)`, 'iu').test(value);
 }
 
-module.exports = { buildGreetingView };
+function buildGreetingView(customer) {
+  const assistantName = text(customer?.assistant_name);
+  const custom = text(customer?.ai_greeting);
+  const effective = text(customer?.ai_effective_greeting);
+  // Der Hinweis haengt an der gespeicherten Begruessung, nicht an der
+  // uebertragenen: nur die erste ist eingefroren, die zweite wird bei jedem
+  // Sync neu geschrieben und darf hier keinen Alarm ausloesen.
+  const staleName = Boolean(custom) && hasStaleName(custom, assistantName);
+  if (effective) return { text: effective, source: 'effective', stale_name: staleName };
+  if (custom) return { text: custom, source: 'custom', stale_name: staleName };
+  return { text: null, source: 'none', stale_name: false };
+}
+
+module.exports = { buildGreetingView, hasStaleName };

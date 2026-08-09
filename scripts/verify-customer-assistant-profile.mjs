@@ -49,7 +49,11 @@ for (const token of [
   // Begruessungssatz kommt aus dem Endpoint, wird nicht im Dashboard erzeugt,
   // und die eine Statuszeile des Screens entsteht hier statt in der
   // Betriebsstatus-Karte.
-  'function heroCard',
+  // E8 (09.08.): aus dem Kopfbereich ist der Abschnitt "Kernidentität"
+  // geworden — derselbe Satz, aber mit den fünf Feldern, die ihn erzeugen,
+  // in derselben Karte. Ansprache und Ton standen vorher doppelt auf dem
+  // Screen (D7).
+  'function identityCard',
   'function statusSummary',
   'vx-ap-hero-greeting',
   'vx-ap-hero-status',
@@ -61,6 +65,22 @@ for (const token of [
   'data-vx-tone-edit',
   'async function saveTune',
   'can_change_tone === true',
+  // Vier Abschnitte, sortiert nach Beständigkeit, jeder mit Herkunftsangabe.
+  // Die Herkunftsmarke ist die zweite Achse der Gliederung (S5/E4) und darf
+  // nicht wieder zu einer eigenen Karte werden.
+  'function bandCard',
+  'function knowledgeCard',
+  'function boundariesCard',
+  'function originChip',
+  'Grenzen und Eskalation',
+  'Was Ihr Assistent weiss',
+  'vx-assistant-capabilities-anchor',
+  // I8: die Feldliste kommt aus der Branchenvorlage, nicht aus dem Frontend.
+  'function branchCard',
+  'ai_branch_extra',
+  // A4/E11: die eingefrorene Begrüssung wird angezeigt und zurückgesetzt,
+  // nicht bearbeitet — buildGreeting bleibt die einzige Erzeugungsstelle.
+  'async function resetGreeting',
   'let loadPromise = null',
   'let loadSequence = 0',
   'if (loadPromise) return loadPromise',
@@ -143,8 +163,8 @@ for (const forbidden of [
   if (source.statusRuntime.includes(forbidden)) failures.push(`status runtime exposes protected field: ${forbidden}`);
 }
 
-assert.match(source.loader, /customer-runtime-assistant-profile\.js\?v=20260808-4/);
-assert.match(source.loader, /customer-runtime-assistant-status\.js\?v=20260803-1/);
+assert.match(source.loader, /customer-runtime-assistant-profile\.js\?v=20260809-2/);
+assert.match(source.loader, /customer-runtime-assistant-status\.js\?v=20260809-1/);
 assert.doesNotMatch(source.loader, /customer-runtime-assistant-business-menu\.js/);
 assert.doesNotMatch(source.loader, /customer-runtime-voice-preview-fallback\.js/);
 assert.doesNotMatch(source.loader, /__vxVoicePreviewFallbackLoaderInstalled/);
@@ -175,6 +195,19 @@ assert.match(source.profile, /notification_mode/);
 assert.match(source.profile, /forwarding_status/);
 assert.match(source.profile, /elevenlabs_sync_status/);
 assert.match(source.profile, /status_version: 1/);
+// I2/I4: Herkunft und Grenzen kommen aus dem Endpoint, nicht aus dem Browser.
+// Layer 1 steht als Kategorienliste im Code — der Prompt-Wortlaut bleibt im
+// Admin-Panel (E4).
+assert.match(source.profile, /from\('industry_templates'\)/);
+assert.match(source.profile, /VOXERA_RULES/);
+assert.match(source.profile, /buildBoundaries/);
+assert.match(source.profile, /buildBranchSections/);
+// I8: der Browser bestimmt nicht, welche Branchenfelder es gibt. Ohne diese
+// Allowlist waere ein freier Schluessel seit Prompt-Builder 2.2 eine
+// Schreibberechtigung auf den Prompt.
+assert.match(source.update, /branch_field_not_in_template/);
+assert.match(source.update, /function sanitizeBranchExtra/);
+assert.match(source.update, /replace\(\/\[\{\}\]\/g, ''\)/);
 assert.match(source.statusRuntime, /cache: 'no-store'/);
 assert.match(source.statusRuntime, /snapshot = null/);
 assert.match(source.statusRuntime, /new MutationObserver/);

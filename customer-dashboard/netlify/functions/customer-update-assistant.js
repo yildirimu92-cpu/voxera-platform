@@ -26,6 +26,50 @@ function text(value, maxLength) {
   return (maxLength ? normalized.slice(0, maxLength) : normalized) || null;
 }
 
+// Branchenfelder (I8). Die erlaubten Schluessel kommen ausschliesslich aus der
+// zugeordneten Branchenvorlage — der Browser bestimmt nicht, was gespeichert
+// wird. Das ist keine Formalie: seit Prompt-Builder 2.2 werden diese Antworten
+// zu Prompt-Variablen, ein freier Schluessel waere damit eine Schreibberechtigung
+// auf den Prompt.
+const BRANCH_TEXT_LIMIT = 400;
+
+function branchFieldRules(steps) {
+  const rules = new Map();
+  (Array.isArray(steps) ? steps : []).forEach((step) => {
+    (Array.isArray(step?.fields) ? step.fields : []).forEach((field) => {
+      const key = String(field?.key || '').trim();
+      if (!/^[A-Za-z0-9_]+$/.test(key)) return;
+      const options = (Array.isArray(field?.options) ? field.options : [])
+        .map((option) => String(option?.val || '').trim())
+        .filter(Boolean);
+      rules.set(key, { type: String(field?.type || 'text').trim(), options });
+    });
+  });
+  return rules;
+}
+
+function sanitizeBranchExtra(input, rules) {
+  const result = {};
+  const rejected = [];
+  Object.entries(input && typeof input === 'object' && !Array.isArray(input) ? input : {}).forEach(([key, value]) => {
+    const rule = rules.get(key);
+    if (!rule) {
+      rejected.push(key);
+      return;
+    }
+    // Geschweifte Klammern raus: sonst koennte eine Antwort einen Platzhalter
+    // in den Branchen-Layer schreiben, den der Builder anschliessend aufloest.
+    const cleaned = String(value ?? '').replace(/[{}]/g, '').trim().slice(0, BRANCH_TEXT_LIMIT);
+    if (!cleaned) return;
+    if (rule.options.length && !rule.options.includes(cleaned)) {
+      rejected.push(key);
+      return;
+    }
+    result[key] = cleaned;
+  });
+  return { values: result, rejected };
+}
+
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers, body: '' };
   if (event.httpMethod !== 'POST') return response(405, buildContractPayload({ error: 'Method not allowed' }));
@@ -48,7 +92,7 @@ exports.handler = async (event) => {
 
   const { data: customer, error: customerError } = await sbAdmin
     .from('customers')
-    .select('plan,plan_code,elevenlabs_agent_id')
+    .select('plan,plan_code,elevenlabs_agent_id,industry_template_id,ai_branch_extra')
     .eq('id', caller.customerId)
     .maybeSingle();
   if (customerError || !customer) return response(500, buildContractPayload({ error: 'customer_load_failed' }));
@@ -88,6 +132,7 @@ exports.handler = async (event) => {
     ai_forwarding_2_number,
     ai_forwarding_2_trigger,
     ai_emergency_number,
+    ai_branch_extra,
     notification_mode,
     sms_notify_enabled,
     sms_notify_trigger,
@@ -183,6 +228,38 @@ exports.handler = async (event) => {
     }
   }
 
+  if (ai_branch_extra !== undefined) {
+    const templateId = String(customer.industry_template_id || '').trim();
+    if (!templateId) {
+      return response(409, buildContractPayload({ error: 'no_industry_template', errors: ['no_industry_template'] }));
+    }
+    const { data: template, error: templateError } = await sbAdmin
+      .from('industry_templates')
+      .select('extra_steps')
+      .eq('id', templateId)
+      .maybeSingle();
+    if (templateError) return response(500, buildContractPayload({ error: 'industry_template_load_failed' }));
+
+    const { values, rejected } = sanitizeBranchExtra(ai_branch_extra, branchFieldRules(template?.extra_steps));
+    if (rejected.length) {
+      return response(400, buildContractPayload({
+        error: 'branch_field_not_in_template',
+        errors: ['branch_field_not_in_template'],
+        blocked_fields: rejected
+      }));
+    }
+    // Teil-Speicherung: der Screen sendet nur den bearbeiteten Abschnitt, die
+    // uebrigen Antworten des Kunden bleiben stehen. Ein leerer Wert loescht
+    // seinen Schluessel, weil sanitizeBranchExtra ihn gar nicht erst uebernimmt.
+    const existing = customer.ai_branch_extra && typeof customer.ai_branch_extra === 'object' && !Array.isArray(customer.ai_branch_extra)
+      ? customer.ai_branch_extra
+      : {};
+    const merged = { ...existing };
+    Object.keys(ai_branch_extra && typeof ai_branch_extra === 'object' ? ai_branch_extra : {}).forEach((key) => { delete merged[key]; });
+    Object.assign(merged, values);
+    patch.ai_branch_extra = Object.keys(merged).length ? merged : null;
+  }
+
   const patchKeys = Object.keys(patch).filter((key) => key !== 'updated_at');
   if (!patchKeys.length) {
     return response(400, buildContractPayload({
@@ -238,3 +315,5 @@ exports.handler = async (event) => {
     sync_error: syncError
   }));
 };
+
+exports._test = { branchFieldRules, sanitizeBranchExtra };
