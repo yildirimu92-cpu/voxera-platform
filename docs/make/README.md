@@ -100,7 +100,7 @@ Mapping der Routen:
 
 - Filter: `{{1.mail_type}}` gleich `call_notification_email` bzw.
   `callback_request_email`
-- `to`: `{{1.recipient_email}}` (vorher `{{2.data.customer_email}}`)
+- `to`: `{{1.recipient.email}}` (vorher `{{2.data.customer_email}}`) — verschachtelt wie bei allen anderen Mailtypen
 - `subject`: `Neuer Anruf – Voxera` bzw. `Rückruf angefordert – Voxera`
 - Verbindung: `Voxeraa SMTP V2`, `Reply-To: info@voxera.ch` — wie in Szenario 01
 - HTML: unverändert aus Szenario 01 übernommen
@@ -109,7 +109,8 @@ Die Vorlagen können unverändert bleiben, weil der Payload dieselben Feldnamen
 trägt wie das Webhook-Bundle von Szenario 01: `caller_name`, `caller_phone`,
 `call_summary`, `call_summary_short`, `category`, `lead_quality`, `next_action`,
 `priority`, `duration_seconds`, `callback_requested`. Ergänzt um
-`recipient_email`, `customer_id`, `customer_name`, `contact_name`,
+`recipient.email` / `recipient.name` (verschachtelt, Hausregel der Mail-Engine),
+`customer_id`, `customer_name`, `contact_name`,
 `called_number`, `call_id`, `elevenlabs_conversation_id`, `dashboard_url`.
 
 `scripts/verify-call-notification-migration.mjs` friert diese Feldnamen ein —

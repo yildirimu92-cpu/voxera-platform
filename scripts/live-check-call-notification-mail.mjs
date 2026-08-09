@@ -8,7 +8,7 @@
  * sich vor dem Deploy pruefen, was sonst erst ein echter Anruf zeigt:
  *
  *   * trifft der Router-Filter den mail_type,
- *   * loest {{1.recipient_email}} den Empfaenger auf,
+ *   * loest {{1.recipient.email}} den Empfaenger auf,
  *   * rendern die aus Szenario 01 uebernommenen Vorlagen mit den Feldnamen
  *     dieses Payloads.
  *
@@ -65,7 +65,9 @@ function buildTestPayload(mailType) {
   const callbackRequested = mailType === 'callback_request_email';
   return {
     mail_type: mailType,
-    recipient_email: RECIPIENT,
+    // Verschachtelt wie in jedem anderen Mailtyp - die Route liest
+    // {{1.recipient.email}}, nicht ein flaches Feld.
+    recipient: { email: RECIPIENT, name: 'Testperson' },
     customer_id: 'cust_rauchtest',
     customer_name: 'Rauchtest AG',
     contact_name: 'Testperson',
