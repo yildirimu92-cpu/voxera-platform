@@ -190,6 +190,9 @@ Gemäss Auftragsabgrenzung ("dann dokumentieren, nicht mitfixen"):
    *Empfehlung: in einem eigenen kleinen Schritt nachziehen, zusammen mit einer
    Durchsicht der übrigen 26 Tabellen aus der eingefrorenen anon-Baseline.*
 
+   → **Erledigt am 2026-08-09, siehe Abschnitt 7.** Die Durchsicht ergab, dass es
+   nicht eine Tabelle war, sondern 27.
+
 2. **Fünf Migrationen liegen auf der Produktions-DB ohne Repo-Datei:**
    `outbox_dedupe_unique`, `prompt_fingerprint`, `elevenlabs_sync_queue`,
    `opening_hours`, `customer_voice_previews`. Der Ledger-Check des 6-Stunden-Crons
@@ -198,6 +201,10 @@ Gemäss Auftragsabgrenzung ("dann dokumentieren, nicht mitfixen"):
    vor dem der Fahrplan warnt: ein dauerhaft roter Check wird ignoriert und
    schützt dann nichts mehr. *Empfehlung: zeitnah klären und die fünf Migrationen
    nachdokumentieren.*
+
+   → **Erledigt am 2026-08-09, siehe Abschnitt 6.** Auf dem aktuellen `main`
+   waren es noch drei; `opening_hours` und `customer_voice_previews` hatten
+   inzwischen Repo-Dateien bekommen.
 
 3. **`calls.calls_insert_service_or_admin` ist eine wirkungslose Policy.** Sie
    erlaubt Admins das Anlegen, aber das INSERT-Grant für `authenticated` ist
@@ -218,9 +225,117 @@ Gemäss Auftragsabgrenzung ("dann dokumentieren, nicht mitfixen"):
 
 ---
 
-## 6. Nicht Teil dieser Arbeit
+## 6. Nachtrag (freigegeben): Waisen-Migrationen nachdokumentiert
 
-* Andere Tabellen als `calls` und `system_config` (siehe Nebenfunde 1 und 2).
+Drei Migrationen lagen auf der Produktions-DB ohne Repo-Datei. Ihr SQL wurde
+**nicht rekonstruiert**, sondern wörtlich aus
+`supabase_migrations.schema_migrations.statements` übernommen — also aus dem, was
+tatsächlich gelaufen ist — und anschliessend gegen den Live-Katalog geprüft.
+
+| Datei | Ledger-Version | Gegen den Katalog geprüft |
+|---|---|---|
+| `2026-08-09_outbox_dedupe_unique.sql` | `20260809142631` | partieller Unique-Index auf `outbox_events (event_type, dedupe_key)` vorhanden |
+| `2026-08-09_prompt_fingerprint.sql` | `20260809144607` | beide Spalten + partieller Index vorhanden |
+| `2026-08-09_elevenlabs_sync_queue.sql` | `20260809145738` | Tabelle, 3 Indizes, RLS aktiv, 1 Policy, Grants nur `service_role` |
+
+Alle drei stehen bereits im Ledger und laufen dadurch nicht erneut; sämtliche
+Anweisungen sind ohnehin idempotent (`if not exists`).
+
+Sicherheitsseitig war nichts nachzuziehen: `elevenlabs_sync_queue` macht von sich
+aus, was der P0-Nachzug anderswo nachholen musste — RLS an, `revoke all` von
+`public`/`anon`/`authenticated`, Rechte nur für `service_role`.
+
+Der Ledger-Check ist damit lokal in **beide** Richtungen grün (13 Migrationen
+nachgewiesen, keine Waisen).
+
+---
+
+## 7. Nachtrag (freigegeben): TRUNCATE-Durchsicht — es waren 27 Tabellen
+
+Der Auftrag lautete, `authenticated`-TRUNCATE auf `public.users` zurückzunehmen
+und dabei die Baseline durchzusehen. Die Durchsicht hat den Befund deutlich
+vergrössert. Gemessen auf Produktion, **nach** dem Fix aus PR #889:
+
+| Rolle | Tabellen mit TRUNCATE (von 45) |
+|---|---|
+| `anon` | **26** |
+| `authenticated` | **27** |
+
+Betroffen u. a. `users`, `admins`, `customers`, `onboarding`, `invoice_items`,
+`outbox_events`, `voxera_cases`, `push_subscriptions`.
+
+### Die Wurzel — der eigentliche Fund
+
+Ein einmaliges Revoke hätte verrottet. Die **Default-Privilegien** des Schemas
+`public` vergeben an `anon` und `authenticated` `arwdDxtm`; das `D` darin ist
+TRUNCATE. Jede neu angelegte Tabelle erbt die Lücke also automatisch. So ist der
+Zustand überhaupt entstanden — es war nie eine Entscheidung.
+
+`2026-08-09_truncate_grant_sweep.sql` nimmt deshalb beides:
+
+1. **Bestand** — dynamisch über `pg_class`, nicht über eine gepflegte Liste:
+   `revoke truncate` von `public`, `anon`, `authenticated` auf allen 45 Tabellen.
+   Ausschliesslich TRUNCATE; SELECT/INSERT/UPDATE/DELETE bleiben unangetastet
+   (sie stehen hinter RLS, und das Admin-Portal arbeitet als `authenticated`).
+2. **Wurzel** — `alter default privileges in schema public revoke truncate on
+   tables from anon, authenticated`.
+
+**Bekannte Restlücke, offen benannt:** es gibt einen zweiten Default-ACL-Eintrag
+mit Erzeuger `supabase_admin`, der weiterhin `D` vergibt. Er lässt sich aus der
+Migrationsrolle nicht ändern (`42501 permission denied to change default
+privileges` — ausprobiert, nicht vermutet). Praktisch greift er nur für Tabellen,
+die `supabase_admin` selbst in `public` anlegt; aktuell gehören alle 45 Tabellen
+`postgres`. Entstünde je eine solche Tabelle, meldet sie der Bestandscheck beim
+nächsten Lauf.
+
+### Belegt, bevor etwas zuging
+
+* Keine Datenbankfunktion enthält TRUNCATE (`pg_proc.prosrc` über
+  `public`/`auth`/`storage` durchsucht — 0 Treffer).
+* Kein Anwendungscode setzt TRUNCATE ab (die einzigen Repo-Treffer sind die
+  Prüfdateien, die das Recht *verbieten*).
+* `service_role` und `postgres` behalten TRUNCATE unverändert (45 von 45).
+
+### Verifikation
+
+| Schritt | Ergebnis |
+|---|---|
+| Nach dem Anwenden gemessen | `anon` 26 → **0**, `authenticated` 27 → **0**, `service_role` unverändert 45 |
+| Default-ACL (Erzeuger `postgres`) | `anon=arwdxtm`, `authenticated=arwdxtm` — das `D` ist weg |
+| Gegenprobe Laufzeit | 7/7 PASS: Kunde sieht seine 13 Anrufe, Admin liest `system_config` 3/3 und die Kundenliste, erlaubter Schreibpfad offen, TRUNCATE auf `users`/`admins`/`outbox_events` jetzt `42501` |
+| Mutationstests | 3/3 PASS — Bestandscheck **und** Wurzelcheck werden rot, wenn das Recht zurückkommt; Zustand danach unverändert |
+
+### CI
+
+Die vier fest verdrahteten TRUNCATE-Zeilen aus PR #889 sind ersetzt durch:
+
+* ein **Aggregat über alle Tabellen** in `public` (eine neue Tabelle ist damit ab
+  dem nächsten Lauf automatisch erfasst — eine Aufzählung wäre beim nächsten
+  `create table` unbemerkt unvollständig),
+* eine Zeile **pro betroffener Tabelle** im Fehlerfall, damit im CI-Log steht, wo
+  nachzuziehen ist,
+* einen Check der **Default-Privilegien**, ohne den der Bestandscheck nur eine
+  Momentaufnahme mit Verfallsdatum wäre.
+
+Die Baseline wurde aus der Messung neu geschrieben, nicht von Hand editiert. Der
+Diff ist exakt **30 Entfernungen, ausschliesslich `TRUNCATE`**, kein einziges
+hinzugekommenes Recht — das ist zugleich die Selbstkontrolle, dass der Sweep
+nichts anderes angefasst hat.
+
+Abgrenzung, die dabei bewusst getroffen wurde: die übrigen anon-Rechte
+(`INSERT`/`UPDATE`/`DELETE` auf 26 Tabellen) bleiben eingefroren statt entfernt.
+Für sie trägt das Argument "davor steht noch RLS"; für TRUNCATE trägt es nicht.
+Das ist der ganze Unterschied zwischen den beiden Behandlungen.
+
+---
+
+## 8. Nicht Teil dieser Arbeit
+
 * Der `p0-security-verification.yml`-Workflow (prüft Repo-Dateien) blieb
   unangetastet.
-* Kein Eingriff in RLS-Policies — diese Migration ändert ausschliesslich Grants.
+* Kein Eingriff in RLS-Policies — beide Migrationen ändern ausschliesslich Grants
+  bzw. Default-Privilegien.
+* Die eingefrorenen anon-DML-Rechte auf 26 Tabellen (siehe Abschnitt 7, letzter
+  Absatz) — sie bleiben ein eigenes, grösseres Aufräumthema.
+* Nebenfunde 3, 4 und 5 aus Abschnitt 5 (wirkungslose Policy, drei Alt-Policies
+  auf `calls`, `DELETE` auf `calls`) — unverändert offen.

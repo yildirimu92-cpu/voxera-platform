@@ -26,7 +26,17 @@
     "die Nachkontrolle der beiden RLS-Nebenfunde aus PR #830: TRUNCATE ist der einzige",
     "Tabellenzugriff, auf den RLS NICHT angewandt wird -- fuer diese Rechte gilt das",
     "Argument 'davor steht noch RLS' nicht. Sie stehen deshalb jetzt als harte",
-    "Invariante im Katalog (F6-grants) und nicht mehr als eingefrorene Zeile hier."
+    "Invariante im Katalog (F6-grants) und nicht mehr als eingefrorene Zeile hier.",
+    "",
+    "Nachgezogen am 2026-08-09 (Migration 2026-08-09_truncate_grant_sweep.sql): TRUNCATE",
+    "ist aus BEIDEN Listen vollstaendig verschwunden. Das ist keine Baseline-Pflege,",
+    "sondern eine Abgrenzung: fuer SELECT/INSERT/UPDATE/DELETE traegt das Argument",
+    "'davor steht noch RLS', und deshalb werden sie hier eingefroren statt entfernt.",
+    "Auf TRUNCATE wird RLS GAR NICHT angewandt -- dort ist das Grant die einzige",
+    "Huerde, ein Einfrieren haette nichts geschuetzt. TRUNCATE steht darum jetzt als",
+    "harte Invariante im Katalog (F6-grants, ueber ALLE Tabellen aggregiert) und",
+    "zusaetzlich als Pruefung der Default-Privilegien, die es sonst bei jeder neuen",
+    "Tabelle automatisch neu vergeben haetten."
   ],
   "anonTableGrants": {
     "admin_emails": [
@@ -36,7 +46,6 @@
       "REFERENCES",
       "SELECT",
       "TRIGGER",
-      "TRUNCATE",
       "UPDATE"
     ],
     "admins": [
@@ -46,7 +55,6 @@
       "REFERENCES",
       "SELECT",
       "TRIGGER",
-      "TRUNCATE",
       "UPDATE"
     ],
     "credit_note_sequences": [
@@ -56,7 +64,6 @@
       "REFERENCES",
       "SELECT",
       "TRIGGER",
-      "TRUNCATE",
       "UPDATE"
     ],
     "customer_tasks": [
@@ -66,7 +73,6 @@
       "REFERENCES",
       "SELECT",
       "TRIGGER",
-      "TRUNCATE",
       "UPDATE"
     ],
     "elevenlabs_sync_log": [
@@ -76,7 +82,6 @@
       "REFERENCES",
       "SELECT",
       "TRIGGER",
-      "TRUNCATE",
       "UPDATE"
     ],
     "feature_flags": [
@@ -86,7 +91,6 @@
       "REFERENCES",
       "SELECT",
       "TRIGGER",
-      "TRUNCATE",
       "UPDATE"
     ],
     "industry_templates": [
@@ -96,7 +100,6 @@
       "REFERENCES",
       "SELECT",
       "TRIGGER",
-      "TRUNCATE",
       "UPDATE"
     ],
     "invoice_financial_actions": [
@@ -106,7 +109,6 @@
       "REFERENCES",
       "SELECT",
       "TRIGGER",
-      "TRUNCATE",
       "UPDATE"
     ],
     "invoice_items": [
@@ -116,7 +118,6 @@
       "REFERENCES",
       "SELECT",
       "TRIGGER",
-      "TRUNCATE",
       "UPDATE"
     ],
     "invoice_refunds": [
@@ -126,7 +127,6 @@
       "REFERENCES",
       "SELECT",
       "TRIGGER",
-      "TRUNCATE",
       "UPDATE"
     ],
     "invoice_sequences": [
@@ -136,7 +136,6 @@
       "REFERENCES",
       "SELECT",
       "TRIGGER",
-      "TRUNCATE",
       "UPDATE"
     ],
     "kantonale_notfallnummern": [
@@ -146,7 +145,6 @@
       "REFERENCES",
       "SELECT",
       "TRIGGER",
-      "TRUNCATE",
       "UPDATE"
     ],
     "minutes_topups": [
@@ -156,7 +154,6 @@
       "REFERENCES",
       "SELECT",
       "TRIGGER",
-      "TRUNCATE",
       "UPDATE"
     ],
     "offer_acceptances": [
@@ -166,7 +163,6 @@
       "REFERENCES",
       "SELECT",
       "TRIGGER",
-      "TRUNCATE",
       "UPDATE"
     ],
     "offer_events": [
@@ -176,7 +172,6 @@
       "REFERENCES",
       "SELECT",
       "TRIGGER",
-      "TRUNCATE",
       "UPDATE"
     ],
     "offer_sequences": [
@@ -186,7 +181,6 @@
       "REFERENCES",
       "SELECT",
       "TRIGGER",
-      "TRUNCATE",
       "UPDATE"
     ],
     "onboarding": [
@@ -196,7 +190,6 @@
       "REFERENCES",
       "SELECT",
       "TRIGGER",
-      "TRUNCATE",
       "UPDATE"
     ],
     "outbox_events": [
@@ -206,7 +199,6 @@
       "REFERENCES",
       "SELECT",
       "TRIGGER",
-      "TRUNCATE",
       "UPDATE"
     ],
     "plan_config": [
@@ -216,7 +208,6 @@
       "REFERENCES",
       "SELECT",
       "TRIGGER",
-      "TRUNCATE",
       "UPDATE"
     ],
     "push_subscriptions": [
@@ -226,7 +217,6 @@
       "REFERENCES",
       "SELECT",
       "TRIGGER",
-      "TRUNCATE",
       "UPDATE"
     ],
     "telephony_number_assignment_audit": [
@@ -236,7 +226,6 @@
       "REFERENCES",
       "SELECT",
       "TRIGGER",
-      "TRUNCATE",
       "UPDATE"
     ],
     "telephony_numbers": [
@@ -246,7 +235,6 @@
       "REFERENCES",
       "SELECT",
       "TRIGGER",
-      "TRUNCATE",
       "UPDATE"
     ],
     "users": [
@@ -255,8 +243,7 @@
       "MAINTAIN",
       "REFERENCES",
       "SELECT",
-      "TRIGGER",
-      "TRUNCATE"
+      "TRIGGER"
     ],
     "voxera_addons": [
       "DELETE",
@@ -265,7 +252,6 @@
       "REFERENCES",
       "SELECT",
       "TRIGGER",
-      "TRUNCATE",
       "UPDATE"
     ],
     "voxera_cases": [
@@ -275,7 +261,6 @@
       "REFERENCES",
       "SELECT",
       "TRIGGER",
-      "TRUNCATE",
       "UPDATE"
     ],
     "voxera_voices": [
@@ -285,7 +270,6 @@
       "REFERENCES",
       "SELECT",
       "TRIGGER",
-      "TRUNCATE",
       "UPDATE"
     ]
   },
@@ -325,7 +309,6 @@
       "REFERENCES",
       "SELECT",
       "TRIGGER",
-      "TRUNCATE",
       "UPDATE"
     ],
     "customers": [
@@ -334,8 +317,7 @@
       "MAINTAIN",
       "REFERENCES",
       "SELECT",
-      "TRIGGER",
-      "TRUNCATE"
+      "TRIGGER"
     ],
     "invoices": [
       "SELECT",
@@ -359,8 +341,7 @@
       "MAINTAIN",
       "REFERENCES",
       "SELECT",
-      "TRIGGER",
-      "TRUNCATE"
+      "TRIGGER"
     ],
     "voxera_cases": [
       "DELETE",
@@ -369,7 +350,6 @@
       "REFERENCES",
       "SELECT",
       "TRIGGER",
-      "TRUNCATE",
       "UPDATE"
     ]
   },
