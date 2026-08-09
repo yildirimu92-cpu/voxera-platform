@@ -1,0 +1,31 @@
+name: Verify Prompt Builder V2
+
+# Bewusst ohne Pfad-Filter, aus dem Grund, den
+# docs/VERIFY_SKRIPTE_CI_ABDECKUNG_2026-08-09.md fuer die drei
+# sicherheitsrelevanten Checks festhaelt: wer eine gelesene Datei anfasst, sie
+# aber nicht in die Pfadliste eingetragen hat, bekommt einen uebersprungenen
+# statt eines bestandenen Laufs -- und uebersprungen sieht in der PR-Ansicht
+# nicht nach einer Luecke aus.
+#
+# Dieser Check gehoert in dieselbe Klasse: er sichert den Block
+# VERBINDLICHE SICHERHEITSREGELN im Prompt, die Neutralisierung beider
+# Platzhalter-Dialekte, die Allowlist der Schicht-A-Spalten und die Regel, dass
+# ein mehrdeutiges Altvokabular die Terminbefugnis nicht ausweiten darf. Er
+# liest ausserdem admin-panel/index.html, also eine Datei, die praktisch jeder
+# Admin-Auftrag beruehrt. Der Lauf kostet wenige Sekunden und braucht keine
+# Installation.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: node scripts/verify-prompt-builder-v2.mjs
