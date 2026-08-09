@@ -16,6 +16,7 @@
  */
 
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -117,36 +118,86 @@ const ACTIVE_CUSTOMER = {
   missed_call_email_active: true
 };
 
-// ─── Gating: Paritaet zu den beiden Router-Filtern in Szenario 01 ───────────
-console.log('\nGating (Paritaet zu Make-Szenario 01):');
+// ─── Gating: notification_mode ist die einzige Quelle ──────────────────────
+//
+// Bis 2026-08-09 gatete decideMail() auf notification_active /
+// new_log_email_active - Paritaet zur Make-Route, aber gegen Spalten, die die
+// Einstellungsseite seit 2026-04-07 nicht mehr schreibt. Die Pruefungen hier
+// haelt jetzt fest, dass die Wahl des Kunden tatsaechlich durchschlaegt, und
+// dass die toten Spalten daran nichts mehr aendern koennen.
+console.log('\nGating (notification_mode als einzige Quelle):');
 
-check('Rueckruf + notification_active -> callback_request_email', () => {
-  assert.equal(decideMail(ACTIVE_CUSTOMER, true).mailType, CALLBACK_MAIL_TYPE);
+check('all_calls + Rueckruf -> callback_request_email', () => {
+  assert.equal(decideMail({ ...ACTIVE_CUSTOMER, notification_mode: 'all_calls' }, true).mailType, CALLBACK_MAIL_TYPE);
 });
 
-check('Normaler Anruf + new_log_email_active -> call_notification_email', () => {
-  assert.equal(decideMail(ACTIVE_CUSTOMER, false).mailType, CALL_MAIL_TYPE);
+check('all_calls + normaler Anruf -> call_notification_email', () => {
+  assert.equal(decideMail({ ...ACTIVE_CUSTOMER, notification_mode: 'all_calls' }, false).mailType, CALL_MAIL_TYPE);
 });
 
-check('Rueckruf bei notification_active=false wird nicht verschickt', () => {
-  const result = decideMail({ ...ACTIVE_CUSTOMER, notification_active: false }, true);
+check('callback_only + Rueckruf -> callback_request_email', () => {
+  assert.equal(decideMail({ ...ACTIVE_CUSTOMER, notification_mode: 'callback_only' }, true).mailType, CALLBACK_MAIL_TYPE);
+});
+
+check('callback_only + normaler Anruf -> keine Mail', () => {
+  const result = decideMail({ ...ACTIVE_CUSTOMER, notification_mode: 'callback_only' }, false);
   assert.equal(result.mailType, null);
-  assert.equal(result.reason, 'notification_active_off');
+  assert.equal(result.reason, 'callback_only_mode');
 });
 
-check('Normaler Anruf bei new_log_email_active=false wird nicht verschickt', () => {
-  const result = decideMail({ ...ACTIVE_CUSTOMER, new_log_email_active: false }, false);
-  assert.equal(result.mailType, null);
-  assert.equal(result.reason, 'new_log_email_active_off');
+check('none -> keine Mail, auch bei Rueckrufwunsch', () => {
+  const off = { ...ACTIVE_CUSTOMER, notification_mode: 'none' };
+  assert.equal(decideMail(off, true).mailType, null);
+  assert.equal(decideMail(off, true).reason, 'notifications_off');
+  assert.equal(decideMail(off, false).mailType, null);
 });
 
-check('Die beiden Schalter sind nicht vertauscht', () => {
-  // Szenario 01 gated den Rueckruf ueber notification_active und den normalen
-  // Anruf ueber new_log_email_active. Ein Vertauschen faellt sonst nicht auf,
-  // weil beim Testkunden beide Schalter an sind.
-  const callbackOnly = { ...ACTIVE_CUSTOMER, notification_active: true, new_log_email_active: false };
-  assert.equal(decideMail(callbackOnly, true).mailType, CALLBACK_MAIL_TYPE);
-  assert.equal(decideMail(callbackOnly, false).mailType, null);
+check('Die Legacy-Booleans koennen die Wahl nicht mehr ueberstimmen', () => {
+  // Genau der Produktionsfall vom 09.08.: drei von vier Kunden standen auf
+  // callback_only, trugen aber new_log_email_active = true. Unter dem alten
+  // Gating haetten sie eine Mail nach jedem Anruf bekommen.
+  const realWorld = {
+    ...ACTIVE_CUSTOMER,
+    notification_mode: 'callback_only',
+    notification_active: true,
+    new_log_email_active: true,
+    missed_call_email_active: true
+  };
+  assert.equal(decideMail(realWorld, false).mailType, null);
+  assert.equal(decideMail(realWorld, true).mailType, CALLBACK_MAIL_TYPE);
+
+  // Und die Gegenrichtung: abgeschaltete Booleans duerfen eine bewusste
+  // 'all_calls'-Wahl nicht aushebeln.
+  const allCalls = {
+    ...ACTIVE_CUSTOMER,
+    notification_mode: 'all_calls',
+    notification_active: false,
+    new_log_email_active: false,
+    missed_call_email_active: false
+  };
+  assert.equal(decideMail(allCalls, false).mailType, CALL_MAIL_TYPE);
+  assert.equal(decideMail(allCalls, true).mailType, CALLBACK_MAIL_TYPE);
+});
+
+check('Leerer/unbekannter Modus faellt auf den Werksstandard callback_only', () => {
+  for (const value of [null, undefined, '', 'vielleicht']) {
+    const result = decideMail({ ...ACTIVE_CUSTOMER, notification_mode: value }, false);
+    assert.equal(result.mailType, null, `Modus ${JSON.stringify(value)} darf keine Alle-Anrufe-Mail ausloesen`);
+    assert.equal(decideMail({ ...ACTIVE_CUSTOMER, notification_mode: value }, true).mailType, CALLBACK_MAIL_TYPE);
+  }
+});
+
+check('Das Gating liest die Legacy-Spalten nirgends mehr', () => {
+  // Gegenprobe auf Quellcode-Ebene: ein spaeteres Wiedereinfuehren der alten
+  // Bedingung faellt sonst erst im Betrieb auf.
+  const source = readFileSync(libPath, 'utf8');
+  const code = source
+    .split('\n')
+    .filter((line) => !line.trim().startsWith('//'))
+    .join('\n');
+  for (const column of ['notification_active', 'new_log_email_active', 'missed_call_email_active']) {
+    assert.ok(!code.includes(column), `${column} steht wieder im ausfuehrbaren Teil von call-notification.js`);
+  }
 });
 
 check('Kunde ohne E-Mail bekommt keine Mail', () => {

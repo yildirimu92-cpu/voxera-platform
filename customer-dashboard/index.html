@@ -8008,11 +8008,16 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
             <header class="vx-appbar"><button type="button" class="vx-appbar-back" aria-label="Zurück zu Einstellungen" onclick="vxScreenBack('vxMehrBack')"><i class="ph-bold ph-arrow-left" aria-hidden="true"></i></button><h1 class="vx-appbar-title">Benachrichtigungen</h1></header>
 
             <section class="vx-settings-card vx-ui-brand-rule">
-              <div class="vx-settings-card-head"><div><h2 class="vx-settings-card-title">E-Mail</h2><p class="vx-settings-card-meta">Wählen Sie, wann Voxera Sie per E-Mail informiert.</p></div></div>
-              <div id="notif-email-options" class="vx-settings-choice-list">
-                <label class="vx-settings-choice"><span class="vx-settings-choice-copy"><strong>Keine E-Mails</strong><small>Anfragen bleiben im Dashboard sichtbar.</small></span><input type="radio" name="notif-email" value="none"></label>
-                <label class="vx-settings-choice"><span class="vx-settings-choice-copy"><strong>Nur bei Rückruf-Anfragen</strong><small>Für Anfragen, die eine Rückmeldung benötigen.</small></span><input type="radio" name="notif-email" value="callback_only"></label>
-                <label class="vx-settings-choice"><span class="vx-settings-choice-copy"><strong>Bei jedem Anruf</strong><small>Eine E-Mail nach jedem abgeschlossenen Gespräch.</small></span><input type="radio" name="notif-email" value="all_calls"></label>
+              <div class="vx-settings-card-head"><div><h2 class="vx-settings-card-title">E-Mail</h2><p class="vx-settings-card-meta">Wann Voxera Sie per E-Mail informiert.</p></div></div>
+              <div class="vx-settings-switch-list">
+                <label class="vx-settings-switch-row"><span><strong>Anruf mit Rückrufwunsch</strong><small>Wenn jemand um Rückruf bittet — mit Nummer und Anliegen.</small></span><input id="notif-switch-callback" type="checkbox" onchange="vxNotifSyncDependentRows()"></label>
+                <!-- Unterschalter, kein gleichrangiges Ereignis: "jeder Anruf" schliesst
+                     den Rueckrufwunsch mit ein, weil ein Rueckrufwunsch ein Anruf ist.
+                     Zwei gleichrangige Schalter haetten einen vierten Zustand
+                     versprochen ("keine Rueckruf-Mail, aber jede Zusammenfassung"),
+                     den notification_mode nicht kennt und der auch fachlich keiner
+                     ist. -->
+                <label class="vx-settings-switch-row is-nested"><span><strong>Auch Anrufe ohne Rückrufwunsch</strong><small id="notif-all-calls-hint">Zusammenfassung nach jedem Gespräch, nicht nur bei Rückrufwünschen.</small></span><input id="notif-switch-all-calls" type="checkbox"></label>
               </div>
               <div class="vx-settings-card-body vx-settings-form">
                 <label class="vx-settings-field"><span class="vx-settings-field-label">Empfänger</span><input id="notif-email-address" type="email" readonly><span class="vx-settings-field-help">Die Adresse wird aus Ihrem Profil übernommen.</span></label>
@@ -8020,11 +8025,17 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
             </section>
 
             <section class="vx-settings-card">
-              <div class="vx-settings-card-head"><div><h2 class="vx-settings-card-title">Im Dashboard</h2><p class="vx-settings-card-meta">Steuern Sie die Hinweise in der Glocke.</p></div></div>
+              <div class="vx-settings-card-head"><div><h2 class="vx-settings-card-title">Im Dashboard</h2><p class="vx-settings-card-meta">Hinweise in der Glocke oben rechts.</p></div></div>
               <div class="vx-settings-switch-list">
-                <label class="vx-settings-switch-row"><span><strong>Wichtige Anfragen</strong><small>Hot Leads und dringende Anliegen.</small></span><input id="inapp-setting-important-requests" type="checkbox"></label>
-                <label class="vx-settings-switch-row"><span><strong>Rückrufe und Aufgaben</strong><small>Geplante Rückmeldungen und offene Aufgaben.</small></span><input id="inapp-setting-callbacks-and-tasks" type="checkbox"></label>
-                <label class="vx-settings-switch-row is-locked"><span><strong>Systemhinweise</strong><small>Wichtige Meldungen zur Erreichbarkeit und Einrichtung.</small></span><input id="inapp-setting-system" type="checkbox" checked disabled></label>
+                <label class="vx-settings-switch-row"><span><strong>Hinweise in der Glocke</strong><small>Neue Anrufe erscheinen als Hinweis im Dashboard.</small></span><input id="notif-switch-bell" type="checkbox"></label>
+              </div>
+            </section>
+
+            <section class="vx-settings-card">
+              <div class="vx-settings-card-head"><div><h2 class="vx-settings-card-title">Immer aktiv</h2><p class="vx-settings-card-meta">Diese Nachrichten senden wir unabhängig von den Einstellungen oben.</p></div></div>
+              <div class="vx-settings-switch-list">
+                <label class="vx-settings-switch-row is-locked"><span><strong>Wichtiges zu Vertrag und Rechnung</strong><small>Rechnungen, Mahnungen und Vertragsänderungen senden wir immer — dazu sind wir vertraglich verpflichtet.</small></span><input type="checkbox" checked disabled aria-label="Wichtiges zu Vertrag und Rechnung — immer aktiv"></label>
+                <label class="vx-settings-switch-row is-locked"><span><strong>Systemhinweise im Dashboard</strong><small>Meldungen zu Erreichbarkeit und Einrichtung, etwa wenn Ihre Rufumleitung nicht mehr steht.</small></span><input type="checkbox" checked disabled aria-label="Systemhinweise im Dashboard — immer aktiv"></label>
               </div>
             </section>
             <div class="vx-settings-actions"><button type="button" onclick="vxSaveBenachrichtigungen()" class="btn vx-abo-btn">Benachrichtigungen speichern</button></div>
@@ -8116,35 +8127,16 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
               <div id="contract-access-banner" style="display:none;background:var(--red-light,rgba(220,38,38,0.1));border:1px solid rgba(220,38,38,0.25);border-radius:12px;padding:12px 14px;margin-bottom:12px;color:var(--red,#DC2626);font-size:13px;line-height:1.5;"></div>
               <div class="settings-card-intro">
                 <div class="settings-module-tag">Benachrichtigungen</div>
-                <div class="settings-card-title" style="margin-top:10px;">Meldungen steuern</div>
-                <div class="settings-card-lead">Legen Sie fest, wann Voxera Ihnen eine E-Mail sendet und welcher Ton für eingehende Meldungen genutzt wird.</div>
+                <div class="settings-card-title" style="margin-top:10px;">Ton und Browser-Meldungen</div>
+                <div class="settings-card-lead">Welcher Ton für eingehende Meldungen genutzt wird und ob der Browser Sie benachrichtigt, wenn das Tab nicht aktiv ist.</div>
               </div>
-              <div class="settings-option-list">
-                <label id="notif-card-none" onclick="selectNotifCard('none')" style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;border-radius:12px;border:1.5px solid var(--blue-mid);background:var(--blue-light);cursor:pointer;transition:all .15s;">
-                  <div>
-                    <div style="font-size:13px;font-weight:600;color:#1A6FE8;">Keine Benachrichtigungen</div>
-                    <div style="font-size:11px;color:var(--slate2);margin-top:2px;">Nur im Dashboard sichtbar</div>
-                  </div>
-                  <div id="notif-dot-none" style="width:20px;height:20px;border-radius:50%;background:#1A6FE8;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5l2.5 2.5L8 2.5" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                  </div>
-                </label>
-                <label id="notif-card-callback" onclick="selectNotifCard('callback_only')" style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;border-radius:12px;border:1.5px solid var(--line);background:var(--surface);cursor:pointer;transition:all .15s;">
-                  <div>
-                    <div style="font-size:13px;font-weight:600;color:var(--ink);">Nur bei Rückruf-Anfragen</div>
-                    <div style="font-size:11px;color:var(--slate2);margin-top:2px;">Fokus auf dringende Rückrufe</div>
-                  </div>
-                  <div id="notif-dot-callback" style="width:20px;height:20px;border-radius:50%;border:1.5px solid var(--line);flex-shrink:0;"></div>
-                </label>
-                <label id="notif-card-all" onclick="selectNotifCard('all_calls')" style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;border-radius:12px;border:1.5px solid var(--line);background:var(--surface);cursor:pointer;transition:all .15s;">
-                  <div>
-                    <div style="font-size:13px;font-weight:600;color:var(--ink);">Bei jedem Anruf</div>
-                    <div style="font-size:11px;color:var(--slate2);margin-top:2px;">Maximale Transparenz in Echtzeit</div>
-                  </div>
-                  <div id="notif-dot-all" style="width:20px;height:20px;border-radius:50%;border:1.5px solid var(--line);flex-shrink:0;"></div>
-                </label>
-              </div>
-              <input type="hidden" name="notification-mode" id="notification-mode-hidden" value="none">
+              <!-- Die E-Mail-Auswahl stand hier bis 2026-08-09 ein zweites Mal, als
+                   Karten-Radiogruppe mit eigenem Autosave ueber saveNotifSettings()
+                   -> patchCustomerRecord(). Zusammen mit Mehr -> Benachrichtigungen
+                   und customer-update-assistant.js waren das drei Schreibwege auf
+                   dieselbe Spalte. Entfernt: die Einstellung lebt jetzt an genau
+                   einer Stelle. Ton und Browser-Push bleiben hier, sie haben eigene
+                   Konsumenten (playNotifSound) und nichts mit dem Mailversand zu tun. -->
               <label style="display:flex;align-items:center;justify-content:space-between;gap:16px;cursor:pointer;margin:14px 0 12px;">
                 <span style="font-size:13px;color:var(--ink2);font-weight:500;">Ton aktiviert</span>
                 <div id="sound-toggle" onclick="toggleNotifSound()" style="width:44px;height:24px;border-radius:12px;background:#1A6FE8;position:relative;cursor:pointer;transition:background .2s;flex-shrink:0;">
@@ -8186,39 +8178,14 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
                   <div id="sound-dot-crisp" style="width:20px;height:20px;border-radius:50%;border:1.5px solid var(--line);flex-shrink:0;"></div>
                 </label>
               </div>
-              <div class="account-success" id="notif-success" style="margin-top:10px"></div>
             </div>
 
-            <div class="settings-card">
-              <div class="settings-card-intro">
-                <div class="settings-module-tag">Benachrichtigungen</div>
-                <div class="settings-card-title" style="margin-top:10px;">Benachrichtigungen</div>
-                <div class="settings-card-lead">Lege fest, welche Hinweise in der Glocke angezeigt werden.</div>
-              </div>
-              <div class="settings-option-list">
-                <label style="display:flex;align-items:center;justify-content:space-between;gap:16px;">
-                  <div>
-                    <div style="font-size:13px;color:var(--ink2);font-weight:600;">Wichtige Anfragen</div>
-                    <div style="font-size:11px;color:var(--slate2);margin-top:2px;">Hot Leads und dringende Anfragen.</div>
-                  </div>
-                  <input id="inapp-setting-important-requests" type="checkbox">
-                </label>
-                <label style="display:flex;align-items:center;justify-content:space-between;gap:16px;">
-                  <div>
-                    <div style="font-size:13px;color:var(--ink2);font-weight:600;">Rückrufe</div>
-                    <div style="font-size:11px;color:var(--slate2);margin-top:2px;">Rückrufwünsche.</div>
-                  </div>
-                  <input id="inapp-setting-callbacks-and-tasks" type="checkbox">
-                </label>
-                <label style="display:flex;align-items:center;justify-content:space-between;gap:16px;opacity:.72;cursor:not-allowed;">
-                  <div>
-                    <div style="font-size:13px;color:var(--ink2);font-weight:600;">Systemhinweise</div>
-                    <div style="font-size:11px;color:var(--slate2);margin-top:2px;">Wichtige Hinweise zur Erreichbarkeit und Einrichtung.</div>
-                  </div>
-                  <input id="inapp-setting-system" type="checkbox" checked disabled>
-                </label>
-              </div>
-            </div>
+            <!-- Hier stand bis 2026-08-09 eine zweite Kopie der Glocken-Schalter,
+                 mit denselben inapp-setting-*-IDs wie in Mehr -> Benachrichtigungen.
+                 getElementById trifft immer die erste Vorkommnis: diese Kopie zeigte
+                 dauerhaft ungesetzte Schalter und speicherte nie, egal was der Kunde
+                 hier klickte (Befund B3). Ersatzlos entfernt - die Einstellung lebt
+                 in Mehr -> Benachrichtigungen. -->
 
             <div class="settings-card">
               <div class="settings-card-intro">
@@ -10182,12 +10149,25 @@ function vxNotifFilterVisible(items) {
   }
   return visible;
 }
+// Zuordnung Notification-Typ -> Einstellungs-Kategorie.
+//
+// In Produktion existieren genau zwei Typen: 'call' (22 Zeilen) und 'hot' (1).
+// Beide schreibt elevenlabs-post-call.js. Die Kategorie 'callbacks_and_tasks'
+// erwartete callback/callback_due/task_due/followup - keiner dieser Typen wird
+// irgendwo geschrieben, der zugehoerige Schalter steuerte also null Zeilen
+// (Befund B2). Er ist aus der Oberflaeche entfernt; die Zuordnung bleibt hier
+// stehen, damit ein spaeterer Producer sie wiederfindet, statt sie neu zu
+// erfinden.
+//
+// 'call' faellt bewusst unter important_requests statt unter einen Fallback:
+// der einzige Schalter, den es gibt, heisst jetzt "Hinweise in der Glocke" und
+// meint genau das - alle Anruf-Hinweise, nicht nur die dringenden. Vorher
+// versprach das Label "Hot Leads und dringende Anliegen" eine Auswahl, die es
+// nie gab.
 function vxNotifTypeToSettingsCategory(rawType) {
   var type = String(rawType || '').trim().toLowerCase();
-  if (['hot', 'important', 'urgent', 'lead_high'].indexOf(type) !== -1) return 'important_requests';
-  if (['callback', 'callback_due', 'task_due', 'followup'].indexOf(type) !== -1) return 'callbacks_and_tasks';
   if (['system', 'forwarding', 'setup', 'assistant', 'error'].indexOf(type) !== -1) return 'system';
-  // V1 fallback for unknown types: keep visible through important_requests switch
+  if (['callback', 'callback_due', 'task_due', 'followup'].indexOf(type) !== -1) return 'callbacks_and_tasks';
   return 'important_requests';
 }
 function vxNotifFilterBySettings(items) {
@@ -11095,7 +11075,13 @@ let forceDashboardOnNextRestore = false;
 window._vxForceDashboardAfterLogin = false;
 let isLogoutInProgress = false;
 let isAuthTransition = false;
-let customerMeta = {plan:'Kein Plan', startDate:'', customerName:'', customerDisplayName:'', customerLegalName:'', customerEmail:'', telNr:'', status:'aktiv', forwardingSetupCompleted:false, setupDeviceType:null, forwardingStatus:null, activationStartedAt:null, activatedAt:null, customerId:'', forwardingMode:null, notificationMode:'none', lastConfirmedSetupDeviceType:null, lastConfirmedForwardingMode:null, activationTestMode:null, activationTestOutboundCallId:null, assistantName:'Lara', contactFirstName:''};
+let customerMeta = {plan:'Kein Plan', startDate:'', customerName:'', customerDisplayName:'', customerLegalName:'', customerEmail:'', telNr:'', status:'aktiv', forwardingSetupCompleted:false, setupDeviceType:null, forwardingStatus:null, activationStartedAt:null, activatedAt:null, customerId:'', forwardingMode:null, notificationMode:'callback_only', lastConfirmedSetupDeviceType:null, lastConfirmedForwardingMode:null, activationTestMode:null, activationTestOutboundCallId:null, assistantName:'Lara', contactFirstName:''};
+// Werksstandard, identisch zu customers.notification_mode DEFAULT und zu
+// DEFAULT_NOTIFICATION_MODE in _lib/call-notification.js. Bis 2026-08-09 fiel
+// die Oberflaeche hier auf 'none' zurueck, waehrend die Datenbank
+// 'callback_only' vergab - ein Kunde, der nie etwas eingestellt hatte, sah
+// "keine E-Mails" und bekam welche (Befund B6).
+const VX_NOTIFICATION_MODE_DEFAULT = 'callback_only';
 const VX_IN_APP_NOTIFICATION_SETTINGS_DEFAULTS = Object.freeze({
   important_requests: true,
   callbacks_and_tasks: true,
@@ -14776,22 +14762,55 @@ async function vxSavePassword() {
 }
 
 // ── Benachrichtigungen ────────────────────────────────────────────────────────
+//
+// Die drei Zustaende von notification_mode sind eine Stufenleiter, keine zwei
+// unabhaengigen Schalter — deshalb Schalter plus Unterschalter statt zwei
+// gleichrangiger Zeilen:
+//
+//   Rueckruf AUS                  -> 'none'           (Unterschalter gesperrt)
+//   Rueckruf AN,  jeder Anruf AUS -> 'callback_only'  (Werksstandard)
+//   Rueckruf AN,  jeder Anruf AN  -> 'all_calls'
+//
+// Zwei gleichrangige Schalter haetten einen vierten Zustand versprochen, den
+// es weder im Datenmodell noch fachlich gibt.
+function vxNotifModeFromSwitches(callbackOn, allCallsOn) {
+  if (!callbackOn) return 'none';
+  return allCallsOn ? 'all_calls' : 'callback_only';
+}
+
+// Der Unterschalter ist ohne den Hauptschalter bedeutungslos. Er wird deshalb
+// gesperrt statt still ignoriert — und sagt auch, warum.
+function vxNotifSyncDependentRows() {
+  const callbackToggle = document.getElementById('notif-switch-callback');
+  const allCallsToggle = document.getElementById('notif-switch-all-calls');
+  const hint = document.getElementById('notif-all-calls-hint');
+  if (!callbackToggle || !allCallsToggle) return;
+  const enabled = callbackToggle.checked === true;
+  allCallsToggle.disabled = !enabled;
+  const row = allCallsToggle.closest('.vx-settings-switch-row');
+  if (row) row.classList.toggle('is-locked', !enabled);
+  if (hint) {
+    hint.textContent = enabled
+      ? 'Zusammenfassung nach jedem Gespräch, nicht nur bei Rückrufwünschen.'
+      : 'Nicht verfügbar, solange Sie gar keine E-Mails erhalten möchten.';
+  }
+}
+
 function vxInitBenachrichtigungen() {
-  const mode = customerMeta.notificationMode || 'none';
-  document.querySelectorAll('input[name="notif-email"]').forEach(function(radio) {
-    radio.checked = radio.value === mode;
-  });
+  const mode = customerMeta.notificationMode || VX_NOTIFICATION_MODE_DEFAULT;
+  const callbackToggle = document.getElementById('notif-switch-callback');
+  const allCallsToggle = document.getElementById('notif-switch-all-calls');
+  if (callbackToggle) callbackToggle.checked = mode === 'callback_only' || mode === 'all_calls';
+  if (allCallsToggle) allCallsToggle.checked = mode === 'all_calls';
+  vxNotifSyncDependentRows();
+
   const emailAddr = document.getElementById('notif-email-address');
   if (emailAddr) emailAddr.value = customerMeta.customerEmail || '';
 
   const inAppSettings = vxNormalizeInAppNotificationSettings(customerMeta.inAppNotificationSettings || VX_IN_APP_NOTIFICATION_SETTINGS_DEFAULTS);
   customerMeta.inAppNotificationSettings = inAppSettings;
-  const importantToggle = document.getElementById('inapp-setting-important-requests');
-  const callbacksToggle = document.getElementById('inapp-setting-callbacks-and-tasks');
-  const systemToggle = document.getElementById('inapp-setting-system');
-  if (importantToggle) importantToggle.checked = inAppSettings.important_requests === true;
-  if (callbacksToggle) callbacksToggle.checked = inAppSettings.callbacks_and_tasks === true;
-  if (systemToggle) systemToggle.checked = true;
+  const bellToggle = document.getElementById('notif-switch-bell');
+  if (bellToggle) bellToggle.checked = inAppSettings.important_requests === true;
 }
 
 async function vxSaveBenachrichtigungen() {
@@ -14802,26 +14821,34 @@ async function vxSaveBenachrichtigungen() {
     const { data: { session } } = await client.auth.getSession();
     if (!session?.access_token) throw new Error('Sitzung abgelaufen. Bitte melden Sie sich erneut an.');
 
-    const selected = document.querySelector('input[name="notif-email"]:checked');
-    const mode = selected ? selected.value : 'none';
+    const mode = vxNotifModeFromSwitches(
+      !!document.getElementById('notif-switch-callback')?.checked,
+      !!document.getElementById('notif-switch-all-calls')?.checked
+    );
+    const inAppSettings = vxNormalizeInAppNotificationSettings({
+      important_requests: !!document.getElementById('notif-switch-bell')?.checked,
+      // Reserviert, ohne Producer und ohne eigene Zeile in der Oberflaeche —
+      // der bisherige Wert wird mitgeschrieben statt still auf true zu fallen.
+      callbacks_and_tasks: customerMeta.inAppNotificationSettings?.callbacks_and_tasks !== false,
+      system: true
+    });
+
+    // Ein Request statt zweier Schreibwege: der zweite lief bisher als direkter
+    // PostgREST-Update aus dem Browser an der Function vorbei (Befund B4).
+    // Nebeneffekt, der zaehlt: schlaegt etwas fehl, ist jetzt nichts halb
+    // gespeichert.
     const settingsResponse = await fetch('/.netlify/functions/customer-update-settings', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
-      body: JSON.stringify({ notification_mode: mode })
+      body: JSON.stringify({ notification_mode: mode, in_app_notification_settings: inAppSettings })
     });
     const settingsJson = await settingsResponse.json().catch(function(){ return {}; });
-    if (!settingsResponse.ok) throw new Error(settingsJson.error || 'E-Mail-Benachrichtigungen konnten nicht gespeichert werden.');
-
-    const inAppSettings = vxNormalizeInAppNotificationSettings({
-      important_requests: !!document.getElementById('inapp-setting-important-requests')?.checked,
-      callbacks_and_tasks: !!document.getElementById('inapp-setting-callbacks-and-tasks')?.checked,
-      system: true
-    });
-    const { error: inAppError } = await client.from('customers').update({ in_app_notification_settings: inAppSettings }).eq('id', customerMeta.customerId);
-    if (inAppError) throw new Error(inAppError.message || 'Dashboard-Hinweise konnten nicht gespeichert werden.');
+    if (!settingsResponse.ok) throw new Error(settingsJson.error || 'Benachrichtigungen konnten nicht gespeichert werden.');
 
     customerMeta.notificationMode = mode;
-    customerMeta.inAppNotificationSettings = inAppSettings;
+    customerMeta.inAppNotificationSettings = vxNormalizeInAppNotificationSettings(
+      settingsJson?.customer?.in_app_notification_settings || inAppSettings
+    );
     vxBellUpdateBadge();
     vxBellRender();
     vxBellPageRender();
@@ -16319,7 +16346,7 @@ async function loadCustomerMeta() {
     activationStartedAt: f.activation_started_at || null,
     activatedAt: f.activated_at || null,
     forwardingMode: f.forwarding_mode || null,
-    notificationMode: (f.notification_mode === 'none' || f.notification_mode === 'callback_only' || f.notification_mode === 'all_calls') ? f.notification_mode : 'none',
+    notificationMode: (f.notification_mode === 'none' || f.notification_mode === 'callback_only' || f.notification_mode === 'all_calls') ? f.notification_mode : VX_NOTIFICATION_MODE_DEFAULT,
     lastConfirmedSetupDeviceType: f.last_confirmed_setup_device_type || null,
     lastConfirmedForwardingMode: f.last_confirmed_forwarding_mode || null,
     activationTestMode: f.activation_test_mode || null,
@@ -24933,7 +24960,6 @@ function openAccount() {
   var pc = document.getElementById('pw-confirm'); if(pc) pc.value = '';
   var pe = document.getElementById('pw-error'); if(pe) pe.style.display = 'none';
   var ps = document.getElementById('pw-success'); if(ps) ps.style.display = 'none';
-  var ns = document.getElementById('notif-success'); if(ns) ns.style.display = 'none';
   loadNotifSettings();
 }
 
@@ -24963,67 +24989,20 @@ function syncSystemVoxeraSettings() {
 }
 
 function resolveNotificationMode(customer) {
-  if (!customer) return 'none';
+  if (!customer) return VX_NOTIFICATION_MODE_DEFAULT;
   if (customer.notification_mode === 'none' || customer.notification_mode === 'callback_only' || customer.notification_mode === 'all_calls') {
     return customer.notification_mode;
   }
-  return 'none';
+  return VX_NOTIFICATION_MODE_DEFAULT;
 }
 
-var _notifSaveTimer = null;
-var _notifSaveInFlight = null;
-var _notifSaveSeq = 0;
-
-function notifDebugLog(event, details) {
-  if (!window.__VOXERA_NOTIF_DEBUG__) return;
-  try {
-    vxDebugInfo('[notif-settings]', event, details || {});
-  } catch(_) {}
-}
-
-function selectNotifCard(mode, opts) {
-  var options = opts || {};
-  var shouldAutosave = options.autosave !== false;
-  if (isContractRestrictedState() && shouldAutosave) {
-    toast('Benachrichtigungen sind ohne aktiven Vertrag schreibgeschützt.', 'warning');
-    return;
-  }
-  var source = options.source || 'ui';
-  var cards = {none:'notif-card-none', callback_only:'notif-card-callback', all_calls:'notif-card-all'};
-  var dots  = {none:'notif-dot-none', callback_only:'notif-dot-callback', all_calls:'notif-dot-all'};
-  Object.keys(cards).forEach(function(m) {
-    var card = document.getElementById(cards[m]);
-    var dot  = document.getElementById(dots[m]);
-    if (!card) return;
-    var active = m === mode;
-    card.style.borderColor = active ? 'var(--blue-mid)' : 'var(--line)';
-    card.style.background  = active ? 'var(--blue-light)' : 'var(--surface)';
-    var titleEl = card.querySelector('div > div:first-child');
-    if (titleEl) titleEl.style.color = active ? '#1A6FE8' : 'var(--ink)';
-    if (dot) {
-      dot.style.background = active ? '#1A6FE8' : 'transparent';
-      dot.style.border = active ? 'none' : '1.5px solid var(--line)';
-      dot.innerHTML = '';
-    }
-  });
-  var hidden = document.getElementById('notification-mode-hidden');
-  if (hidden) hidden.value = mode;
-  // Sync neue Radio-Buttons in Mehr → Benachrichtigungen
-  document.querySelectorAll('input[name="notif-email"]').forEach(function(r) {
-    r.checked = r.value === mode;
-  });
-  notifDebugLog('mode-selected', {
-    source: source,
-    mode: mode,
-    autosave: shouldAutosave
-  });
-  if (shouldAutosave) {
-    if (_notifSaveTimer) clearTimeout(_notifSaveTimer);
-    _notifSaveTimer = setTimeout(function() {
-      saveNotifSettings({ source: source + ':autosave' });
-    }, 600);
-  }
-}
+// Entfernt 2026-08-09: _notifSaveTimer/_notifSaveInFlight/_notifSaveSeq,
+// notifDebugLog() und selectNotifCard(). Sie bedienten die Karten-Radiogruppe
+// in #tab-einstellungen und schrieben notification_mode ueber ein eigenes
+// Autosave (patchCustomerRecord) - ein dritter Schreibweg neben
+// customer-update-settings.js und customer-update-assistant.js. Mit der
+// Radiogruppe faellt auch der Schreibweg weg; die Einstellung lebt jetzt
+// ausschliesslich in Mehr -> Benachrichtigungen.
 
 function selectSound(type, silent) {
   var sounds = ['subtle','warm','crisp'];
@@ -25075,9 +25054,12 @@ function previewSound(type) {
   } catch(e) {}
 }
 
+// Spiegelt den geladenen Modus in die Radios des Einrichtungs-Assistenten.
+// Der frueher hier ebenfalls bediente Karten-Satz in #tab-einstellungen ist
+// entfernt; die Einstellungsseite in Mehr -> Benachrichtigungen setzt ihre
+// Schalter selbst in vxInitBenachrichtigungen().
 function applyNotificationModeToInputs(mode) {
-  var selectedMode = mode || 'none';
-  selectNotifCard(selectedMode, { autosave: false, source: 'load' });
+  var selectedMode = mode || VX_NOTIFICATION_MODE_DEFAULT;
   var setupNone = document.getElementById('setup-notif-mode-none');
   var setupCallbackOnly = document.getElementById('setup-notif-mode-callback-only');
   var setupAllCalls = document.getElementById('setup-notif-mode-all-calls');
@@ -25086,11 +25068,10 @@ function applyNotificationModeToInputs(mode) {
   if (setupAllCalls) setupAllCalls.checked = selectedMode === 'all_calls';
 }
 
+// Nur noch fuer die Radios des Einrichtungs-Assistenten. Der Zweig fuer
+// 'notification-mode' las das entfernte Hidden-Feld der Karten-Radiogruppe und
+// haette ab jetzt immer 'none' zurueckgegeben.
 function getSelectedNotificationMode(name) {
-  if (name === 'notification-mode') {
-    var hidden = document.getElementById('notification-mode-hidden');
-    return hidden ? hidden.value : 'none';
-  }
   var selected = document.querySelector('input[name="' + name + '"]:checked');
   return selected ? selected.value : null;
 }
@@ -25103,83 +25084,15 @@ async function loadNotifSettings() {
     const notificationMode = resolveNotificationMode(rec);
     applyNotificationModeToInputs(notificationMode);
     document.getElementById('account-overlay').dataset.customerRecordId = rec.id;
-    notifDebugLog('load-complete', {
-      recordId: rec.id,
-      notificationMode: notificationMode
-    });
   } catch(e) { console.error('Notif load error:', e); }
 }
 
-async function saveNotifSettings(opts) {
-  if (isContractRestrictedState()) {
-    toast('Benachrichtigungen können ohne aktiven Vertrag nicht gespeichert werden.', 'warning');
-    return;
-  }
-  var options = opts || {};
-  var source = options.source || 'unknown';
-  var requestId = ++_notifSaveSeq;
-  if (_notifSaveInFlight) {
-    notifDebugLog('save-skipped-inflight', {
-      source: source,
-      requestId: requestId
-    });
-    return;
-  }
-  _notifSaveInFlight = requestId;
-  const recordId = document.getElementById('account-overlay').dataset.customerRecordId;
-  if (!recordId) {
-    // Try to get record ID if not loaded yet
-    try {
-      const context = await resolveCustomerContext();
-      if (context.customerRecord && context.customerRecord.id) {
-        document.getElementById('account-overlay').dataset.customerRecordId = context.customerRecord.id;
-      }
-    } catch(e) {}
-    var rid = document.getElementById('account-overlay').dataset.customerRecordId;
-    if (!rid) {
-      notifDebugLog('save-abort-no-record', {
-        source: source,
-        requestId: requestId
-      });
-      _notifSaveInFlight = null;
-      toast('Fehler: Kundendaten nicht geladen');
-      return;
-    }
-  }
-  var finalRecordId = document.getElementById('account-overlay').dataset.customerRecordId;
-  var notificationMode = getSelectedNotificationMode('notification-mode') || 'none';
-  var payload = { notification_mode: notificationMode };
-  notifDebugLog('save-request-start', {
-    source: source,
-    requestId: requestId,
-    recordId: finalRecordId,
-    notificationMode: notificationMode,
-    payload: payload
-  });
-  try {
-    await patchCustomerRecord(finalRecordId, payload);
-    notifDebugLog('save-request-success', {
-      source: source,
-      requestId: requestId,
-      recordId: finalRecordId
-    });
-    const s = document.getElementById('notif-success');
-    s.textContent = 'Gespeichert';
-    s.style.display = 'block';
-    setTimeout(() => s.style.display = 'none', 2000);
-  } catch(e) {
-    notifDebugLog('save-request-error', {
-      source: source,
-      requestId: requestId,
-      recordId: finalRecordId,
-      error: e && e.message ? e.message : String(e)
-    });
-    toast(isContractInactiveError(e) ? getRestrictedContractMessage('Benachrichtigungen') : 'Fehler beim Speichern der Benachrichtigungen');
-    console.error('Notif save error:', e);
-  } finally {
-    _notifSaveInFlight = null;
-  }
-}
+// Entfernt 2026-08-09: saveNotifSettings(). Einziger Aufrufer war das Autosave
+// der Karten-Radiogruppe in #tab-einstellungen. Die Funktion las
+// notification-mode-hidden und fiel ohne dieses Feld auf 'none' zurueck - nach
+// dem Entfernen der Karten haette ein versehentlicher Aufruf die Einstellung
+// des Kunden auf "keine E-Mails" gesetzt. Deshalb mit entfernt, nicht nur
+// unbenutzt stehengelassen.
 
 function closeAccount() {
   // No-op - modal replaced by settings tab

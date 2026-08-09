@@ -108,16 +108,28 @@ function status(statusCode, label, detail) {
   return { status: statusCode, label, detail };
 }
 
+// Der Detailtext kommt aus notification_mode - derselben Spalte, auf die
+// _lib/call-notification.js decideMail() gatet.
+//
+// Bis 2026-08-09 leitete er den Kanal aus new_log_email_active /
+// missed_call_email_active ab. Die schreibt seit dem 07.04. niemand mehr:
+// fuer jeden Kunden, der seine Einstellung seither einmal geaendert hatte,
+// fiel der Text auf "Benachrichtigungen fuer alle Anrufe" zurueck und nannte
+// den Kanal gar nicht. Der Wortlaut "E-Mail fuer alle Anrufe", den die Karte
+// zeigte, stammte aus dem Backfill von 2026-04-07, nicht aus einer lebenden
+// Quelle (Befund B5).
+//
+// 'Telefon/SMS' ist ersatzlos entfallen. phone_notification_to und die
+// sms_*-Spalten existieren, aber es gibt keinen Versandpfad dafuer - die
+// Karte haette einen Kanal behauptet, ueber den nie etwas rausging.
 function notificationDetail(customer) {
   const mode = text(customer.notification_mode).toLowerCase();
-  const channels = [];
-  if (customer.new_log_email_active === true || customer.missed_call_email_active === true) channels.push('E-Mail');
-  if (text(customer.phone_notification_to)) channels.push('Telefon/SMS');
-  const scope = mode === 'all_calls' ? 'für alle Anrufe' : mode === 'callback_only' ? 'für Rückrufanfragen' : '';
-  if (channels.length && scope) return `${channels.join(' und ')} ${scope}`;
-  if (channels.length) return channels.join(' und ');
-  if (scope) return `Benachrichtigungen ${scope}`;
-  return 'Keine Benachrichtigung eingerichtet';
+  if (mode === 'all_calls') return 'E-Mail bei Rückrufwunsch und nach jedem Anruf';
+  if (mode === 'callback_only') return 'E-Mail bei Rückrufwunsch';
+  if (mode === 'none') return 'Nur Hinweise im Dashboard, keine E-Mails';
+  // Leerer/unbekannter Wert heisst "nie eingestellt" und damit Werksstandard -
+  // dieselbe Auslegung wie in decideMail().
+  return 'E-Mail bei Rückrufwunsch';
 }
 
 function buildCapabilities(customer, profile, calendarReady, calendarAttention) {
@@ -131,11 +143,12 @@ function buildCapabilities(customer, profile, calendarReady, calendarAttention) 
   const transferConfigured = profile.functions.includes('transfer')
     || profile.unknownHandling === 'human'
     || /weiterleit|zuständige person|mitarbeiter/i.test(text(customer.ai_fallback_escalation));
-  const notificationConfigured = customer.notification_active === true
-    || text(customer.notification_mode).toLowerCase() !== 'none'
-    || customer.new_log_email_active === true
-    || customer.missed_call_email_active === true
-    || Boolean(text(customer.phone_notification_to));
+  // Dieselbe Quelle wie notificationDetail() und decideMail(). Die vier
+  // frueheren Oder-Zweige (notification_active, new_log_email_active,
+  // missed_call_email_active, phone_notification_to) lasen tote Spalten und
+  // haetten die Karte auf "Konfiguriert" gehalten, selbst wenn der Kunde
+  // "Keine E-Mails" gewaehlt hat.
+  const notificationConfigured = text(customer.notification_mode).toLowerCase() !== 'none';
   const faqConfigured = Boolean(text(customer.ai_booking_faq));
 
   // Nennt den fehlenden Baustein statt einer pauschalen Formel — sonst liest
@@ -201,17 +214,24 @@ function buildCapabilities(customer, profile, calendarReady, calendarAttention) 
     {
       id: 'notifications',
       title: 'Benachrichtigungen versenden',
+      // Die Karte ist eine Statusanzeige, geaendert wird ausschliesslich in
+      // Mehr -> Benachrichtigungen. Der Verweis steht hier, damit die Karte
+      // nicht zum zweiten Bedienort wird - genau daraus sind die drei
+      // konkurrierenden Schreibwege entstanden, die es bis 2026-08-09 gab.
+      settingsRoute: 'benachrichtigungen',
       ...(notificationConfigured
         // "Konfiguriert" statt "Aktiv": diese Karte prueft nur die
         // Einstellungsfelder des Kunden, nicht ob eine Benachrichtigung
-        // je tatsaechlich zugestellt wurde. Der Versand laeuft ueber
-        // Make-Szenario 01 direkt per SMTP-Modul, ausserhalb von
-        // _lib/mail-delivery.js und outbox_events - es gibt hier also
-        // keinen Beleg, den diese Function pruefen koennte (siehe
-        // Verifikation vom 2026-08-09: Szenario 01 war zu dem Zeitpunkt
-        // deaktiviert und lieferte trotz eingehender Anrufe keine Mails aus).
+        // je tatsaechlich zugestellt wurde. Bis zur Migration des
+        // Anruf-Benachrichtigungspfads lief der Versand ueber Make-Szenario 01
+        // direkt per SMTP-Modul, ausserhalb von _lib/mail-delivery.js und
+        // outbox_events (siehe Verifikation vom 2026-08-09: Szenario 01 war zu
+        // dem Zeitpunkt deaktiviert und lieferte trotz eingehender Anrufe keine
+        // Mails aus). Auch nach der Migration bleibt es bei "Konfiguriert":
+        // ein Zustellbeleg pro Kunde stuende in outbox_events, nicht auf
+        // customers - diese Function liest ihn nicht.
         ? status('active', 'Konfiguriert', notificationDetail(customer))
-        : status('inactive', 'Nicht eingerichtet', 'Benachrichtigungen können in den Einstellungen aktiviert werden.'))
+        : status('inactive', 'Nicht eingerichtet', 'Sie erhalten aktuell keine E-Mails zu Anrufen.'))
     },
     {
       id: 'faq',

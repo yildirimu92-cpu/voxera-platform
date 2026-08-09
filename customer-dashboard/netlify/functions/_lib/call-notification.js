@@ -30,11 +30,33 @@ const { deliverMail } = require('./mail-delivery');
 const CALLBACK_MAIL_TYPE = 'callback_request_email';
 const CALL_MAIL_TYPE = 'call_notification_email';
 
-// Die Spalten, die ueber Empfaenger und Gating entscheiden. Identisch zu dem,
-// was call-intake-resolve-customer.js an Make lieferte - das Gating bleibt
-// damit Bit fuer Bit das von Szenario 01, nur ohne den HTTP-Hop.
-const CUSTOMER_COLUMNS = 'id, customer_name, contact_name, email, voxera_number, '
-  + 'notification_active, notification_mode, new_log_email_active, missed_call_email_active';
+// Die Spalten, die ueber Empfaenger und Gating entscheiden.
+//
+// Die Migration selbst hielt hier Paritaet zu Szenario 01 und gatete auf
+// notification_active / new_log_email_active. Das war fuer eine reine
+// Migration richtig - sie soll das Verhalten nicht nebenbei aendern -, war
+// aber nur solange harmlos, wie ueberhaupt nichts versendet wurde:
+//
+// Seit 2026-04-07 ist notification_mode die einzige Quelle, die die
+// Einstellungsseite des Kunden noch schreibt (customer-update-settings.js
+// haelt die drei Legacy-Booleans ausdruecklich nicht mehr nach). Das Gating
+// las damit Spalten, die auf dem Stand des Backfills von 2026-04-07 eingefroren
+// sind. Messbar an den vier Produktionskunden: drei stehen auf
+// 'callback_only', tragen aber new_log_email_active = true - sie haetten ab
+// dem Live-Schalten von Szenario 01 eine Mail nach *jedem* Anruf bekommen,
+// obwohl sie "Nur bei Rueckruf-Anfragen" gewaehlt haben. Ein "Keine E-Mails"
+// waere wirkungslos geblieben.
+//
+// Deshalb gatet decideMail() jetzt auf notification_mode. Die Legacy-Booleans
+// werden hier nicht mehr gelesen; 2026-08-09_notification_mode_gating.sql
+// gleicht sie ein letztes Mal an und dokumentiert sie als tot.
+const CUSTOMER_COLUMNS = 'id, customer_name, contact_name, email, voxera_number, notification_mode';
+
+// Werksstandard, wenn die Spalte leer oder unbekannt belegt ist. Entspricht
+// dem Produktions-Default der Spalte: ein Rueckrufwunsch ist der Fall, in dem
+// eine verpasste Mail Geld kostet.
+const DEFAULT_NOTIFICATION_MODE = 'callback_only';
+const NOTIFICATION_MODES = Object.freeze(['none', 'callback_only', 'all_calls']);
 
 const DASHBOARD_URL = 'https://dashboard.voxera.ch';
 
@@ -131,11 +153,37 @@ async function loadCustomer(sbAdmin, { customerId, callRowId, calledNumber }) {
   return resolveCustomerByNumber(sbAdmin, calledNumber);
 }
 
-// Welche Mail, und darf sie ueberhaupt raus. Parität zu den beiden
-// Router-Filtern in Szenario 01:
-//   Route "Callback TRUE":  callback_requested = true  + notification_active
-//   Route "Normal Call":    callback_requested = false + new_log_email_active
-// Beide zusaetzlich: customer_email vorhanden, customer_id vorhanden.
+// Ein unbekannter oder leerer Wert faellt auf den Werksstandard, nicht auf
+// "alles senden" und nicht auf "nichts senden": leer heisst "nie eingestellt",
+// also gilt fuer diesen Kunden dasselbe wie fuer einen neuen. Der Fall wird
+// protokolliert, damit er nicht still zur Normalitaet wird.
+function resolveNotificationMode(rawMode, customerId) {
+  const mode = toStr(rawMode).toLowerCase();
+  if (NOTIFICATION_MODES.includes(mode)) return mode;
+  logEvent('warn', 'call_notification_mode_unknown', {
+    customer_id: toStr(customerId) || null,
+    value: mode || null,
+    applied: DEFAULT_NOTIFICATION_MODE
+  });
+  return DEFAULT_NOTIFICATION_MODE;
+}
+
+// Welche Mail, und darf sie ueberhaupt raus.
+//
+// Die drei Zustaende von notification_mode bilden eine Stufenleiter, keine
+// zwei unabhaengigen Schalter - "jeder Anruf" schliesst den Rueckrufwunsch
+// mit ein, weil ein Rueckrufwunsch ein Anruf ist. Die Einstellungsseite
+// rendert das entsprechend als Schalter plus Unterschalter, nicht als zwei
+// gleichrangige Zeilen.
+//
+//   none          -> gar nichts
+//   callback_only -> nur die Rueckruf-Mail (Werksstandard)
+//   all_calls     -> zusaetzlich die Zusammenfassung nach jedem Gespraech
+//
+// Welche der beiden Vorlagen greift, entscheidet weiterhin callback_requested:
+// ein Rueckrufwunsch bekommt auch bei 'all_calls' die Rueckruf-Mail, nicht die
+// allgemeine Zusammenfassung - sonst waere die dringendere Nachricht die
+// unauffaelligere.
 function decideMail(customer, callbackRequested) {
   if (!customer || !toStr(customer.id)) {
     return { mailType: null, reason: 'customer_not_resolved' };
@@ -143,14 +191,16 @@ function decideMail(customer, callbackRequested) {
   if (!toStr(customer.email)) {
     return { mailType: null, reason: 'customer_without_email' };
   }
+
+  const mode = resolveNotificationMode(customer.notification_mode, customer.id);
+  if (mode === 'none') {
+    return { mailType: null, reason: 'notifications_off' };
+  }
   if (callbackRequested) {
-    if (customer.notification_active !== true) {
-      return { mailType: null, reason: 'notification_active_off' };
-    }
     return { mailType: CALLBACK_MAIL_TYPE, reason: null };
   }
-  if (customer.new_log_email_active !== true) {
-    return { mailType: null, reason: 'new_log_email_active_off' };
+  if (mode !== 'all_calls') {
+    return { mailType: null, reason: 'callback_only_mode' };
   }
   return { mailType: CALL_MAIL_TYPE, reason: null };
 }
@@ -292,6 +342,8 @@ async function sendCallNotification(sbAdmin, {
 module.exports = {
   CALL_MAIL_TYPE,
   CALLBACK_MAIL_TYPE,
+  DEFAULT_NOTIFICATION_MODE,
+  NOTIFICATION_MODES,
   decideMail,
   buildPayload,
   sendCallNotification
