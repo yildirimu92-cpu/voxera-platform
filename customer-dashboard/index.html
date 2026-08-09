@@ -12656,7 +12656,31 @@ async function ensureActiveCustomerOrLogout(context) {
   if (check.valid) return true;
   // Wenn kein User mehr eingeloggt ist, still abbrechen (manueller Logout)
   if (!currentUser) return false;
-  console.warn('[voxera-dashboard] Customer invalid, forcing logout:', check.reason);
+
+  // Rueckversicherung analog zu vxHandleSignedOut(): eine leere users/customers-Zeile
+  // ist nicht zwangslaeufig eine echte Sperre - kann auch eine kurze RLS/JWT-Race nach
+  // einem Token-Refresh oder ein kurzer DB-Haenger sein. Vor dem echten Rauswurf
+  // (sb.auth.signOut()!) einmal kurz erneut pruefen, statt einem einzelnen leeren
+  // Read blind zu vertrauen.
+  console.warn('[voxera-dashboard] Customer invalid, re-checking before logout:', check.reason);
+  await delay(600);
+  if (!currentUser) return false; // waehrend der Wartezeit manuell abgemeldet
+
+  let recheck;
+  try {
+    recheck = validateAccessGuard(await resolveCustomerContext(true));
+  } catch (e) {
+    // Die Nachpruefung selbst ist fehlgeschlagen (z.B. Netzwerk) - kein belastbares
+    // Ergebnis, also nicht ausloggen. Naechster loadData()-Lauf prueft erneut.
+    console.warn('[voxera-dashboard] Customer re-check itself failed, skipping without logout:', e);
+    return false;
+  }
+  if (recheck.valid) {
+    console.warn('[voxera-dashboard] Customer context recovered on re-check, no logout');
+    return true;
+  }
+
+  console.warn('[voxera-dashboard] Customer invalid on re-check too, forcing logout:', recheck.reason);
   try { await doLogout(); } catch (e) {
     console.error('[voxera-dashboard] Logout error:', e);
     // Ensure app is hidden and login screen is shown even if doLogout() failed mid-execution
@@ -12667,7 +12691,7 @@ async function ensureActiveCustomerOrLogout(context) {
   }
   const errEl = document.getElementById('login-error');
   if (errEl) {
-    errEl.textContent = 'Zugriff abgelaufen oder nicht freigeschaltet (' + check.reason + '). Bitte Support kontaktieren.';
+    errEl.textContent = 'Zugriff abgelaufen oder nicht freigeschaltet (' + recheck.reason + '). Bitte Support kontaktieren.';
     errEl.style.display = 'block';
   }
   return false;
