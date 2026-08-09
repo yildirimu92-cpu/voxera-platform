@@ -7,7 +7,15 @@ const BUCKET = 'voice-previews';
 const MAX_AUDIO_BYTES = 5 * 1024 * 1024;
 const DEFAULT_PREVIEW_TEXT = 'Grüezi, ich bin Ihre digitale Telefonassistenz von Voxera. Ich nehme Ihre Anrufe freundlich und zuverlässig entgegen. Wie kann ich Ihnen helfen?';
 const PLAN_TIERS = new Set(['starter', 'business', 'professional']);
+const PLAN_TIER_ORDER = { starter: 1, business: 2, professional: 3 };
 const GENDERS = new Set(['female', 'male', 'neutral']);
+const ACTION_CAPABILITIES = {
+  list: 'plan:write',
+  update: 'plan:write',
+  test_preview: 'plan:write',
+  generate_preview: 'plan:write',
+  list_for_customer: 'customer:write'
+};
 const headers = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
@@ -158,6 +166,33 @@ async function updateVoice(sbAdmin, caller, body) {
   return respond(200, { success: true, voice });
 }
 
+async function listVoicesForCustomer(sbAdmin, body) {
+  const customerId = text(body.customer_id, 100);
+  if (!customerId) return respond(400, { success: false, error: 'Kunde fehlt.' });
+
+  const { data: customer, error: customerError } = await sbAdmin
+    .from('customers')
+    .select('id,plan,plan_code')
+    .eq('id', customerId)
+    .maybeSingle();
+  if (customerError) return respond(500, { success: false, error: customerError.message });
+  if (!customer) return respond(404, { success: false, error: 'Kunde nicht gefunden.' });
+
+  const planCode = text(customer.plan_code || customer.plan || 'starter', 30).toLowerCase();
+  const currentTier = PLAN_TIER_ORDER[planCode] || 1;
+  const eligiblePlans = Object.keys(PLAN_TIER_ORDER).filter((plan) => PLAN_TIER_ORDER[plan] <= currentTier);
+
+  const { data: voices, error: voicesError } = await sbAdmin
+    .from('voxera_voices')
+    .select('voice_id,display_name,description,gender,language,preview_url,is_default,available_from_plan,sort_order')
+    .in('available_from_plan', eligiblePlans)
+    .eq('is_active', true)
+    .order('sort_order', { ascending: true });
+  if (voicesError) return respond(500, { success: false, error: voicesError.message });
+
+  return respond(200, { success: true, voices: voices || [], plan_code: planCode });
+}
+
 async function ensureVoiceExists(sbAdmin, voiceId) {
   const { data, error } = await sbAdmin
     .from('voxera_voices')
@@ -287,21 +322,24 @@ exports.handler = async (event) => {
   const anonKey = process.env.SUPABASE_ANON_KEY;
   if (!supabaseUrl || !serviceKey || !anonKey) return respond(500, { success: false, error: 'Supabase-Konfiguration fehlt.' });
 
+  let body = {};
+  try { body = JSON.parse(event.body || '{}'); }
+  catch { return respond(400, { success: false, error: 'Ungültiger Request Body.' }); }
+
+  const action = text(body.action, 40).toLowerCase();
+  const requiredCapability = ACTION_CAPABILITIES[action];
+  if (!requiredCapability) return respond(400, { success: false, error: 'Unbekannte Aktion.' });
+
   const sbAdmin = createClient(supabaseUrl, serviceKey, { auth: { autoRefreshToken: false, persistSession: false } });
   const caller = await requireAdminCaller({
     event,
     supabaseUrl,
     supabaseAnonKey: anonKey,
     sbAdmin,
-    requiredCapability: 'plan:write'
+    requiredCapability
   });
   if (!caller.ok) return respond(caller.statusCode, caller.body);
 
-  let body = {};
-  try { body = JSON.parse(event.body || '{}'); }
-  catch { return respond(400, { success: false, error: 'Ungültiger Request Body.' }); }
-
-  const action = text(body.action, 40).toLowerCase();
   if (action === 'list') {
     const result = await listVoices(sbAdmin);
     if (result.error) return respond(500, { success: false, error: result.error.message });
@@ -310,6 +348,7 @@ exports.handler = async (event) => {
   if (action === 'update') return updateVoice(sbAdmin, caller, body);
   if (action === 'test_preview') return testPreview(sbAdmin, body);
   if (action === 'generate_preview') return generatePreview(sbAdmin, caller, body);
+  if (action === 'list_for_customer') return listVoicesForCustomer(sbAdmin, body);
 
   return respond(400, { success: false, error: 'Unbekannte Aktion.' });
 };
