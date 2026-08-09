@@ -695,3 +695,40 @@ Ausserdem gelöst: ein Komma trennt mal Segmente („Mo–Fr 08:00–12:00, Sa 0
 **Staging-Lauf (09.08.).** 5 Schritte, 16 Felder, kein Feld ausserhalb der Spalten-Allowlist. Verhaltensprobe an einer Wegwerfzeile: gültige Listen angenommen, eine Zeichenkette statt Array abgewiesen, 41 Einträge abgewiesen; Probezeile gelöscht.
 
 **Was ungeprüft bleibt:** der Listeneditor ist nicht im Browser bedient. Hinzufügen, Entfernen und Übernehmen sind an der Verdrahtung belegt, nicht am Klick.
+
+### 11.17 J8 — die Aufnahme-Checkliste hat eine Quelle (G6)
+
+**Korrektur zur Diagnose: es sind 19 von 19, nicht 15 von 19.** Die ursprüngliche Zählung suchte wörtlich nach „… aufnehmen:" und übersah die vier Vorlagen, die dasselbe anders formulieren — `digitalmarketing` („Lead qualifizieren und Erstgespräch terminieren:"), `immobilien` („Kaufinteressenten: … aufnehmen"), `fitness` („Probetraining anmelden:") und `generic` („Terminanfragen: … aufnehmen"). Ausgezählt über die Zeilen oberhalb der Überschrift „Häufige Fragen:" trägt **jede** Vorlage eine Checkliste.
+
+**Die Lösung.** Neue Spalte `industry_templates.default_required_information`. Rangfolge im Code, nicht in den Daten: die Antwort des Kunden (`[PROMPT_V2].requiredInformation`) führt, die Branchenvorlage ist Rückfall, nie beides. Die 25 betroffenen Zeilen sind aus `default_booking_faq` entfernt.
+
+**Was bleibt:** echte Terminregeln. „Absagen: mindestens 24 Stunden vorher", „Gruppen ab 8 Personen: mindestens 1 Woche im Voraus", „Notfall-Kriterien: …" sind keine Aufnahme-Checkliste, sondern Auskünfte am Telefon.
+
+**Was zusätzlich entfernt wurde, und warum.** Drei Zeilen behaupten eine Terminbefugnis: `facharzt` „KEINE direkte Terminbestätigung — Rückruf durch Praxisteam.", `garage` „Bestätigung per SMS oder Anruf durch die Werkstatt.", `generic` „… Rückruf durch das Team zur Bestätigung." Seit J4 steht die Terminbefugnis als typisierte Kundenspalte und wird als eigener Abschnitt gerendert. Ein Vorlagensatz daneben ist nicht nur doppelt — er kann der Einstellung des Kunden **widersprechen**: wählt ein Facharzt „Direkt buchen", sagte der Vorlagentext weiterhin, es gebe keine direkte Bestätigung. Derselbe Befund wie G6, nur an einem anderen Feld.
+
+**Der Fingerprint bekommt eine fünfte Eingabe.** Ändert eine Vorlage ihre Checkliste, ändert sich der Prompt jedes Kunden dieser Branche, der keine eigene hinterlegt hat. Ohne diese Eingabe bliebe der Fingerprint gleich und der Fan-out-Planer hielte die Agenten für aktuell. Weil sich damit die *Zusammensetzung* ändert und nicht nur ein Wert, ist auch das Schema-Präfix angehoben (`v2` → `v3`) — genau der Fall, für den es gebaut ist. **Folge: jeder gespeicherte Fingerprint gilt ab dem Deploy als veraltet.** Das ist sachlich richtig, heisst aber, dass der nächste Fan-out alle Agenten anfasst.
+
+**Prüfung der Inhaltsarbeit.** Staging trägt keine Vorlagen (`industry_templates` ist dort leer), der Staging-Lauf beweist deshalb nur Syntax und DDL. Der Inhalt ist als **Leseprobe gegen Produktion** geprüft: alle 25 zu entfernenden Zeilen stehen dort wörtlich und **genau einmal**. Zusätzlich trägt die Migration eine Selbstkontrolle — findet `replace()` eine Zeile nicht, bricht sie ab, statt eine halbe Bereinigung zu hinterlassen.
+
+### 11.18 J9 — Beschriftung und Prompt-Überschrift sagen dasselbe (G5)
+
+Der Befund war nicht kosmetisch: das Feld hiess für den Kunden anders, als es beim Agenten wirkt. Wer „Häufige Fragen und Buchungshinweise" liest, schreibt keine Terminregeln hinein — im Prompt hiess derselbe Abschnitt aber `## TERMINLOGIK & FAQ`.
+
+| Feld | Beschriftung vorher | Prompt vorher | jetzt beide |
+|---|---|---|---|
+| `ai_business_description` | Unternehmensbeschreibung | `## GESCHÄFTSPROFIL` | Unternehmensbeschreibung |
+| `ai_services` | Leistungen und Angebote | `## LEISTUNGEN` | Leistungen |
+| `ai_location_hours` | Standort und reguläre Öffnungszeiten | `## STANDORT & ERREICHBARKEIT` | Standort und Erreichbarkeit |
+| `ai_booking_faq` | Häufige Fragen und Buchungshinweise | `## TERMINLOGIK & FAQ` | Terminregeln und häufige Fragen |
+
+Bei `ai_location_hours` ist die Umbenennung mehr als Angleichung: die Öffnungszeiten haben seit J5 ein eigenes Feld, die Adresse seit J6. Der Freitext ist nicht mehr der Ort für beides, und die Beschriftung sagt das jetzt.
+
+Mitgezogen: die Feldnamen-Karte in `ai-apply-change.js` und der Vorrangsatz im Abschnitt REGULÄRE ÖFFNUNGSZEITEN, der auf den umbenannten Abschnitt verweist.
+
+### 11.19 Was nach J8 und J9 unbewiesen bleibt
+
+- Alles aus 11.15, soweit nicht ausdrücklich erledigt.
+- **Kein Live-Anruf, in keiner der neun Etappen.** Der Prompt enthält die Angaben nachweislich; ob das Modell sie befolgt, ist damit nicht gezeigt.
+- **Die neuen Vorlagentexte sind nicht am Telefon gehört.** Die Aufnahme-Checkliste steht jetzt an einer anderen Stelle im Prompt (`## PFLICHTINFORMATIONEN` statt mitten im FAQ-Block). Dass das die Gesprächsführung nicht verschlechtert, ist eine begründete Annahme, keine Messung.
+- **Der Fan-out nach dem Schema-Wechsel ist nicht gelaufen.** Alle Agenten gelten ab dem Deploy als veraltet; ob der Durchlauf sauber durchgeht, zeigt sich erst dabei.
+- **`required_fields` ist ungeprüft geblieben.** Die Spalte trägt in zwei Vorlagen zwei verschiedene Namensschemata (`businessDescription` gegenüber `ai_business_description`) und ist in 17 leer. Sie hat mit der Aufnahme-Checkliste nichts zu tun, sieht aber wie ein weiterer halb benutzter Mechanismus aus. Gehört zu G9.

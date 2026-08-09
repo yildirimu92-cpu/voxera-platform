@@ -502,10 +502,10 @@ check('J6: the four price parts do not appear a second time as plain lines', () 
 
 check('J6/G7: the short description leads the business profile without doubling it', () => {
   const built = j6({ ai_short_description:'Zahnarztpraxis in Luzern.' });
-  const section = built.prompt.slice(built.prompt.indexOf('## GESCHÄFTSPROFIL'));
+  const section = built.prompt.slice(built.prompt.indexOf('## UNTERNEHMENSBESCHREIBUNG'));
   assert.match(section, /Zahnarztpraxis in Luzern\./);
   const same = j6({ ai_short_description:customer.ai_business_description });
-  assert.equal((same.prompt.match(/GESCHÄFTSPROFIL/g) || []).length, 1);
+  assert.equal((same.prompt.match(/UNTERNEHMENSBESCHREIBUNG/g) || []).length, 1);
   assert.equal(
     (same.prompt.match(new RegExp(customer.ai_business_description.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g')) || []).length,
     1,
@@ -515,7 +515,7 @@ check('J6/G7: the short description leads the business profile without doubling 
 
 check('J6/G7: a confirmed address leads the location section and outranks the free text', () => {
   const built = j6({ ai_public_address:'Bahnhofstrasse 1, 6003 Luzern' });
-  const section = built.prompt.slice(built.prompt.indexOf('## STANDORT & ERREICHBARKEIT')).split('\n##')[0];
+  const section = built.prompt.slice(built.prompt.indexOf('## STANDORT UND ERREICHBARKEIT')).split('\n##')[0];
   assert.match(section, /Adresse: Bahnhofstrasse 1, 6003 Luzern/);
   assert.match(section, /gilt die Adresse oben/);
 });
@@ -569,7 +569,7 @@ const j7 = (extra) => buildPromptV2({
 check('J7: without a confirmed list the free text still leads', () => {
   const built = j7({});
   assert.match(built.prompt, /## LEISTUNGEN\nTelefonannahme, Lead-Qualifizierung/);
-  assert.match(built.prompt, /## TERMINLOGIK & FAQ\nTermine werden nach interner Prüfung/);
+  assert.match(built.prompt, /## TERMINREGELN & HÄUFIGE FRAGEN\nTermine werden nach interner Prüfung/);
 });
 
 check('J7: a confirmed list replaces the free text instead of standing next to it', () => {
@@ -580,7 +580,7 @@ check('J7: a confirmed list replaces the free text instead of standing next to i
 
 check('J7: questions and answers stay paired', () => {
   const built = j7({ ai_faq_list:[{ q:'Brauche ich einen Termin?', a:'Ja, wir arbeiten auf Termin.' }] });
-  assert.match(built.prompt, /## TERMINLOGIK & FAQ\n- Frage: Brauche ich einen Termin\?\n {2}Antwort: Ja, wir arbeiten auf Termin\./);
+  assert.match(built.prompt, /## TERMINREGELN & HÄUFIGE FRAGEN\n- Frage: Brauche ich einen Termin\?\n {2}Antwort: Ja, wir arbeiten auf Termin\./);
   assert.ok(!built.prompt.includes('nach interner Prüfung'), 'Der ersetzte FAQ-Freitext steht weiter im Prompt');
 });
 
@@ -589,7 +589,7 @@ check('J7: a half pair never reaches the prompt', () => {
   assert.ok(!built.prompt.includes('Kostet das etwas'), 'Eine Frage ohne Antwort steht im Prompt');
   // Faellt die Liste ganz weg, fuehrt wieder der Freitext — nicht ein leerer
   // Abschnitt, der wie "keine Leistungen" aussieht.
-  assert.match(built.prompt, /## TERMINLOGIK & FAQ\nTermine werden nach interner Prüfung/);
+  assert.match(built.prompt, /## TERMINREGELN & HÄUFIGE FRAGEN\nTermine werden nach interner Prüfung/);
 });
 
 check('J7: an empty list is not a statement', () => {
@@ -601,6 +601,69 @@ check('J7: the lists do not appear a second time as configuration lines', () => 
   const built = j7({ ai_service_list:['Schnitt'], ai_faq_list:[{ q:'Wie lange?', a:'Eine Stunde.' }] });
   assert.equal((built.prompt.match(/Schnitt/g) || []).length, 1, 'Die Leistung steht doppelt im Prompt');
   assert.ok(!built.prompt.includes('[object Object]'), 'Ein Listenwert wurde als Text gerendert');
+});
+
+// ── J8 / G6: die Aufnahme-Checkliste hat eine Quelle ────────────────────────
+const TEMPLATE_REQUIRED = 'Name\nGeburtsdatum\nAnliegen (Kontrolle, Schmerzen oder Behandlung)\nGewünschtes Datum';
+const ohneProfilCheckliste = { ...customer, ai_internal_notes:'[PROMPT_V2] {"version":2,"functions":["information"]}' };
+
+check('J8: without an own checklist the branch template applies', () => {
+  const built = buildPromptV2({
+    customer:ohneProfilCheckliste,
+    masterPrompt:'{{CUSTOMER_LAYER}}',
+    industryRequiredInformation:TEMPLATE_REQUIRED
+  });
+  assert.match(built.prompt, /## PFLICHTINFORMATIONEN/);
+  assert.match(built.prompt, /Geburtsdatum/);
+});
+
+check('J8: the customer answer beats the template, and both never appear together', () => {
+  const built = buildPromptV2({
+    customer,
+    masterPrompt:'{{CUSTOMER_LAYER}}',
+    industryRequiredInformation:TEMPLATE_REQUIRED
+  });
+  assert.match(built.prompt, /Name\nFirma\nTelefonnummer\nAnliegen/);
+  assert.ok(!built.prompt.includes('Geburtsdatum'), 'Vorlage und Kundenantwort stehen beide im Prompt');
+  assert.equal((built.prompt.match(/## PFLICHTINFORMATIONEN/g) || []).length, 1);
+});
+
+check('J8: without either source the section stays away instead of standing empty', () => {
+  const built = buildPromptV2({ customer:ohneProfilCheckliste, masterPrompt:'{{CUSTOMER_LAYER}}' });
+  assert.ok(!built.prompt.includes('PFLICHTINFORMATIONEN'), 'Ein leerer Abschnitt steht im Prompt');
+});
+
+check('J8: a template placeholder never reaches the caller', () => {
+  const built = buildPromptV2({
+    customer:ohneProfilCheckliste,
+    masterPrompt:'{{CUSTOMER_LAYER}}',
+    industryRequiredInformation:'Name\nPolicennummer [falls vorhanden]'
+  });
+  assert.ok(!built.prompt.includes('[falls vorhanden]'), 'Eine eckige Markierung steht im Prompt');
+});
+
+// ── J9 / G5: Beschriftung und Ueberschrift sagen dasselbe ───────────────────
+check('J9: the prompt headings carry the names the customer sees', () => {
+  const built = buildPromptV2({ customer, masterPrompt:'{{CUSTOMER_LAYER}}' });
+  for (const heading of ['## UNTERNEHMENSBESCHREIBUNG', '## LEISTUNGEN', '## TERMINREGELN & HÄUFIGE FRAGEN']) {
+    assert.ok(built.prompt.includes(heading), `fehlende Überschrift: ${heading}`);
+  }
+  for (const stale of ['## GESCHÄFTSPROFIL', '## TERMINLOGIK & FAQ', '## STANDORT & ERREICHBARKEIT']) {
+    assert.ok(!built.prompt.includes(stale), `alte Überschrift steht noch im Prompt: ${stale}`);
+  }
+});
+
+check('J9: the precedence sentence of the opening hours names the renamed section', () => {
+  const withHours = JSON.stringify([{ id:'kern', fields:[
+    { key:'opening_hours', column:'ai_opening_hours', type:'hours', label:'Reguläre Öffnungszeiten' }
+  ] }]);
+  const built = buildPromptV2({
+    customer:{ ...coreCustomer, ai_opening_hours:{ mon:[['08:00', '12:00']] }, ai_location_hours:'Luzern' },
+    masterPrompt:'{{CUSTOMER_LAYER}}',
+    coreFields:withHours
+  });
+  const section = built.prompt.slice(built.prompt.indexOf('## REGULÄRE ÖFFNUNGSZEITEN'));
+  assert.match(section, /Abschnitt STANDORT UND ERREICHBARKEIT/);
 });
 
 // ── J10 / G8: es gibt nur noch eine Quelle fuer den Prompt ───────────────────

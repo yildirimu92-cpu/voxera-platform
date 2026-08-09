@@ -33,7 +33,7 @@ const check = (name, passed, detail) => {
 // Die Builder-Version enthaelt selbst einen Punkt ('2.2'), eine Zerlegung nach
 // Index waere deshalb falsch. Geprueft wird die Struktur als Ganzes: Schema,
 // Builder-Version, und ein Hash je gemeinsamer Eingabe.
-const SHAPE = /^v(\d+)\.(.+?)\.([0-9a-f]{12})\.([0-9a-f]{12})\.([0-9a-f]{12})\.([0-9a-f]{12})$/;
+const SHAPE = /^v(\d+)\.(.+?)\.([0-9a-f]{12})\.([0-9a-f]{12})\.([0-9a-f]{12})\.([0-9a-f]{12})\.([0-9a-f]{12})$/;
 
 const MASTER = '# Master Layer 1\r\n\r\n---\r\n\r\n## ROLLE\r\nDu bist {{ASSISTANT_NAME}}.';
 const INDUSTRY = '## BRANCHE\nIT-Support.';
@@ -72,7 +72,7 @@ const EXTRA = [{ key: 'notdienst', label: 'Notdienst' }];
 // bedeuten.
 {
   const fp = promptFingerprint({ masterPrompt: MASTER, industryPrompt: INDUSTRY });
-  check('Fingerprint traegt Schema, Builder-Version und vier Eingabe-Hashes',
+  check('Fingerprint traegt Schema, Builder-Version und fuenf Eingabe-Hashes',
     SHAPE.test(fp), fp);
 }
 
@@ -119,11 +119,11 @@ check('Sync-Funktion berechnet den Fingerprint aus den geladenen Eingaben',
 // Codex P1 (#881): jede gemeinsame Eingabe, die der Builder verarbeitet, muss
 // auch in den Fingerprint. Sonst veraendert eine Vorlagenaenderung den Prompt,
 // waehrend jeder Agent weiter als aktuell gilt.
-for (const feld of ['coreFields: inputs.coreFields', 'industryFields: inputs.industryFields']) {
+for (const feld of ['coreFields: inputs.coreFields', 'industryFields: inputs.industryFields', 'industryRequiredInformation: inputs.industryRequiredInformation']) {
   check(`Sync-Funktion reicht ${feld.split(':')[0]} in den Fingerprint`, trigger.includes(feld));
 }
 check('Builder und Fingerprint sehen dieselben gemeinsamen Eingaben',
-  ['masterPrompt', 'industryPrompt', 'coreFields', 'industryFields']
+  ['masterPrompt', 'industryPrompt', 'coreFields', 'industryFields', 'industryRequiredInformation']
     .every((feld) => new RegExp(`${feld}: inputs\\.${feld}`).test(trigger)));
 check('Sync-Funktion schreibt ihn ins Log', /prompt_fingerprint: fingerprint/.test(trigger));
 
