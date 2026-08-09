@@ -77,13 +77,38 @@ async function loadPromptInputs(sb, customerId, customer) {
   };
 }
 
+const SYNC_LOG_KEEP_PER_CLASS = 10;
+
+// S4 / Stufe 0: Die Aufbewahrung laeuft pro Kunde UND pro Herkunftsklasse.
+//
+// Vorher galten pauschal 10 Zeilen pro Kunde. Ein Fan-out schreibt eine Zeile
+// pro Kunde und Durchlauf -- zwei, drei Durchlaeufe haetten damit die gesamte
+// interaktive Historie verdraengt, inklusive der prompt_snapshot-Zeilen, die
+// ein Rollback braucht. Genau die Daten waeren also im Fehlerfall weg, in dem
+// man sie am dringendsten braucht.
+//
+// Beide Klassen behalten deshalb ihr eigenes Kontingent: ein Fan-out kann die
+// interaktive Historie nicht mehr verdraengen und umgekehrt.
+function syncLogClass(triggeredBy) {
+  return String(triggeredBy || '').startsWith('fanout') ? 'fanout' : 'interactive';
+}
+
 async function trimSyncLogs(sb, customerId) {
   const { data: allLogs, error } = await sb.from('elevenlabs_sync_log')
-    .select('id')
+    .select('id, triggered_by')
     .eq('customer_id', customerId)
     .order('created_at', { ascending: false });
-  if (error || !allLogs || allLogs.length <= 10) return;
-  await sb.from('elevenlabs_sync_log').delete().in('id', allLogs.slice(10).map((row) => row.id));
+  if (error || !allLogs) return;
+
+  const kept = { fanout: 0, interactive: 0 };
+  const doomed = [];
+  for (const row of allLogs) {
+    const cls = syncLogClass(row.triggered_by);
+    if (kept[cls] < SYNC_LOG_KEEP_PER_CLASS) kept[cls] += 1;
+    else doomed.push(row.id);
+  }
+  if (!doomed.length) return;
+  await sb.from('elevenlabs_sync_log').delete().in('id', doomed);
 }
 
 // prev_values traegt den Stand VOR dem Patch, den der Aufrufer bereits in
