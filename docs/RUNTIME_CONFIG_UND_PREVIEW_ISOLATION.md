@@ -70,7 +70,7 @@ Für **beide** Sites (Customer Dashboard, Admin Panel):
    | `SUPABASE_SERVICE_ROLE_KEY` | umgeht RLS vollständig — der wichtigste Einzelposten |
    | `ELEVENLABS_API_KEY` | legt Agents an und ändert sie |
    | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN` | Nummernzuweisung, echte ausgehende Anrufe |
-   | `MAKE_MAIL_WEBHOOK`, `MAKE_CASE_WEBHOOK`, `MAKE_WELCOME_WEBHOOK` | löst echten E-Mail-Versand aus |
+   | `MAKE_MAIL_WEBHOOK`, `MAKE_CASE_WEBHOOK`, `MAKE_WELCOME_WEBHOOK`, `MAKE_CALL_INTAKE_WEBHOOK` | löst echten E-Mail-Versand aus |
    | `SMTP_HOST`, `SMTP_USER`, `SMTP_PASS` | dito, direkter Versandweg |
    | `ANTHROPIC_API_KEY` | verursacht echte Kosten |
    | `CALENDAR_TOKEN_ENCRYPTION_KEY`, `CALENDAR_TOOL_WEBHOOK_SECRET` | Kalender-Integration |
@@ -79,6 +79,30 @@ Für **beide** Sites (Customer Dashboard, Admin Panel):
 
 **Nicht anfassen:** `URL`, `DEPLOY_PRIME_URL`, `DEPLOY_URL`, `CONTEXT`, `BRANCH` — die setzt
 Netlify selbst.
+
+### Die Make-Hooks: welcher Wert wohin gehört
+
+Beide Sites benutzen gleichnamige Variablen mit **unterschiedlichen Werten pro Site**. Genau
+daran ist das Admin-Benachrichtigungssystem gescheitert: auf der Dashboard-Site trug
+`MAKE_MAIL_WEBHOOK` den Call-Intake-Hook, weil `elevenlabs-post-call.js` sie für
+Gesprächsdaten mitbenutzte. Make quittiert solche Requests mit **HTTP 200** und legt sie in
+die Queue eines abgeschalteten Szenarios — der Versand sieht von außen erfolgreich aus,
+kommt aber nie an. Fünf Testanfragen und neun Anrufe landeten so spurlos in einer Queue,
+während Code und Oberfläche Erfolg meldeten.
+
+| Variable | Site | Make-Szenario | Hook-URL |
+| --- | --- | --- | --- |
+| `MAKE_MAIL_WEBHOOK` | Admin **und** Dashboard | 09. Voxera Central Mail Engine | `.../4hlkpn5t6i3m9wsvu5mbpqggygq4yc6s` |
+| `MAKE_CALL_INTAKE_WEBHOOK` | nur Dashboard | 01. Call Intake | `.../i4fimhp5gp2lh72cifakob6w2pvryx7h` |
+
+`MAKE_MAIL_WEBHOOK` und `MAKE_CALL_INTAKE_WEBHOOK` dürfen **niemals denselben Wert** tragen.
+`_lib/mail-delivery.js` verweigert in diesem Fall den Versand, statt ihn ins Leere laufen zu
+lassen, und `scripts/verify-mail-engine-contracts.mjs` verhindert, dass wieder eine Funktion
+außerhalb der Versand-Bibliothek `MAKE_MAIL_WEBHOOK` direkt liest.
+
+Nach dem Eintragen prüfen: eine KI-Änderungsanfrage im Kundenportal auslösen und in Make
+unter *09. Voxera Central Mail Engine → History* nachsehen, ob eine Execution erscheint.
+Bleibt die Liste leer, zeigt die Variable weiterhin auf den falschen Hook.
 
 ### Danach prüfen
 

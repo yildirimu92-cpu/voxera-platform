@@ -2,6 +2,7 @@
 
 const { createClient } = require('@supabase/supabase-js');
 const { markOutboxSent, markOutboxFailed, markOutboxTerminal } = require('./_lib/webhook-outbox');
+const { isMailEngineType, resolveMailWebhook } = require('./_lib/mail-delivery');
 
 function log(level, event, payload = {}) {
   console.log(JSON.stringify({ level, event, ...payload }));
@@ -111,10 +112,15 @@ async function dispatchOutboxEvent(sbAdmin, outboxRow) {
     return postJson(webhookUrl, payload);
   }
 
-  if (outboxRow.event_type === 'offer_email' || outboxRow.event_type === 'subscription_payment_email') {
-    const webhookUrl = process.env.MAKE_MAIL_WEBHOOK;
-    if (!webhookUrl) return { ok: false, error: 'MAKE_MAIL_WEBHOOK not configured' };
-    return postJson(webhookUrl, payload);
+  // Alles, was ueber _lib/mail-delivery.js rausgeht, traegt seinen mail_type als
+  // event_type. Frueher stand hier eine Zweierliste (offer_email,
+  // subscription_payment_email) und jeder neue Mailtyp fiel stillschweigend in
+  // "unsupported event_type" - die Outbox-Zeile blieb liegen, ohne dass jemand
+  // es merkte. Jetzt entscheidet die Typliste der Mail-Engine.
+  if (isMailEngineType(outboxRow.event_type)) {
+    const { url, error } = resolveMailWebhook();
+    if (!url) return { ok: false, error };
+    return postJson(url, payload);
   }
 
 

@@ -10756,12 +10756,13 @@ async function completeContractOnsiteAndShowResult(contractId, opts) {
       viewContract(contractId, { focusCheckpoint: true });
       return;
     }
+    var mailNote = mailDeliveryNote(result.mail_delivery, 'Kunde');
     if (result.activation && result.activation.success) {
-      showToast('✓ Vertrag abgeschlossen und aktiv — Kunde wurde per E-Mail informiert.');
+      showToast('✓ Vertrag abgeschlossen und aktiv. ' + mailNote.text, mailNote.ok === false ? 8000 : 3000);
       viewContract(contractId);
     } else {
       var reason = (result.activation && result.activation.error) || 'unbekannter Fehler';
-      showToast('Kunde wurde per E-Mail informiert. Aktivierung (Rechnungen/Abo) konnte nicht automatisch abgeschlossen werden: ' + reason + ' — bitte unten "Vertragsstart bestätigen" erneut versuchen.');
+      showToast(mailNote.text + ' Aktivierung (Rechnungen/Abo) konnte nicht automatisch abgeschlossen werden: ' + reason + ' — bitte unten "Vertragsstart bestätigen" erneut versuchen.', 8000);
       viewContract(contractId, { focusCheckpoint: true });
     }
   } catch (err) {
@@ -10852,8 +10853,11 @@ async function submitCountersign() {
     var json = await res.json();
     if (!res.ok) throw new Error(json.error || 'Fehler beim Speichern.');
 
-    fb.className = 'modal-feedback ok';
-    fb.textContent = '✓ Bestätigt. E-Mail wird versendet…';
+    var mailNote = mailDeliveryNote(json.mail_delivery, 'Kunde');
+    fb.className = mailNote.ok === false ? 'modal-feedback err' : 'modal-feedback ok';
+    fb.textContent = mailNote.ok === false
+      ? '✓ Gegenzeichnung gespeichert. ' + mailNote.text
+      : '✓ Bestätigt. ' + (mailNote.text || 'E-Mail wird versendet…');
 
     // State aktualisieren
     var ct = state.contracts.find(function(c) { return idsEq(c.id, contractId); });
@@ -10865,7 +10869,7 @@ async function submitCountersign() {
 
     setTimeout(async function() {
       closeCountersignModal();
-      showToast('Vertrag bestätigt. Kunde wird per E-Mail informiert.');
+      showToast('Vertrag bestätigt. ' + (mailNote.text || ''), mailNote.ok === false ? 8000 : 3000);
       // Automatisch Vertragsstart-Checkpoint aufrufen
       await loadDataFromSupabase();
       renderContracts();
@@ -14096,6 +14100,28 @@ function showToast(msg,duration=3000){
   t.textContent=msg;t.style.opacity='1';
   clearTimeout(t._timer);
   t._timer=setTimeout(()=>{t.style.opacity='0';},duration);
+}
+
+// ─── Zustellstatus ehrlich anzeigen ──────────────────────────────────────────
+// Die Netlify-Funktionen liefern seit der Vereinheitlichung alle dasselbe
+// mail_delivery-Objekt { attempted, accepted, status, outbox_id, error }.
+// Vorher meldete das UI bedingungslos "Kunde wurde per E-Mail informiert",
+// sobald der HTTP-Aufruf selbst geklappt hatte — auch wenn die Mail-Engine den
+// Versand gar nicht angenommen hatte. Ein fehlgeschlagener Versand sah damit
+// exakt aus wie ein erfolgreicher.
+//
+// ok === null heisst: die Funktion hat keinen Zustellstatus mitgeschickt. Dann
+// wird bewusst nichts ueber die E-Mail behauptet, statt Erfolg zu unterstellen.
+function mailDeliveryNote(mailDelivery, recipientLabel) {
+  var who = recipientLabel || 'Kunde';
+  if (!mailDelivery || typeof mailDelivery !== 'object') return { ok: null, text: '' };
+  if (mailDelivery.accepted) return { ok: true, text: who + ' wurde per E-Mail informiert.' };
+
+  var reason = mailDelivery.error || 'Grund unbekannt';
+  var retry = mailDelivery.outbox_id
+    ? ' Der Versand wird automatisch erneut versucht.'
+    : ' Bitte manuell nachfassen.';
+  return { ok: false, text: 'E-Mail an ' + who + ' wurde NICHT zugestellt (' + reason + ').' + retry };
 }
 
 function setCreateCustomerFeedback(type,message){

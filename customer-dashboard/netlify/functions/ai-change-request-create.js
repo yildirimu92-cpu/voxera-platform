@@ -3,6 +3,7 @@
 const { createClient } = require('@supabase/supabase-js');
 const { requireCustomerCaller } = require('./_lib/require-customer');
 const { insertOperationalCase } = require('./_lib/create-operational-case');
+const { deliverMail } = require('./_lib/mail-delivery');
 
 const headers = {
   'Access-Control-Allow-Origin': '*',
@@ -51,7 +52,42 @@ exports.handler = async (event) => {
       requesterEmail: caller.email || null,
       priority: 'medium'
     });
-    return response(200, { success: true, request, case: createdCase });
+
+    // Der Case allein informiert niemanden - ohne diese Mail bemerkt das Team
+    // eine Aenderungsanfrage erst, wenn zufaellig jemand die Fallliste oeffnet.
+    // Der Versand darf die Anfrage aber nicht scheitern lassen: die Anfrage ist
+    // gespeichert, der Case existiert, und ein fehlgeschlagener Versand liegt
+    // als Outbox-Zeile fuer den Retry-Worker bereit. Das Ergebnis geht
+    // trotzdem mit raus, damit das UI nicht blind Erfolg meldet.
+    // Die Mail-Engine setzt customer_name in den Betreff. Der Guard liefert nur
+    // die ID, also hier nachschlagen - ein fehlender Name darf den Versand
+    // nicht verhindern, deshalb ohne Fehlerpfad.
+    const { data: customerRow } = await sbAdmin
+      .from('customers')
+      .select('customer_display_name, customer_name, email')
+      .eq('id', caller.customerId)
+      .maybeSingle();
+    const customerName = customerRow?.customer_display_name
+      || customerRow?.customer_name
+      || customerRow?.email
+      || caller.customerId;
+
+    const mailDelivery = await deliverMail(sbAdmin, {
+      mailType: 'ai_change_request',
+      payload: {
+        customer_id: caller.customerId,
+        customer_name: customerName,
+        message,
+        case_id: createdCase?.id || null,
+        request_id: request.id,
+        admin_url: 'https://admin.voxera.ch/#ai-setup',
+        timestamp: now
+      },
+      payloadSummary: `ai_change_request -> ${caller.customerId}`,
+      dedupeKey: `ai_change_request:${request.id}`
+    });
+
+    return response(200, { success: true, request, case: createdCase, mail_delivery: mailDelivery });
   } catch (error) {
     await sbAdmin.from('ai_change_requests').delete().eq('id', request.id);
     console.error('[ai-change-request-create]', error);

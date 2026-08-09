@@ -1,6 +1,7 @@
 'use strict';
 
 const { createClient } = require('@supabase/supabase-js');
+const { deliverMail, mailDeliveryResult } = require('./_lib/mail-delivery');
 
 const headers = { 'Content-Type': 'application/json; charset=utf-8' };
 const ACTIVE_CONTRACT_STATUSES = ['active', 'signed', 'pending', 'suspended'];
@@ -43,13 +44,16 @@ async function loadCustomer(sb, customerId) {
   return data || null;
 }
 
-async function sendExpiryMail(webhookUrl, contract, customer) {
-  if (!webhookUrl || !customer?.email) {
-    return { attempted: false, accepted: false, reason: !webhookUrl ? 'webhook_missing' : 'email_missing' };
+async function sendExpiryMail(sb, contract, customer) {
+  if (!customer?.email) {
+    return mailDeliveryResult({ error: 'Kunden-E-Mail fehlt.' });
   }
 
   const payload = {
     event_type: 'contract_expired_email',
+    // deliverMail setzt mail_type ohnehin aus mailType; hier bleibt das Literal
+    // stehen, weil verify-lifecycle-retention.mjs den Vertrag an dieser Stelle
+    // festschreibt. Beide Werte muessen identisch bleiben.
     mail_type: 'contract_expired_email',
     recipient: {
       email: customer.email,
@@ -72,21 +76,12 @@ async function sendExpiryMail(webhookUrl, contract, customer) {
     }
   };
 
-  try {
-    const response = await fetch(webhookUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-    return {
-      attempted: true,
-      accepted: response.ok,
-      status: response.status,
-      reason: response.ok ? null : 'webhook_rejected'
-    };
-  } catch (error) {
-    return { attempted: true, accepted: false, status: null, reason: error?.message || 'webhook_failed' };
-  }
+  return deliverMail(sb, {
+    mailType: 'contract_expired_email',
+    payload,
+    payloadSummary: `contract_expired_email -> ${customer.email}`,
+    dedupeKey: `contract_expired_email:${contract.id}`
+  });
 }
 
 async function audit(sb, entry) {
@@ -94,7 +89,7 @@ async function audit(sb, entry) {
   if (error) console.warn('[lifecycle-runner] audit insert failed', { error: error.message, action: entry.action });
 }
 
-async function expireContract({ sb, contract, enforcementEnabled, webhookUrl, runAt }) {
+async function expireContract({ sb, contract, enforcementEnabled, runAt }) {
   const customer = await loadCustomer(sb, contract.customer_id);
   const otherActive = contract.customer_id
     ? await hasOtherActiveContract(sb, contract.customer_id, contract.id)
@@ -148,7 +143,7 @@ async function expireContract({ sb, contract, enforcementEnabled, webhookUrl, ru
     }
   }
 
-  result.mail = await sendExpiryMail(webhookUrl, updatedContract, customer);
+  result.mail = await sendExpiryMail(sb, updatedContract, customer);
 
   await audit(sb, {
     actor_admin_id: null,
@@ -177,7 +172,6 @@ exports.handler = async () => {
   if (!sbUrl || !sbServiceKey) return respond(500, { ok: false, error: 'supabase_configuration_missing' });
 
   const enforcementEnabled = process.env.LIFECYCLE_ENFORCEMENT_ENABLED === 'true';
-  const webhookUrl = process.env.MAKE_MAIL_WEBHOOK || '';
   const sb = createClient(sbUrl, sbServiceKey, { auth: { autoRefreshToken: false, persistSession: false } });
   const runAt = nowIso();
   const today = asDateOnly(runAt);
@@ -198,7 +192,7 @@ exports.handler = async () => {
   const results = [];
   for (const contract of candidates || []) {
     try {
-      results.push(await expireContract({ sb, contract, enforcementEnabled, webhookUrl, runAt }));
+      results.push(await expireContract({ sb, contract, enforcementEnabled, runAt }));
     } catch (error) {
       console.error('[lifecycle-runner] contract processing failed', {
         contract_id: contract.id,
