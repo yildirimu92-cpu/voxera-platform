@@ -86,6 +86,23 @@ async function trimSyncLogs(sb, customerId) {
   await sb.from('elevenlabs_sync_log').delete().in('id', allLogs.slice(10).map((row) => row.id));
 }
 
+// prev_values traegt den Stand VOR dem Patch, den der Aufrufer bereits in
+// `customers` geschrieben hat; `customer` ist hier frisch aus der DB gelesen,
+// spiegelt also den Stand NACH dem Patch. Nur Felder, die der Aufrufer
+// mitschickt, werden verglichen -- fehlt prev_values (Wizard, customer_request),
+// bleibt changed_fields leer statt geraten zu werden.
+function diffPrevValues(prevValues, customer) {
+  if (!prevValues || typeof prevValues !== 'object' || Array.isArray(prevValues)) return {};
+  const normalize = (value) => (value === null || value === undefined ? '' : value);
+  const changed = {};
+  for (const key of Object.keys(prevValues)) {
+    const before = normalize(prevValues[key]);
+    const after = normalize(customer?.[key]);
+    if (before !== after) changed[key] = after;
+  }
+  return changed;
+}
+
 exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') return response(405, { error: 'method_not_allowed' });
 
@@ -99,7 +116,6 @@ exports.handler = async (event) => {
     triggered_by = 'admin_save',
     prev_values = {}
   } = body;
-  void prev_values;
 
   if (!customer_id || !agent_id) {
     return response(400, { error: 'customer_id_and_agent_id_required' });
@@ -207,7 +223,8 @@ exports.handler = async (event) => {
     syncError = error?.message || String(error);
   }
 
-  await sb.from('elevenlabs_sync_log').insert({
+  const changedFields = diffPrevValues(prev_values, customer);
+  const syncLogRow = {
     customer_id,
     agent_id,
     status: syncStatus,
@@ -215,8 +232,22 @@ exports.handler = async (event) => {
     prompt_snapshot: syncStatus === 'success' ? fullPrompt : null,
     prompt_length: fullPrompt.length,
     error_message: syncError,
+    changed_fields: Object.keys(changedFields).length ? changedFields : null,
+    prev_values: Object.keys(prev_values || {}).length ? prev_values : null,
     created_at: new Date().toISOString()
-  });
+  };
+  const { error: syncLogError } = await sb.from('elevenlabs_sync_log').insert(syncLogRow);
+  if (syncLogError) {
+    // Falls `prev_values` in dieser Umgebung (noch) keine Spalte ist, darf das
+    // Log selbst nicht verloren gehen -- ein zweiter Versuch ohne die neuen
+    // Felder haelt zumindest status/triggered_by/prompt_snapshot fest.
+    console.warn('[trigger-elevenlabs-sync] sync_log_insert_failed', syncLogError.message);
+    const { changed_fields: _cf, prev_values: _pv, ...fallbackRow } = syncLogRow;
+    const { error: fallbackError } = await sb.from('elevenlabs_sync_log').insert(fallbackRow);
+    if (fallbackError) {
+      console.warn('[trigger-elevenlabs-sync] sync_log_fallback_insert_failed', fallbackError.message);
+    }
+  }
   await trimSyncLogs(sb, customer_id);
 
   const customerPatch = {
