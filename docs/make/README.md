@@ -47,7 +47,8 @@ nur repariert.
 | Doppelversand | ungeschützt | `dedupe_key` = `<mail_type>:<calls.id>` + Vorabprüfung + Unique-Index |
 
 Zum Doppelversand: der Unique-Index `uq_outbox_events_type_dedupe_key` wurde am
-09.08.2026 angewendet (`supabase/sql/2026-08-09_outbox_dedupe_unique.sql`). Er
+09.08.2026 angewendet (`supabase/migrations/2026-08-09_outbox_dedupe_unique.sql`,
+über PR #892 nachdokumentiert). Er
 schliesst die Lücke nicht ganz — `deliverMail` wertet `outbox.duplicate` nicht
 aus und verschickt auch bei einer Kollision. Bei zwei exakt gleichzeitigen
 Läufen entsteht deshalb weiterhin eine zweite Mail, nur keine zweite
