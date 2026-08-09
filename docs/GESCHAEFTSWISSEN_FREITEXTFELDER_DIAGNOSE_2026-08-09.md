@@ -536,7 +536,35 @@ Das erklärt zugleich G3 genauer, als die Diagnose es konnte: `sprechstunden_mod
 
 **Eine Nebenfrage, die dabei entsteht und die ich nicht allein entscheide:** Der Default `rund_um_die_uhr` steht bei allen vier Kunden. Ob ihn jemand gewählt hat oder ob er nie angefasst wurde, lässt sich am Wert nicht unterscheiden — der Wizard schreibt bei unveränderter Vorauswahl denselben Wert. Rendert Schicht A ihn in den Prompt, behauptet der Agent eine Erreichbarkeitsregel, die möglicherweise niemand gewählt hat. Sauber wäre, die vier Werte auf `NULL` zu setzen und die Frage neu stellen zu lassen; das ist aber eine Änderung an Kundendaten und deshalb eine Entscheidung des Users, keine von mir.
 
-**Die Migration ist deshalb angehalten und nicht auf Produktion angewendet.** Auf Produktion wurde in dieser Runde ausschliesslich gelesen.
+**Die Migration wurde deshalb angehalten und überarbeitet — Ergebnis in 11.10.**
+
+### 11.10 Zweiter Staging-Lauf der überarbeiteten Migration
+
+**Entscheid A umgesetzt:** `coverage_mode` zielt auf die bestehende `customers.sprechstunden_modus`; ein `ai_coverage_mode` gibt es nicht. Neu ist nur `ai_appointment_mode` — eine `termin_modus`-Spalte existiert nicht, hier lag die Doppelung zwischen Vorlagenfeld und `[PROMPT_V2]`-Zeile.
+
+**Der Default ist weg, die vier Werte sind zurückgesetzt** (Entscheid vom 09.08.: ein unbestätigter Default darf nicht als Fakt am Telefon gelten — derselbe Grundsatz wie beim Preisfeld). Bewusst wird nur der Wert `rund_um_die_uhr` genullt: eine ausdrückliche Wahl von `ausserhalb_sprechstunde` oder `backup` bliebe stehen.
+
+Staging spiegelte den Produktionsstand exakt (`sprechstunden_modus` text mit Default `'rund_um_die_uhr'`, `ai_online_booking_url` vorhanden, `ai_appointment_mode` nicht). Zwei Testkunden bildeten den Unterschied ab, den das Zurücksetzen treffen muss.
+
+| Prüfung | Ergebnis |
+|---|---|
+| Spalten-Default entfernt | `(keiner)` |
+| `ai_appointment_mode` angelegt, **kein** `ai_coverage_mode` | bestätigt |
+| Beide Check-Constraints | vorhanden |
+| Kunde mit Default `rund_um_die_uhr` | → `NULL` |
+| **Kunde mit ausdrücklicher Wahl `backup`** | **bleibt `backup`** |
+| Neu angelegter Kunde | bekommt `NULL` statt des Defaults — „noch nicht beantwortet" ist jetzt darstellbar |
+| Schema-Ziele | `sprechstunden_modus`, `ai_appointment_mode`, `ai_online_booking_url` |
+| Vorlagenbereinigung, alle sechs Grenzfälle | wie im ersten Lauf |
+| Zweiter Durchlauf | identisch, wiederholbar |
+| `sprechstunden_modus = 'immer_alles'` | abgewiesen (23514) |
+| `ai_appointment_mode = 'sofort_buchen'` | abgewiesen (23514) |
+
+**Danach vollständig zurückgebaut:** Testkunden, Testvorlagen, Schema-Zeile, Spalte und beide Constraints entfernt, der ursprüngliche Spalten-Default wiederhergestellt. Staging steht wieder exakt auf dem Ausgangsstand.
+
+**Drei Codestellen mussten mitziehen**, sonst hätte der Admin den zurückgesetzten Default sofort wieder gesetzt: der `praxisPatch`-Schreiber, der lokale State nach dem Wizard und der Zeilen-Mapper (alle drei hatten `|| 'rund_um_die_uhr'`). `sprechstunden_modus` fällt zudem aus `knownCustomerKeys`, weil Schicht A die Spalte unter ihrem Schema-Schlüssel `coverage_mode` einliest — sonst läge dieselbe Antwort unter zwei Namen im Wizard-Datensatz. Zwei Prüfungen halten das fest.
+
+**Auf Produktion wurde bis hierher ausschliesslich gelesen.**
 
 ### 11.9 Was nach J1, J2, J10 und J4 unbewiesen bleibt
 
