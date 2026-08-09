@@ -13,6 +13,18 @@
     if (!style) {
       style = root.document.createElement('style');
       style.id = 'vx-mobile-nav-visibility-repair';
+      // Dieses Stylesheet sorgt ausschliesslich fuer Lage und Sichtbarkeit der
+      // Tab-Leiste — dafuer, dass sie am unteren Rand steht, ueber dem Inhalt
+      // liegt und nicht von einer Elternregel wegoptimiert wird.
+      //
+      // Es hat frueher zusaetzlich die Farben gesetzt: weisse Flaeche,
+      // hellgrauer Rand, ein Schiefergrau fuer die Eintraege und ein Blau fuer
+      // den aktiven. Per !important schlug das jede Regel des Design-Systems —
+      // genau daher kam der Bruch, dass die Navigation auf dem Telefon weiss
+      // war und am Desktop Navy. Geblieben ist einzig die Night-Flaeche, die steht
+      // hier, weil dieses Stylesheet die Leiste aus dem Layoutfluss nimmt;
+      // alles Weitere (Eintragsfarben, Icon-Chip, Aktiv-Zustand) gehoert
+      // shared/customer-navigation-components.css.
       style.textContent = `
         @media (min-width:769px){
           [data-vx-mobile-navigation="1"]{display:none!important;}
@@ -20,11 +32,11 @@
         @media (max-width:768px){
           html{scroll-padding-bottom:calc(88px + env(safe-area-inset-bottom,0px));}
           body{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))!important;}
-          [data-vx-mobile-navigation="1"]{position:fixed!important;left:0!important;right:0!important;bottom:0!important;width:100%!important;max-width:none!important;box-sizing:border-box!important;margin:0!important;padding:8px 14px calc(8px + env(safe-area-inset-bottom,0px))!important;background:rgba(255,255,255,.98)!important;border-top:1px solid rgba(148,163,184,.24)!important;box-shadow:0 -8px 24px rgba(15,35,71,.08)!important;opacity:1!important;filter:none!important;transform:translateZ(0);isolation:isolate;z-index:1200!important;}
+          [data-vx-mobile-navigation="1"]{position:fixed!important;left:0!important;right:0!important;bottom:0!important;width:100%!important;max-width:none!important;box-sizing:border-box!important;margin:0!important;padding:8px 14px calc(8px + env(safe-area-inset-bottom,0px))!important;background:var(--vx-ui-nav-surface,#0D1F3C)!important;border-top:none!important;box-shadow:0 -1px 0 rgba(255,255,255,.06),0 -8px 24px rgba(0,0,0,.25)!important;opacity:1!important;filter:none!important;transform:translateZ(0);isolation:isolate;z-index:1200!important;}
+          [data-vx-mobile-navigation="1"] .mobile-nav-inner{display:flex!important;justify-content:space-around!important;align-items:center!important;}
           [data-vx-mobile-navigation="1"] .mobile-nav-btn{min-height:56px!important;}
-          #mnav-dashboard,#mnav-anrufe,#mnav-assistent,#mnav-auswertung,#mnav-mehr{color:#64748b!important;opacity:1!important;filter:none!important;text-shadow:none!important;}
-          #mnav-dashboard :is(i,svg),#mnav-anrufe :is(i,svg),#mnav-assistent :is(i,svg),#mnav-auswertung :is(i,svg),#mnav-mehr :is(i,svg){color:currentColor!important;opacity:1!important;filter:none!important;stroke:currentColor!important;}
-          #mnav-dashboard:is(.active,.vx-root-nav-active),#mnav-anrufe:is(.active,.vx-root-nav-active),#mnav-assistent:is(.active,.vx-root-nav-active),#mnav-auswertung:is(.active,.vx-root-nav-active),#mnav-mehr:is(.active,.vx-root-nav-active){color:#3478ed!important;}
+          #mnav-dashboard,#mnav-anrufe,#mnav-assistent,#mnav-auswertung,#mnav-mehr{opacity:1!important;filter:none!important;text-shadow:none!important;}
+          #mnav-dashboard :is(i,svg),#mnav-anrufe :is(i,svg),#mnav-assistent :is(i,svg),#mnav-auswertung :is(i,svg),#mnav-mehr :is(i,svg){opacity:1!important;filter:none!important;}
         }
       `;
       root.document.head.appendChild(style);
@@ -43,8 +55,15 @@
     const globalHost = settingsTab && settingsTab.parentElement;
     if (!settingsTab || !globalHost) return false;
     const nodes = MOBILE_NAV_IDS.map(function(id){return root.document.getElementById(id);}).filter(Boolean);
-    const container = nodes[0] && nodes[0].parentElement;
-    if (container && nodes.length === MOBILE_NAV_IDS.length && nodes.every(function(node){return node.parentElement === container;})) {
+    const inner = nodes[0] && nodes[0].parentElement;
+    // Fixiert wird die Tab-Leiste selbst, nicht die Knopfreihe in ihr. Wurde
+    // nur die Reihe fixiert, lagen zwei Leisten uebereinander: die echte
+    // .mobile-nav in Night — und davor ihr eigener Inhalt, den dieses Skript
+    // eigenmaechtig weiss eingefaerbt hat. Nur wenn es gar keine .mobile-nav
+    // gibt (Alt-Markup, in dem die Knoepfe im Einstellungen-Tab haengen),
+    // bleibt die Reihe selbst der Rahmen.
+    const container = (inner && typeof inner.closest === 'function' && inner.closest('.mobile-nav')) || inner;
+    if (container && nodes.length === MOBILE_NAV_IDS.length && nodes.every(function(node){return node.parentElement === inner;})) {
       moveOutsideSettings(container, settingsTab, globalHost);
       ensureVisibleStyles(container);
     }

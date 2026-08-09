@@ -20,7 +20,7 @@
 
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&display=swap" rel="stylesheet">
 <!-- Design System 2.0 — canonical token set (typography, spacing, color roles). Loads before the legacy inline :root so new components can rely on --vx-color-*/--vx-spacing-*/--vx-radius-* directly. -->
-<link rel="stylesheet" href="/shared/customer-design-tokens.css?v=20260809-1">
+<link rel="stylesheet" href="/shared/customer-design-tokens.css?v=20260809-2">
 <!-- Unified component markup factory (VoxeraUI). Loaded statically so every inline renderer in this document can build canonical skeleton/badge/empty-state markup without a load-order guard. -->
 <script src="/shared/customer-ui-components.js?v=20260807-2"></script>
 <script src="/shared/offer-brand.js?v=20260807-4"></script>
@@ -1038,25 +1038,15 @@ body{
   border:1px solid transparent;
   text-decoration:none;
 }
-.nav-item:hover{
-  color:var(--vx-night);
-  background:rgba(75,159,255,0.08);
-  border-color:rgba(75,159,255,0.22);
-  transform:translateX(1px);
-}
-.nav-item.active{
-  background:#1A6FE8;
-  border:1px solid rgba(255,255,255,.12);
-  color:#FFFFFF;
-  font-weight:700;
-  box-shadow:0 2px 12px rgba(26,111,232,.4);
-}
+/* Hover- und Aktiv-Zustand der Navigation gehoeren seit dem Icon-Chip-Umbau
+   ausschliesslich shared/customer-navigation-components.css. Die frueheren
+   Blau-Fill-Regeln (.nav-item.active mit Hintergrund, Rand, Schatten und
+   font-weight:700) sind dort entfernt worden, nicht ueberschrieben. */
 .nav-item:focus-visible{
   outline:2px solid rgba(26,111,232,0.45);
   outline-offset:1px;
 }
-.nav-icon{width:18px;height:18px;flex-shrink:0;opacity:.78;display:block;stroke-linecap:round;stroke-linejoin:round;vector-effect:non-scaling-stroke;stroke-width:2;}
-.nav-item.active .nav-icon{opacity:1;}
+.nav-icon{flex-shrink:0;}
 /* ═══════════════════════════════════════════
    UNIFIED BADGE / CHIP SYSTEM
 ═══════════════════════════════════════════ */
@@ -2080,9 +2070,9 @@ body.vx-detail-v2-open #confirm-overlay.open {
 .mobile-nav-inner{display:flex;justify-content:space-around;align-items:center;}
 .mobile-nav-btn{
   display:flex;flex-direction:column;align-items:center;gap:3px;
-  padding:4px 12px;cursor:pointer;font-size:10px;color:rgba(255,255,255,.4);
+  padding:4px 12px;cursor:pointer;font-size:10px;
   font-weight:500;position:relative;border:none;background:none;font-family:inherit;
-  transition:color .18s ease;min-width:44px;min-height:44px;justify-content:center;
+  min-width:44px;min-height:44px;justify-content:center;
 }
 .mobile-nav-btn:focus-visible{
   outline:2px solid rgba(147,197,253,.95);
@@ -2097,8 +2087,9 @@ body.vx-detail-v2-open #confirm-overlay.open {
   align-items:center;
   justify-content:center;
 }
-.mobile-nav-btn svg,.mobile-nav-btn .lucide{width:20px;height:20px;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;stroke:rgba(255,255,255,.4);color:rgba(255,255,255,.4);}
-.mobile-nav-btn.active svg,.mobile-nav-btn.active .lucide{stroke:#fff;color:#fff;}
+/* Die frueheren svg-/.lucide-Regeln an dieser Stelle stammten aus der Zeit vor
+   dem Wechsel auf Phosphor und trafen kein Element mehr — die Tab-Leiste
+   enthaelt ausschliesslich <i class="ph-...">. Entfernt statt mitgepflegt. */
 .mobile-nav-badge{
   position:absolute;
   top:0;
@@ -3074,28 +3065,14 @@ body,.main{background:var(--vx-bg);}
   margin-top:4px;
 }
 .nav-item{
-  color:rgba(255,255,255,.55);
   padding:7px 10px;
   min-height:36px;
   border-radius:8px;
   border:1px solid transparent;
   margin:3px 0;
 }
-.nav-item:hover{
-  color:#FFFFFF;
-  background:rgba(255,255,255,.06);
-  border-color:transparent;
-  transform:none;
-}
-.nav-item.active{
-  background:var(--blue);
-  border:1px solid rgba(255,255,255,.12);
-  color:#FFFFFF;
-  font-weight:700;
-  box-shadow:0 2px 12px rgba(26,111,232,.4);
-}
-.nav-icon{opacity:1;color:inherit;}
-.nav-item.active .nav-icon{color:#fff;}
+/* Farbe, Hover und Aktiv-Zustand: siehe shared/customer-navigation-components.css.
+   Die frueheren Regeln an dieser Stelle sind entfernt, nicht ueberschrieben. */
 .nav-badge{box-shadow:none;}
 .sidebar-footer{
   padding:14px 16px 16px;
@@ -4027,15 +4004,11 @@ body,.main{background:var(--vx-bg);}
   font-family:var(--font-display);
   font-size:10px;
   letter-spacing:.01em;
-  transition:color .18s ease;
   position:relative;
-  color:rgba(255,255,255,.4);
   font-weight:500;
 }
-.mobile-nav-btn.active{
-  color:#fff;
-  font-weight:700;
-}
+/* Farbe und Aktiv-Zustand: shared/customer-navigation-components.css.
+   Die frueheren Regeln an dieser Stelle sind entfernt, nicht ueberschrieben. */
 /* Badge */
 .mobile-nav-badge{
   font-family:var(--font-display);
@@ -35029,11 +35002,12 @@ Hauptaktionen
 .nav-section{font-size:9px;font-weight:700;letter-spacing:.1em;padding:16px 10px 5px;opacity:.4;}
 .nav-section:first-child{padding-top:4px;}
 .nav-item{min-height:38px;padding:8px 10px;border-radius:8px;font-size:13px;font-weight:500;gap:9px;margin:2px 0;border:1px solid transparent;letter-spacing:-.01em;}
-.nav-item:hover{background:rgba(255,255,255,.06);border-color:transparent;transform:none;color:rgba(255,255,255,.8);}
-.nav-item.active{background:var(--vx-blue);border-color:transparent;color:#fff;font-weight:600;box-shadow:0 1px 8px rgba(26,111,232,.35);}
-.nav-icon{width:17px;height:17px;opacity:.5;}
-.nav-item.active .nav-icon{opacity:1;}
-.nav-item:hover .nav-icon{opacity:.72;}
+/* Dies war der dritte Ort, an dem Hover und Aktiv-Zustand der Navigation
+   gesetzt wurden (nach den beiden Bloecken weiter oben). Alle drei sind
+   entfernt; zustaendig ist shared/customer-navigation-components.css.
+   Die frueheren opacity-Stufen auf .nav-icon entfallen mit, weil der
+   gedaempfte Ton jetzt ueber die Farbe kommt und nicht ueber Transparenz —
+   sonst waere der Gold-Chip im aktiven Eintrag mit ausgeblasst. */
 
 /* ─── 3. SIDEBAR LOGO ───────────────────────────────────────── */
 .sidebar-logo{padding:16px 14px 14px;border-bottom:0.5px solid rgba(255,255,255,.06);}

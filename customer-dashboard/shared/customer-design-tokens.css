@@ -323,6 +323,41 @@
   --vx-ui-appbar-back-color: #0D1F3C;
   --vx-ui-appbar-back-hover-bg: rgba(13, 31, 60, .06);
 
+  /* ---- Root navigation (sidebar + bottom tab bar) ------------- */
+  /* Eine Navigation, zwei Erscheinungsformen. Die Seitenleiste am Desktop und
+     die Tab-Leiste auf dem Telefon sind derselbe Vertrag: Night-Fläche,
+     gedämpfte Einträge, und der aktive Eintrag trägt einen goldenen Chip um
+     sein Icon — sonst nichts. Kein Vollflächen-Fill, kein Randstreifen, keine
+     Gold-Tönung über den ganzen Eintrag.
+
+     Gold als Aktiv-Signal ist eine bewusste Erweiterung der Farbrollen: Gold
+     stand bisher für Lead-Qualität (Heiss/Warm/Kalt) und als ornamentales
+     Markenzeichen. Der Chip ist der zweite Fall — ein Zustand der Oberfläche,
+     nicht des Datensatzes, und er tritt nirgends neben einer Lead-Rampe auf.
+     Blau bleibt frei für "interaktiv" (F7), weshalb der Aktiv-Zustand hier
+     bewusst NICHT blau ist: die Navigation zeigt einen Ort an, kein Ziel.
+
+     Der gedämpfte Ton ist --vx-color-text-subtle (#94A3B8), das bestehende
+     Grau-Blau des Systems. Gemessen gegen die Night-Fläche #0D1F3C: 6.4:1,
+     also über der 4.5:1-Schwelle für die 13px-Labels. Der Richtwert #7C8AA3
+     aus dem Auftrag läge bei 4.7:1 — dieselbe Farbfamilie, nur knapper. */
+  --vx-ui-nav-surface: var(--vx-color-night);
+  --vx-ui-nav-item-color: var(--vx-color-text-subtle);
+  --vx-ui-nav-item-hover-color: #FFFFFF;
+  --vx-ui-nav-item-hover-bg: rgba(255, 255, 255, .07);
+  --vx-ui-nav-item-active-color: #FFFFFF;
+  --vx-ui-nav-chip-size: 28px;
+  --vx-ui-nav-chip-radius: 9px;
+  --vx-ui-nav-chip-bg: var(--vx-color-gold);
+  --vx-ui-nav-chip-color: var(--vx-color-night);
+  --vx-ui-nav-chip-icon-size: 17px;
+  /* Die Tab-Leiste braucht eine breitere Kachel als die Seitenleiste, weil das
+     Label darunter steht statt daneben. */
+  --vx-ui-nav-chip-width-mobile: 34px;
+  --vx-ui-nav-chip-height-mobile: 28px;
+  --vx-ui-nav-chip-icon-size-mobile: 19px;
+  --vx-ui-nav-transition: background 160ms ease, color 160ms ease;
+
   /* ---- Choice controls (checkbox / radio) --------------------- */
   /* Checkboxes and radios keep their own contract instead of the text-field
      one — same accent, same focus ring, no native widget. */
