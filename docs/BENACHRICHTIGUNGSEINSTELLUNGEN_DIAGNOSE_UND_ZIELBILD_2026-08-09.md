@@ -446,6 +446,23 @@ Gegenprobe bestanden: entfernt man die Härtung aus der Gating-Migration wieder,
 
 Zwei Fehlalarme des Guards unterwegs gefangen und behoben — er kannte anfangs nur `revoke ... from anon` einzeln und nicht die Sammelform `from anon, authenticated` bzw. die Schreibweise `on table public.x`, und meldete dadurch acht bzw. eine Migration fälschlich als ungehärtet. Ein Wächter, der falsch Alarm schlägt, wird genauso ignoriert wie einer, der schweigt.
 
-## Ein Befund am Rande, nicht von mir angefasst
+## Der Gürtel, nachgezogen (nach Freigabe)
 
-`telephony_numbers` und `telephony_number_assignment_audit` tragen in Produktion weiterhin die Default-Grants für `anon`/`authenticated`. **Das ist kein offener Zugriff** — RLS ist an und es gibt keine einzige Policy, `anon` bekommt dort keine Zeile. Es fehlt nur der Gürtel zum Hosenträger. Die Migrationsdatei ist nachgezogen; das Nachziehen auf Produktion habe ich **nicht** im Vorbeigehen gemacht, weil beide Tabellen einem anderen Arbeitsstrang gehören. Ein `revoke all ... from anon, authenticated` auf beiden wäre der Abschluss — deine Entscheidung.
+Zurückhaltung wegen fremdem Arbeitsstrang war hier das falsche Kriterium — bei Zugriffsrechten wiegt Vollständigkeit schwerer als Zuständigkeit. Der Scan fand nicht zwei, sondern **acht** Tabellen in derselben Klasse: RLS an, **keine einzige Policy**, aber die Default-Grants für `anon`/`authenticated` noch drauf.
+
+`credit_note_sequences` · `elevenlabs_sync_log` · `invoice_financial_actions` · `invoice_refunds` · `telephony_number_assignment_audit` · `telephony_numbers` · `voxera_addons` · `voxera_voices`
+
+Alle acht geschlossen (`2026-08-09_revoke_browser_grants_rls_no_policy.sql`, mit Rückbau-Skript). Nachher-Scan: die Klasse ist leer. Tabellen **mit** Policy wurden bewusst nicht angefasst — dort sind die Grants die Voraussetzung für den gewollten Browser-Zugriff, ein Revoke hätte das Kunden-Dashboard zerlegt.
+
+### Dabei sichtbar geworden: zwei Admin-Ansichten sind schon vorher leer
+
+Vier Stellen im Admin-Panel fragen zwei dieser Tabellen über den Browser-Client ab:
+
+| Stelle | Tabelle | Zeilen in der DB | was die Ansicht bekommt |
+|---|---|---|---|
+| `admin-panel/index.html:7588` | `voxera_voices` | 4 | leere Liste |
+| `:16480`, `:16538`, `:16670` | `elevenlabs_sync_log` | 20 | leere Liste |
+
+Das lag **nicht** am Revoke, sondern an RLS-ohne-Policy — es war schon vorher so. Der Revoke ändert nur die Fehlerform: `voxera_voices` wertet `error` gar nicht aus und fällt weiter auf `[]` zurück (keine sichtbare Änderung); `elevenlabs_sync_log` bei `:16480` macht `if (error) throw error` und zeigte vorher **„Noch kein Sync durchgeführt" für einen Kunden mit 20 Sync-Zeilen** — jetzt schlägt die Ansicht hörbar fehl. Ehrlicher, aber eine Änderung.
+
+Dieselbe Fehlerklasse wie alles andere heute Nacht: eine Ansicht meldet Erfolg und liefert nichts. Die Reparatur gehört in den Admin-Arbeitsstrang — entweder über eine Netlify-Function mit Service-Role lesen, oder eine echte Admin-Policy auf beiden Tabellen. Als Zugriffsrechte-Nachtrag ist das nicht zu lösen.

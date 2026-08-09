@@ -25,10 +25,10 @@ alter table public.telephony_number_assignment_audit enable row level security;
 -- der bei der Sicherungstabelle aus 2026-08-09_notification_mode_gating.sql
 -- gefehlt hat, wo RLS eben NICHT an war.
 --
--- Auf Produktion sind die Grants damit nicht entfernt: diese Migration ist dort
--- bereits gelaufen, und beide Tabellen gehoeren einem anderen Arbeitsstrang.
--- Der Nachtrag haelt die Absicht fest; das Nachziehen auf Produktion ist als
--- Befund gemeldet und bewusst nicht im Vorbeigehen gemacht worden.
+-- Auf Produktion nachgezogen durch
+-- 2026-08-09_revoke_browser_grants_rls_no_policy.sql, zusammen mit sechs
+-- weiteren Tabellen derselben Klasse. Der Nachtrag hier haelt die Absicht in
+-- der Datei fest, damit ein Replay nicht wieder ohne sie durchlaeuft.
 revoke all on public.telephony_numbers from anon, authenticated;
 revoke all on public.telephony_number_assignment_audit from anon, authenticated;
 create or replace function public.assign_twilio_number(p_customer_id text,p_number_sid text,p_phone_e164 text,p_actor_id text default null,p_voice_url text default null)
