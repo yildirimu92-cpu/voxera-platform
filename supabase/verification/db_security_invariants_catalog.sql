@@ -349,23 +349,78 @@ where to_regclass('public.system_config') is not null;
 --
 -- Am 2026-08-09 real nachgemessen (zurueckgerollt): anon und authenticated
 -- konnten public.system_config truncieren, authenticated zusaetzlich
--- public.calls. Zurueckgenommen in
--- 2026-08-09_system_config_calls_residual_grants.sql.
+-- public.calls. Punktuell zurueckgenommen in
+-- 2026-08-09_system_config_calls_residual_grants.sql. Die anschliessende
+-- Durchsicht zeigte, dass es nie zwei Tabellen waren -- anon hielt TRUNCATE
+-- auf 26, authenticated auf 27 von 45 Tabellen. Vollstaendig zurueckgenommen
+-- in 2026-08-09_truncate_grant_sweep.sql.
 --
 -- Warum das NICHT als Verhaltensprobe in db_security_invariants_behavior.sql
 -- steht: ein TRUNCATE laesst sich nicht wie die D-Proben mit `where false`
 -- entschaerfen. Eine Probe, die im Fehlerfall die Tabelle leert, ist als
 -- Dauerlauf gegen Produktion nicht vertretbar. Der Katalog ist hier die
 -- richtige Ebene.
-select case when not pg_catalog.has_table_privilege(t.role_name, 'public.' || t.tbl, 'TRUNCATE')
+--
+-- Bewusst ueber ALLE Tabellen aggregiert statt ueber eine gepflegte Liste:
+-- eine Aufzaehlung waere beim naechsten `create table` unvollstaendig, ohne
+-- dass es auffiele. Aggregat ohne HAVING, damit auch im Gutfall genau eine
+-- Zeile herauskommt -- ein Check, der bei Verletzung nichts ausgibt, ist ein
+-- stiller Pass.
+select case when pg_catalog.count(*) filter (
+              where pg_catalog.has_table_privilege('anon', c.oid, 'TRUNCATE')
+                 or pg_catalog.has_table_privilege('authenticated', c.oid, 'TRUNCATE')) = 0
             then 'PASS' else 'FAIL' end,
-       'F6-grants', t.role_name || ' ohne TRUNCATE auf ' || t.tbl,
-       'RLS greift bei TRUNCATE nicht -- das Grant ist die einzige Huerde'
-from (values
-  ('anon', 'system_config'), ('authenticated', 'system_config'),
-  ('anon', 'calls'),         ('authenticated', 'calls')
-) as t(role_name, tbl)
-where to_regclass('public.' || t.tbl) is not null;
+       'F6-grants', 'keine Tabelle in public mit TRUNCATE fuer anon/authenticated',
+       pg_catalog.count(*)::text || ' Tabellen geprueft, davon mit TRUNCATE: '
+         || (pg_catalog.count(*) filter (
+              where pg_catalog.has_table_privilege('anon', c.oid, 'TRUNCATE')
+                 or pg_catalog.has_table_privilege('authenticated', c.oid, 'TRUNCATE')))::text
+         || ' -- RLS greift bei TRUNCATE nicht, das Grant ist die einzige Huerde'
+from pg_catalog.pg_class as c
+join pg_catalog.pg_namespace as n on n.oid = c.relnamespace
+where n.nspname = 'public' and c.relkind = 'r';
+
+-- Welche Tabellen es betrifft, falls die Zeile oben rot ist. Als eigene
+-- Zeilen, damit im CI-Log ohne Nachfragen steht, wo nachzuziehen ist.
+select 'FAIL', 'F6-grants', 'TRUNCATE fuer Browser-Rolle auf ' || c.relname,
+       pg_catalog.concat_ws(',',
+         case when pg_catalog.has_table_privilege('anon', c.oid, 'TRUNCATE') then 'anon' end,
+         case when pg_catalog.has_table_privilege('authenticated', c.oid, 'TRUNCATE') then 'authenticated' end)
+from pg_catalog.pg_class as c
+join pg_catalog.pg_namespace as n on n.oid = c.relnamespace
+where n.nspname = 'public' and c.relkind = 'r'
+  and (pg_catalog.has_table_privilege('anon', c.oid, 'TRUNCATE')
+    or pg_catalog.has_table_privilege('authenticated', c.oid, 'TRUNCATE'))
+order by c.relname;
+
+-- Die Wurzel, nicht nur der Bestand. Die Default-Privilegien des Schemas
+-- public vergaben an anon und authenticated `arwdDxtm` -- das `D` ist
+-- TRUNCATE. Damit erbte JEDE neue Tabelle die Luecke automatisch; so ist der
+-- Zustand ueberhaupt entstanden. Ohne diesen Check waere der Bestandscheck
+-- oben eine Momentaufnahme mit Verfallsdatum.
+--
+-- Geprueft wird der Eintrag mit Erzeuger `postgres`: alle 45 Tabellen in
+-- public gehoeren postgres, und Migrationen laufen unter dieser Rolle.
+-- Der zweite Eintrag (Erzeuger supabase_admin) vergibt weiterhin `D` und
+-- laesst sich aus der Migrationsrolle nicht aendern (42501, ausprobiert). Er
+-- greift nur fuer Tabellen, die supabase_admin selbst in public anlegt --
+-- aktuell keine einzige. Faende so eine Tabelle je den Weg hierher, meldet
+-- der Bestandscheck oben sie beim naechsten Lauf.
+select case when pg_catalog.count(*) = 0 then 'PASS' else 'FAIL' end,
+       'F6-grants', 'Default-Privilegien vergeben kein TRUNCATE an anon/authenticated',
+       coalesce(pg_catalog.string_agg(detail, '; '),
+                'Erzeuger postgres: anon und authenticated ohne D')
+from (
+  select pg_get_userbyid(d.defaclrole) || ': ' || pg_catalog.array_to_string(d.defaclacl, ' | ') as detail
+  from pg_catalog.pg_default_acl as d
+  join pg_catalog.pg_namespace as n on n.oid = d.defaclnamespace
+  cross join lateral pg_catalog.aclexplode(d.defaclacl) as ac
+  where n.nspname = 'public'
+    and d.defaclobjtype = 'r'
+    and pg_get_userbyid(d.defaclrole) = 'postgres'
+    and ac.grantee::regrole::text in ('anon', 'authenticated')
+    and ac.privilege_type = 'TRUNCATE'
+) as offenders;
 
 -- Die uebrigen Schreibrechte auf system_config. Sie waren durch RLS bereits
 -- wirkungslos (die Tabelle traegt genau eine Policy, und die gilt nur fuer
