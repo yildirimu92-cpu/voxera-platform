@@ -370,32 +370,29 @@
   cursor:default;position:relative;
   animation:liveRowEnter .3s cubic-bezier(.16,1,.3,1) both;
 }
-.vx-live-avatar{width:34px;height:34px;border-radius:var(--vx-radius-md);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--vx-color-text-on-dark);background:var(--vx-color-night);flex-shrink:0;}
+/* Absenderzeichen der Karte. War hier vollstaendig definiert, wurde vom
+   Renderer aber nie ausgegeben — die Live-Karte war damit die einzige
+   Zustandsflaeche auf Heute ohne Absenderzeichen, obwohl sie von genau der
+   Instanz berichtet, die die Lara-Uebergabekarte mit ihrem Avatar kennzeichnet.
+   Night, nicht Gold: derselbe Absenderton wie .vx-lara-avatar und
+   .vx-dv2-avatar. Gold traegt im System ausschliesslich Lead-Qualitaet.
+   36px/10px statt vorher 34px — das war die einzige Abweichung zur globalen
+   Avatar-Harmonisierung (".vx-detail-avatar, .vx-live-avatar"), die die
+   Groesse ohnehin per !important auf 36px zog. Jetzt sagen beide dasselbe. */
+.vx-live-avatar{width:36px;height:36px;border-radius:var(--vx-radius-md);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;font-family:var(--vx-ui-row-font);color:var(--vx-color-text-on-dark);background:var(--vx-color-night);flex-shrink:0;}
 .vx-live-body{flex:1;min-width:0;}
 .vx-live-name{font-size:13px;font-weight:var(--vx-ui-row-title-weight);color:var(--vx-ui-row-title-color);line-height:1.3;}
 .vx-live-sub{font-size:var(--vx-ui-row-time-size);color:var(--vx-ui-meta-color);margin-top:1px;}
 .vx-live-badge{display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:700;letter-spacing:.04em;padding:3px 9px;border-radius:var(--vx-radius-pill);background:var(--vx-color-danger-bg);color:var(--vx-color-danger);flex-shrink:0;}
 .vx-live-badge-dot{width:5px;height:5px;border-radius:50%;background:var(--vx-color-danger);animation:liveDotPulse 1.4s ease-in-out infinite;flex-shrink:0;}
 
-/* ══════════════════════════════════════════
-   IN-APP TOAST v3.0 (Voxera CI)
-══════════════════════════════════════════ */
-#vx-toast-container{position:fixed;bottom:20px;right:16px;display:flex;flex-direction:column;gap:8px;z-index:9100;pointer-events:none;max-width:320px;width:calc(100vw - 32px);}
-.vx-toast{display:flex;align-items:flex-start;gap:10px;padding:11px 13px;border-radius:12px;background:#0D1F3C;color:#fff;box-shadow:0 8px 28px rgba(0,0,0,.2);border-left:3px solid #1A6FE8;pointer-events:all;cursor:pointer;animation:vxToastIn .22s cubic-bezier(.16,1,.3,1) both;}
-.vx-toast.t-call{border-left-color:#1A6FE8;}
-.vx-toast.t-warning{border-left-color:#DC2626;}
-.vx-toast.t-success{border-left-color:#059669;}
-.vx-toast.t-task{border-left-color:#E8C547;}
-.vx-toast.vx-toast-out{opacity:0;transform:translateX(16px);transition:opacity .18s,transform .18s;}
-@keyframes vxToastIn{from{opacity:0;transform:translateX(16px);}to{opacity:1;transform:none;}}
-.vx-toast-icon{width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;}
-.vx-toast-icon.call{background:rgba(26,111,232,.2);color:#93C5FD;}
-.vx-toast-icon.warning{background:rgba(220,38,38,.2);color:#F87171;}
-.vx-toast-icon.success{background:rgba(5,150,105,.2);color:#34D399;}
-.vx-toast-icon.task{background:rgba(232,197,71,.15);color:#FCD34D;}
-.vx-toast-body{flex:1;min-width:0;}
-.vx-toast-title{font-size:12px;font-weight:700;color:rgba(255,255,255,.9);margin-bottom:1px;}
-.vx-toast-sub{font-size:11px;color:rgba(255,255,255,.45);line-height:1.4;}
+/* Der frueher hier stehende Block "IN-APP TOAST v3.0" ist entfallen. Er war
+   das Stylesheet eines zweiten Toast-Systems (#vx-toast-container / .vx-toast),
+   dessen Renderer vxToast() im Repo nie existiert hat — siehe den Kommentar
+   bei vxAnnounceLivePhaseCalls(), der das schon 2026-08 festgestellt und die
+   dortigen Aufrufe entfernt hatte. Markup, CSS und die drei uebrig
+   gebliebenen Aufrufe sind jetzt mit entfernt, statt eine tote dunkle
+   Vollton-Variante neben dem umgestellten Toast stehen zu lassen. */
 
 
 .vx-heute-row{display:grid;grid-template-columns:42px minmax(0,1fr) auto;column-gap:12px;align-items:center;padding:10px 12px;border:none;border-bottom:0.5px solid var(--vx-border);border-radius:0;background:#fff;cursor:pointer;transition:background .12s;position:relative;}
@@ -1333,16 +1330,27 @@ body{
    der Sidebar) und unterhalb des Appbars verankert; die beiden Breakpoints
    unten, in denen die Sidebar durch den Mobile-Header ersetzt wird, docken
    entsprechend um. */
+/* Zweite Zustandsflaeche derselben Familie wie der Toast: eigenes Markup,
+   eigener Timer, laeuft NICHT ueber toast() — sah aber genauso aus (dunkles
+   Glas, weisse Schrift). Da sie oben ueber der Content-Spalte sitzt, ist sie
+   die auffaelligste dunkle Flaeche im hellen Produkt. Jetzt dieselbe helle
+   Karte und dieselbe Rot-Rolle wie die Live-Anruf-Karte.
+
+   Der Puls-Punkt war #22c55e — Gruen. Nach der Vier-Familien-Regel gehoert
+   Gruen zu Abschluss-Aktionen; ein eingehender Anruf ist kein Abschluss. Die
+   Live-Anruf-Karte loest denselben Sachverhalt bereits ueber
+   --vx-color-danger (Rot = Dringlichkeit). Zwei Anzeigen fuer "es passiert
+   gerade etwas" tragen damit wieder dieselbe Farbe. */
 .incoming-banner{
   display:none;position:fixed;top:96px;
   left:calc(232px + (100vw - 232px) / 2);transform:translateX(-50%);
   z-index:9990;
-  background:rgba(17,24,39,0.92);
-  border:0.5px solid rgba(255,255,255,0.12);
-  border-radius:var(--r-xl);
-  padding:13px 20px;
-  backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
-  box-shadow:0 8px 32px rgba(0,0,0,0.28);
+  background:var(--vx-ui-card-bg);
+  border:var(--vx-ui-card-border-width) solid var(--vx-ui-card-border-color);
+  border-left:3px solid var(--vx-color-danger);
+  border-radius:var(--vx-ui-card-radius);
+  padding:13px 18px;
+  box-shadow:var(--vx-shadow-lg);
   min-width:260px;max-width:380px;
   pointer-events:auto;
   cursor:pointer;
@@ -1354,15 +1362,16 @@ body{
 }
 .incoming-banner-dot{
   width:10px;height:10px;border-radius:50%;
-  background:#22c55e;flex-shrink:0;
+  background:var(--vx-color-danger);flex-shrink:0;
   animation:dotPulse 1.2s ease-in-out infinite;
 }
 .incoming-banner-text{
-  font-size:13px;font-weight:600;color:#fff;
-  font-family:var(--font-display);
+  font-size:13px;font-weight:var(--vx-ui-row-title-weight);
+  color:var(--vx-ui-row-title-color);
+  font-family:var(--vx-ui-row-font);
 }
 .incoming-banner-sub{
-  font-size:11px;color:rgba(255,255,255,0.5);
+  font-size:var(--vx-ui-row-time-size);color:var(--vx-ui-meta-color);
   margin-top:1px;
 }
 @keyframes bannerSlideDown{
@@ -1942,35 +1951,60 @@ body.vx-detail-v2-open #confirm-overlay.open {
 /* ═══════════════════════════════════════════
    TOAST — V1
 ═══════════════════════════════════════════ */
+/* Vorher: dunkle Glas-Pille (rgba(15,23,42,.88), weisse Schrift, Blur). Sie
+   war die letzte Vollton-Flaeche im sonst hellen Produkt — und sie trug ihre
+   vier Tonalitaeten allein ueber einen 18px-Kreis: Flaeche, Rahmen und
+   Textfarbe waren bei allen vier identisch.
+
+   Jetzt dieselbe Karte wie jede andere Flaeche im Produkt (--vx-ui-card-*),
+   Text in Night. Die Tonalitaet liegt auf ZWEI Traegern statt einem — linke
+   Kante und Icon-Kachel, beide aus derselben Rollenvariable. Die
+   Unterscheidung wird damit deutlicher als vorher, nicht eingeebnet (das war
+   die ausdrueckliche Vorgabe des Auftrags).
+
+   Rollenzuordnung gegen die Vier-Familien-Regel geprueft, nicht angenommen:
+   success = Gruen (Abschluss-Aktion), error = Rot (Dringlichkeit),
+   warning = Amber (Hinweis, gleiche Rolle wie die Banner aus PR #886),
+   info = Blau (funktionale Kategorie "interaktiv"/Hinweis seit F7).
+   Ein Toast ohne erkannte Tonalitaet faellt auf Night zurueck — Marke, keine
+   fuenfte Bedeutung. */
 .toast{
+  --vx-toast-role: var(--vx-color-night);
+  --vx-toast-role-bg: var(--vx-color-surface-soft);
   position:fixed;bottom:100px;left:50%;
   transform:translateX(-50%) translateY(8px);
-  background:rgba(15,23,42,0.88);
-  border:1px solid rgba(255,255,255,0.16);
-  color:#fff;
-  font-size:13px;font-weight:500;
-  padding:11px 20px;
-  border-radius:var(--r-xl);
+  background:var(--vx-ui-card-bg);
+  border:var(--vx-ui-card-border-width) solid var(--vx-ui-card-border-color);
+  border-left:3px solid var(--vx-toast-role);
+  color:var(--vx-color-text);
+  font-family:var(--vx-ui-row-font);
+  font-size:13px;font-weight:600;
+  padding:11px 16px;
+  border-radius:var(--vx-ui-card-radius);
   z-index:var(--z-toast);
   opacity:0;
   transition:opacity 0.22s ease, transform 0.28s var(--ease);
   pointer-events:none;white-space:nowrap;
-  backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
-  box-shadow:0 4px 24px rgba(0,0,0,0.22),0 1px 0 rgba(255,255,255,0.06) inset;
-  display:flex;align-items:center;gap:8px;
+  box-shadow:var(--vx-shadow-lg);
+  display:flex;align-items:center;gap:10px;
 }
+.toast.t-success{--vx-toast-role:var(--vx-color-success);--vx-toast-role-bg:var(--vx-color-success-bg);}
+.toast.t-info{--vx-toast-role:var(--vx-color-info);--vx-toast-role-bg:var(--vx-color-info-bg);}
+.toast.t-warning{--vx-toast-role:var(--vx-color-warning);--vx-toast-role-bg:var(--vx-color-warning-bg);}
+.toast.t-error{--vx-toast-role:var(--vx-color-danger);--vx-toast-role-bg:var(--vx-color-danger-bg);}
 .toast.show{
   opacity:1;
   transform:translateX(-50%) translateY(0);
 }
+/* Die Icons erben ihre Strichfarbe ueber currentColor aus der Kachel — damit
+   gibt es genau eine Farbquelle pro Tonalitaet statt einer im CSS und einer
+   im SVG-Attribut. */
 .toast-icon{
-  width:18px;height:18px;border-radius:50%;
+  width:20px;height:20px;border-radius:50%;
   display:flex;align-items:center;justify-content:center;flex-shrink:0;
+  background:var(--vx-toast-role-bg);
+  color:var(--vx-toast-role);
 }
-.toast-icon.success{background:rgba(34,197,94,0.25);}
-.toast-icon.info{background:rgba(99,130,246,0.25);}
-.toast-icon.warning{background:rgba(251,191,36,0.25);}
-.toast-icon.error{background:rgba(248,113,113,0.28);}
 .sr-only{position:absolute !important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;}
 
 
@@ -4213,7 +4247,7 @@ body,.main{background:var(--vx-bg);}
     width:auto!important;
     transform:translateY(8px)!important;
     font-size:13px;
-    border-radius:12px;
+    border-radius:var(--vx-ui-card-radius);
     white-space:normal!important;
     word-break:break-word;
   }
@@ -7360,7 +7394,7 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
     <div class="incoming-banner-text" id="incoming-banner-text">Neuer Anruf</div>
     <div class="incoming-banner-sub" id="incoming-banner-sub">Voxera hat einen Anruf entgegengenommen</div>
   </div>
-  <div id="incoming-banner-arrow" style="color:rgba(255,255,255,0.5);font-size:16px;flex-shrink:0;margin-left:4px;">→</div>
+  <div id="incoming-banner-arrow" style="color:var(--vx-ui-meta-color);font-size:16px;flex-shrink:0;margin-left:4px;">→</div>
 </div>
 
         <!-- DASHBOARD TAB -->
@@ -8011,7 +8045,7 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
                 <label class="vx-settings-field"><span class="vx-settings-field-label">Portalsprache</span><select id="profil-lang-select" disabled><option value="de">Deutsch</option><option value="fr">Français</option><option value="it">Italiano</option><option value="en">English</option></select><span class="vx-settings-field-help">Weitere Portalsprachen werden schrittweise freigeschaltet.</span></label>
               </div>
             </section>
-            <div class="vx-settings-actions"><button type="button" onclick="vxSaveProfil()" class="btn vx-abo-btn">Profil speichern</button></div>
+            <div class="vx-settings-actions"><button type="button" id="profil-save-btn" onclick="vxSaveProfil()" class="btn vx-abo-btn">Profil speichern</button></div>
             <div id="fb-profil-page" class="vx-settings-feedback" role="status" aria-live="polite"></div>
 
             <section class="vx-settings-card">
@@ -8021,7 +8055,7 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
                 <label class="vx-settings-field"><span class="vx-settings-field-label">Passwort bestätigen</span><input id="profil-pw-confirm" type="password" autocomplete="new-password" placeholder="Passwort wiederholen"></label>
               </div>
             </section>
-            <div class="vx-settings-actions"><button type="button" onclick="vxSavePassword()" class="btn vx-abo-btn secondary">Passwort speichern</button></div>
+            <div class="vx-settings-actions"><button type="button" id="profil-password-save-btn" onclick="vxSavePassword()" class="btn vx-abo-btn secondary">Passwort speichern</button></div>
             <div id="fb-password" class="vx-settings-feedback" role="status" aria-live="polite"></div>
           </div>
 
@@ -8439,8 +8473,6 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
   </div>
 </div>
 <div id="vx-notif-backdrop" style="display:none;position:fixed;inset:0;z-index:10019;" onclick="vxBellClose()"></div>
-<!-- ═══ TOAST CONTAINER ═══ -->
-<div id="vx-toast-container"></div>
 
 <!-- COMMERCIAL REQUEST MODAL -->
     <div class="overlay overlay--sheet vx-commercial-overlay" id="vx-commercial-overlay" aria-hidden="true">
@@ -8745,7 +8777,7 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
 <!-- COMMERCIAL LEGACY MODALS REMOVED -->
 
         <!-- TOAST -->
-<div class="toast" id="toast"><div class="toast-icon success" id="toast-icon"><svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="#22C55E" stroke-width="1.8" stroke-linecap="round"><path d="M1.5 5l2.5 2.5L8.5 2"/></svg></div><span id="toast-text"></span></div>
+<div class="toast t-success" id="toast"><div class="toast-icon success" id="toast-icon"><svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M1.5 5l2.5 2.5L8.5 2"/></svg></div><span id="toast-text"></span></div>
 <div id="copy-feedback-live" class="sr-only" aria-live="polite" aria-atomic="true"></div>
 
 <script>
@@ -10130,8 +10162,6 @@ window.vxHandleDprButtonClick = vxHandleDprButtonClick;
 
 /* ══════════════════════════════════════════════════════════
    VOXERA NOTIFICATION SYSTEM v1.0
-   - vxToast(opts)      — In-App Toast unten rechts
-   - vxBellAdd(opts)    — Eintrag im Panel + Badge
    - vxBellToggle()     — Panel öffnen/schliessen
    - vxBellMarkAll()    — Alle als gelesen markieren
    - vxBellClose()      — Panel schliessen
@@ -10388,10 +10418,17 @@ function vxNotifSubscribe() {
         _vxNotifCache.unshift(item);
         _vxNotifCache = _vxNotifCache.slice(0, 80);
         vxBellUpdateBadge();
-        // Shake + Toast
+        // Kurzes Aufleuchten der Glocke. Der frueher hier stehende
+        // vxToast()-Aufruf ist entfernt: die Funktion existierte nie, der
+        // ReferenceError brach diesen Callback ab — und damit lief die Zeile
+        // darunter nicht mehr. Sichtbare Folge: bei GEOEFFNETEM Popover
+        // erschien eine neu eintreffende Benachrichtigung nicht in der
+        // offenen Liste, sondern erst beim naechsten Oeffnen. Das try/catch
+        // von vxNotifSubscribe() umschliesst nur den Aufbau der Subscription,
+        // nicht diesen spaeter laufenden Callback, hat den Fehler also nie
+        // aufgefangen.
         var btn = document.getElementById('vx-sidebar-bell-item');
         if (btn) { btn.style.background = 'rgba(26,111,232,.2)'; setTimeout(function(){ btn.style.background = ''; }, 800); }
-        vxToast({ type: item.type, title: item.title, sub: item.sub });
         if (_vxBellOpen) { vxBellRender(); vxBellPageRender(); }
       })
       .subscribe();
@@ -10415,12 +10452,11 @@ function vxBellUpdateBadge() {
   }
 }
 
-// ── Bell Add (für lokale Live-Call Events) ─────────────────
-// Wird weiterhin für Live-Calls genutzt (Realtime kommt erst nach Gesprächsende)
-function vxBellAdd(opts) {
-  // Nur visuell — kein DB-Insert hier (macht die Netlify Function)
-  vxToast({ type: opts.type || 'call', title: opts.title || '', sub: opts.sub || '' });
-}
+// vxBellAdd() ist entfallen: die Funktion hatte keinen Aufrufer mehr und
+// bestand nur noch aus einem Aufruf des nie implementierten vxToast(). Der
+// Kommentar behauptete "wird weiterhin fuer Live-Calls genutzt" — belegt ist
+// das Gegenteil, den Fall deckt #incoming-banner ab (siehe
+// vxAnnounceLivePhaseCalls()).
 
 // ── Render Desktop Panel ───────────────────────────────────
 function vxBellRender() {
@@ -14759,48 +14795,80 @@ function vxInitProfil() {
   if (avatarEl) avatarEl.textContent = (name.charAt(0) || 'U').toUpperCase();
 }
 
+// Speicher-Rueckmeldung der Einstellungen-Unterseiten, angeglichen an das in
+// PR #840/#864 etablierte Muster: der Knopf traegt den Erfolg selbst
+// ("Speichert …" -> "Gespeichert ✓" -> Originallabel), der Statusknoten ist
+// nur noch fuer Meldungen da, die diese kurze Animation ueberdauern muessen
+// — Validierungsfehler und Fehlschlaege. Die Vereinheitlichung galt bisher
+// ausdruecklich nur fuer den Assistent-Tab; die gleichnamigen Bereiche unter
+// Einstellungen wurden zurueckgestellt und nie nachgeholt.
+//
+// Die frueher hier gesetzten Inline-Farben (#059669 / #DC2626) sind entfallen:
+// sie ueberschrieben die Token-Farben von .vx-settings-feedback[data-state]
+// und waren damit eine zweite, unsichtbare Farbquelle direkt neben der
+// eigentlichen.
+function vxSetSettingsFeedback(node, message, state) {
+  if (!node) return;
+  node.textContent = message || '';
+  if (state) node.dataset.state = state;
+  else delete node.dataset.state;
+}
+
 async function vxSaveProfil() {
   const fb = document.getElementById('fb-profil-page');
+  const btn = document.getElementById('profil-save-btn');
   const name = document.getElementById('profil-name-input')?.value.trim();
   const email = document.getElementById('profil-email-input')?.value.trim();
-  if (!name || !email) { if(fb){fb.style.color='#DC2626';fb.textContent='Name und E-Mail sind Pflichtfelder.';} return; }
+  if (!name || !email) { vxSetSettingsFeedback(fb, 'Name und E-Mail sind Pflichtfelder.', 'error'); return; }
   try {
-    const _sb = getSupabaseAuthClient();
-    const { data: { session } } = await _sb.auth.getSession();
-    // Update Auth E-Mail
-    if (email !== customerMeta.customerEmail) {
-      const { error } = await _sb.auth.updateUser({ email });
-      if (error) throw new Error(error.message);
-    }
-    // Update customers Name
-    await _sb.from('customers').update({ contact_first_name: name, updated_at: new Date().toISOString() }).eq('id', customerMeta.customerId);
+    await vxInlineSaveStatus(btn, async function() {
+      const _sb = getSupabaseAuthClient();
+      // Das Ergebnis wird nicht gelesen — der Aufruf stand hier schon vorher
+      // und wird bewusst beibehalten: er stösst bei abgelaufenem Token die
+      // Erneuerung an, bevor die beiden Schreibvorgänge starten. Ihn im
+      // Zuge einer Design-Änderung wegzulassen wäre eine unverwandte
+      // Verhaltensänderung am Auth-Pfad.
+      await _sb.auth.getSession();
+      // Update Auth E-Mail
+      if (email !== customerMeta.customerEmail) {
+        const { error } = await _sb.auth.updateUser({ email });
+        if (error) throw new Error(error.message);
+      }
+      // Update customers Name
+      await _sb.from('customers').update({ contact_first_name: name, updated_at: new Date().toISOString() }).eq('id', customerMeta.customerId);
+    }, { savingLabel: 'Speichert …', doneLabel: 'Gespeichert ✓' });
     customerMeta.customerName = name;
     customerMeta.customerEmail = email;
     document.getElementById('profil-name-display').textContent = name;
     document.getElementById('profil-email-display').textContent = email;
     document.getElementById('profil-avatar-preview').textContent = name.charAt(0).toUpperCase();
-    if (fb) { fb.style.color = '#059669'; fb.textContent = '✓ Profil aktualisiert.'; }
+    // Erfolg quittiert der Knopf. Einen stehengebliebenen Fehler eines
+    // frueheren Versuchs raeumt er nicht mit weg — das passiert hier.
+    vxSetSettingsFeedback(fb, '', null);
   } catch(e) {
-    if (fb) { fb.style.color = '#DC2626'; fb.textContent = 'Fehler: ' + (e.message || ''); }
+    vxSetSettingsFeedback(fb, 'Profil konnte nicht gespeichert werden. ' + (e.message || ''), 'error');
   }
 }
 
 async function vxSavePassword() {
   const fb = document.getElementById('fb-password');
+  const btn = document.getElementById('profil-password-save-btn');
   const pw = document.getElementById('profil-pw-new')?.value;
   const confirm = document.getElementById('profil-pw-confirm')?.value;
-  if (!pw) { if(fb){fb.style.color='#DC2626';fb.textContent='Bitte neues Passwort eingeben.';} return; }
-  if (pw !== confirm) { if(fb){fb.style.color='#DC2626';fb.textContent='Passwörter stimmen nicht überein.';} return; }
-  if (pw.length < 8) { if(fb){fb.style.color='#DC2626';fb.textContent='Mindestens 8 Zeichen.';} return; }
+  if (!pw) { vxSetSettingsFeedback(fb, 'Bitte neues Passwort eingeben.', 'error'); return; }
+  if (pw !== confirm) { vxSetSettingsFeedback(fb, 'Passwörter stimmen nicht überein.', 'error'); return; }
+  if (pw.length < 8) { vxSetSettingsFeedback(fb, 'Mindestens 8 Zeichen.', 'error'); return; }
   try {
-    const _sb = getSupabaseAuthClient();
-    const { error } = await _sb.auth.updateUser({ password: pw });
-    if (error) throw new Error(error.message);
+    await vxInlineSaveStatus(btn, async function() {
+      const _sb = getSupabaseAuthClient();
+      const { error } = await _sb.auth.updateUser({ password: pw });
+      if (error) throw new Error(error.message);
+    }, { savingLabel: 'Speichert …', doneLabel: 'Geändert ✓' });
     document.getElementById('profil-pw-new').value = '';
     document.getElementById('profil-pw-confirm').value = '';
-    if (fb) { fb.style.color = '#059669'; fb.textContent = '✓ Passwort geändert.'; }
+    vxSetSettingsFeedback(fb, '', null);
   } catch(e) {
-    if (fb) { fb.style.color = '#DC2626'; fb.textContent = 'Fehler: ' + (e.message || ''); }
+    vxSetSettingsFeedback(fb, 'Passwort konnte nicht geändert werden. ' + (e.message || ''), 'error');
   }
 }
 
@@ -16108,16 +16176,25 @@ function toast(msg, type) {
   else if (/bitte|warn|achtung/i.test(rawMsg)) inferredType = 'warning';
   else if (/info|hinweis/i.test(rawMsg)) inferredType = 'info';
   var t = type || inferredType;
+  // stroke="currentColor": die Strichfarbe kommt aus der Icon-Kachel, die
+  // ihrerseits das Rollen-Token der Tonalitaet traegt. Vorher standen hier
+  // vier feste Hexwerte neben vier weiteren im CSS — zwei Quellen fuer
+  // dieselbe Entscheidung.
   var icons = {
-    success: '<svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="#22C55E" stroke-width="1.8" stroke-linecap="round"><path d="M1.5 5l2.5 2.5L8.5 2"/></svg>',
-    info:    '<svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="#818CF8" stroke-width="1.8" stroke-linecap="round"><circle cx="5" cy="5" r="4"/><path d="M5 4.5v3M5 3h.01"/></svg>',
-    warning: '<svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="#FBBF24" stroke-width="1.8" stroke-linecap="round"><path d="M5 1L9 9H1L5 1z"/><path d="M5 5v2M5 7.5h.01"/></svg>',
-    error:   '<svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="#F87171" stroke-width="1.8" stroke-linecap="round"><circle cx="5" cy="5" r="4"/><path d="M3.7 3.7l2.6 2.6M6.3 3.7L3.7 6.3"/></svg>'
+    success: '<svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M1.5 5l2.5 2.5L8.5 2"/></svg>',
+    info:    '<svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="5" cy="5" r="4"/><path d="M5 4.5v3M5 3h.01"/></svg>',
+    warning: '<svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M5 1L9 9H1L5 1z"/><path d="M5 5v2M5 7.5h.01"/></svg>',
+    error:   '<svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="5" cy="5" r="4"/><path d="M3.7 3.7l2.6 2.6M6.3 3.7L3.7 6.3"/></svg>'
   };
   if (iconEl) {
     iconEl.className = 'toast-icon ' + t;
     iconEl.innerHTML = icons[t] || icons.success;
   }
+  // Die Tonalitaet muss auch am Container haengen: linke Kante und
+  // Icon-Kachel lesen dieselbe Rollenvariable, und die wird auf .toast
+  // gesetzt. Die Klasse ersetzt nur die Tonalitaet, "show" wird direkt
+  // darunter ohnehin neu gesetzt.
+  el.className = 'toast t-' + t;
   el.classList.remove('show');
   void el.offsetWidth;
   el.classList.add('show');
@@ -17299,16 +17376,31 @@ function updateLiveHero(records) {
   }
   if (!host) return;
 
-  // Der Fingerprint kennt bewusst nur die Anzahl. Solange dieselbe Menge an
-  // Gespraechen laeuft, aendert sich am Hinweis nichts — auch dann nicht,
-  // wenn mitten im Gespraech ein Anrufername nachgeliefert wird.
-  var fingerprint = 'live:' + liveRecs.length;
+  // Der Name kommt live aus customerMeta, nie hartkodiert — dieselbe Quelle
+  // und derselbe Fallback wie in vxHeuteRenderLaraHandover().
+  var assistantName = (typeof customerMeta !== 'undefined' && customerMeta && customerMeta.assistantName)
+    ? customerMeta.assistantName
+    : 'Lara';
+
+  // Der Fingerprint kennt bewusst nur die Anzahl — solange dieselbe Menge an
+  // Gespraechen laeuft, aendert sich am Hinweis nichts, auch nicht wenn
+  // mitten im Gespraech ein Anrufername nachgeliefert wird. Seit der Text den
+  // Assistentennamen nennt, gehoert der Name mit hinein: sonst bliebe eine
+  // Umbenennung waehrend eines laufenden Gespraechs auf der Karte stehen,
+  // waehrend der Rest des Screens ueber vxSyncAssistantNameCopy() bereits
+  // nachgezogen hat.
+  var fingerprint = 'live:' + liveRecs.length + ':' + assistantName;
   if (existing && existing.parentNode === host && fingerprint === _liveHeroLastFingerprint) return;
 
+  // Statusanzeige in der Sprache des Assistenten statt rein technisch —
+  // derselbe Blickwinkel wie die Uebergabekarte darueber ("So meldet sich Ihr
+  // Assistent", Zusammenfassungen in seiner Stimme). Dritte Person, nicht
+  // erste: waehrend das Gespraech laeuft, berichtet die Karte ueber den
+  // Assistenten, sie ist nicht seine Stimme.
   var label = liveRecs.length === 1
-    ? 'Ein Anruf läuft gerade'
-    : liveRecs.length + ' Anrufe laufen gerade';
-  var sub = 'Der Eintrag erscheint, sobald das Gespräch beendet ist.';
+    ? assistantName + ' ist gerade im Gespräch'
+    : assistantName + ' führt gerade ' + liveRecs.length + ' Gespräche';
+  var sub = 'Sobald aufgelegt wird, erscheint die Anfrage hier.';
 
   // Gleiche Anzahl-Klasse, aber der Knoten haengt noch woanders (oder der
   // Text hat sich durch einen zweiten Anruf geaendert) -> Text im Knoten
@@ -17316,8 +17408,10 @@ function updateLiveHero(records) {
   if (existing && existing.parentNode === host) {
     var nameEl = existing.querySelector('.vx-live-name');
     var subEl = existing.querySelector('.vx-live-sub');
+    var avatarEl = existing.querySelector('.vx-live-avatar');
     if (nameEl) nameEl.textContent = label;
     if (subEl) subEl.textContent = sub;
+    if (avatarEl) avatarEl.textContent = assistantName.charAt(0).toUpperCase();
     _liveHeroLastFingerprint = fingerprint;
     _liveHeroCurrentId = liveRecs[0].id;
     return;
@@ -17329,7 +17423,11 @@ function updateLiveHero(records) {
   // sonst kuendigt der Screenreader denselben Hinweis doppelt an.
   var row = document.createElement('div');
   row.id = 'live-call-row';
+  // Der Avatar ist aria-hidden: die Initiale ist ein Absenderzeichen, keine
+  // Information — der Name steht im Text daneben, den die Live-Region ohnehin
+  // vorliest.
   row.innerHTML = [
+    '<div class="vx-live-avatar" aria-hidden="true">' + _esc(assistantName.charAt(0).toUpperCase()) + '</div>',
     '<div class="vx-live-body">',
       '<div class="vx-live-name">' + _esc(label) + '</div>',
       '<div class="vx-live-sub">' + _esc(sub) + '</div>',
@@ -22290,8 +22388,13 @@ function renderAnrufeInbox(containerId, records, activeFilter) {
     !visibleRecords.some(function(rec) { return rec && String(rec.id) === String(window._vxActiveRecordId); })
   ) {
     if (typeof vxForceCloseCallDetail === 'function') vxForceCloseCallDetail('active-record-filtered-out');
-    if (typeof vxToast === 'function') {
-      vxToast({ type: 'info', title: 'Auswahl aufgehoben', sub: 'Die geöffnete Anfrage ist im aktuellen Filter nicht mehr sichtbar.' });
+    // Der Hinweis lief bisher ueber vxToast() hinter einem typeof-Waechter —
+    // die Funktion existierte nie, der Hinweis erschien also seit jeher nicht.
+    // Jetzt ueber den einzigen lebenden Renderer, damit das Zuklappen des
+    // Detailpanels nicht mehr kommentarlos passiert (Interaktions-Richtlinie
+    // "nie stillschweigend nichts passieren lassen").
+    if (typeof toast === 'function') {
+      toast('Auswahl aufgehoben: die geöffnete Anfrage ist im aktuellen Filter nicht mehr sichtbar.', 'info');
     }
   }
 
@@ -25064,10 +25167,10 @@ function openAccount() {
   if (nameEl) nameEl.textContent = customerMeta.customerName || (customerMeta.customerId ? '–' : 'Lädt…');
   var telEl = document.getElementById('profile-customer-tel');
   if (telEl) telEl.textContent = customerMeta.telNr || (customerMeta.customerId ? '–' : 'Lädt…');
-  var pn = document.getElementById('pw-new'); if(pn) pn.value = '';
-  var pc = document.getElementById('pw-confirm'); if(pc) pc.value = '';
-  var pe = document.getElementById('pw-error'); if(pe) pe.style.display = 'none';
-  var ps = document.getElementById('pw-success'); if(ps) ps.style.display = 'none';
+  // Die vier Ruecksetzungen auf #pw-new / #pw-confirm / #pw-error /
+  // #pw-success sind mit changePassword() entfallen — keines dieser Elemente
+  // existiert im Markup, die Zeilen liefen seit dem Umbau der Profil-Seite
+  // jedes Mal ins Leere.
   var ns = document.getElementById('notif-success'); if(ns) ns.style.display = 'none';
   loadNotifSettings();
 }
@@ -25656,46 +25759,14 @@ function applyForwardingCode(event, linkEl) {
   applyForwarding(code);
 }
 
-async function changePassword() {
-  const sb = getSupabaseAuthClient();
-  if (!sb) return;
-  const pw = document.getElementById('pw-new').value;
-  const pw2 = document.getElementById('pw-confirm').value;
-  const btn = document.getElementById('pw-save-btn');
-  const errEl = document.getElementById('pw-error');
-  const succEl = document.getElementById('pw-success');
-
-  errEl.style.display = 'none';
-  succEl.style.display = 'none';
-
-  if (!pw || pw.length < 8) {
-    errEl.textContent = 'Passwort muss mindestens 8 Zeichen haben.';
-    errEl.style.display = 'block';
-    return;
-  }
-  if (pw !== pw2) {
-    errEl.textContent = 'Passwörter stimmen nicht überein.';
-    errEl.style.display = 'block';
-    return;
-  }
-
-  btn.disabled = true; btn.textContent = 'Speichern...';
-  try {
-    const { error } = await sb.auth.updateUser({ password: pw });
-    if (error) throw error;
-    succEl.textContent = 'Passwort erfolgreich geändert';
-    succEl.style.display = 'block';
-    document.getElementById('pw-new').value = '';
-    document.getElementById('pw-confirm').value = '';
-    toast('Passwort geändert');
-  } catch (error) {
-    errEl.textContent = error?.message || 'Fehler beim Speichern.';
-    errEl.style.display = 'block';
-  } finally {
-    btn.disabled = false;
-    btn.textContent = 'Passwort speichern';
-  }
-}
+// changePassword() ist entfallen. Es war ein zweiter, laengst abgeloester
+// Passwort-Pfad: die Funktion hatte keinen Aufrufer, und alle fuenf von ihr
+// angesprochenen Elemente (#pw-new, #pw-confirm, #pw-save-btn, #pw-error,
+// #pw-success) existieren im Markup nicht mehr — der erste
+// getElementById(...).value haette sofort geworfen. Der lebende Pfad ist
+// vxSavePassword() auf der Profil-Unterseite. Mitentfernt statt umgestellt:
+// eine Zustandsanzeige an unerreichbarem Code zu vereinheitlichen waere
+// Arbeit an unsichtbarem Markup.
 
 // ═══════════════════════════════════════════
 //  NAVIGATION
@@ -31092,7 +31163,16 @@ function toggleCallRow(event, row) {
 <script>
 /* Slim stub: vxOpenDetailV2 redirects to new routing; vxDv2SaveNote kept for fullscreen note-save */
 (function() {
-  // vxDv2SaveNote: saves note from fullscreen detail view into Supabase
+  // vxDv2SaveNote: saves note from fullscreen detail view into Supabase.
+  //
+  // Trug den Zustand schon vorher am Knopf — das richtige Muster, aber als
+  // eigener Nachbau: eigene resetBtn()-Helferin, und drei hartkodierte Farben
+  // (#059669 / #0D1F3C / #DC2626), die per btn.style.background direkt in das
+  // Element geschrieben wurden und damit jede Knopf-Regel des Design-Systems
+  // uebersteuerten. Jetzt derselbe vxInlineSaveStatus() wie im Assistent-Tab
+  // und in den Einstellungen; der Fehlerfall geht ueber den Toast, der ihn
+  // ohnehin schon meldete — der zusaetzliche rote Knopf war eine zweite
+  // Meldung fuer dasselbe Ereignis.
   window.vxDv2SaveNote = function() {
     var recId = String(window._vxCurrentCallId || window._vxCurrentTaskId || '').trim();
     if (!recId) return;
@@ -31100,24 +31180,21 @@ function toggleCallRow(event, row) {
     var btn = document.getElementById('vx-dv2-save-btn');
     if (!field) return;
     var noteText = field.value.trim();
-    if (btn) { btn.textContent = 'Speichert…'; btn.disabled = true; }
-    var resetBtn = function(label, bg) {
-      if (!btn) return;
-      btn.textContent = label || 'Speichern';
-      btn.style.background = bg || '#0D1F3C';
-      btn.disabled = false;
-    };
     var sb = window.getSupabaseAuthClient ? getSupabaseAuthClient() : window._sb;
-    if (!sb) { resetBtn('Speichern'); if (window.toast) toast('Verbindung fehlt.'); return; }
-    sb.from('calls').update({ notes_customer_voxera: noteText, updated_at: new Date().toISOString() }).eq('id', recId)
-      .then(function() {
-        var rec = (window.allRecords||[]).find(function(r){ return r.id === recId; });
-        if (rec && rec.fields) rec.fields.notes_customer_voxera = noteText;
-        resetBtn('Gespeichert ✓', '#059669');
-        setTimeout(function(){ resetBtn('Speichern', '#0D1F3C'); }, 2000);
-        if (window.renderDashPriorityList) renderDashPriorityList();
-      }).catch(function() {
-        resetBtn('Fehler', '#DC2626');
+    if (!sb) { if (window.toast) toast('Verbindung fehlt.'); return; }
+    window.vxInlineSaveStatus(btn, function() {
+      return sb.from('calls').update({ notes_customer_voxera: noteText, updated_at: new Date().toISOString() }).eq('id', recId)
+        .then(function(result) {
+          // .update() meldet Fehler im Ergebnis, nicht per Rejection — ohne
+          // diese Pruefung haette der Knopf "Gespeichert ✓" gezeigt, waehrend
+          // nichts geschrieben wurde.
+          if (result && result.error) throw new Error(result.error.message || 'Notiz konnte nicht gespeichert werden.');
+          var rec = (window.allRecords||[]).find(function(r){ return r.id === recId; });
+          if (rec && rec.fields) rec.fields.notes_customer_voxera = noteText;
+          if (window.renderDashPriorityList) renderDashPriorityList();
+        });
+    }, { savingLabel: 'Speichert …', doneLabel: 'Gespeichert ✓', holdMs: 2000 })
+      .catch(function() {
         if (window.toast) toast('Notiz konnte nicht gespeichert werden.');
       });
   };
@@ -33969,12 +34046,6 @@ button.vx-cd-qa-success:hover,
     width: auto !important; max-width: none !important;
     max-height: min(72vh, 520px) !important;
   }
-  /* Toast */
-  #vx-toast-container {
-    bottom: calc(68px + env(safe-area-inset-bottom, 8px)) !important;
-    left: 10px !important; right: 10px !important;
-    max-width: none !important; width: auto !important;
-  }
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -34019,8 +34090,9 @@ button.vx-cd-qa-success:hover,
   border-radius: 8px !important;
 }
 
-/* Notification icons (30px) */
-.vx-ni-icon, .vx-toast-icon {
+/* Notification icons (30px) — .vx-toast-icon aus dem Selektor entfernt, die
+   Klasse gehoerte zum geloeschten zweiten Toast-System. */
+.vx-ni-icon {
   width: 30px !important; height: 30px !important;
   border-radius: 8px !important;
 }
@@ -35700,7 +35772,7 @@ body.vx-requests-focus-mode #call-detail-page.vx-detail-focus #call-detail-banne
     '#vx-detail-v2',
     '#vx-notif-panel',
     '#vx-notif-backdrop',
-    '#vx-toast-container'
+    '#toast'
   ];
   function run(){
     globalSelectors.forEach(function(sel){

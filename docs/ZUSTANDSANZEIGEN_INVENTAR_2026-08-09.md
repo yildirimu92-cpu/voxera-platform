@@ -1,6 +1,7 @@
 # Inventar: Zustandsanzeigen dashboardweit (Toasts, Live-Anruf-Karte, Speicher-Rückmeldungen)
 
-**Datum:** 2026-08-09 · **Branch:** `claude/toasts-zustandsanzeige-7fghjh` · **Status: AUDIT, kein Code geändert.**
+**Datum:** 2026-08-09 · **Branch:** `claude/toasts-zustandsanzeige-7fghjh`
+**Status: Inventar (Teil 1) + Umsetzung (Teil 2, siehe Abschnitt "Umsetzung" am Ende).**
 
 Auftragsgrundlage: Briefing "Alle Zustandsanzeigen dashboardweit aufs Design-System bringen".
 Auftragspunkt 2 verlangt die Rückmeldung der Liste, bevor grossflächig geändert wird — das ist
@@ -281,14 +282,169 @@ Live-Karte optisch bereits stimmt. Der Mehraufwand liegt in den Funden, nicht im
 
 ---
 
-## Was noch nicht verifiziert ist
+---
+---
 
-- **Kein Screenshot-Beleg.** Beide Breakpoints (Desktop, 390px) sind noch nicht gemessen —
-  gehört nach die Umsetzung, Auftragspunkt 6.
-- **Der Live-Anruf-Zustand ist bisher nicht hergestellt** (weder echt noch simuliert). Ob eine
-  Attrappe mit echten Stilen und echter Renderfunktion reicht, entscheidet sich beim Bauen; falls
-  nicht herstellbar, wird das benannt statt behauptet (Auftragspunkt 6).
-- **Der Realtime-Bug (1B) ist code-gelesen, nicht live nachgestellt.**
-- **Die Zuordnung "oben rechts" = `#incoming-banner`** ist eine Bewertung aus Positionsdaten,
-  kein Screenshot-Abgleich.
-- **Kein Verifier-Sweep gelaufen** — es wurde nichts geändert.
+# Teil 2 — Umsetzung
+
+Die drei Entscheidungsfragen aus Teil 1 blieben unbeantwortet. Umgesetzt wurde jeweils die
+empfohlene Variante; jede Annahme steht unten benannt und ist einzeln zurücknehmbar.
+
+## Getroffene Annahmen (Rückfragen blieben offen)
+
+| Frage | Angenommen | Rücknahme |
+|---|---|---|
+| `#incoming-banner` mitnehmen? | **Ja.** Sonst bliebe ausgerechnet die Fläche dunkel, an der es aufgefallen ist. | CSS-Block `.incoming-banner*` zurücksetzen; sonst nichts betroffen. |
+| Totes `vx-toast`-System + Realtime-Bug jetzt? | **Ja, beides.** Das Aufräumen schliesst den Bug ohnehin mit. | Eigenständig, hängt an keiner anderen Änderung. |
+| Grenzfälle | **`changePassword()` gelöscht, `vxDv2SaveNote()` gezogen, Aktivierungsflow NICHT angefasst.** | Aktivierungsflow bleibt offener Folgepunkt, siehe unten. |
+
+## Was geändert wurde
+
+### Familie 1 — Toasts
+
+- **`toast()` auf helle Karte** (`--vx-ui-card-*`, Night-Text, `--vx-shadow-lg`). Glas-Optik
+  (`rgba(15,23,42,.88)` + `backdrop-filter`) entfernt.
+- **Tonalität verstärkt statt eingeebnet.** Sie lag vorher auf *einem* Träger (18px-Icon-Kreis)
+  bei sonst identischer Fläche. Jetzt auf **zwei** — linker Kante und Icon-Kachel — beide aus
+  derselben Rollenvariable `--vx-toast-role` / `-role-bg`. Zuordnung gegen die
+  Vier-Familien-Regel geprüft: success→Grün (Abschluss), error→Rot (Dringlichkeit),
+  warning→Amber (dieselbe Rolle wie die Banner aus PR #886), info→Blau ("interaktiv"/Hinweis
+  seit F7). Ohne erkannte Tonalität: Night.
+- **Eine Farbquelle statt zwei.** Die vier SVG-Icons trugen feste Hexwerte *neben* vier
+  `rgba()`-Werten im CSS; jetzt `stroke="currentColor"`, die Kachel führt.
+- **Totes Zweitsystem entfernt:** `.vx-toast`-CSS-Block, `#vx-toast-container` samt
+  Mobile-Override, `vxBellAdd()`, die tote `.vx-toast-icon`-Grössenregel und alle drei
+  `vxToast()`-Aufrufe.
+- **Realtime-Bug geschlossen** (Nebeneffekt, aber der wertvollste Teil): der `ReferenceError`
+  bei `index.html:10394` brach den `notifications`-INSERT-Callback ab, wodurch die Folgezeile
+  `if (_vxBellOpen) { vxBellRender(); vxBellPageRender(); }` nie lief. Bei geöffnetem
+  Glocken-Popover erschien eine neu eintreffende Benachrichtigung deshalb nicht in der offenen
+  Liste. Der DOM-Wächter beobachtet statt des gelöschten Containers jetzt `#toast`.
+- Der dritte Aufruf (`renderAnrufeInbox`, hinter `typeof`-Wächter, feuerte also nie) geht auf
+  den lebenden `toast()` — der Hinweis "Auswahl aufgehoben" beim Zuklappen des Detailpanels war
+  seit jeher unsichtbar.
+- **`#incoming-banner`** auf dieselbe helle Karte. Puls-Punkt `#22c55e` → `--vx-color-danger`:
+  Grün gehört zu Abschluss-Aktionen, ein eingehender Anruf ist keiner — und die Live-Karte löst
+  denselben Sachverhalt bereits über Rot.
+
+### Familie 2 — Live-Anruf-Karte
+
+- **Text in der Assistenten-Sprache:** „*[Name] ist gerade im Gespräch*" bzw. „*[Name] führt
+  gerade N Gespräche*"; Unterzeile „*Sobald aufgelegt wird, erscheint die Anfrage hier.*"
+  Dritte Person, nicht erste: während das Gespräch läuft, berichtet die Karte *über* den
+  Assistenten, sie ist nicht seine Stimme.
+- **Name live aus `customerMeta.assistantName`**, gleiche Quelle und gleicher Fallback wie
+  `vxHeuteRenderLaraHandover()`. Kein Literal.
+- **Absenderzeichen wird endlich ausgegeben.** `.vx-live-avatar` war vollständig definiert und
+  wurde vom Renderer nie gerendert. Night, 36px — das war ohnehin die Grösse, die die globale
+  Avatar-Harmonisierung per `!important` erzwang; die 34px im Basisblock waren eine tote
+  Zweitangabe und sind jetzt angeglichen.
+- **Fingerprint kennt den Namen.** Sonst bliebe bei einer Umbenennung mitten im Gespräch der
+  alte Name stehen, während `vxSyncAssistantNameCopy()` den Rest des Screens nachzieht.
+- **Fläche und Live-Abzeichen unverändert** — geprüft, nicht angenommen: die Karte lag bereits
+  vollständig auf `--vx-ui-row-*`, das Abzeichen bereits auf `--vx-color-danger`. Rot =
+  Dringlichkeit, ein laufendes Gespräch ist der Live-Zustand schlechthin. **Kein Eingriff.**
+
+### Familie 3 — Speicher-Rückmeldungen
+
+- `vxSaveProfil()` und `vxSavePassword()` auf `vxInlineSaveStatus()`. Der Knopf trägt den
+  Erfolg, der Statusknoten nur noch Validierungsfehler und Fehlschläge — dieselbe Aufteilung
+  wie im Assistent-Tab.
+- **Inline-Farben weg.** `fb.style.color = '#059669'` überschrieb stumm die Token-Farben von
+  `.vx-settings-feedback[data-state]` — eine zweite, unsichtbare Farbquelle direkt neben der
+  eigentlichen.
+- `vxDv2SaveNote()` (Anfragen-Detail) auf denselben Helfer gezogen; `btn.style.background` mit
+  drei Hexwerten entfernt. **Nebenfund dabei behoben:** die Funktion wertete den
+  Supabase-Fehler nicht aus — `.update()` meldet ihn im Ergebnis, nicht per Rejection. Der
+  Knopf hätte „Gespeichert ✓" gezeigt, ohne dass geschrieben wurde.
+- `changePassword()` ersatzlos entfernt (toter Zweitpfad, alle fünf angesprochenen Elemente
+  existieren nicht mehr) samt der vier ins Leere laufenden Ruecksetzungen.
+- **Benachrichtigungsseite unangetastet** — der Verifier prüft das ausdrücklich, damit sie
+  nicht versehentlich doch mitgezogen wird, solange der Parallelauftrag daran baut.
+
+## Absicherung
+
+- **Neuer Verifier** `scripts/verify-zustandsanzeigen.mjs` (+ CI-Workflow). Er prüft die
+  konkreten historischen Fehler, nicht allgemeine Schönheit: dass das tote Zweitsystem nicht
+  zurückkehrt, dass die Tonalität auf zwei Trägern bleibt, dass der Assistentenname aus
+  `customerMeta` kommt, dass keine Inline-Farben zurückkommen — und dass die
+  Benachrichtigungsseite ausgeklammert bleibt.
+- **Gegenprobe gefahren:** 21 gezielte Mutationen eingebaut, **21 von 21 gefangen**, jede mit
+  einer Meldung, die den Fehler benennt. Eine Lücke hat die Gegenprobe dabei selbst
+  aufgedeckt (ein zusätzlicher dunkler Hintergrund im Banner-Block wäre durchgerutscht) und
+  eine Schwäche im Verifier (ein zu weites `slice()` las in die Nachbarfunktion und hätte
+  deren Fehler unter falschem Namen gemeldet) — beides behoben.
+- **Tests:** 4 neue Fälle in `live-call-lifecycle.test.cjs` (Name aus `customerMeta`, Fallback,
+  Umbenennung mitten im Gespräch, Absenderzeichen). **154/154 Dashboard-Tests grün.**
+- **Verifier-Sweep (Grundsatz 14): 57/59 grün.** Die zwei Ausfälle sind umgebungsbedingt und
+  auf dem `main`-Stand identisch rot: `verify-db-security-invariants` (keine
+  DB-Zugangsdaten gesetzt) und `verify-prompt-builder-version-bump` (keine gemeinsame Basis mit
+  `origin/main` im flachen Klon).
+- **Keine `?v=`-Bumps nötig:** es wurde keine gemeinsam genutzte CSS-Datei angefasst, nur
+  `index.html`. Damit entfällt die Verifier-Regressionsklasse aus Nachtrag 8b.
+
+## Sichtprüfung (Grundsatz 11)
+
+Gemessen mit Playwright gegen einen echten HTTP-Server mit `customer-dashboard/` als Wurzel —
+**nicht** über `file://`, das die nachgeladenen `/shared/*.css`-Module verfehlt hätte. Attrappe
+mit **echten** Stylesheets und **echten** Renderfunktionen (`toast()`, `updateLiveHero()`,
+`showIncomingBanner()` aus `index.html` extrahiert, nicht nachgebaut). Beide Breakpoints:
+1280×900 und 390×900.
+
+Berechnete Farben statt behaupteter: Toast-Fläche `rgb(255,255,255)`, Text `rgb(13,31,60)`,
+die vier linken Kanten `rgb(5,150,105)` / `rgb(26,111,232)` / `rgb(217,119,6)` /
+`rgb(220,38,38)` mit den vier zugehörigen Kachel-Hintergründen — also vier klar
+unterscheidbare Tonalitäten. Banner `rgb(255,255,255)` mit rotem Punkt und roter Kante.
+Live-Karte: Avatar `rgb(13,31,60)`, 36px, Initiale „L"; Abzeichen `rgb(220,38,38)`; beide
+Textvarianten korrekt.
+
+**Die Sichtprüfung hat zwei Fehler in der Attrappe selbst gefunden** (geklonte Kind-IDs
+fingen die Icon-Zuweisung ab; das Umbenennen der `#live-call-row`-ID nahm der Karte ihr
+gesamtes Styling, weil die Regel ein ID-Selektor ist). Beide hätten zu einem falschen
+„sieht gut aus" geführt — quelltextgeprüft wäre keiner aufgefallen.
+
+## Bewusst nicht angefasst
+
+- **Aktivierungsflow** (`index.html` `activationConfirmDeactivation`, `activationStartSmartphone`):
+  „Wird gespeichert…" ohne Fertig-Zustand. Eigener Screen mit eigener Renderlogik
+  (`renderActivationV2()` rendert direkt nach dem Speichern neu und würde das Knopf-Label
+  ohnehin überschreiben) — die Umstellung ist dort kein Einzeiler. Offener Folgepunkt.
+- **`vxCommercialSubmit()`**: `#vx-commercial-status` ist eine *Quittung* mit bleibendem Inhalt
+  (Referenznummer), keine Speicher-Rückmeldung. Der flüchtige `vxInlineSaveStatus()`-Zyklus
+  würde sie wegräumen. Gleiche Fehlerklasse wie die 14 bewusst unangetasteten Amber-Stellen in
+  PR #886: gleiche Optik, andere Bedeutung.
+- **Alt-Screen `#tab-einstellungen`** mit den doppelten `inapp-setting-*`-IDs (Befund B3) —
+  gehört in den parallelen Benachrichtigungs-Umbau.
+- **Modals/Dialoge** — eigene Familie mit eigenem Token-Satz, wie im Briefing abgegrenzt.
+- **Admin-Portal** — geprüft: kein einziger `toast(`-Aufruf, faktisch nicht betroffen.
+
+## Nebenfunde, nicht behoben (eigene Aufträge)
+
+1. **Die Tonalität wird bei ~118 von ~167 Toast-Aufrufen per Regex geraten.** Nur 49 übergeben
+   einen expliziten Typ. `toast('Rückruf als neue Aufgabe geplant')` wird zu `success`,
+   `toast('Bitte bestätigen Sie das Ergebnis.')` zu `warning`. Das war bisher fast unsichtbar,
+   weil sich die vier Tonalitäten kaum unterschieden — jetzt, wo sie es tun, werden auch die
+   Fehlableitungen sichtbar. **Bewertung, nicht gemessen:** die Trefferquote der Regex ist
+   nicht ausgezählt. Sinnvoller eigener Auftrag: Aufrufstellen durchgehen und Typ setzen.
+2. **Zwei Verblassungsgrade für denselben Zustand.** `.btn:disabled` liegt bei `opacity:.45`,
+   `.vx-ap-btn:disabled` bei `.55` — derselbe „Gespeichert ✓"-Zustand sieht in den
+   Einstellungen anders aus als im Assistent-Tab. Angleichen wäre eine Design-System-Änderung
+   über alle deaktivierten Knöpfe hinweg, kein Nebenprodukt dieses Auftrags.
+3. **`.vx-settings-feedback` nutzt abgedunkelte Hexwerte statt der Rollen-Tokens**
+   (`#247c5b` / `#b42318`). Das ist **kein** vergessener Token, sondern nachgerechnet nötig:
+   `--vx-color-success` (#059669) erreicht als Text auf Weiss nur **3.77:1** und verfehlt
+   WCAG AA (4.5:1). Wer diese Werte „aufräumt", verschlechtert die Lesbarkeit. Gehört als
+   Text-auf-Weiss-Variante ins Tokenset statt als Literal — eigener, kleiner Auftrag.
+
+## Was weiterhin nicht verifiziert ist
+
+- **Kein echter Live-Anruf.** Die Sichtprüfung lief gegen die Attrappe mit echten Stilen und
+  echter Renderfunktion; ein echter oder simulierter Anrufzustand gegen die laufende Anwendung
+  wurde nicht hergestellt. Gehört in den manuellen Abnahmelauf.
+- **Der geschlossene Realtime-Bug ist code-gelesen, nicht live nachgestellt.** Dass
+  `vxToast` nirgends existiert, ist per Grep belegt; dass deshalb das offene Glocken-Popover
+  nicht nachrendert, ist eine Ableitung aus dem Kontrollfluss.
+- **Die Zuordnung „oben rechts" = `#incoming-banner`** bleibt eine Bewertung aus Positionsdaten
+  (`top:96px`, über der Content-Spalte zentriert), kein Abgleich mit dem User-Screenshot.
+- **Kein Klicktest in der laufenden Anwendung** — Speichern auf der Profil-Seite, Notiz-Speichern
+  im Anfragen-Detail und der Fehlerpfad sind nicht gegen echte Supabase-Antworten gelaufen.

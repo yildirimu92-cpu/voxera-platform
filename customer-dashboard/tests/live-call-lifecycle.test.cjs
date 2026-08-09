@@ -118,6 +118,12 @@ function buildSandbox() {
     _liveHeroNotified: new Set(),
     announced: { toasts: 0, bells: 0, notifications: 0, sounds: 0 },
 
+    // Der Assistentenname der Karte muss aus customerMeta kommen, nie aus
+    // einem Literal — PR #838 hatte 12 hartkodierte "Lara"-Vorkommen
+    // beseitigt. Die Tests unten fahren diesen Wert bewusst auf einen
+    // Nicht-Standardnamen, damit ein Rückfall auffliegt.
+    customerMeta: { assistantName: 'Lara' },
+
     isManualTaskRecord: () => false,
     isActivationCallCategory: (c) => String(c || '').indexOf('activation') === 0,
     parseCallTimestamp: (v) => (v ? new Date(v) : null),
@@ -329,7 +335,7 @@ test('the hint carries no per-call data', () => {
   for (const leak of ['Anna Muster', 'Muster AG', '+41791234567', 'call-1']) {
     assert.equal(html.includes(leak), false, 'ambient hint must not render ' + leak);
   }
-  assert.equal(html.includes('Ein Anruf läuft gerade'), true);
+  assert.equal(html.includes('Lara ist gerade im Gespräch'), true);
 });
 
 test('a second live call patches the hint instead of rebuilding it', () => {
@@ -338,7 +344,62 @@ test('a second live call patches the hint instead of rebuilding it', () => {
   const node = ambientHost.children[0];
   sandbox.updateLiveHero([call('call-1', 'active'), call('call-2', 'incoming')]);
   assert.equal(ambientHost.children[0], node, 'a joining call must not recreate the node');
-  assert.equal(node.querySelector('.vx-live-name').textContent, '2 Anrufe laufen gerade');
+  assert.equal(node.querySelector('.vx-live-name').textContent, 'Lara führt gerade 2 Gespräche');
+});
+
+// ── 4. der Hinweis spricht in der Assistenten-Sprache, mit LIVE-Namen ──────
+
+test('the hint names the assistant from customerMeta, not from a literal', () => {
+  const { sandbox, ambientHost } = buildSandbox();
+  vm.runInContext('customerMeta.assistantName = "Nora";', sandbox);
+
+  sandbox.updateLiveHero([call('call-1', 'active')]);
+  const html = ambientHost.children[0].innerHTML;
+
+  assert.equal(html.includes('Nora ist gerade im Gespräch'), true, 'the configured name must reach the card');
+  assert.equal(html.includes('Lara'), false, 'no hardcoded default may survive a rename (PR #838)');
+  assert.equal(html.includes('>N<'), true, 'the avatar initial follows the configured name');
+});
+
+test('the hint falls back to Lara when no assistant name is configured', () => {
+  const { sandbox, ambientHost } = buildSandbox();
+  vm.runInContext('customerMeta.assistantName = "";', sandbox);
+
+  sandbox.updateLiveHero([call('call-1', 'active')]);
+  assert.equal(
+    ambientHost.children[0].innerHTML.includes('Lara ist gerade im Gespräch'),
+    true,
+    'same fallback as vxHeuteRenderLaraHandover() — never an empty sentence'
+  );
+});
+
+test('a rename mid-call redraws the hint instead of leaving a stale name', () => {
+  // Der Fingerprint kannte frueher nur die Anzahl. Nennt der Text den Namen,
+  // muss der Name Teil des Fingerprints sein — sonst bliebe der alte Name
+  // stehen, waehrend vxSyncAssistantNameCopy() den Rest des Screens
+  // bereits nachgezogen hat.
+  const { sandbox, ambientHost } = buildSandbox();
+  const live = call('call-1', 'active');
+  sandbox.updateLiveHero([live]);
+  const node = ambientHost.children[0];
+
+  vm.runInContext('customerMeta.assistantName = "Nora";', sandbox);
+  sandbox.updateLiveHero([live]);
+
+  assert.equal(ambientHost.children[0], node, 'a rename must patch the node, not rebuild it');
+  assert.equal(node.querySelector('.vx-live-name').textContent, 'Nora ist gerade im Gespräch');
+  assert.equal(node.querySelector('.vx-live-avatar').textContent, 'N', 'the initial follows too');
+});
+
+test('the hint carries the assistant avatar as its sender mark', () => {
+  // Die Klasse war im Stylesheet vollstaendig definiert, wurde vom Renderer
+  // aber nie ausgegeben — die Live-Karte war die einzige Zustandsflaeche auf
+  // Heute ohne Absenderzeichen.
+  const { sandbox, ambientHost } = buildSandbox();
+  sandbox.updateLiveHero([call('call-1', 'active')]);
+  const html = ambientHost.children[0].innerHTML;
+  assert.equal(html.includes('vx-live-avatar'), true, 'the sender mark must be rendered, not just styled');
+  assert.equal(html.includes('aria-hidden="true"'), true, 'the initial is decoration — the name is in the text');
 });
 
 test('the hint disappears on hangup', () => {
@@ -354,8 +415,10 @@ test('the in-app incoming notice is left to #incoming-banner, not rebuilt here',
   // name + green pulsing dot + sound) the moment a new call record appears, which
   // during a live call is while the line is open. updateLiveHero() must not put a
   // second in-app notification on top of it. vxToast()/vxBellAdd() used to be
-  // called here; vxToast() is implemented nowhere in the repo and vxBellAdd() only
-  // forwards to it, so both threw — they are gone rather than reimplemented.
+  // called here; vxToast() was implemented nowhere in the repo and vxBellAdd()
+  // only forwarded to it, so both threw — they are gone rather than
+  // reimplemented, and as of the Zustandsanzeigen-Pass both are removed from
+  // index.html entirely. The stubs stay as tripwires: they must never be hit.
   const { sandbox } = buildSandbox();
   sandbox.updateLiveHero([call('call-1', 'active')]);
   assert.deepEqual(
