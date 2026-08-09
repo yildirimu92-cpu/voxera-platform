@@ -129,6 +129,110 @@ function status(statusCode, label, detail) {
   return { status: statusCode, label, detail };
 }
 
+// ─── Zustellbeleg fuer die Benachrichtigungs-Karte ──────────────────────────
+// Wie lange eine erfolgreiche Zustellung als Beleg fuer "Aktiv" zaehlt.
+//
+// Ohne Fenster wuerde eine einzige alte Zeile die Karte fuer immer auf "Aktiv"
+// halten - das waere derselbe Fehler wie vorher, nur mit Beleg von damals:
+// eine unbelegte Behauptung gegen eine veraltete getauscht. 30 Tage, weil das
+// die Spanne ist, in der bei einem aktiven Anschluss praktisch sicher ein
+// Anruf faellt; laenger, und die Aussage sagt nichts mehr ueber heute.
+const NOTIFICATION_PROOF_WINDOW_DAYS = 30;
+
+const NOTIFICATION_MAIL_TYPES = ['call_notification_email', 'callback_request_email'];
+
+function formatDateCh(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return `${String(date.getDate()).padStart(2, '0')}.${String(date.getMonth() + 1).padStart(2, '0')}.${date.getFullYear()}`;
+}
+
+// Liest den juengsten Versandversuch einer Anruf-Benachrichtigung fuer diesen
+// Kunden. Erst seit der Migration von Make-Szenario 01 auf die zentrale
+// Mail-Engine gibt es diesen Beleg ueberhaupt - vorher lief der Versand an
+// outbox_events vorbei, und die Karte konnte nur Einstellungsfelder pruefen.
+//
+// Wirft nicht: ohne Beleg faellt die Karte auf "Konfiguriert" zurueck, also
+// genau auf das Verhalten von vorher. Ein Datenbankfehler darf das
+// Assistenten-Profil nicht scheitern lassen.
+async function loadNotificationDelivery(sbAdmin, customerId, nowMs = Date.now()) {
+  const empty = { lastSentAt: null, lastDeadAt: null };
+  if (!customerId) return empty;
+
+  const windowStart = new Date(nowMs - NOTIFICATION_PROOF_WINDOW_DAYS * 24 * 60 * 60 * 1000).toISOString();
+  try {
+    // Die Zeitgrenze steht bewusst zuerst: sie begrenzt die Zeilenmenge ueber
+    // idx_outbox_events_status_created_at, bevor auf das JSON-Feld gefiltert
+    // wird, fuer das es keinen Index gibt.
+    const { data, error } = await sbAdmin
+      .from('outbox_events')
+      .select('status, created_at, last_attempt_at')
+      .gte('created_at', windowStart)
+      .in('event_type', NOTIFICATION_MAIL_TYPES)
+      .eq('payload->>customer_id', customerId)
+      .order('created_at', { ascending: false })
+      .limit(20);
+    if (error) throw error;
+
+    const rows = Array.isArray(data) ? data : [];
+    const sent = rows.find(row => String(row.status || '').toLowerCase() === 'sent');
+    const dead = rows.find(row => String(row.status || '').toLowerCase() === 'dead');
+    return {
+      lastSentAt: sent?.last_attempt_at || sent?.created_at || null,
+      lastDeadAt: dead?.last_attempt_at || dead?.created_at || null
+    };
+  } catch (error) {
+    console.warn(JSON.stringify({
+      level: 'warn',
+      event: 'notification_proof_lookup_failed',
+      customer_id: customerId,
+      error: error?.message || String(error)
+    }));
+    return empty;
+  }
+}
+
+// Der Zustand der Karte, getrennt von ihrer Darstellung, damit er pruefbar ist.
+//
+// Drei Aussagen, jede belegbar:
+//   proven      - im Fenster wurde nachweislich zugestellt
+//   failing     - der Retry hat aufgegeben (Status 'dead'); das ist der stille
+//                 Ausfall, um den es bei dieser ganzen Arbeit ging
+//   configured  - eingerichtet, aber im Fenster kein Beleg. Ausdruecklich KEINE
+//                 Fehlermeldung: ohne Anrufe gibt es nichts zuzustellen.
+function notificationCard(configured, delivery, customer) {
+  const { state, since } = notificationEvidence(configured, delivery);
+  const channels = notificationDetail(customer);
+  const day = formatDateCh(since);
+
+  if (state === 'not_configured') {
+    return status('inactive', 'Nicht eingerichtet', 'Benachrichtigungen können in den Einstellungen aktiviert werden.');
+  }
+  if (state === 'failing') {
+    return status(
+      'attention',
+      'Zustellung prüfen',
+      day
+        ? `Eine Benachrichtigung konnte am ${day} nicht zugestellt werden. Bitte die hinterlegte E-Mail-Adresse prüfen.`
+        : 'Eine Benachrichtigung konnte nicht zugestellt werden. Bitte die hinterlegte E-Mail-Adresse prüfen.'
+    );
+  }
+  if (state === 'proven') {
+    return status('active', 'Aktiv', day ? `${channels} · zuletzt zugestellt am ${day}` : channels);
+  }
+  // Eingerichtet, aber im Fenster nichts zugestellt. Bewusst nicht als Mangel
+  // formuliert: ohne Anrufe gibt es nichts zuzustellen, und die Karte soll
+  // keinen Fehler behaupten, den sie nicht belegen kann.
+  return status('active', 'Konfiguriert', `${channels} · in den letzten ${NOTIFICATION_PROOF_WINDOW_DAYS} Tagen nichts zugestellt`);
+}
+
+function notificationEvidence(configured, delivery = {}) {
+  if (!configured) return { state: 'not_configured', since: null };
+  if (delivery.lastDeadAt) return { state: 'failing', since: delivery.lastDeadAt };
+  if (delivery.lastSentAt) return { state: 'proven', since: delivery.lastSentAt };
+  return { state: 'configured', since: null };
+}
+
 function notificationDetail(customer) {
   const mode = text(customer.notification_mode).toLowerCase();
   const channels = [];
@@ -141,7 +245,7 @@ function notificationDetail(customer) {
   return 'Keine Benachrichtigung eingerichtet';
 }
 
-function buildCapabilities(customer, profile, calendarReady, calendarAttention) {
+function buildCapabilities(customer, profile, calendarReady, calendarAttention, notificationDelivery = {}) {
   const lifecycle = text(customer.status).toLowerCase();
   const hasAgent = Boolean(text(customer.elevenlabs_agent_id));
   const hasNumber = hasAssignedNumber(customer.voxera_number);
@@ -222,17 +326,16 @@ function buildCapabilities(customer, profile, calendarReady, calendarAttention) 
     {
       id: 'notifications',
       title: 'Benachrichtigungen versenden',
-      ...(notificationConfigured
-        // "Konfiguriert" statt "Aktiv": diese Karte prueft nur die
-        // Einstellungsfelder des Kunden, nicht ob eine Benachrichtigung
-        // je tatsaechlich zugestellt wurde. Der Versand laeuft ueber
-        // Make-Szenario 01 direkt per SMTP-Modul, ausserhalb von
-        // _lib/mail-delivery.js und outbox_events - es gibt hier also
-        // keinen Beleg, den diese Function pruefen koennte (siehe
-        // Verifikation vom 2026-08-09: Szenario 01 war zu dem Zeitpunkt
-        // deaktiviert und lieferte trotz eingehender Anrufe keine Mails aus).
-        ? status('active', 'Konfiguriert', notificationDetail(customer))
-        : status('inactive', 'Nicht eingerichtet', 'Benachrichtigungen können in den Einstellungen aktiviert werden.'))
+      // Die einzige Karte, die eine Zustellung belegen kann statt sie
+      // anzunehmen. Bis zum 09.08.2026 ging das nicht: der Versand lief ueber
+      // Make-Szenario 01 an outbox_events vorbei, es gab schlicht nichts zu
+      // pruefen - deshalb stand hier "Konfiguriert" statt "Aktiv" (PR #871).
+      // Seit der Migration auf die zentrale Mail-Engine liegt der Beleg vor.
+      //
+      // "Aktiv" nur mit Zustellung im Fenster. Eine einzige alte Zeile duerfte
+      // die Karte nicht dauerhaft gruen faerben - das waere die alte
+      // Ehrlichkeitsluecke in neuer Form.
+      ...notificationCard(notificationConfigured, notificationDelivery, customer)
     },
     {
       id: 'faq',
@@ -482,7 +585,10 @@ exports.handler = async (event) => {
   if (planError) return response(500, { error: 'plan_config_load_failed', detail: planError.message });
 
   const industryId = text(customer.industry_template_id);
-  const [calendarSettingsResult, calendarConnectionsResult, operationalResult, industryResult, coreResult] = await Promise.all([
+  const [
+    calendarSettingsResult, calendarConnectionsResult, operationalResult, industryResult, coreResult,
+    notificationDelivery
+  ] = await Promise.all([
     sbAdmin.from('calendar_settings')
       .select('active_provider,feature_enabled,updated_at')
       .eq('customer_id', caller.customerId)
@@ -497,7 +603,11 @@ exports.handler = async (event) => {
     industryId
       ? sbAdmin.from('industry_templates').select('id,name,extra_steps').eq('id', industryId).maybeSingle()
       : Promise.resolve({ data: null, error: null }),
-    sbAdmin.from('system_config').select('value').eq('key', 'core_field_steps').maybeSingle()
+    sbAdmin.from('system_config').select('value').eq('key', 'core_field_steps').maybeSingle(),
+    // Der Zustellbeleg der Benachrichtigungs-Karte. Faengt seine Fehler selbst
+    // ab und liefert dann einen leeren Beleg - die Karte faellt damit auf
+    // "Konfiguriert" zurueck, statt das Profil scheitern zu lassen.
+    loadNotificationDelivery(sbAdmin, caller.customerId)
   ]);
 
   if (calendarSettingsResult.error) {
@@ -621,7 +731,7 @@ exports.handler = async (event) => {
       // serverseitig durchgesetzt — das Frontend liest nur das Ergebnis.
       can_change_forwarding: canEditForwarding(planCode)
     },
-    capabilities: buildCapabilities(customer, parsedProfile, calendarReady, calendarAttention),
+    capabilities: buildCapabilities(customer, parsedProfile, calendarReady, calendarAttention, notificationDelivery),
     technical_status: buildTechnicalStatus(customer, calendarReady, calendarAttention, activeProvider),
     urgent: buildUrgent(customer),
     boundaries: buildBoundaries(customer),
@@ -693,6 +803,9 @@ exports._test = {
   promptProfile,
   hasAssignedNumber,
   notificationDetail,
+  notificationEvidence,
+  notificationCard,
+  NOTIFICATION_PROOF_WINDOW_DAYS,
   buildCapabilities,
   buildTechnicalStatus,
   buildUrgent,

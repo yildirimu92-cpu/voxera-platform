@@ -11,6 +11,7 @@ on:
       - 'customer-dashboard/netlify/functions/preview-voice.js'
       - 'customer-dashboard/netlify/functions/get-available-voices.js'
       - 'scripts/verify-customer-assistant-profile.mjs'
+      - 'customer-dashboard/tests/notification-capability-proof.test.cjs'
       - '.github/workflows/verify-customer-assistant-profile.yml'
   push:
     branches: [main]
@@ -23,6 +24,7 @@ on:
       - 'customer-dashboard/netlify/functions/preview-voice.js'
       - 'customer-dashboard/netlify/functions/get-available-voices.js'
       - 'scripts/verify-customer-assistant-profile.mjs'
+      - 'customer-dashboard/tests/notification-capability-proof.test.cjs'
       - '.github/workflows/verify-customer-assistant-profile.yml'
 
 jobs:
@@ -34,3 +36,4 @@ jobs:
         with:
           node-version: '20'
       - run: node scripts/verify-customer-assistant-profile.mjs
+      - run: node --test customer-dashboard/tests/notification-capability-proof.test.cjs

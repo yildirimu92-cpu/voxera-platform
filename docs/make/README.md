@@ -65,6 +65,29 @@ Abgelöst und damit ohne Aufgabe: Szenario 01, der Hook
 Function `call-intake-resolve-customer` und deren Secret
 `CALL_INTAKE_RESOLVER_SECRET`.
 
+### Was der Beleg jetzt ermöglicht
+
+Die Fähigkeiten-Karte „Benachrichtigungen versenden" war der Ausgangspunkt
+dieser Arbeit: sie stand auf „Aktiv", ohne dass je eine Zustellung belegt war.
+PR #871 korrigierte das auf „Konfiguriert" — richtig, aber nur, weil es nichts
+zu prüfen gab. Der Versand lief an `outbox_events` vorbei.
+
+Seit dieser Migration gibt es den Beleg, und die Karte nutzt ihn
+(`notificationCard()` in `customer-assistant-profile.js`):
+
+| Zustand | Bedingung |
+|---|---|
+| „Nicht eingerichtet" | keine Benachrichtigungseinstellung |
+| „Aktiv" | eingerichtet **und** `sent`-Zeile in den letzten 30 Tagen |
+| „Konfiguriert" | eingerichtet, im Fenster nichts zugestellt |
+| „Zustellung prüfen" | eine Zeile steht auf `dead` (Retry aufgegeben) |
+
+Das Zeitfenster ist der Kern. Ohne es würde eine einzige alte Zeile die Karte
+dauerhaft grün färben — eine unbelegte Behauptung wäre gegen eine veraltete
+getauscht. „Konfiguriert" ist dabei bewusst **kein** Mangel: ohne Anrufe gibt es
+nichts zuzustellen, und die Karte soll keinen Fehler behaupten, den sie nicht
+belegen kann.
+
 ### Stilllegung (Stand 09.08.2026)
 
 Erledigt im Repository: `call-intake-resolve-customer.js` und
