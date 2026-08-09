@@ -1,7 +1,7 @@
 # Geschäftswissen — die vier Freitextfelder: Diagnose und Zielbild
 
 **Datum:** 09.08.2026 · **Nachtrag 09.08.** nach Freigabe (Abschnitt 11)
-**Status:** Diagnose und Zielbild abgeschlossen. **J1 und J2 sind freigegeben und umgesetzt** (Abschnitt 11). Alles ab J4 wartet weiterhin auf Freigabe.
+**Status:** Diagnose abgeschlossen. **J1, J2, J10 und J4 sind freigegeben und umgesetzt** (Abschnitt 11). J5–J9 stehen aus; J3 ist als eigener Auftrag nach J5 entschieden.
 **Prüfstand:** `main` @ `f21187e`, Produktionsdatenbank `ulcofbgrovgcvowdjrge` (Live-Abfragen, nicht aus Dokumenten übernommen). Staging (`hzqiyyqfchvfcmmbemvd`) enthält aktuell 0 Kunden.
 **Grundlage:** Auftrag „Freitextfelder im Geschäftswissen — Diagnose zuerst" (09.08.), Live-Test-Fund #3 aus PR #859, `docs/ASSISTENT_TAB_IA_DIAGNOSE_2026-08-09.md` (Abschnitte 5 und 11).
 
@@ -243,7 +243,7 @@ Alle am Code oder an der Produktionsdatenbank verifiziert.
 | **G4** | **Generische Fragen sind siebenfach in Branchenvorlagen dupliziert** (Abschnitt 4.2). Der Optionstext von `sprechstunden_modus` ist in `coiffeur` und `restaurant` Wort für Wort identisch, nur die Unterzeile nennt „Salon" bzw. „Restaurant". | SQL-Vergleich `extra_steps` | Erklärt, warum 12 Vorlagen diese Fragen gar nicht stellen. Pflegeschuld, die mit jeder neuen Vorlage wächst. |
 | **G5** | **UI-Beschriftung und Prompt-Überschrift widersprechen sich.** „Häufige Fragen und Buchungshinweise" → `## TERMINLOGIK & FAQ`; „Standort und reguläre Öffnungszeiten" → `## STANDORT & ERREICHBARKEIT`. | `customer-runtime-assistant-profile.js:612` vs. `prompt-builder-v2.js:302–303` | Klein, aber ursächlich: das Feld heisst für den Kunden anders, als es für den Agenten wirkt. Terminregeln landen deshalb im FAQ-Feld. |
 | **G6** | **Die Aufnahme-Checkliste steht doppelt.** 15 von 19 `default_booking_faq` beginnen mit „… aufnehmen: Name, …". Dasselbe existiert typisiert als `[PROMPT_V2].requiredInformation` und wird als eigener Prompt-Abschnitt `## PFLICHTINFORMATIONEN` gerendert. | `prompt-builder-v2.js:222–224`; SQL: 15/19 | Zwei Quellen für dieselbe Anweisung, ohne Rangfolge. Der Agent bekommt die Checkliste potenziell zweimal, mit abweichendem Wortlaut. |
-| **G7** | **`ai_short_description` und `ai_online_booking_url` sind gepflegte, ungelesene Spalten.** Beide werden im Admin-Wizard erfasst und gespeichert; `buildPromptV2()` liest keine von beiden, das Kunden-Dashboard zeigt keine von beiden. `booking_url` wird stattdessen als Branchen-Wizard-Schlüssel geführt. | `index.html:7702`, `:7930`; Spaltenliste `customers`; `prompt-builder-v2.js` (keine Treffer) | Dasselbe Muster wie D4/D5. Für das Zielbild relevant: zwei der benötigten Zielspalten existieren bereits, sie sind nur nicht angeschlossen. |
+| **G7** | **`ai_short_description` ist eine gepflegte, ungelesene Spalte — `ai_online_booking_url` war eine vollständig unbenutzte.** `ai_short_description` wird im Admin-Wizard erfasst und gespeichert, aber von `buildPromptV2()` nicht gelesen. **Korrektur (09.08., bei der J4-Umsetzung geprüft):** Für `ai_online_booking_url` stimmte „gepflegt" nicht — die Spalte kam repoweit nur in der Migration vor, die sie anlegte: kein Schreiber, kein Leser. Seit J4 ist sie das Ziel des generischen Felds `online_booking_url`. `booking_url` wird stattdessen als Branchen-Wizard-Schlüssel geführt. | `index.html:7702`, `:7930`; Spaltenliste `customers`; `prompt-builder-v2.js` (keine Treffer) | Dasselbe Muster wie D4/D5. Für das Zielbild relevant: zwei der benötigten Zielspalten existieren bereits, sie sind nur nicht angeschlossen. |
 
 ---
 
@@ -328,7 +328,7 @@ Aus vier gleich aussehenden Textareas wird ein Formular mit drei erkennbaren Tei
 
 ## 8. Vorgeschlagene Schnittfolge — nach Freigabe
 
-**Stand nach dem Nachtrag (Abschnitt 11): J1 und J2 sind freigegeben und umgesetzt. J3 und alles ab J4 warten weiterhin auf Freigabe.** So geschnitten, dass jeder Schnitt einzeln lieferbar ist und J1–J2 auch dann Wert haben, wenn der Rest verschoben wird.
+**Stand nach dem Nachtrag (Abschnitt 11): J1, J2, J10 und J4 sind umgesetzt. J3 ist als eigener Auftrag nach J5 eingeplant; J5–J9 stehen aus.** So geschnitten, dass jeder Schnitt einzeln lieferbar ist und J1–J2 auch dann Wert haben, wenn der Rest verschoben wird.
 
 | Schnitt | Inhalt | Abhängigkeit | Modell/Effort |
 |---|---|---|---|
@@ -350,7 +350,7 @@ Aus vier gleich aussehenden Textareas wird ein Formular mit drei erkennbaren Tei
 
 ## 9. Was ich für die Umsetzung entschieden brauche
 
-**F1, F2 und F4 sind inzwischen entschieden — siehe Abschnitt 11.1. F4 wurde dabei gegenüber der Empfehlung unten verschärft. F3, F5 und F6 sind weiterhin offen.**
+**Alle sechs Fragen sind entschieden — siehe Abschnitt 11.1 und 11.7. F4 wurde dabei gegenüber der Empfehlung unten verschärft.**
 
 | # | Frage | Meine Empfehlung |
 |---|---|---|
@@ -453,9 +453,54 @@ Entfernt wurden `resolvePromptVariables()`, `buildCustomerLayer()`, `buildAiProm
 
 **Nicht geprüft:** Die Oberfläche ist nicht im Browser aufgerufen worden. Dass die Vorschau im Normalfall weiterhin den Serverprompt zeigt, ist am Code belegt (der Wrapper ist unverändert, nur sein Fehlerpfad ist ersetzt), nicht klickend verifiziert.
 
-### 11.7 Was auch nach J1/J2 und J10 unbewiesen bleibt
+### 11.7 J4 — Schicht A steht
+
+**Freigegeben und umgesetzt** samt F3, F5 und F6.
+
+**Der Mechanismus.** Die generischen Betriebsfelder benutzen denselben Renderer und dieselbe Allowlist wie die Branchenfelder, aber einen anderen Speicher — genau die Antwort auf Auftragsfrage 4. Konkret:
+
+| | Schicht A (generisch) | Schicht B (Branche) |
+|---|---|---|
+| Schema | `system_config.core_field_steps` | `industry_templates.extra_steps` |
+| Form des Schemas | **identisch** (plus `column` je Feld) | — |
+| Renderer Kunden-UI | `schemaField(field, 'core')` | `schemaField(field, 'branch')` |
+| Renderer Prompt | `branchSchemaLines()` | dieselbe Funktion |
+| Renderer Admin-Wizard | `renderWizardDynamicStep()` | dieselbe Funktion |
+| Speicher | typisierte Spalten | `ai_branch_extra` |
+| Voraussetzung | keine | zugeordnete Branchenvorlage |
+
+**Warum das Schema in der Datenbank liegt und nicht im Code:** `admin-panel` und `customer-dashboard` sind zwei getrennte Netlify-Sites mit je eigenem `publish`- und Functions-Verzeichnis; es gibt keinen gemeinsamen Modulpfad. Ein JS-Modul hätte in beide Bäume kopiert werden müssen — genau die Doppelung, die dieser Auftrag beseitigt. Die Datenbank ist der einzige Ort, den beide ohne Kopie lesen.
+
+**Die Sicherheitsteilung, die daraus folgt:** Das Schema bestimmt, **welche** Frage gestellt wird und wie sie heisst. Es bestimmt **nicht**, welche Spalte beschrieben werden darf — diese Liste (`CORE_FIELD_COLUMNS`) steht im Code. Ohne diese Trennung wäre eine Zeile in `system_config` eine Schreibberechtigung auf `plan_code`, `status` oder `elevenlabs_agent_id`. Zwei Tests sichern sie ab: ein Schema, das `plan_code` als Ziel angibt, erzeugt weder eine Prompt-Zeile noch eine Schreibregel.
+
+**Die drei Felder.** `sprechstunden_modus` → `ai_coverage_mode` (neu), `termin_modus` → `ai_appointment_mode` (neu), `booking_url` → `ai_online_booking_url` (existierte, war unbenutzt — siehe G7-Korrektur).
+
+**Zwei Doppelungen sind dabei verschwunden:**
+
+1. **Terminbefugnis lag zweimal vor** — als `termin_modus` (`aufnehmen|direkt`) in fünf Branchenvorlagen und als `appointmentMode` (`none|request|direct`) in der `[PROMPT_V2]`-Zeile. Übernommen wurde das reichere Vokabular in einer typisierten Spalte; die Notiz-Zeile ist nur noch Rückfall, dieselbe Rangfolge wie bei `ai_branch_extra` seit D4/E10.
+2. **Der Buchungslink stand neben der Terminbefugnis statt in ihr.** Er hängt jetzt am Abschnitt `## TERMINBEFUGNIS`, gebunden an die Präferenz der anrufenden Person („Möchte die anrufende Person lieber selbst buchen…"). Damit widerspricht er keiner der drei Befugnisse.
+
+**Eine Entscheidung aus J1 habe ich dabei zurückgenommen.** In J1 hatte ich `booking_url` bei `termin_modus: aufnehmen` unterdrückt, damit der Agent keinen zweiten Buchungsweg anbietet. Diese Begründung trug, solange das Feld an der Option „direkt" hing. In Schicht A ist der Link ein eigenständig beantwortetes generisches Feld mit eigenem Hinweistext („Nur nötig, wenn Anrufende stattdessen selbst online buchen sollen") — wer ihn ausfüllt, meint ihn. Er wird jetzt in jeder Terminbefugnis genannt, aber nur als Angebot an die anrufende Person. Ich halte das für richtiger als die Unterdrückung; es ist eine bewusste Änderung, kein Versehen.
+
+**Ein sicherheitsrelevanter Punkt beim Altvokabular.** `termin_modus: direkt` bedeutete in vier der fünf Vorlagen „an Online-Buchung verweisen", in `garage` dagegen „Zeiten vorgeben und direkt bestätigen". Eine Abbildung auf `direct` hätte einem Betrieb Kalender-Buchungsbefugnis gegeben, die er nie gewählt hat. Der Rückfall bildet `direkt` deshalb auf `request` ab; der Link wandert getrennt als `online_booking_url` mit. Ein Test hält das fest.
+
+**Vorlagen bereinigt (F6).** Die drei Schlüssel sind aus den sieben Vorlagen entfernt: 39 Felder → 23, exakt die 16 Vorkommen (7 + 5 + 4). Schritte, die dabei leer liefen, entfallen mit. Die Bereinigung wurde vor dem Schreiben als reines `SELECT` gegen die Produktionsdaten geprüft.
+
+**Keine Datenübernahme nötig — und das ist belegt, nicht angenommen:** `ai_branch_extra` ist bei allen vier Kunden `null`, keiner trägt eine `[WIZARD]`-Zeile, `ai_online_booking_url` ist überall `null`. Das in Abschnitt 9/F6 beschriebene Fenster war zum Umsetzungszeitpunkt noch offen. Für das Zeitfenster zwischen Migration und Deploy liest der Builder die drei Altschlüssel trotzdem als Rückfall.
+
+**F3 ist im Zielbild verankert, aber noch nicht umgesetzt** — es betrifft die Öffnungszeiten-Migration und gehört damit zu J5. Freigegeben ist: Parser schlägt vor, Kunde bestätigt, der Freitext führt bis zur Bestätigung.
+
+**Abnahme:** 8 neue Prüfungen im Prompt-Builder, 9 im Kunden-Schreibpfad (in einer Sandbox mit gestubbtem `require`, damit die Allowlist echt ausgeführt und nicht nur ihr Quelltext geprüft wird). **Alle 47 `verify-*`-Suiten des Repos laufen grün**, bis auf `verify-db-security-invariants`, die auch ohne diese Änderung fehlschlägt (sie braucht Datenbankzugang, der hier nicht gesetzt ist).
+
+**Zwei J1-Tests wurden ersetzt, nicht gelöscht:** Sie prüften das kuratierte Verhalten von `termin_modus`/`booking_url`, das es so nicht mehr gibt. An ihre Stelle treten Tests der neuen Regel, einschliesslich der konservativen Abbildung des Altvokabulars.
+
+> **Zum Ausrollen — bitte lesen.** Die Migration `supabase/migrations/2026-08-09_core_field_layer.sql` ist **geschrieben, aber nicht angewendet**. Ich habe sie bewusst nicht gegen die Produktionsdatenbank ausgeführt: sie legt Spalten an, ändert Vorlagendaten und ist damit kein Schritt, den ich ohne ausdrückliche Freigabe gehe. **Reihenfolge zwingend: erst Migration, dann Deploy.** Umgekehrt lesen die Netlify-Funktionen Spalten, die es noch nicht gibt, und `customers`-Abfragen schlagen fehl. Der einzige Teil, der ohne Migration weiterläuft, ist das fehlende Schema: dann bleibt der generische Abschnitt leer und der Screen zeigt genau das, was er vor J4 zeigte.
+
+### 11.8 Was nach J1, J2, J10 und J4 unbewiesen bleibt
 
 - **Kein Live-Anruf.** Dass die 23 Felder jetzt *wirken*, ist am gebauten Prompt geprüft, nicht am Telefon. Der Prompt enthält die Angaben nachweislich — ob das Modell sie befolgt, ist damit nicht gezeigt.
 - **Kein Kunde hat heute Branchenantworten.** `ai_branch_extra` ist bei allen 4 Kunden `null`. J1 ist also an Fixtures geprüft, die den Vorlagen nachgebaut sind, nicht an echten Antworten. Der erste Kunde mit ausgefüllten Branchenfeldern ist der eigentliche Test.
 - **G1 bleibt latent.** Kein heutiger Kunde trägt Vorlagen-Defaults mit `[…]`. J2 ist damit eine Vorsorge, die im Moment nichts sichtbar repariert — ihr Wert entsteht mit A3.
+- **J4 ist nicht an einer laufenden Datenbank erprobt.** Die Migration ist geschrieben und ihr heikelster Teil — die Vorlagenbereinigung — als `SELECT` gegen die Produktionsdaten geprüft. Angewendet ist sie nicht. Dass Lese- und Schreibpfad gegen die neuen Spalten tatsächlich funktionieren, ist an Fixtures und Sandbox-Tests belegt, nicht an einem echten Request.
+- **Das Kunden-UI und der Admin-Wizard sind nicht im Browser geklickt.** Die neue Karte „Ihr Betrieb" und der neue Wizard-Schritt sind über Quelltextprüfungen und die Syntaxprüfung aller vier Inline-Skriptblöcke abgesichert. Wie sie aussehen, ist nicht gesehen worden.
 - **Der Regex-Zuschnitt ist an 31 Vorlagen-Markierungen kalibriert, nicht an Kundentexten.** Schreibt ein Kunde eckige Klammern regulär und kurz, werden sie ersetzt. Ich halte das für den richtigen Kompromiss, es ist aber eine Abwägung und keine bewiesene Nebenwirkungsfreiheit.

@@ -4379,6 +4379,7 @@ const state={
     {key:'Live Call Quality Scoring',desc:'Interner Canary',state:'PARTIAL'}
   ],
   defaultAssistantName: 'Lara',
+  coreFieldSteps: [],
   aiGlobal:{
     prompt:'Du bist ein professioneller Voice Assistant für Schweizer KMU. Du kommunizierst freundlich, klar, strukturiert und lösungsorientiert. Du nimmst Anrufe zuverlässig entgegen, erfasst Anliegen sauber und leitest relevante Informationen korrekt weiter. Du erfindest keine Informationen und machst keine verbindlichen Zusagen, wenn diese nicht ausdrücklich im Kundenkontext hinterlegt sind. Bei kritischen oder dringenden Anliegen handelst du ruhig, professionell und priorisierst eine saubere Eskalation.',
     tone:'Professionell, freundlich, ruhig',
@@ -7235,8 +7236,46 @@ const WIZARD_BRANCH_EXTRA_FIELDS = {
     { key:'max_gruppe', label:'Max Gruppe ohne Rückruf' }
   ]
 };
+// J4: Welche Spalte ein generisches Feld beschreibt, steht im Code und nicht im
+// Schema aus system_config — sonst waere eine Zeile dort eine Schreibberechtigung
+// auf beliebige Kundenspalten. Dieselbe Liste fuehren
+// _lib/prompt-builder-v2.js und die beiden customer-dashboard-Funktionen.
+const CORE_FIELD_COLUMN_MAP = {
+  coverage_mode: 'ai_coverage_mode',
+  appointment_mode: 'ai_appointment_mode',
+  online_booking_url: 'ai_online_booking_url'
+};
+
+function coreWizardValues(customer){
+  const values = {};
+  Object.entries(CORE_FIELD_COLUMN_MAP).forEach(([key, column]) => {
+    values[key] = customer?.[column] || '';
+  });
+  return values;
+}
+
+function coreWizardPatch(data){
+  const patch = {};
+  Object.entries(CORE_FIELD_COLUMN_MAP).forEach(([key, column]) => {
+    patch[column] = String(data?.[key] || '').trim() || null;
+  });
+  return patch;
+}
+
 function getWizardSteps(templateId){
   const defaults = getTemplateDefaults(templateId);
+  // J4: Die generischen Betriebsfragen (Einsatz-Modus, Terminbefugnis,
+  // Buchungslink) lagen bis hierher in den extra_steps von sieben Vorlagen und
+  // fehlten den zwoelf uebrigen. Jetzt kommen sie aus einer Quelle und gelten
+  // fuer jede Vorlage — auch fuer 'generic'.
+  const coreSteps = (Array.isArray(state.coreFieldSteps) ? state.coreFieldSteps : []).map(stepDef => ({
+    id: String(stepDef.id||'core'),
+    title: stepDef.title || 'Betrieb',
+    sub: stepDef.sub || '',
+    fields: Array.isArray(stepDef.fields) ? stepDef.fields : [],
+    render: (data) => renderWizardDynamicStep(stepDef, data),
+    collect: (data) => collectWizardDynamicStep(stepDef, data)
+  })).filter(step => step.fields.length > 0);
   // Convert each JSON-defined extra step into render+collect handlers
   const dynamicSteps = (defaults.extraSteps||[]).map(stepDef => ({
     id: String(stepDef.id||'extra_'+Math.random().toString(36).slice(2,7)),
@@ -7271,6 +7310,7 @@ function getWizardSteps(templateId){
       render: renderWizardStepBranche,
       collect: collectWizardStepBranche
     },
+    ...coreSteps,
     {
       id:'identitaet',
       title:'Assistent & Identität',
@@ -7493,6 +7533,10 @@ async function openAiWizard(customerId){
     websiteUrl:      c?.ai_website_url || '',
     shortDescription:c?.ai_short_description || '',
     branchExtra:     c?.ai_branch_extra || {},
+    // Schicht A: die Antworten liegen in typisierten Spalten, der Wizard
+    // arbeitet aber mit den Schema-Schluesseln. Die Zuordnung steht in
+    // CORE_FIELD_COLUMN_MAP — bewusst im Code, nicht im Schema.
+    ...coreWizardValues(c),
     forwarding1Name: c?.ai_forwarding_1_name || '',
     forwarding1Number: c?.ai_forwarding_1_number || '',
     forwarding1Trigger: c?.ai_forwarding_1_trigger || '',
@@ -7700,6 +7744,7 @@ async function wizardFinish(){
         ai_website_url: d.websiteUrl || null,
         ai_short_description: d.shortDescription || null,
         ai_branch_extra: d.branchExtra && Object.keys(d.branchExtra).length ? d.branchExtra : null,
+        ...coreWizardPatch(d),
         ai_forwarding_1_name: d.forwarding1Name || null,
         ai_forwarding_1_number: d.forwarding1Number || null,
         ai_forwarding_1_trigger: d.forwarding1Trigger || null,
@@ -7734,7 +7779,11 @@ async function wizardFinish(){
         })(),
         ai_internal_notes: (()=>{
           // Persist dynamic wizard fields that don't have own DB columns
-          const dynKeys=['termin_modus','booking_url','pannendaten_aufnehmen','takeaway_aktiv',
+          // termin_modus, booking_url und sprechstunden_modus stehen hier nicht
+          // mehr: sie sind seit J4 generische Felder mit eigenen Spalten
+          // (coreWizardPatch). Zwei Speicherorte fuer dieselbe Antwort waren
+          // genau der Befund G4.
+          const dynKeys=['pannendaten_aufnehmen','takeaway_aktiv',
             'allergien_abfragen','faerbung_beratung','kinder_service','sprachen','gaeste_typen',
             'haeufigste_anliegen','stylisten_namen','medizinische_abgrenzung','max_gruppe_ohne_rueckruf'];
           const dynData={};
@@ -15139,9 +15188,14 @@ async function loadDataFromSupabase(opts) {
         .select('key,value');
       const sysConfig = Object.fromEntries((sysConfigRows||[]).map(r=>[r.key, r.value]));
       state.defaultAssistantName = sysConfig['default_assistant_name'] || 'Lara';
+      // J4 / Schicht A: Schema der generischen Betriebsfelder. Gleiche Form wie
+      // industry_templates.extra_steps, deshalb bedienen es derselbe
+      // Schritt-Renderer und derselbe Collector.
+      state.coreFieldSteps = (()=>{ try{ const v=JSON.parse(sysConfig['core_field_steps']||'[]'); return Array.isArray(v)?v:[]; }catch(_e){ return []; } })();
     } catch(_sysErr) {
       console.warn('[system_config] Could not load — continuing with defaults:', _sysErr?.message);
       state.defaultAssistantName = state.defaultAssistantName || 'Lara';
+      state.coreFieldSteps = state.coreFieldSteps || [];
     }
 
     // 1. Load customers (all columns)

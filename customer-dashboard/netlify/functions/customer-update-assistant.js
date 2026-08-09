@@ -33,6 +33,69 @@ function text(value, maxLength) {
 // auf den Prompt.
 const BRANCH_TEXT_LIMIT = 400;
 
+// J4 / Schicht A. Der Schreibpfad benutzt bewusst dieselbe Bauform wie die
+// Branchenfelder: erlaubte Schluessel und Optionen kommen aus dem Schema, der
+// Browser bestimmt nichts. Ein Unterschied ist entscheidend — das Ziel ist eine
+// typisierte Spalte, und WELCHE Spalte beschrieben werden darf, steht hier im
+// Code und nicht im Schema. Sonst waere eine Zeile in system_config eine
+// Schreibberechtigung auf plan_code, status oder elevenlabs_agent_id.
+// Dieselbe Liste steht in _lib/prompt-builder-v2.js und in
+// customer-assistant-profile.js; die drei gehoeren zusammen gepflegt.
+const CORE_FIELD_COLUMNS = new Set(['ai_coverage_mode', 'ai_appointment_mode', 'ai_online_booking_url']);
+const CORE_TEXT_LIMIT = 400;
+
+function parseCoreSteps(value) {
+  if (Array.isArray(value)) return value;
+  try {
+    const parsed = JSON.parse(String(value || ''));
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (_error) {
+    return [];
+  }
+}
+
+function coreFieldRules(steps) {
+  const rules = new Map();
+  (Array.isArray(steps) ? steps : []).forEach((step) => {
+    (Array.isArray(step?.fields) ? step.fields : []).forEach((field) => {
+      const key = String(field?.key || '').trim();
+      const column = String(field?.column || '').trim();
+      if (!/^[A-Za-z0-9_]+$/.test(key) || !CORE_FIELD_COLUMNS.has(column) || rules.has(key)) return;
+      const options = (Array.isArray(field?.options) ? field.options : [])
+        .map((option) => String(option?.val || '').trim())
+        .filter(Boolean);
+      rules.set(key, { column, options });
+    });
+  });
+  return rules;
+}
+
+// Anders als bei den Branchenfeldern loescht ein leerer Wert hier ausdruecklich:
+// jedes Feld hat eine eigene Spalte, "nicht gesetzt" ist ein gueltiger Zustand
+// und muss zuruecknehmbar sein.
+function sanitizeCoreFields(input, rules) {
+  const patch = {};
+  const rejected = [];
+  Object.entries(input && typeof input === 'object' && !Array.isArray(input) ? input : {}).forEach(([key, value]) => {
+    const rule = rules.get(key);
+    if (!rule) {
+      rejected.push(key);
+      return;
+    }
+    const cleaned = String(value ?? '').replace(/[{}]/g, '').trim().slice(0, CORE_TEXT_LIMIT);
+    if (!cleaned) {
+      patch[rule.column] = null;
+      return;
+    }
+    if (rule.options.length && !rule.options.includes(cleaned)) {
+      rejected.push(key);
+      return;
+    }
+    patch[rule.column] = cleaned;
+  });
+  return { patch, rejected };
+}
+
 function branchFieldRules(steps) {
   const rules = new Map();
   (Array.isArray(steps) ? steps : []).forEach((step) => {
@@ -133,6 +196,7 @@ exports.handler = async (event) => {
     ai_forwarding_2_trigger,
     ai_emergency_number,
     ai_branch_extra,
+    core_fields,
     notification_mode,
     sms_notify_enabled,
     sms_notify_trigger,
@@ -260,6 +324,31 @@ exports.handler = async (event) => {
     patch.ai_branch_extra = Object.keys(merged).length ? merged : null;
   }
 
+  // Schicht A. Anders als ai_branch_extra braucht das keine Branchenvorlage —
+  // genau deshalb liegen diese Werte in eigenen Spalten (Entscheid F1).
+  if (core_fields !== undefined) {
+    const { data: coreRow, error: coreError } = await sbAdmin
+      .from('system_config')
+      .select('value')
+      .eq('key', 'core_field_steps')
+      .maybeSingle();
+    if (coreError) return response(500, buildContractPayload({ error: 'core_field_steps_load_failed' }));
+
+    const rules = coreFieldRules(parseCoreSteps(coreRow?.value));
+    if (!rules.size) {
+      return response(409, buildContractPayload({ error: 'core_fields_unavailable', errors: ['core_fields_unavailable'] }));
+    }
+    const { patch: corePatch, rejected } = sanitizeCoreFields(core_fields, rules);
+    if (rejected.length) {
+      return response(400, buildContractPayload({
+        error: 'core_field_not_in_schema',
+        errors: ['core_field_not_in_schema'],
+        blocked_fields: rejected
+      }));
+    }
+    Object.assign(patch, corePatch);
+  }
+
   const patchKeys = Object.keys(patch).filter((key) => key !== 'updated_at');
   if (!patchKeys.length) {
     return response(400, buildContractPayload({
@@ -316,4 +405,4 @@ exports.handler = async (event) => {
   }));
 };
 
-exports._test = { branchFieldRules, sanitizeBranchExtra };
+exports._test = { branchFieldRules, sanitizeBranchExtra, parseCoreSteps, coreFieldRules, sanitizeCoreFields };

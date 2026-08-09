@@ -609,8 +609,9 @@
     // vx-ui-brand-rule: der Gold-Streifen auf der fuehrenden Karte des
     // Screens. Genau eine pro Screen, zustandsunabhaengig — siehe
     // customer-ui-components.css, Abschnitt 9.
-    body.innerHTML = '<div id="vx-business-profile-status" class="vx-ap-status" role="status" aria-live="polite"></div><div class="vx-ap-card vx-ui-brand-rule"><div class="vx-ap-head"><div><div class="vx-ap-title">Dauerhaftes Geschäftswissen</div><div class="vx-ap-meta">Diese Informationen verwendet der Assistent im normalen Betrieb. Ferien und kurzfristige Änderungen gehören in „Aktuelle Infos“.</div></div></div><div class="vx-ap-grid"><div class="vx-ap-field"><label>Unternehmensbeschreibung</label><textarea id="vx-business-description" placeholder="Was macht Ihr Unternehmen und für wen?">' + esc(data.description || '') + '</textarea></div><div class="vx-ap-field"><label>Leistungen und Angebote</label><textarea id="vx-business-services" placeholder="Welche Leistungen darf der Assistent erklären?">' + esc(data.services || '') + '</textarea></div><div class="vx-ap-field"><label>Standort und reguläre Öffnungszeiten</label><textarea id="vx-business-location-hours" placeholder="Adresse, Einzugsgebiet und reguläre Öffnungszeiten">' + esc(data.location_hours || '') + '</textarea></div><div class="vx-ap-field"><label>Häufige Fragen und Buchungshinweise</label><textarea id="vx-business-booking-faq" placeholder="Wichtige Antworten, Voraussetzungen oder Hinweise">' + esc(data.booking_faq || '') + '</textarea></div></div><div class="vx-ap-actions"><button type="button" class="vx-ap-btn" id="vx-business-profile-save"' + (busy ? ' disabled' : '') + '>Geschäftsprofil speichern</button></div><div id="vx-business-save-status" class="vx-ap-status vx-ap-status--inline" role="status" aria-live="polite"></div></div>' + branchCard();
+    body.innerHTML = '<div id="vx-business-profile-status" class="vx-ap-status" role="status" aria-live="polite"></div><div class="vx-ap-card vx-ui-brand-rule"><div class="vx-ap-head"><div><div class="vx-ap-title">Dauerhaftes Geschäftswissen</div><div class="vx-ap-meta">Diese Informationen verwendet der Assistent im normalen Betrieb. Ferien und kurzfristige Änderungen gehören in „Aktuelle Infos“.</div></div></div><div class="vx-ap-grid"><div class="vx-ap-field"><label>Unternehmensbeschreibung</label><textarea id="vx-business-description" placeholder="Was macht Ihr Unternehmen und für wen?">' + esc(data.description || '') + '</textarea></div><div class="vx-ap-field"><label>Leistungen und Angebote</label><textarea id="vx-business-services" placeholder="Welche Leistungen darf der Assistent erklären?">' + esc(data.services || '') + '</textarea></div><div class="vx-ap-field"><label>Standort und reguläre Öffnungszeiten</label><textarea id="vx-business-location-hours" placeholder="Adresse, Einzugsgebiet und reguläre Öffnungszeiten">' + esc(data.location_hours || '') + '</textarea></div><div class="vx-ap-field"><label>Häufige Fragen und Buchungshinweise</label><textarea id="vx-business-booking-faq" placeholder="Wichtige Antworten, Voraussetzungen oder Hinweise">' + esc(data.booking_faq || '') + '</textarea></div></div><div class="vx-ap-actions"><button type="button" class="vx-ap-btn" id="vx-business-profile-save"' + (busy ? ' disabled' : '') + '>Geschäftsprofil speichern</button></div><div id="vx-business-save-status" class="vx-ap-status vx-ap-status--inline" role="status" aria-live="polite"></div></div>' + coreCard() + branchCard();
     document.getElementById('vx-business-profile-save')?.addEventListener('click', saveBusiness);
+    document.getElementById('vx-core-save')?.addEventListener('click', saveCore);
     document.getElementById('vx-branch-save')?.addEventListener('click', saveBranch);
     restoreStatus('business');
   }
@@ -619,25 +620,63 @@
   // extra_steps), nicht aus dieser Datei. Ohne zugeordnete Branche oder ohne
   // hinterlegte Zusatzfelder sagt die Karte genau das, statt zu verschwinden:
   // die fehlende Zuordnung ist die eigentliche Lücke, nicht der Inhalt.
-  function branchField(field) {
-    const id = 'vx-branch-' + field.key;
+  // J4: Derselbe Renderer bedient beide Schichten — die generischen Felder aus
+  // system_config.core_field_steps und die Branchenfelder aus der Vorlage. Sie
+  // unterscheiden sich nur im Speicher (typisierte Spalte gegenüber
+  // ai_branch_extra) und deshalb hier nur im Namen des Datenattributs.
+  function schemaField(field, scope) {
+    const id = 'vx-' + scope + '-' + field.key;
+    const attr = scope === 'core' ? 'data-vx-core-key' : 'data-vx-branch-key';
     const hint = field.hint ? '<div class="vx-ap-meta">' + esc(field.hint) + '</div>' : '';
     let control;
     if (field.type === 'radio' && field.options.length) {
-      control = '<select id="' + esc(id) + '" data-vx-branch-key="' + esc(field.key) + '"' + (busy ? ' disabled' : '') + '>'
+      control = '<select id="' + esc(id) + '" ' + attr + '="' + esc(field.key) + '"' + (busy ? ' disabled' : '') + '>'
         + '<option value="">Noch nicht gewählt</option>'
         + field.options.map((option) => (
           '<option value="' + esc(option.value) + '"' + (field.value === option.value ? ' selected' : '') + '>' + esc(option.label) + '</option>'
         )).join('')
         + '</select>';
     } else if (field.type === 'textarea') {
-      control = '<textarea id="' + esc(id) + '" data-vx-branch-key="' + esc(field.key) + '" maxlength="400" placeholder="' + esc(field.placeholder) + '"'
+      control = '<textarea id="' + esc(id) + '" ' + attr + '="' + esc(field.key) + '" maxlength="400" placeholder="' + esc(field.placeholder) + '"'
         + (busy ? ' disabled' : '') + '>' + esc(field.value) + '</textarea>';
     } else {
-      control = '<input id="' + esc(id) + '" data-vx-branch-key="' + esc(field.key) + '" maxlength="400" value="' + esc(field.value) + '" placeholder="' + esc(field.placeholder) + '"'
+      control = '<input id="' + esc(id) + '" ' + attr + '="' + esc(field.key) + '" maxlength="400" value="' + esc(field.value) + '" placeholder="' + esc(field.placeholder) + '"'
         + (busy ? ' disabled' : '') + '>';
     }
     return '<div class="vx-ap-field"><label for="' + esc(id) + '">' + esc(field.label) + '</label>' + control + hint + '</div>';
+  }
+
+  function branchField(field) { return schemaField(field, 'branch'); }
+
+  // Schicht A. Diese Karte steht vor der Branchenkarte, weil ihre Angaben für
+  // jeden Betrieb gelten — auch für die drei von vier Kunden ohne zugeordnete
+  // Branche, die die Branchenkarte gar nicht ausfüllen können.
+  function coreCard() {
+    const sections = profile?.core_sections || [];
+    if (!sections.length) return '';
+    return '<div class="vx-ap-card"><div class="vx-ap-head"><div><div class="vx-ap-title">Ihr Betrieb</div>'
+      + '<div class="vx-ap-meta">Grundangaben zur Erreichbarkeit und zu Terminen. '
+      + 'Sie gelten unabhängig von Ihrer Branche; was leer bleibt, erwähnt Ihr Assistent nicht.</div></div></div>'
+      + sections.map((section) => (
+        '<div class="vx-ap-subsection">'
+        + '<div class="vx-ap-subtitle">' + esc(section.title) + '</div>'
+        + (section.hint ? '<div class="vx-ap-meta">' + esc(section.hint) + '</div>' : '')
+        + '<div class="vx-ap-fieldlist">' + section.fields.map((field) => schemaField(field, 'core')).join('') + '</div>'
+        + '</div>'
+      )).join('')
+      + originChip('voxera', 'Gilt für alle Betriebe')
+      + '<div class="vx-ap-actions"><button type="button" class="vx-ap-btn" id="vx-core-save"' + (busy ? ' disabled' : '') + '>Betriebsangaben speichern</button></div>'
+      + '<div id="vx-core-status" class="vx-ap-status vx-ap-status--inline" role="status" aria-live="polite"></div>'
+      + '</div>';
+  }
+
+  async function saveCore() {
+    const payload = {};
+    document.querySelectorAll('[data-vx-core-key]').forEach((node) => {
+      payload[node.dataset.vxCoreKey] = String(node.value || '').trim();
+    });
+    if (!Object.keys(payload).length) return;
+    await updateAssistant({ core_fields: payload }, 'business', document.getElementById('vx-core-save'));
   }
 
   function branchCard() {
@@ -765,7 +804,7 @@
     // vx-hero-tune-cancel gehoert dazu: sonst laesst sich der Editor waehrend
     // eines laufenden Speicherns wegklicken und der Zustand ist weg, obwohl der
     // Request noch fehlschlagen kann.
-    ['vx-business-profile-save', 'vx-open-business-profile', 'vx-hero-tune-cancel', 'vx-greeting-reset', 'vx-branch-save'].forEach((id) => {
+    ['vx-business-profile-save', 'vx-open-business-profile', 'vx-hero-tune-cancel', 'vx-greeting-reset', 'vx-core-save', 'vx-branch-save'].forEach((id) => {
       const node = document.getElementById(id);
       if (node) node.disabled = disabled;
     });

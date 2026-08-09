@@ -231,23 +231,12 @@ check('G3: an answer the curated rules do not cover falls through instead of van
 
 check('curated rules keep precedence and are never duplicated', () => {
   const built = buildPromptV2({
-    customer:withBranchAnswers({ termin_modus:'direkt', booking_url:'https://buchung.example.ch' }),
+    customer:withBranchAnswers({ allergien_abfragen:'immer' }),
     masterPrompt:'{{CUSTOMER_LAYER}}',
     industryFields:branchSteps
   });
-  assert.match(built.prompt, /Terminanfragen: Online-Buchung verwenden \(https:\/\/buchung\.example\.ch\)/);
-  assert.equal((built.prompt.match(/buchung\.example\.ch/g) || []).length, 1, 'Der Buchungslink steht doppelt im Prompt');
-  assert.ok(!built.prompt.includes('An Online-Booking verweisen'), 'Die generische Zeile doppelt den kuratierten Satz');
-});
-
-check('a booking link never contradicts a deliberate confirm-ourselves flow', () => {
-  const built = buildPromptV2({
-    customer:withBranchAnswers({ termin_modus:'aufnehmen', booking_url:'https://buchung.example.ch' }),
-    masterPrompt:'{{CUSTOMER_LAYER}}',
-    industryFields:branchSteps
-  });
-  assert.match(built.prompt, /die Bestätigung erfolgt durch das Unternehmen/);
-  assert.ok(!built.prompt.includes('buchung.example.ch'), 'Der Agent bekaeme einen zweiten Buchungsweg angeboten');
+  assert.match(built.prompt, /Allergien bei Erstanfragen aktiv erfragen\./);
+  assert.ok(!built.prompt.includes('Bei jeder Erstanfrage aktiv fragen'), 'Die generische Zeile doppelt den kuratierten Satz');
 });
 
 check('an answer the template itself places as a variable is not repeated', () => {
@@ -326,6 +315,104 @@ check('G1: the operational-updates type marker survives the neutralisation', () 
 check('unfilled bracket markers degrade to a do-not-mention instruction', () => {
   assert.equal(neutralizePlaceholders('Adresse: [Strasse, PLZ Ort]'), 'Adresse: nicht hinterlegt; nicht erwähnen');
   assert.equal(neutralizePlaceholders('Ein [sehr langer Text, der ganz bewusst deutlich mehr als achtzig Zeichen umfasst und deshalb keine Ausfuellmarkierung ist] bleibt'), 'Ein [sehr langer Text, der ganz bewusst deutlich mehr als achtzig Zeichen umfasst und deshalb keine Ausfuellmarkierung ist] bleibt');
+});
+
+// ── J4 / Schicht A: generische Betriebsfelder ────────────────────────────────
+// Das Schema kommt im Betrieb aus system_config.core_field_steps. Diese Fixture
+// bildet die Migration 2026-08-09_core_field_layer.sql nach — als JSON-Text,
+// weil system_config.value eine Textspalte ist.
+const CORE_STEPS_JSON = JSON.stringify([{
+  id:'betrieb_kern',
+  title:'Erreichbarkeit und Termine',
+  fields:[
+    { key:'coverage_mode', column:'ai_coverage_mode', type:'radio', label:'Wann übernimmt der Assistent', options:[
+      { val:'rund_um_die_uhr', label:'Immer', sub:'Alle Anrufe werden entgegengenommen, auch nachts und am Wochenende.' },
+      { val:'ausserhalb_sprechstunde', label:'Nur ausserhalb der Öffnungszeiten', sub:'Der Assistent springt ein, wenn der Betrieb geschlossen ist.' },
+      { val:'backup', label:'Nur wenn niemand abhebt', sub:'Der Assistent übernimmt erst, wenn im Betrieb niemand den Anruf annimmt.' }
+    ] },
+    { key:'appointment_mode', column:'ai_appointment_mode', type:'radio', label:'Termine', options:[
+      { val:'none', label:'Keine Termine' }, { val:'request', label:'Terminwunsch aufnehmen' }, { val:'direct', label:'Direkt buchen' }
+    ] },
+    { key:'online_booking_url', column:'ai_online_booking_url', type:'text', label:'Online-Buchungslink (optional)' }
+  ]
+}]);
+
+const coreCustomer = { ...customer, ai_internal_notes:'[PROMPT_V2] {"version":2,"functions":["information"]}' };
+
+check('J4: the typed column drives the appointment authority', () => {
+  const built = buildPromptV2({
+    customer:{ ...coreCustomer, ai_appointment_mode:'direct' },
+    masterPrompt:'{{CUSTOMER_LAYER}}',
+    coreFields:CORE_STEPS_JSON
+  });
+  assert.match(built.prompt, /## TERMINBEFUGNIS/);
+  assert.match(built.prompt, /nur dann verbindlich bestätigen/);
+});
+
+check('J4: the column beats the legacy marker line', () => {
+  const built = buildPromptV2({
+    customer:{ ...customer, ai_appointment_mode:'none' },
+    masterPrompt:'{{CUSTOMER_LAYER}}',
+    coreFields:CORE_STEPS_JSON
+  });
+  assert.match(built.prompt, /Du vereinbarst keine Termine/);
+  assert.ok(!built.prompt.includes('bestätige keinen Termin'), 'Die [PROMPT_V2]-Zeile uebersteuert die typisierte Spalte');
+});
+
+check('J4: without a column value the marker line still applies', () => {
+  const built = buildPromptV2({ customer, masterPrompt:'{{CUSTOMER_LAYER}}', coreFields:CORE_STEPS_JSON });
+  assert.match(built.prompt, /bestätige keinen Termin/);
+});
+
+check('J4: a legacy "direkt" answer never grants calendar booking authority', () => {
+  const built = buildPromptV2({
+    customer:{ ...coreCustomer, ai_internal_notes:'[WIZARD] {"termin_modus":"direkt","booking_url":"https://buchung.example.ch"}' },
+    masterPrompt:'{{CUSTOMER_LAYER}}',
+    coreFields:CORE_STEPS_JSON
+  });
+  assert.match(built.prompt, /bestätige keinen Termin/, 'Die konservative Abbildung auf "request" greift nicht');
+  assert.ok(!built.prompt.includes('nur dann verbindlich bestätigen'), 'Ein mehrdeutiges Altvokabular hat die Terminbefugnis ausgeweitet');
+  assert.match(built.prompt, /Online-Buchungslink: https:\/\/buchung\.example\.ch/);
+});
+
+check('J4: the booking link hangs on the appointment section, not beside it', () => {
+  const built = buildPromptV2({
+    customer:{ ...coreCustomer, ai_appointment_mode:'request', ai_online_booking_url:'https://buchung.example.ch' },
+    masterPrompt:'{{CUSTOMER_LAYER}}',
+    coreFields:CORE_STEPS_JSON
+  });
+  const section = built.prompt.slice(built.prompt.indexOf('## TERMINBEFUGNIS'));
+  assert.match(section.split('##')[1], /Online-Buchungslink: https:\/\/buchung\.example\.ch/);
+  assert.equal((built.prompt.match(/buchung\.example\.ch/g) || []).length, 1, 'Der Link steht doppelt im Prompt');
+});
+
+check('J4: a generic answer reaches the prompt for a customer without any template', () => {
+  const built = buildPromptV2({
+    customer:{ ...coreCustomer, ai_coverage_mode:'ausserhalb_sprechstunde' },
+    masterPrompt:'{{CUSTOMER_LAYER}}',
+    coreFields:CORE_STEPS_JSON
+  });
+  assert.match(built.prompt, /Wann übernimmt der Assistent: Nur ausserhalb der Öffnungszeiten/);
+});
+
+check('J4: the schema may choose the question, never the target column', () => {
+  const hijack = JSON.stringify([{ id:'x', fields:[
+    { key:'plan_code', column:'plan_code', type:'text', label:'Plan' },
+    { key:'coverage_mode', column:'ai_coverage_mode', type:'radio', label:'Einsatz', options:[{ val:'backup', label:'Backup' }] }
+  ] }]);
+  const built = buildPromptV2({
+    customer:{ ...coreCustomer, plan_code:'professional', ai_coverage_mode:'backup' },
+    masterPrompt:'{{CUSTOMER_LAYER}}',
+    coreFields:hijack
+  });
+  assert.ok(!built.prompt.includes('professional'), 'Eine system_config-Zeile konnte eine fremde Kundenspalte in den Prompt holen');
+  assert.match(built.prompt, /Einsatz: Backup/);
+});
+
+check('J4: a broken schema degrades to the previous behaviour', () => {
+  const built = buildPromptV2({ customer, masterPrompt:'{{CUSTOMER_LAYER}}', coreFields:'kein json' });
+  assert.match(built.prompt, /bestätige keinen Termin/);
+  assert.match(built.prompt, /VERBINDLICHE SICHERHEITSREGELN/);
 });
 
 // ── J10 / G8: es gibt nur noch eine Quelle fuer den Prompt ───────────────────

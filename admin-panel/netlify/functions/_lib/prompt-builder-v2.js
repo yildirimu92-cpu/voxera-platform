@@ -44,6 +44,18 @@ const BRACKET_PLACEHOLDER = /\[[^\][\n]{1,80}\]/g;
 // waere ein Schluessel mit Sonderzeichen eine Injektionsstelle.
 const SAFE_VARIABLE_KEY = /^[A-Za-z0-9_]+$/;
 
+// J4 / Schicht A: Die generischen Betriebsfelder liegen in typisierten Spalten
+// (Entscheid F1), ihr Schema in system_config.core_field_steps. Diese Liste ist
+// die Code-Seite der Trennung: das Schema in der Datenbank bestimmt, WELCHE
+// Frage gestellt wird — welche Spalte dabei ueberhaupt gelesen oder geschrieben
+// werden darf, steht hier. Ohne sie waere eine Zeile in system_config eine
+// Schreibberechtigung auf beliebige Kundenspalten.
+const CORE_FIELD_COLUMNS = Object.freeze([
+  'ai_coverage_mode',
+  'ai_appointment_mode',
+  'ai_online_booking_url'
+]);
+
 function wizardVariables(wizard, emergencyNumber, reserved) {
   const result = {};
   Object.entries(wizard || {}).forEach(([key, value]) => {
@@ -230,20 +242,11 @@ function operationalLines(wizard) {
   const lines = [];
   const consumed = new Set();
   const use = (key, line) => { consumed.add(key); lines.push(line); };
-  if (wizard.termin_modus === 'aufnehmen') {
-    // Bewusste Ausnahme zur Regel "jede Antwort wirkt": `booking_url` ist kein
-    // freistehender Fakt, sondern gehoert zur Option "direkt" ("Lara nennt den
-    // Online-Buchungslink"). Wer ausdruecklich selbst bestaetigen will, soll den
-    // Agenten nicht nebenbei einen zweiten Buchungsweg anbieten lassen. Sauber
-    // geloest wird das im Formular, das den Link dann gar nicht erst erfragt.
-    consumed.add('booking_url');
-    use('termin_modus', 'Terminanfragen: Daten aufnehmen; die Bestätigung erfolgt durch das Unternehmen.');
-  }
-  if (wizard.termin_modus === 'direkt') {
-    const bookingUrl = text(wizard.booking_url);
-    if (bookingUrl) consumed.add('booking_url');
-    use('termin_modus', `Terminanfragen: Online-Buchung verwenden${bookingUrl ? ` (${bookingUrl})` : ''}; ohne bestätigte Buchung keine Zusage machen.`);
-  }
+  // `termin_modus` und `booking_url` standen bis J4 hier. Sie sind keine
+  // Branchenfragen und leben jetzt als appointment_mode / online_booking_url in
+  // Schicht A — gerendert im Abschnitt TERMINBEFUGNIS, wo die Terminbefugnis
+  // ohnehin formuliert wird. Zwei Formulierungen derselben Entscheidung an zwei
+  // Stellen waren genau das Problem (G4/G6).
   if (wizard.takeaway_aktiv === 'ja') use('takeaway_aktiv', 'Take-away: Bestellung und gewünschte Abholzeit aufnehmen; Verfügbarkeit nicht erfinden.');
   if (wizard.takeaway_aktiv === 'nein') use('takeaway_aktiv', 'Take-away wird nicht angeboten.');
   if (wizard.sprachen) use('sprachen', `Sprachen: ${text(wizard.sprachen).replace('de_en_fr', 'DE/EN/FR').replace('de_en', 'DE/EN').replace('de', 'nur DE')}.`);
@@ -300,6 +303,71 @@ function placeholderKeys(value) {
   return keys;
 }
 
+// Schicht A. Das Schema kommt als JSON-Text aus system_config.core_field_steps
+// und hat absichtlich dieselbe Form wie extra_steps — nur mit `column` je Feld.
+// Deshalb bedienen es derselbe Schema-Leser (branchFieldSchema) und derselbe
+// Zeilen-Renderer (branchSchemaLines). Genau das ist die Antwort auf
+// Auftragsfrage 4: gleicher Mechanismus, getrennter Speicher.
+const CORE_KEY_APPOINTMENT = 'appointment_mode';
+const CORE_KEY_BOOKING_URL = 'online_booking_url';
+
+// Rueckfall fuer das Zeitfenster zwischen Migration und Deploy. Live geprueft
+// am 09.08.: kein Kunde traegt eine dieser Antworten (ai_branch_extra ueberall
+// null, keine [WIZARD]-Zeile). `direkt` wird bewusst auf `request` abgebildet
+// und nicht auf `direct`: in vier der fuenf Vorlagen bedeutete die Option "an
+// Online-Buchung verweisen", nicht "im Kalender verbindlich buchen". Die
+// Terminbefugnis auszuweiten, weil ein Vokabular mehrdeutig war, waere die
+// falsche Richtung — der Link wandert stattdessen als online_booking_url mit.
+const LEGACY_CORE_ANSWERS = Object.freeze({
+  coverage_mode: (wizard) => text(wizard.sprechstunden_modus),
+  appointment_mode: (wizard) => ({ aufnehmen: 'request', direkt: 'request' })[text(wizard.termin_modus)] || '',
+  online_booking_url: (wizard) => text(wizard.booking_url)
+});
+
+function parseCoreSteps(value) {
+  if (Array.isArray(value)) return value;
+  try {
+    const parsed = JSON.parse(String(value || ''));
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (_error) {
+    return [];
+  }
+}
+
+function coreFieldColumns(steps) {
+  const columns = new Map();
+  (Array.isArray(steps) ? steps : []).forEach((step) => {
+    (Array.isArray(step?.fields) ? step.fields : []).forEach((field) => {
+      const key = text(field?.key);
+      const column = text(field?.column);
+      if (!SAFE_VARIABLE_KEY.test(key) || !CORE_FIELD_COLUMNS.includes(column) || columns.has(key)) return;
+      columns.set(key, column);
+    });
+  });
+  return columns;
+}
+
+// Rangfolge wie bei ai_branch_extra seit D4/E10: die typisierte Spalte fuehrt,
+// die Notiz-Zeile ist nur noch Rueckfall fuer Kunden, die seit der Umstellung
+// nicht neu gespeichert wurden.
+function coreAnswers(customer, steps, wizard, profile) {
+  const values = {};
+  coreFieldColumns(steps).forEach((column, key) => {
+    const value = text(customer[column]);
+    if (value) values[key] = value;
+  });
+  if (!values[CORE_KEY_APPOINTMENT] && profile.appointmentMode) {
+    values[CORE_KEY_APPOINTMENT] = profile.appointmentMode;
+  }
+  Object.entries(LEGACY_CORE_ANSWERS).forEach(([key, read]) => {
+    if (!values[key]) {
+      const legacy = read(wizard || {});
+      if (legacy) values[key] = legacy;
+    }
+  });
+  return values;
+}
+
 function branchSchemaLines(wizard, schema, skipKeys, assistantName) {
   const lines = [];
   schema.forEach((field, key) => {
@@ -321,7 +389,7 @@ function branchSchemaLines(wizard, schema, skipKeys, assistantName) {
   return lines;
 }
 
-function buildPromptProfileSections(profile) {
+function buildPromptProfileSections(profile, appointmentMode, bookingUrl) {
   const parts = [];
   if (profile.functions.length) {
     const success = profile.successDefinition || 'Das Anliegen ist geklärt, die nötigen Angaben sind erfasst und der nächste Schritt wurde korrekt zusammengefasst.';
@@ -332,18 +400,32 @@ function buildPromptProfileSections(profile) {
   if (profile.requiredInformation) {
     parts.push(`## PFLICHTINFORMATIONEN\nErfrage die folgenden Angaben nur soweit sie für das konkrete Anliegen relevant sind. Stelle kurze Fragen einzeln und bestätige kritische Angaben:\n${profile.requiredInformation}`);
   }
-  if (profile.appointmentMode) parts.push(`## TERMINBEFUGNIS\n${APPOINTMENT_TEXT[profile.appointmentMode]}`);
+  // Der Online-Buchungslink haengt an der Terminbefugnis, statt als eigene
+  // Zeile daneben zu stehen: er ist kein Betriebsfakt, sondern ein moeglicher
+  // naechster Schritt im selben Gespraech. Die Formulierung ist bewusst an die
+  // Praeferenz der anrufenden Person gebunden und widerspricht damit keiner der
+  // drei Terminbefugnisse — auch nicht "Betrieb bestaetigt selbst".
+  if (appointmentMode) {
+    const booking = text(bookingUrl)
+      ? `\nMöchte die anrufende Person lieber selbst buchen, nenne den Online-Buchungslink: ${text(bookingUrl)}`
+      : '';
+    parts.push(`## TERMINBEFUGNIS\n${APPOINTMENT_TEXT[appointmentMode]}${booking}`);
+  }
   if (profile.unknownHandling) parts.push(`## VERHALTEN BEI UNSICHERHEIT\n${UNKNOWN_TEXT[profile.unknownHandling]}`);
   return parts;
 }
 
-function qualityReport(customer, profile, industryPrompt) {
+// appointmentMode kommt seit J4 aus Schicht A und nicht mehr allein aus der
+// [PROMPT_V2]-Zeile. Der Parameter ist optional, damit bestehende Aufrufer des
+// exportierten qualityReport() unveraendert weiterlaufen.
+function qualityReport(customer, profile, industryPrompt, appointmentMode) {
+  const effectiveAppointmentMode = appointmentMode === undefined ? profile.appointmentMode : appointmentMode;
   const checks = [
     ['business_profile', Boolean(text(customer.ai_business_description)), 'Geschäftsprofil erfasst'],
     ['services', Boolean(text(customer.ai_services)), 'Leistungen erfasst'],
     ['functions', profile.functions.length > 0, 'Mindestens eine Agent-Funktion gewählt'],
     ['required_information', Boolean(profile.requiredInformation), 'Pflichtinformationen definiert'],
-    ['appointment_mode', Boolean(profile.appointmentMode), 'Terminbefugnis eindeutig'],
+    ['appointment_mode', Boolean(effectiveAppointmentMode), 'Terminbefugnis eindeutig'],
     ['unknown_handling', Boolean(profile.unknownHandling), 'Fallback bei Unsicherheit definiert'],
     ['response_limits', Boolean(text(customer.ai_response_constraints)), 'Antwortgrenzen erfasst'],
     ['industry_layer', Boolean(text(industryPrompt)), 'Branchenregeln vorhanden']
@@ -359,9 +441,14 @@ function qualityReport(customer, profile, industryPrompt) {
   };
 }
 
-function buildPromptV2({ customer = {}, masterPrompt = '', industryPrompt = '', industryFields = [], assistantRole = 'die Assistentin', operationalUpdates = [] } = {}) {
+function buildPromptV2({ customer = {}, masterPrompt = '', industryPrompt = '', industryFields = [], coreFields = [], assistantRole = 'die Assistentin', operationalUpdates = [] } = {}) {
   const profile = parsePromptProfile(customer.ai_internal_notes);
   const wizard = branchAnswers(customer);
+  const coreSteps = parseCoreSteps(coreFields);
+  const core = coreAnswers(customer, coreSteps, wizard, profile);
+  const appointmentMode = Object.prototype.hasOwnProperty.call(APPOINTMENT_TEXT, core[CORE_KEY_APPOINTMENT])
+    ? core[CORE_KEY_APPOINTMENT]
+    : '';
   const assistantName = text(customer.assistant_name) || 'Lara';
   const customerType = text(customer.ai_customer_type) || 'company';
   const addressForm = text(customer.ai_address_form) || 'sie';
@@ -421,14 +508,23 @@ function buildPromptV2({ customer = {}, masterPrompt = '', industryPrompt = '', 
   add('TERMINLOGIK & FAQ', customer.ai_booking_faq);
   const currentOperations = formatOperationalUpdates(operationalUpdates);
   if (currentOperations) customerParts.push(`## AKTUELLE BETRIEBSINFORMATIONEN\n${currentOperations}`);
-  customerParts.push(...buildPromptProfileSections(profile));
+  customerParts.push(...buildPromptProfileSections(profile, appointmentMode, core[CORE_KEY_BOOKING_URL]));
   // Reihenfolge: erst die kuratierten Saetze, dann alles Weitere aus dem
   // Vorlagenschema. Uebersprungen wird, was die Vorlage selbst als
   // {{schluessel}} in ihrem prompt_block platziert — dort steht die Angabe
   // bereits an der vom Vorlagenautor gewaehlten Stelle.
   const curated = operationalLines(wizard);
   const placedByTemplate = placeholderKeys(industryPrompt);
+  // Schicht A zuerst: die generischen Betriebsangaben gelten fuer jeden Kunden,
+  // die Branchenangaben praezisieren sie. Terminbefugnis und Buchungslink sind
+  // hier ausgenommen — sie stehen bereits im Abschnitt TERMINBEFUGNIS.
   const ops = [
+    ...branchSchemaLines(
+      core,
+      branchFieldSchema(coreSteps),
+      new Set([CORE_KEY_APPOINTMENT, CORE_KEY_BOOKING_URL]),
+      assistantName
+    ),
     ...curated.lines,
     ...branchSchemaLines(
       wizard,
@@ -472,12 +568,15 @@ function buildPromptV2({ customer = {}, masterPrompt = '', industryPrompt = '', 
     prompt: prompt.trim(),
     firstMessage,
     profile,
-    quality: qualityReport(customer, profile, industryPrompt)
+    quality: qualityReport(customer, profile, industryPrompt, appointmentMode)
   };
 }
 
 module.exports = {
   PROMPT_BUILDER_VERSION,
+  CORE_FIELD_COLUMNS,
+  parseCoreSteps,
+  coreFieldColumns,
   PROFILE_MARKER,
   parsePromptProfile,
   buildPromptV2,

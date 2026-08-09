@@ -34,6 +34,8 @@ exports.handler = async event => {
   if (customerError || !customer) return { statusCode:404, body:JSON.stringify({ error:'customer_not_found' }) };
 
   const { data:masterRow } = await sb.from('system_config').select('value').eq('key', 'prompt_master_l1').maybeSingle();
+  // J4: dieselbe eine Quelle fuer das Schema der generischen Betriebsfelder.
+  const { data:coreRow } = await sb.from('system_config').select('value').eq('key', 'core_field_steps').maybeSingle();
   let industryPrompt = '';
   // J1: dieselben Eingaben wie im Sync — die Vorschau muss zeigen, was der
   // Agent bekommt, nicht eine um die Branchenantworten aermere Fassung.
@@ -54,6 +56,7 @@ exports.handler = async event => {
     masterPrompt:masterRow?.value || '',
     industryPrompt,
     industryFields,
+    coreFields: coreRow?.value || '',
     assistantRole
   });
 
