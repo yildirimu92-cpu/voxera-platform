@@ -429,6 +429,11 @@ Verbindlich für alle Vorlagen. Der vorgeschlagene Wächter prüft genau diese L
    über zwei Zeilen und trat fast so stark auf wie der Knopf selbst — ein Rückfall, der wie ein
    technisches Artefakt aussieht, ist kein guter Rückfall. Die volle Adresse steht unverändert im
    `href`; der Wächter prüft genau diese Trennung.
+   **Zwei Vorlagen sind ausgenommen:** `welcome` und `password_reset` zeigen die Adresse ungekürzt und
+   mit Schema, auf einer eigenen Zeile. Dort ist der Link kein blosser Rückfall — die Mail kommt aufs
+   Telefon, aktiviert und Passwort gesetzt wird am Rechner, also muss die Adresse abtippbar und
+   kopierbar bleiben. Der Umbruch auf zwei Zeilen ist dort der bewusst bezahlte Preis; die optische
+   Zurücknahme (13 px, gedämpft) gilt auch hier.
 9. **Preheader-Zeile** als erstes Element im `<body>`, versteckt — sonst zieht sich der Client die erste
    sichtbare Textzeile in die Vorschau, und das ist heute in mehreren Vorlagen „VOXERA“.
 10. **Dark Mode:** `<meta name="color-scheme" content="light">` und

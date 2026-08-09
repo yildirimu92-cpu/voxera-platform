@@ -17,6 +17,12 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const dir = path.join(root, 'docs', 'email-templates');
 const previewDir = path.join(dir, 'vorschau');
 
+// Zwei Vorlagen zeigen die Adresse absichtlich ungekuerzt: bei Aktivierung und
+// Passwort-Ruecksetzung kommt die Mail aufs Telefon und die Sache wird am
+// Rechner erledigt. Der Link ist dort kein blosser Rueckfall, sondern ein
+// zweiter Weg - er muss abtippbar und kopierbar bleiben.
+const FULL_URL_TEMPLATES = new Set(['welcome.html', 'password_reset.html']);
+
 const errors = [];
 const fail = (file, message) => errors.push(`${path.relative(root, file)}: ${message}`);
 
@@ -52,7 +58,7 @@ const FORBIDDEN = [
   [/@font-face|fonts\.googleapis|fonts\.gstatic/i, 'Web-Font — in E-Mail nicht ladbar, Systemstapel verwenden']
 ];
 
-function checkTemplate(file, source, { isPreview, isCatalog = false }) {
+function checkTemplate(file, source, { isPreview, isCatalog = false, fullUrl = false }) {
   // Kommentare zuerst entfernen: die Dateikoepfe erklaeren genau die Regeln,
   // die hier geprueft werden, und wuerden sich sonst selbst ausloesen.
   const html = source.replace(/<!--[\s\S]*?-->/g, '');
@@ -115,6 +121,10 @@ function checkTemplate(file, source, { isPreview, isCatalog = false }) {
     if (occurrences < 2) {
       fail(file, `Knopf ohne Klartext-Link darunter (href kommt nur ${occurrences}x vor): ${href.slice(0, 60)}`);
     }
+    // Und in den zwei Ausnahmen muss die Adresse auch ungekuerzt dastehen.
+    if (fullUrl && !html.includes(`>${href}</a>`)) {
+      fail(file, `Adresse gekuerzt dargestellt, hier aber ungekuerzt verlangt: ${href.slice(0, 60)}`);
+    }
   }
 
   // lead_quality steht in der Datenbank klein. Der Vergleich muss das
@@ -156,7 +166,8 @@ if (!templates.length) {
 for (const name of templates) {
   const file = path.join(dir, name);
   const isCatalog = name === 'bausteine.html';
-  checkTemplate(file, fs.readFileSync(file, 'utf8'), { isPreview: false, isCatalog });
+  const fullUrl = FULL_URL_TEMPLATES.has(name);
+  checkTemplate(file, fs.readFileSync(file, 'utf8'), { isPreview: false, isCatalog, fullUrl });
 
   if (isCatalog) continue;
   const preview = path.join(previewDir, name.replace(/\.html$/, '.vorschau.html'));
@@ -164,7 +175,7 @@ for (const name of templates) {
     fail(file, `Vorschaudatei fehlt: vorschau/${path.basename(preview)}`);
     continue;
   }
-  checkTemplate(preview, fs.readFileSync(preview, 'utf8'), { isPreview: true });
+  checkTemplate(preview, fs.readFileSync(preview, 'utf8'), { isPreview: true, fullUrl });
 }
 
 if (errors.length) {

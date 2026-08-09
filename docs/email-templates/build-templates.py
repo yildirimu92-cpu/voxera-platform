@@ -104,7 +104,7 @@ def link(inner, sample):
     return V('{{' + inner + '}}', sample), short_url(inner, sample)
 
 
-def button(href, text, label=None, note=True):
+def button(href, text, label=None, note=True, full=False):
     """Aktions-Knopf mit dem Klartext-Link darunter.
 
     `label` ist die sichtbare Fassung des Links; ohne Angabe wird bei einer
@@ -112,9 +112,17 @@ def button(href, text, label=None, note=True):
     dieselbe gedaempfte Farbe wie der Hinweistext davor: er ist der Rueckfall
     fuer Clients, die Knoepfe verstuemmeln, und soll neben dem Knopf nicht als
     zweite Aktion gelesen werden.
+
+    `full=True` schaltet die Kuerzung ab und stellt die Adresse vollstaendig
+    auf eine eigene Zeile - fuer Aktivierung und Passwort-Ruecksetzung. Dort
+    ist der Link kein blosser Rueckfall: die Mail kommt aufs Telefon, gemacht
+    wird die Sache am Rechner, also muss die Adresse abtippbar und kopierbar
+    bleiben. Sie traegt dann auch das Schema, damit das Kopierte eine
+    vollstaendige Adresse ist. Der Umbruch auf zwei Zeilen ist hier der
+    bewusst in Kauf genommene Preis; optisch zurueckgenommen bleibt sie.
     """
     if label is None:
-        label = href.replace('https://', '')
+        label = href if full else href.replace('https://', '')
     out = ('<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">'
            '<tr><td align="center" style="padding:2px 0 8px;">'
            '<table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>'
@@ -125,7 +133,7 @@ def button(href, text, label=None, note=True):
     if note:
         out += ('<tr><td align="center" style="padding:0 0 20px;">'
                 f'<p style="margin:0;font-family:{F};font-size:13px;font-weight:400;line-height:1.55;'
-                f'color:#5B6472;">Knopf geht nicht? '
+                f'color:#5B6472;">Knopf geht nicht? {"<br>" if full else ""}'
                 f'<a href="{href}" style="color:#5B6472;text-decoration:underline;'
                 f'word-break:break-all;">{label}</a></p></td></tr>')
     else:
@@ -399,7 +407,7 @@ def t_password_changed():
 
 
 def t_password_reset():
-    reset_link = link('1.activation_link', 'https://dashboard.voxera.ch/reset/8c31-77ab')
+    reset_link = (V('{{1.activation_link}}', 'https://dashboard.voxera.ch/reset/8c31-77ab'),)
     return document(
         'Passwort zurücksetzen – Voxera',
         '  Voxera E-Mail-Vorlage · mail_type: password_reset\n'
@@ -414,7 +422,8 @@ def t_password_reset():
                 [('Konto', value(V('{{1.recipient.email}}', 'marc.schneider@schneider-sanitaer.ch'))),
                  ('Angefordert am', value(V('{{formatDate(now; "DD.MM.YYYY, HH:mm"; "Europe/Zurich")}} Uhr', '09.08.2026, 17:24 Uhr')))],
             ]),
-            button(*reset_link[:1], 'Passwort zurücksetzen', reset_link[1]),
+            # Passwort-Ruecksetzung: volle Adresse, siehe button(full=True)
+            button(reset_link[0], 'Passwort zurücksetzen', full=True),
             hint('info', '<strong>Waren Sie das nicht?</strong> Dann können Sie diese E-Mail ignorieren '
                  '— Ihr Passwort bleibt unverändert. Bei Fragen erreichen Sie uns unter '
                  '<a href="mailto:info@voxera.ch" style="color:#1558BF;text-decoration:underline;">'
@@ -450,7 +459,7 @@ def t_assistant_updated():
 
 
 def t_welcome():
-    activate, activate_label = link('1.activation_link', 'https://dashboard.voxera.ch/aktivieren/4d17-2b90')
+    activate = V('{{1.activation_link}}', 'https://dashboard.voxera.ch/aktivieren/4d17-2b90')
     num = V('{{1.voxera_number}}', '+41445053662')
     return document(
         'Willkommen bei Voxera',
@@ -470,7 +479,8 @@ def t_welcome():
                 [('Ihre E-Mail', value(V('{{1.email}}', 'marc.schneider@schneider-sanitaer.ch'))),
                  ('Dashboard', value(V('{{if(1.dashboard_url; replace(replace(1.dashboard_url; "https://"; ""); "/"; ""); "dashboard.voxera.ch")}}', 'dashboard.voxera.ch')))],
             ]),
-            button(activate, 'Konto aktivieren', activate_label),
+            # Aktivierung: volle Adresse, siehe button(full=True)
+            button(activate, 'Konto aktivieren', full=True),
             hint('warning', 'Der Aktivierungslink ist <strong>24 Stunden gültig</strong>. Danach '
                  'fordern Sie über die Anmeldeseite einen neuen an.'),
 
