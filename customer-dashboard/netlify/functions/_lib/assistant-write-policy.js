@@ -53,7 +53,16 @@ const PROMPT_RELEVANT_FIELDS = new Set([
   'ai_emergency_number',
   'customer_name',
   'customer_legal_name',
-  'customer_display_name'
+  'customer_display_name',
+  // J4 / Schicht A (PR #876): die generischen Betriebsfelder liegen in
+  // typisierten Spalten und werden vom Builder ueber seine eigene
+  // CORE_FIELD_COLUMNS-Liste gelesen — nicht als `customer.<feld>`. Sie sind
+  // damit genauso prompt-wirksam wie die Weiterleitung und muessen hier stehen,
+  // sonst waere "Schicht A allein gespeichert" derselbe Fehler wie N6, nur an
+  // neuen Feldern.
+  'sprechstunden_modus',
+  'ai_appointment_mode',
+  'ai_online_booking_url'
 ]);
 
 // Die sieben Spalten, die der Kunde ueber den Weiterleitungs-Editor bearbeitet.

@@ -16,6 +16,39 @@ const headers = {
 const response = (statusCode, payload) => ({ statusCode, headers, body: JSON.stringify(payload) });
 const text = (value) => String(value == null ? '' : value).trim();
 
+// J4 / Schicht A. Diese Liste steht bewusst auch hier und nicht nur im
+// Prompt-Builder: admin-panel und customer-dashboard sind zwei getrennte
+// Netlify-Sites ohne gemeinsamen Modulpfad. Das SCHEMA (welche Frage, welches
+// Label) liegt deshalb einmalig in system_config.core_field_steps; die Liste
+// der ueberhaupt zulaessigen Spalten gehoert in den Code, sonst waere eine
+// Zeile in system_config eine Leseberechtigung auf beliebige Kundenspalten.
+// Aenderungen hier und in _lib/prompt-builder-v2.js gehoeren zusammen.
+const CORE_FIELD_COLUMNS = new Set(['sprechstunden_modus', 'ai_appointment_mode', 'ai_online_booking_url']);
+
+function parseCoreSteps(value) {
+  if (Array.isArray(value)) return value;
+  try {
+    const parsed = JSON.parse(String(value || ''));
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (_error) {
+    return [];
+  }
+}
+
+function coreValues(customer, steps) {
+  const values = {};
+  (Array.isArray(steps) ? steps : []).forEach((step) => {
+    (Array.isArray(step?.fields) ? step.fields : []).forEach((field) => {
+      const key = text(field?.key);
+      const column = text(field?.column);
+      if (!key || !CORE_FIELD_COLUMNS.has(column)) return;
+      const value = text(customer?.[column]);
+      if (value) values[key] = value;
+    });
+  });
+  return values;
+}
+
 const PROMPT_FUNCTIONS = new Set([
   'information', 'consulting', 'lead', 'appointment', 'quote', 'callback', 'support', 'transfer'
 ]);
@@ -345,7 +378,8 @@ exports.handler = async (event) => {
       'missed_call_email_active', 'phone_notification_to', 'updated_at',
       'ai_emergency_number', 'ai_forwarding_1_name', 'ai_forwarding_1_number', 'ai_forwarding_1_trigger',
       'ai_forwarding_2_name', 'ai_forwarding_2_number', 'ai_forwarding_2_trigger',
-      'ai_response_constraints', 'ai_language', 'ai_branch_extra', 'industry_template_id'
+      'ai_response_constraints', 'ai_language', 'ai_branch_extra', 'industry_template_id',
+      'sprechstunden_modus', 'ai_appointment_mode', 'ai_online_booking_url'
     ].join(','))
     .eq('id', caller.customerId)
     .maybeSingle();
@@ -363,7 +397,7 @@ exports.handler = async (event) => {
   if (planError) return response(500, { error: 'plan_config_load_failed', detail: planError.message });
 
   const industryId = text(customer.industry_template_id);
-  const [calendarSettingsResult, calendarConnectionsResult, operationalResult, industryResult] = await Promise.all([
+  const [calendarSettingsResult, calendarConnectionsResult, operationalResult, industryResult, coreResult] = await Promise.all([
     sbAdmin.from('calendar_settings')
       .select('active_provider,feature_enabled,updated_at')
       .eq('customer_id', caller.customerId)
@@ -377,7 +411,8 @@ exports.handler = async (event) => {
       .eq('status', 'published'),
     industryId
       ? sbAdmin.from('industry_templates').select('id,name,extra_steps').eq('id', industryId).maybeSingle()
-      : Promise.resolve({ data: null, error: null })
+      : Promise.resolve({ data: null, error: null }),
+    sbAdmin.from('system_config').select('value').eq('key', 'core_field_steps').maybeSingle()
   ]);
 
   if (calendarSettingsResult.error) {
@@ -405,6 +440,14 @@ exports.handler = async (event) => {
     console.warn('[customer-assistant-profile] industry_template_unavailable', {
       customer_id: caller.customerId,
       message: industryResult.error.message
+    });
+  }
+  // Fehlt das Schema, bleibt der generische Abschnitt leer — der Screen zeigt
+  // dann genau die Felder, die es vor J4 gab, statt einen Fehler.
+  if (coreResult.error) {
+    console.warn('[customer-assistant-profile] core_field_steps_unavailable', {
+      customer_id: caller.customerId,
+      message: coreResult.error.message
     });
   }
 
@@ -446,7 +489,12 @@ exports.handler = async (event) => {
     customer.ai_booking_faq
   ];
   const completedFields = permanentFields.filter((value) => String(value || '').trim()).length;
+  const coreSteps = parseCoreSteps(coreResult.data?.value);
+  const coreValueMap = coreValues(customer, coreSteps);
   const parsedProfile = promptProfile(customer.ai_internal_notes);
+  // Rangfolge wie im Prompt-Builder: die typisierte Spalte fuehrt. Sonst zeigte
+  // diese Seite eine andere Terminbefugnis an, als der Agent tatsaechlich hat.
+  if (coreValueMap.appointment_mode) parsedProfile.appointmentMode = coreValueMap.appointment_mode;
   const greeting = buildGreetingView(customer);
 
   return response(200, {
@@ -495,6 +543,11 @@ exports.handler = async (event) => {
       name: text(industryResult.data?.name) || null,
       assigned: Boolean(industryId && industryResult.data)
     },
+    // Gleicher Renderer wie die Branchenfelder, anderer Speicher: die Werte
+    // kommen aus typisierten Spalten statt aus ai_branch_extra (Entscheid F1).
+    // Diese Felder gelten fuer jeden Kunden — auch fuer die drei von vier ohne
+    // Branchenvorlage, die ai_branch_extra gar nicht beschreiben koennen.
+    core_sections: buildBranchSections({ extra_steps: coreSteps }, coreValueMap),
     branch_sections: buildBranchSections(industryResult.data, branchValues(customer)),
     operational_updates: {
       active_count: activeUpdates.length,
@@ -528,6 +581,8 @@ exports._test = {
   buildBoundaries,
   buildBranchSections,
   branchValues,
+  parseCoreSteps,
+  coreValues,
   lines,
   VOXERA_RULES
 };

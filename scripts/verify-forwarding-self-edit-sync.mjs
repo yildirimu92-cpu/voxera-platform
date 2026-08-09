@@ -55,9 +55,19 @@ for (const [key, path] of Object.entries(paths)) {
 const policy = require(`../${paths.policy}`);
 
 // ── Fehlerklasse: prompt-relevant geschrieben, aber nicht sync-ausloesend ────
+// Spalten koennen auf zwei Arten in den Prompt kommen: direkt als
+// `customer.<feld>`, oder ueber die CORE_FIELD_COLUMNS-Liste von Schicht A
+// (J4/PR #876), die der Builder generisch aufloest. Wer nur die erste Form
+// kennt, uebersieht die zweite — und genau so entsteht N6 ein zweites Mal.
+function coreFieldColumns(source) {
+  const match = source.match(/CORE_FIELD_COLUMNS\s*=[\s\S]*?\[([\s\S]*?)\]/);
+  return match ? [...match[1].matchAll(/'([a-zA-Z0-9_]+)'/g)].map((entry) => entry[1]) : [];
+}
+
 const builderReads = new Set(
   [...src.builder.matchAll(/\bcustomer\.([a-zA-Z0-9_]+)/g)].map((match) => match[1])
 );
+for (const column of coreFieldColumns(src.builder)) builderReads.add(column);
 // voice_id liest nicht der Builder, sondern der Sync selbst (TTS-Stimme und
 // {{ASSISTANT_ROLE}} ueber voxera_voices.gender).
 for (const match of src.trigger.matchAll(/\bcustomer\.(voice_id)\b/g)) builderReads.add(match[1]);
@@ -65,7 +75,16 @@ for (const match of src.trigger.matchAll(/\bcustomer\.(voice_id)\b/g)) builderRe
 const customerWrites = new Set(
   [...src.update.matchAll(/\bpatch\.([a-zA-Z0-9_]+)\s*=/g)].map((match) => match[1])
 );
+// Schicht A schreibt ueber Object.assign(patch, corePatch) statt ueber
+// benannte Zuweisungen; die erlaubten Zielspalten stehen im Endpoint.
+for (const column of coreFieldColumns(src.update)) customerWrites.add(column);
 customerWrites.delete('updated_at');
+
+const coreColumns = coreFieldColumns(src.builder);
+check('Schicht-A-Spalten im Builder gefunden', coreColumns.length > 0, coreColumns.join(', '));
+check('Endpoint und Builder erlauben dieselben Schicht-A-Spalten',
+  coreFieldColumns(src.update).sort().join(',') === coreColumns.slice().sort().join(','),
+  'Endpoint: ' + coreFieldColumns(src.update).join(', '));
 
 check('Prompt-Builder-Lesezugriffe gefunden', builderReads.size > 10, `${builderReads.size} Spalten`);
 check('Schreibbare Spalten gefunden', customerWrites.size > 10, `${customerWrites.size} Spalten`);
@@ -94,6 +113,12 @@ for (const field of policy.FORWARDING_FIELDS) {
   check(`${field} ist sync-ausloesend`, policy.PROMPT_RELEVANT_FIELDS.has(field));
   check(`${field} steht im Prompt-Builder`, builderReads.has(field));
 }
+
+// Schicht A namentlich: dieselbe Fehlerklasse, andere Spalten.
+for (const column of coreColumns) {
+  check(`${column} (Schicht A) ist sync-ausloesend`, policy.PROMPT_RELEVANT_FIELDS.has(column));
+}
+check('reine Schicht-A-Aenderung loest einen Sync aus', policy.needsPromptSync(coreColumns));
 
 // ── needsPromptSync() mit den echten Kombinationen ──────────────────────────
 check('reine Weiterleitungsaenderung loest einen Sync aus',

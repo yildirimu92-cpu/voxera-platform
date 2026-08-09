@@ -6295,10 +6295,6 @@ body.vx-customer-design-foundation .vx-requests-layout{
   min-width:0;
   min-height:620px;
   overflow:hidden;
-  border:var(--vx-ui-row-border-width) solid var(--vx-ui-row-border-color);
-  border-radius:var(--vx-ui-card-radius);
-  background:var(--vx-color-canvas);
-  box-shadow:var(--vx-ui-card-shadow);
   font-family:var(--vx-ui-row-font);
 }
 
@@ -6842,16 +6838,8 @@ body.vx-customer-design-foundation .vx-requests-resizer{display:none;}
 @media (max-width:720px){
   body.vx-customer-design-foundation .vx-requests-layout{
     overflow:visible;
-    border:0;
-    border-radius:0;
-    background:transparent;
-    box-shadow:none;
   }
-  /* Mobil trägt der Panel-Rahmen nichts mehr bei: die Karten sind selbst
-     abgegrenzt, ein zusätzlicher Rahmen um die ganze Spalte wäre eine
-     zweite Kante um dieselbe Liste. Nur der Canvas-Grund bleibt.
-
-     padding:0 ist der eigentliche Gewinn: die Spalte trug über .vx-ops-card
+  /* padding:0 ist der eigentliche Gewinn: die Spalte trug über .vx-ops-card
      noch 18px generische Kartenpolsterung. Zusammen mit dem Seitenabstand
      von #tab-anrufe und .content blieben von 390px Bildschirmbreite nur
      275px für die Zeile übrig — Namen wie "Sandra Meier" wurden dadurch auf
@@ -12668,7 +12656,31 @@ async function ensureActiveCustomerOrLogout(context) {
   if (check.valid) return true;
   // Wenn kein User mehr eingeloggt ist, still abbrechen (manueller Logout)
   if (!currentUser) return false;
-  console.warn('[voxera-dashboard] Customer invalid, forcing logout:', check.reason);
+
+  // Rueckversicherung analog zu vxHandleSignedOut(): eine leere users/customers-Zeile
+  // ist nicht zwangslaeufig eine echte Sperre - kann auch eine kurze RLS/JWT-Race nach
+  // einem Token-Refresh oder ein kurzer DB-Haenger sein. Vor dem echten Rauswurf
+  // (sb.auth.signOut()!) einmal kurz erneut pruefen, statt einem einzelnen leeren
+  // Read blind zu vertrauen.
+  console.warn('[voxera-dashboard] Customer invalid, re-checking before logout:', check.reason);
+  await delay(600);
+  if (!currentUser) return false; // waehrend der Wartezeit manuell abgemeldet
+
+  let recheck;
+  try {
+    recheck = validateAccessGuard(await resolveCustomerContext(true));
+  } catch (e) {
+    // Die Nachpruefung selbst ist fehlgeschlagen (z.B. Netzwerk) - kein belastbares
+    // Ergebnis, also nicht ausloggen. Naechster loadData()-Lauf prueft erneut.
+    console.warn('[voxera-dashboard] Customer re-check itself failed, skipping without logout:', e);
+    return false;
+  }
+  if (recheck.valid) {
+    console.warn('[voxera-dashboard] Customer context recovered on re-check, no logout');
+    return true;
+  }
+
+  console.warn('[voxera-dashboard] Customer invalid on re-check too, forcing logout:', recheck.reason);
   try { await doLogout(); } catch (e) {
     console.error('[voxera-dashboard] Logout error:', e);
     // Ensure app is hidden and login screen is shown even if doLogout() failed mid-execution
@@ -12679,7 +12691,7 @@ async function ensureActiveCustomerOrLogout(context) {
   }
   const errEl = document.getElementById('login-error');
   if (errEl) {
-    errEl.textContent = 'Zugriff abgelaufen oder nicht freigeschaltet (' + check.reason + '). Bitte Support kontaktieren.';
+    errEl.textContent = 'Zugriff abgelaufen oder nicht freigeschaltet (' + recheck.reason + '). Bitte Support kontaktieren.';
     errEl.style.display = 'block';
   }
   return false;
@@ -32046,9 +32058,17 @@ window.addEventListener('resize', function() { if (_tourActive) tourRender(); })
    darunter nicht durchscheinen" — auf einem weissen Blatt war genau dieser
    Chip die einzige graue Flaeche der Liste.
 
-   Der aeussere Rahmen (#anrufe-split / .vx-requests-layout) bleibt: er ist
-   nicht weiss, sondern Canvas, und traegt die Naht zwischen Listen- und
-   Detailspalte im Desktop-Split. Weg muss nur das zweite weisse Blatt.
+   Update (2026-08-09): Der aeussere Rahmen (#anrufe-split / .vx-requests-
+   layout) trug bis hierher weiterhin border + border-radius + box-shadow,
+   nur eben in Canvas statt Weiss. Das reicht bereits fuer den Karte-in-
+   Karte-Effekt — eine umrandete, abgerundete, schattierte Flaeche liest
+   sich als Karte, unabhaengig von ihrer Fuellfarbe, sobald weisse
+   Zeilenkarten darin liegen. Auf Heute gibt es diesen Rahmen gar nicht.
+   Die kosmetischen Eigenschaften sind jetzt aus .vx-requests-layout
+   entfernt (siehe Regel weiter oben in dieser Datei); die Naht zwischen
+   Listen- und Detailspalte kommt weiterhin von .vx-requests-panel's
+   border-right, die strukturellen Eigenschaften (grid, min-height,
+   overflow) fuer den Split bleiben unangetastet.
 
    #anrufe-list.dpr-command-center bleibt fuer die Alt-Variante stehen;
    die Klasse wird beim Listenaufbau ohnehin entfernt. */

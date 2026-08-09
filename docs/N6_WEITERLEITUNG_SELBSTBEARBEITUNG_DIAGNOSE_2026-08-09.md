@@ -221,9 +221,29 @@ Die Weiche selbst, an denselben zwei Fassungen gemessen:
 Der Testkunde und seine Log-Zeile wurden gelöscht; Produktion steht wieder bei
 4 Kunden und 20 Log-Zeilen, wie vor dem Test. Sonst wurde nichts verändert.
 
+### Der Guard hat sofort etwas gefangen
+
+Beim Rebasen auf `main` (PR #876, Schicht A / J4) kamen drei neue
+kundenschreibbare Spalten dazu: `sprechstunden_modus`, `ai_appointment_mode`,
+`ai_online_booking_url`. Sie sind prompt-wirksam, kommen aber auf zwei Wegen
+ins Spiel, die die erste Fassung des Guards nicht kannte — der Builder liest sie
+über seine eigene `CORE_FIELD_COLUMNS`-Liste statt als `customer.<feld>`, und
+der Endpoint schreibt sie über `Object.assign(patch, corePatch)` statt über
+benannte Zuweisungen.
+
+Unter der neuen Klassifikation hätte „nur Schicht A gespeichert" damit keinen
+Sync mehr ausgelöst: exakt N6, an neuen Feldern, eingeführt durch den Merge.
+Auf `main` war das noch richtig, weil dort jedes Nicht-Weiterleitungsfeld
+synchronisierte.
+
+Behoben: die drei Spalten stehen in `PROMPT_RELEVANT_FIELDS`, der Guard kennt
+jetzt beide Ausdrucksformen, und `WRITABLE_FIELDS` liest sie mit, damit
+`prev_values` nicht `null` behauptet, wo ein Wert stand. Gegenprobe: nimmt man
+die drei wieder heraus, scheitern fünf Prüfungen.
+
 ### Regressionsschutz
 
-`scripts/verify-forwarding-self-edit-sync.mjs` (61 Prüfungen), eingebunden über
+`scripts/verify-forwarding-self-edit-sync.mjs` (67 Prüfungen), eingebunden über
 `.github/workflows/verify-forwarding-self-edit-sync.yml`. Gegenprobe gegen
 `bb72cd2`: 14 Prüfungen scheitern, darunter alle drei zur Sync-Entscheidung.
 Voller Verifier-Sweep grün (Grundsatz 14); `verify-db-security-invariants`

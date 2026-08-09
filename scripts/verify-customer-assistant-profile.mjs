@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
+import { createRequire } from 'node:module';
+
+const require = createRequire(import.meta.url);
 
 const files = {
   runtime: 'customer-dashboard/shared/customer-runtime-assistant-profile.js',
@@ -163,7 +166,7 @@ for (const forbidden of [
   if (source.statusRuntime.includes(forbidden)) failures.push(`status runtime exposes protected field: ${forbidden}`);
 }
 
-assert.match(source.loader, /customer-runtime-assistant-profile\.js\?v=20260809-2/);
+assert.match(source.loader, /customer-runtime-assistant-profile\.js\?v=20260809-3/);
 assert.match(source.loader, /customer-runtime-assistant-status\.js\?v=20260809-1/);
 assert.doesNotMatch(source.loader, /customer-runtime-assistant-business-menu\.js/);
 assert.doesNotMatch(source.loader, /customer-runtime-voice-preview-fallback\.js/);
@@ -249,6 +252,89 @@ assert.match(source.update, /voice_not_available_on_plan/);
 assert.match(source.update, /from\('voxera_voices'\)/);
 assert.match(source.update, /PLAN_TIERS/);
 assert.match(source.voices, /gender,language,preview_url/);
+
+// ── J4 / Schicht A: der Schreibpfad der generischen Felder ───────────────────
+// Die Funktionen laufen normalerweise in Netlify mit installierten
+// Abhaengigkeiten. Hier wird das Modul in einer Sandbox mit gestubbtem require
+// ausgewertet, damit die Allowlist echt geprueft wird und nicht nur ihr
+// Quelltext — sie ist die Stelle, an der eine Zeile in system_config sonst zu
+// einer Schreibberechtigung auf beliebige Kundenspalten wuerde.
+function loadFunctionModule(path) {
+  const stubs = {
+    '@supabase/supabase-js': { createClient: () => ({}) },
+    './_lib/require-customer': { requireCustomerCaller: async () => ({ ok: false, statusCode: 401, body: {} }) },
+    './_lib/assistant-greeting': { buildGreetingView: () => ({}) },
+    // N6: diese beiden sind echte Repo-Module ohne externe Abhaengigkeiten und
+    // werden deshalb echt geladen statt gestubbt — die Sync-Klassifikation und
+    // die Nummernpruefung sollen im Test dieselben sein wie in Produktion.
+    './_lib/phone-normalize': require('../customer-dashboard/netlify/functions/_lib/phone-normalize.js'),
+    './_lib/assistant-write-policy': require('../customer-dashboard/netlify/functions/_lib/assistant-write-policy.js')
+  };
+  const module = { exports: {} };
+  const context = vm.createContext({
+    module,
+    exports: module.exports,
+    require: (name) => {
+      if (!(name in stubs)) throw new Error('unerwartetes require: ' + name);
+      return stubs[name];
+    },
+    console,
+    process
+  });
+  new vm.Script(fs.readFileSync(path, 'utf8'), { filename: path }).runInContext(context);
+  return module.exports;
+}
+
+const CORE_SCHEMA = [{
+  id: 'betrieb_kern',
+  fields: [
+    { key: 'coverage_mode', column: 'sprechstunden_modus', type: 'radio', options: [{ val: 'backup' }, { val: 'rund_um_die_uhr' }] },
+    { key: 'online_booking_url', column: 'ai_online_booking_url', type: 'text' }
+  ]
+}];
+
+try {
+  const updateModule = loadFunctionModule(files.update);
+  const { parseCoreSteps, coreFieldRules, sanitizeCoreFields } = updateModule._test;
+
+  const rules = coreFieldRules(CORE_SCHEMA);
+  assert.equal(rules.get('coverage_mode').column, 'sprechstunden_modus');
+
+  // Der Kern der Trennung: das Schema darf die Frage bestimmen, nicht das Ziel.
+  const hijackRules = coreFieldRules([{ id: 'x', fields: [
+    { key: 'plan_code', column: 'plan_code', type: 'text' },
+    { key: 'agent', column: 'elevenlabs_agent_id', type: 'text' }
+  ] }]);
+  assert.equal(hijackRules.size, 0, 'Eine system_config-Zeile konnte eine fremde Spalte als Ziel setzen');
+
+  const accepted = sanitizeCoreFields({ coverage_mode: 'backup' }, rules);
+  assert.equal(JSON.stringify(accepted.patch), JSON.stringify({ sprechstunden_modus: 'backup' }));
+  assert.equal(accepted.rejected.length, 0);
+
+  const badOption = sanitizeCoreFields({ coverage_mode: 'immer_alles' }, rules);
+  assert.equal(badOption.rejected.join(), 'coverage_mode', 'Ein Wert ausserhalb der Optionen wurde angenommen');
+  assert.equal(Object.keys(badOption.patch).length, 0);
+
+  const unknownKey = sanitizeCoreFields({ nicht_im_schema: 'x' }, rules);
+  assert.equal(unknownKey.rejected.join(), 'nicht_im_schema');
+
+  // Leeren muss zuruecknehmbar sein: jedes Feld hat eine eigene Spalte.
+  const cleared = sanitizeCoreFields({ coverage_mode: '' }, rules);
+  assert.equal(JSON.stringify(cleared.patch), JSON.stringify({ sprechstunden_modus: null }));
+
+  // Geschweifte Klammern raus, sonst schriebe eine Antwort einen Platzhalter.
+  const braces = sanitizeCoreFields({ online_booking_url: 'https://x.ch/{{ASSISTANT_NAME}}' }, rules);
+  assert.equal(braces.patch.ai_online_booking_url, 'https://x.ch/ASSISTANT_NAME');
+
+  assert.equal(parseCoreSteps('kein json').length, 0, 'Ein kaputtes Schema muss leer degradieren, nicht werfen');
+} catch (error) {
+  failures.push(`core field write path: ${error.message}`);
+}
+
+assert.match(source.update, /core_field_not_in_schema/);
+assert.match(source.profile, /core_sections/);
+assert.match(source.runtime, /data-vx-core-key/);
+assert.match(source.runtime, /core_fields: payload/);
 
 if (failures.length) {
   console.error(failures.join('\n'));
