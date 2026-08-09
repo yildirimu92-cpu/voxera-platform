@@ -20,7 +20,7 @@
 
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&display=swap" rel="stylesheet">
 <!-- Design System 2.0 — canonical token set (typography, spacing, color roles). Loads before the legacy inline :root so new components can rely on --vx-color-*/--vx-spacing-*/--vx-radius-* directly. -->
-<link rel="stylesheet" href="/shared/customer-design-tokens.css?v=20260808-4">
+<link rel="stylesheet" href="/shared/customer-design-tokens.css?v=20260809-1">
 <!-- Unified component markup factory (VoxeraUI). Loaded statically so every inline renderer in this document can build canonical skeleton/badge/empty-state markup without a load-order guard. -->
 <script src="/shared/customer-ui-components.js?v=20260807-2"></script>
 <script src="/shared/offer-brand.js?v=20260807-4"></script>
@@ -37259,8 +37259,14 @@ body:has(#tab-archiv.active) .content{
    Name, Anliegen, Kartenköpfe und Fliesstext alle zwischen 12 und 15px —
    die Fläche hatte damit keinen Einstiegspunkt. Zwei Zeilen statt Ellipse,
    weil Aufgabentitel ("Rückruf Herr Wyss — Termin bestätigen") sonst
-   schon im Panel abgeschnitten werden. */
-.vx-dv2-title{font-weight:var(--vx-ui-row-title-weight);font-size:20px;color:var(--vx-ui-row-title-color);line-height:1.25;letter-spacing:-.01em;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+   schon im Panel abgeschnitten werden.
+
+   2026-08-09: auf die geteilte Titelstufe (--vx-ui-title-*, 18px/730)
+   heruntergezogen. 20px/700 war ein panel-eigener Wert, der nirgends sonst
+   im Produkt vorkam; die Kartentitel der Einstellungen stehen auf 18/730.
+   Der Einstiegspunkt bleibt: der Seitentitel darüber steht auf 24px, der
+   Name ist weiterhin die zweite Stufe. */
+.vx-dv2-title{font-weight:var(--vx-ui-title-weight);font-size:var(--vx-ui-title-size);color:var(--vx-ui-row-title-color);line-height:1.3;letter-spacing:var(--vx-ui-title-tracking);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
 /* Die Nummer stand als einziges Element im hellen #1A6FE8, das die Liste
    beim Neubau als Flächen- und Akzentfarbe verlassen hat. */
 .vx-dv2-phone{color:var(--vx-color-night,#0D1F3C);font-size:13px;font-weight:500;margin-top:1px;}
@@ -37302,13 +37308,22 @@ body:has(#tab-archiv.active) .content{
 .vx-dv2-info-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px 14px;}
 .vx-dv2-info-label{font-size:var(--vx-ui-section-label-size);font-weight:var(--vx-ui-section-label-weight);letter-spacing:0;text-transform:none;color:var(--vx-ui-section-label-color);margin-bottom:3px;}
 .vx-dv2-info-value{font-size:13px;font-weight:600;color:var(--vx-ui-row-title-color);line-height:1.35;}
-.vx-dv2-info-sub{font-size:11px;color:var(--vx-ui-meta-color);margin-top:3px;line-height:1.4;}
+/* 12px statt 11px — siehe .vx-dv2-action-meta. */
+.vx-dv2-info-sub{font-size:var(--vx-ui-row-time-size);color:var(--vx-ui-meta-color);margin-top:3px;line-height:1.4;}
 .vx-dv2-action-card{display:flex;gap:12px;align-items:flex-start;}
 /* Stiller Icon-Kreis wie in der Listenzeile, statt des blauen Quadrats. */
 .vx-dv2-action-icon{width:var(--vx-ui-row-icon-size);height:var(--vx-ui-row-icon-size);border-radius:50%;background:var(--vx-ui-row-icon-bg);color:var(--vx-ui-row-icon-color);display:flex;align-items:center;justify-content:center;font-size:var(--vx-ui-row-icon-font-size);flex-shrink:0;}
-.vx-dv2-action-title{font-size:var(--vx-ui-row-title-size);font-weight:var(--vx-ui-row-title-weight);color:var(--vx-ui-row-title-color);margin-bottom:4px;}
+/* Die fehlende Zwischenstufe (2026-08-09): 15px/700 statt 14px/700. Der
+   Block ist strukturgleich mit einer Einstellungs-Zeile — Titel plus
+   Beschreibung darunter — und stand als einziger dieser Art auf 14px.
+   Damit schliesst sich die Lücke zwischen 18 und 13, an der sich der Kopf
+   des Panels vom Rest ablöste. */
+.vx-dv2-action-title{font-size:var(--vx-ui-entry-title-size);font-weight:var(--vx-ui-entry-title-weight);color:var(--vx-ui-row-title-color);margin-bottom:4px;}
 .vx-dv2-action-text{font-size:var(--vx-ui-row-desc-size);line-height:var(--vx-ui-row-desc-leading);color:var(--vx-ui-row-desc-color);}
-.vx-dv2-action-meta{font-size:11px;color:var(--vx-ui-meta-color);margin-top:6px;}
+/* 12px statt 11px: 11 war der einzige Wert im Produkt unterhalb der
+   Meta-Stufe und machte das untere Ende der Panel-Leiter eine Stufe
+   flacher als jede andere Fläche. */
+.vx-dv2-action-meta{font-size:var(--vx-ui-row-time-size);color:var(--vx-ui-meta-color);margin-top:6px;}
 .vx-dv2-transcript-raw{white-space:pre-wrap;font-size:var(--vx-ui-row-desc-size);line-height:1.6;color:var(--vx-ui-row-desc-color);}
 .vx-dv2-note{width:100%;min-height:84px;padding:10px 12px;border:var(--vx-ui-row-border-width) solid var(--vx-ui-field-border,#D9E1EC);border-radius:var(--vx-ui-field-radius,10px);font-size:13px;resize:vertical;box-sizing:border-box;font-family:var(--vx-ui-row-font);background:var(--vx-ui-field-bg,#fff);color:var(--vx-ui-row-title-color);line-height:1.55;}
 .vx-dv2-note:focus{outline:0;border-color:var(--vx-color-night,#0D1F3C);box-shadow:0 0 0 3px rgba(13,31,60,.10);}
@@ -37373,11 +37388,11 @@ body:has(#tab-archiv.active) .content{
    stuft weiterhin erst auf 430px. */
 @media(max-width:560px){
   .vx-dv2-concern,.vx-dv2-task-summary{font-size:var(--vx-ui-voice-size-sm);}
-  .vx-dv2-concern--empty{font-size:17px;}
+  .vx-dv2-concern--empty{font-size:15px;}
 }
 /* Auf 390px trägt die Leiter dieselben Verhältnisse, eine Stufe kleiner. */
 @media(max-width:430px){
-  .vx-dv2-title{font-size:18px;}
+  .vx-dv2-title{font-size:17px;}
   /* Kürzen statt ausblenden — die Zustandsangabe IST die Unterscheidung. */
   .vx-summary-acc-state{max-width:104px;overflow:hidden;text-overflow:ellipsis;}
 }

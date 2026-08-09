@@ -523,6 +523,31 @@
   --vx-ui-list-avatar-bg: var(--vx-color-night, #0D1F3C);
   --vx-ui-list-avatar-color: var(--vx-color-gold);
 
+  /* ---- Überschriften-Leiter (produktweit) --------------------
+     Bis 2026-08-09 legte jede Fläche ihre Überschriftenwerte selbst fest.
+     Nebeneinander gestellt ergab das keine Leiter, sondern zwei:
+
+       Einstellungen/Profil/Abo   24 → 18 → 15 → 14 → 13 → 12
+       Anfrage-Detail-Panel       24 → 20 → 20 → 14 → 13 → 12 → 11
+
+     Das Panel sprang von 20 direkt auf 14 (die 15er-Stufe fehlte, weshalb
+     sich der Kopf vom Rest ablöste), setzte seine Stimme auf denselben Wert
+     wie den Datensatznamen, und lief unten eine Stufe tiefer aus als jede
+     andere Fläche. Die beiden geteilten Stufen stehen ab hier hier, damit
+     Panel und Einstellungen sie aus derselben Quelle lesen.
+
+     24px (Seitentitel) steht weiter oben als --vx-ui-appbar-title-*, 12px
+     (Label/Meta) als --vx-ui-section-label-* bzw. --vx-ui-row-time-size. */
+  --vx-ui-title-size: 18px;
+  --vx-ui-title-weight: 730;
+  --vx-ui-title-tracking: -.015em;
+  /* Zeilentitel mit Beschreibung darunter: "Firmendaten" in den
+     Einstellungen, "Termin bestätigen" im Panel, die Anfragen-Zeile. Wert-
+     gleich mit --vx-ui-list-title-size; getrennt geführt, weil die Listen-
+     Tokens laut ihrem eigenen Kommentar bewusst listen-eigen bleiben. */
+  --vx-ui-entry-title-size: 15px;
+  --vx-ui-entry-title-weight: 700;
+
   /* Section header: dot + label + count, exactly like "Braucht dich 2". */
   --vx-ui-section-label-size: 12px;
   --vx-ui-section-label-weight: 600;
@@ -545,23 +570,34 @@
      Newsreader-Serife; jetzt trägt sie dieselbe Sans wie das übrige UI und
      hebt sich über drei andere Grössen ab:
 
-     - 20px ist 1.54x Fliesstext (13px) — dieselbe Sprungweite, die die
-       Serife optisch hatte, und weit genug über der 15px-Titelstufe, dass
-       keine vierte Grösse zwischen 15 und 20 nötig wird. 22px hätte auf
-       390px nur noch ~30 Zeichen pro Zeile ergeben.
      - Gewicht 500 trägt im ganzen Produkt sonst kein Element: Titel stehen
-       auf 700, Karten- und Abschnittsköpfe auf 600, Fliesstext auf 400.
+       auf 700/730, Karten- und Abschnittsköpfe auf 600, Fliesstext auf 400.
        Die Stimme bekommt damit ein eigenes Gewicht statt eines geliehenen.
-       Plus Jakarta Sans auf 400 wirkt bei 20px auf Weiss dünn und verliert
-       genau die Präsenz, für die die Serife da war.
      - Zeilenhöhe 1.5 statt der 1.55 der Serife: Sans braucht bei gleicher
        Grösse etwas weniger Durchschuss.
      - measure begrenzt die Zeilenlänge. Im breiten Detail-Panel und im
        Bericht liefe der Text sonst randlos durch — der Weissraum ist der
-       Teil, der die Abhebung nach dem Wegfall der Serife mitträgt. */
+       Teil, der die Abhebung nach dem Wegfall der Serife mitträgt.
+
+     ── 17px statt 20px (2026-08-09) ───────────────────────────────────
+     Die Rolle startete auf 20px. Gemessen war sie damit der GRÖSSTE
+     Lauftext des Produkts: der grösste mehrzeilige Fliesstext sonst misst
+     15px (Eintragstitel in den Einstellungen), und 20px lag auf derselben
+     Stufe wie der Datensatzname im Detail-Panel — eine Überschrift. Solange
+     die Serife die Abhebung mittrug, musste die Grösse das nicht allein
+     leisten; seit dem Wegfall tat sie es, und Grösse ist die eine Achse,
+     die direkt mit der Überschriftenhierarchie konkurriert.
+
+     17px hält den Abstand nach unten (+4 gegen den 13px-Fliesstext, +2
+     gegen die 15px-Zeilentitel) und gibt die Konkurrenz nach oben auf.
+     Tiefer geht es nicht: auf 15px/400 stand das Anliegen vor #848 schon
+     einmal und war als eigene Stimme nicht lesbar — genau der Zustand, den
+     #848 behoben hat. Die Abhebung liegt jetzt bei Gewicht (500 gegen 400),
+     Farbe (Night gegen die Sekundärrolle des Fliesstexts), Durchschuss und
+     Zeilenlänge; die Grösse trägt nur noch mit. */
   --vx-ui-voice-font: var(--vx-font-display);
-  --vx-ui-voice-size: 20px;
-  --vx-ui-voice-size-sm: 18px;
+  --vx-ui-voice-size: 17px;
+  --vx-ui-voice-size-sm: 16px;
   --vx-ui-voice-weight: 500;
   --vx-ui-voice-leading: 1.5;
   --vx-ui-voice-tracking: -.01em;

@@ -70,7 +70,7 @@ for (const token of [
   '/shared/customer-design-system.css?v=20260807-2',
   '/shared/customer-assistant-components.css?v=20260808-3',
   '/shared/customer-assistant-status.css?v=20260803-1',
-  '/shared/customer-settings-components.css?v=20260807-3',
+  '/shared/customer-settings-components.css?v=20260809-1',
   '/shared/customer-support-components.css?v=20260802-2',
   '/shared/customer-navigation-components.css?v=20260807-3',
   '/shared/customer-ui-components.css?v=20260807-3',
@@ -617,6 +617,63 @@ for (const token of [
   assert.ok(designTokens.includes(token), `voice role token missing: ${token}`);
 }
 
+// --- Block 6c: geteilte Überschriften-Leiter (2026-08-09) -------------------
+// Panel und Einstellungen legten ihre Überschriftenwerte getrennt fest und
+// standen nebeneinander in zwei Leitern (Panel 24/20/20/14/13/12/11 gegen
+// 24/18/15/14/13/12). Die beiden geteilten Stufen kommen jetzt aus einer
+// Quelle; ohne Wächter driftet die nächste Fläche wieder auf Literale ab.
+for (const token of [
+  '--vx-ui-title-size: 18px',
+  '--vx-ui-title-weight: 730',
+  '--vx-ui-title-tracking',
+  '--vx-ui-entry-title-size: 15px',
+  '--vx-ui-entry-title-weight: 700'
+]) {
+  assert.ok(designTokens.includes(token), `heading ladder token missing: ${token}`);
+}
+
+// Die Stimme darf nicht wieder über die Titelstufe steigen: als Lauftext
+// konkurriert sie dort direkt mit der Überschriftenhierarchie — der Grund,
+// aus dem sie von 20px auf 17px zurückgenommen wurde. Nach unten begrenzt
+// 15px: auf diesem Wert stand das Anliegen vor #848 und war als eigene
+// Stimme nicht lesbar.
+{
+  const voiceSize = /--vx-ui-voice-size:\s*(\d+)px/.exec(designTokens);
+  const titleSize = /--vx-ui-title-size:\s*(\d+)px/.exec(designTokens);
+  assert.ok(voiceSize && titleSize, 'voice/title size tokens not readable');
+  const voice = Number(voiceSize[1]);
+  assert.ok(voice < Number(titleSize[1]), `voice size ${voice}px must stay below the title step ${titleSize[1]}px`);
+  assert.ok(voice > 15, `voice size ${voice}px is back at the pre-#848 body-text level`);
+}
+
+// Panel und Einstellungen lesen dieselben zwei Stufen. Literale hier sind
+// genau der Zustand, aus dem die zwei getrennten Leitern entstanden sind.
+for (const [label, source, selectors] of [
+  ['dashboard', dashboard, ['.vx-dv2-title', '.vx-dv2-action-title']],
+  ['settings CSS', settingsCss, ['.vx-settings-card-title', '.vx-settings-entry-title']]
+]) {
+  for (const selector of selectors) {
+    const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const match = new RegExp(`${escaped}[^{};*/]*\\{([^}]*)\\}`).exec(source);
+    assert.ok(match, `${label} missing ladder place: ${selector}`);
+    assert.ok(/var\(--vx-ui-(title|entry-title)-size\)/.test(match[1]),
+      `${label}: ${selector} sets its own size instead of reading the shared ladder`);
+  }
+}
+
+// Die Leiter gilt erst, wenn sie niemand mit hoeherer Spezifitaet ueberstimmt.
+// customer-runtime-settings-polish.js injizierte ein <style> mit
+// "#mehr-sub-profil .vx-settings-card-title, #tab-hilfe .vx-settings-card-title
+// {font-size:19px;font-weight:760}" — ID-Selektoren schlagen die Modulregel,
+// und ausgerechnet Profil und Hilfe standen damit ausserhalb der geteilten
+// Stufe, waehrend der Datei-Waechter oben gruen meldete. Ein Waechter, der nur
+// die Modulregel liest, prueft die falsche Ebene.
+{
+  const polish = fs.readFileSync('customer-dashboard/shared/customer-runtime-settings-polish.js', 'utf8');
+  assert.ok(!/vx-settings-card-title/.test(polish),
+    'settings-polish runtime overrides the shared title step again (ID selectors beat the module rule)');
+}
+
 // Verboten ist die DEKLARATION, nicht das Wort: die Kommentare, die den
 // Wechsel erklären, nennen die abgelöste Serife im Fliesstext und sollen
 // stehen bleiben dürfen. Ein Kommentar schreibt "Newsreader-Serife", eine
@@ -834,6 +891,6 @@ assert.ok(dashboard.includes('<script src="/shared/offer-brand.js?v=20260807-4">
 assert.ok(!dashboard.includes('<script src="/shared/offer-brand.js"></script>'), 'dashboard still loads unversioned offer-brand');
 assert.ok(loader.includes('/shared/customer-runtime-design-foundation.js?v=20260808-1'), 'offer-brand missing current design loader version');
 assert.ok(!loader.includes('/shared/customer-runtime-design-foundation.js?v=20260803-4'), 'offer-brand still references stale design loader version');
-for (const stale of ['/shared/customer-design-system.css?v=20260804-1','/shared/customer-assistant-components.css?v=20260803-1','/shared/customer-assistant-components.css?v=20260808-2','/shared/customer-navigation-components.css?v=20260803-1']) assert.ok(!runtime.includes(stale), `design loader still contains stale CSS URL: ${stale}`);
-const cssOrder=['/shared/customer-design-system.css?v=20260807-2','/shared/customer-assistant-components.css?v=20260808-3','/shared/customer-assistant-status.css?v=20260803-1','/shared/customer-navigation-components.css?v=20260807-3','/shared/customer-settings-components.css?v=20260807-3','/shared/customer-support-components.css?v=20260802-2','/shared/customer-ui-components.css?v=20260807-3'];
+for (const stale of ['/shared/customer-settings-components.css?v=20260807-3','/shared/customer-design-system.css?v=20260804-1','/shared/customer-assistant-components.css?v=20260803-1','/shared/customer-assistant-components.css?v=20260808-2','/shared/customer-navigation-components.css?v=20260803-1']) assert.ok(!runtime.includes(stale), `design loader still contains stale CSS URL: ${stale}`);
+const cssOrder=['/shared/customer-design-system.css?v=20260807-2','/shared/customer-assistant-components.css?v=20260808-3','/shared/customer-assistant-status.css?v=20260803-1','/shared/customer-navigation-components.css?v=20260807-3','/shared/customer-settings-components.css?v=20260809-1','/shared/customer-support-components.css?v=20260802-2','/shared/customer-ui-components.css?v=20260807-3'];
 for(let i=1;i<cssOrder.length;i+=1) assert.ok(runtime.indexOf(cssOrder[i-1])<runtime.indexOf(cssOrder[i]),`design CSS module order changed: ${cssOrder[i-1]} before ${cssOrder[i]}`);
