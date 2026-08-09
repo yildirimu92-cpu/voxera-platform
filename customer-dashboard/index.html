@@ -7552,6 +7552,14 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
           .vx-handover-card-title { font-weight:var(--vx-ui-row-title-weight); font-size:var(--vx-ui-list-title-size); color:var(--vx-ui-row-title-color); line-height:1.35; }
           .vx-handover-card-time { font-size:var(--vx-ui-row-time-size); font-weight:var(--vx-ui-section-label-weight); color:var(--vx-ui-row-time-color); white-space:nowrap; flex:0 0 auto; }
           .vx-handover-card-desc { margin-top:4px; font-size:var(--vx-ui-row-desc-size); color:var(--vx-ui-row-desc-color); line-height:var(--vx-ui-row-desc-leading); }
+          /* Faellige Folgeaktion: sagt an der Karte, WARUM sie heute dasteht.
+             Der Chip ist der normale Zustands-Badge des Design-Systems
+             (vx-ui-badge), der Termin daneben liest sich in derselben
+             Meta-Rolle wie die Uhrzeit oben rechts. Umbruch erlaubt: auf
+             390px passen "Offerte senden" und "Ueberfaellig seit 08.08.2026,
+             09:00" nicht nebeneinander. */
+          .vx-handover-card-due { display:flex; align-items:center; flex-wrap:wrap; gap:8px; margin-top:6px; }
+          .vx-handover-card-due-text { font-size:var(--vx-ui-row-time-size); color:var(--vx-ui-row-time-color); }
           .vx-handover-card-actions { display:flex; align-items:center; justify-content:flex-start; gap:16px; margin-top:10px; }
           .vx-handover-btn {
             border-radius:var(--vx-radius-pill,999px); min-height:34px; font-size:13px; font-weight:700;
@@ -20335,6 +20343,36 @@ function vxHeuteRecordCompletedToday(record) {
   var created = vxHeuteGetTimestamp(record, ['created_at','inserted_at']);
   return !!created && vxHeuteIsToday(created);
 }
+// ── Fällige Folgeaktionen ───────────────────────────────────────────────
+// Eine Folgeaktion ist calls.follow_up_at + calls.next_action (geschrieben
+// von call-save-followup.js, Status follow_up_scheduled). Sie entsteht an dem
+// Tag, an dem der Anruf bearbeitet wird, und wird an einem SPÄTEREN Tag
+// fällig. Genau daran lief sie an Heute vorbei: die Grundmenge der Übergabe
+// war "heute eingegangen ODER heute abgeschlossen" — an seinem
+// Fälligkeitstag ist der Anruf weder das eine noch das andere. Heute zeigte
+// deshalb "Alles im Griff", während eine zugesagte Rückmeldung fällig oder
+// bereits überfällig war.
+//
+// Die zeitliche Einordnung kommt aus den kanonischen Helfern
+// (getFollowUpBadgeState/parseTaskDueAt → parseFollowUpDate). vxHeuteParseDate()
+// wäre hier FALSCH: es liest über parseCallTimestamp() als UTC, follow_up_at
+// ist aber semantisch lokale Benutzerzeit (siehe parseFollowUpDate) — ein
+// Termin um 09:00 würde sonst erst um 11:00 als fällig gelten.
+function vxHeuteGetFollowUpValue(record) {
+  return vxHeuteGetRecordValue(record, ['follow_up_at','followup_at','followUpAt','follow_up']);
+}
+function vxHeuteIsFollowUpDue(record, now) {
+  if (!record || vxHeuteIsDoneRecord(record)) return false;
+  if (!vxHeuteGetFollowUpValue(record)) return false;
+  var state = (typeof getFollowUpBadgeState === 'function') ? getFollowUpBadgeState(record, now) : '';
+  return state === 'overdue' || state === 'today';
+}
+// Nur die Folgeaktionen, die der heutige Tag nicht ohnehin schon enthält: ein
+// heute eingegangener Anruf mit Fälligkeit heute steht bereits als heutiger
+// Eingang auf der Karte und darf nicht doppelt gezählt werden.
+function vxHeuteIsCarriedOverFollowUp(record, now) {
+  return vxHeuteIsFollowUpDue(record, now) && !vxHeuteRecordCreatedToday(record);
+}
 function vxHeuteGetDueValue(record) {
   var f = (record && record.fields) || {};
   if (typeof resolveTaskDueAt === 'function') {
@@ -20653,8 +20691,31 @@ function vxHeuteGetHandoverCalls(sourceRecords) {
   var source = Array.isArray(sourceRecords) ? sourceRecords : [];
   return vxHeuteDedupeByStableId(source).filter(function(r) {
     if (!vxHeuteIsHandoverCall(r)) return false;
-    // Offene Anrufe von heute UND heute abgeschlossene Anrufe.
-    return vxHeuteRecordCreatedToday(r) || vxHeuteRecordCompletedToday(r);
+    // Offene Anrufe von heute, heute abgeschlossene Anrufe UND offene
+    // Folgeaktionen, deren Termin heute (oder früher) liegt. Der dritte Fall
+    // ist der einzige, der einen Anruf aus einem früheren Tag zurückholt —
+    // und zwar genau an dem Tag, an dem er wieder Arbeit ist.
+    return vxHeuteRecordCreatedToday(r) || vxHeuteRecordCompletedToday(r) || vxHeuteIsFollowUpDue(r);
+  });
+}
+// Fällige Folgeaktionen stehen oben, die am längsten überfällige zuerst: sie
+// tragen eine Zusage mit Termin, ein frisch eingegangener Anruf nicht.
+// Darunter bleibt die bisherige Ordnung (neueste zuerst).
+function vxHeuteCreatedTimeValue(record) {
+  var d = vxHeuteParseDate(vxHeuteGetTimestamp(record, ['created_at','inserted_at']));
+  return d ? d.getTime() : 0;
+}
+function vxHeuteSortNeedsRecords(records, now) {
+  return (records || []).slice().sort(function(a, b) {
+    var aDue = vxHeuteIsFollowUpDue(a, now);
+    var bDue = vxHeuteIsFollowUpDue(b, now);
+    if (aDue !== bDue) return aDue ? -1 : 1;
+    if (aDue && bDue) {
+      var ad = (typeof parseTaskDueAt === 'function') ? parseTaskDueAt(a) : null;
+      var bd = (typeof parseTaskDueAt === 'function') ? parseTaskDueAt(b) : null;
+      return (ad ? ad.getTime() : 0) - (bd ? bd.getTime() : 0);
+    }
+    return vxHeuteCreatedTimeValue(b) - vxHeuteCreatedTimeValue(a);
   });
 }
 function vxHeuteCountSinceVisit(calls, visitRef) {
@@ -20684,29 +20745,50 @@ function vxHeuteOpenPhrase(needsCount) {
     ? 'ein Punkt, der dich braucht'
     : vxHeuteSpellNumber(needsCount) + ' Punkte, die dich brauchen';
 }
-function vxHeuteBuildLaraMessage(visitRef, todayTotal, newCount, resolvedCount, needsCount) {
+// Übernommene Folgeaktionen werden IMMER als eigener Satz genannt und nie in
+// die Anruf-Zahlen gemischt: sie sind keine heutigen Eingänge ("Seit deinem
+// letzten Besuch ist ein Anruf eingegangen" wäre für einen Anruf von
+// vorgestern schlicht falsch) und auch keine Anrufe, die Lara selbst erledigt
+// hat. Ohne diesen Satz stünde in der Nachricht "nichts braucht dich",
+// während direkt darunter eine fällige Karte liegt.
+function vxHeuteDuePhrase(dueCount) {
+  return dueCount === 1
+    ? 'ist eine Folgeaktion aus den letzten Tagen'
+    : 'sind ' + vxHeuteSpellNumber(dueCount) + ' Folgeaktionen aus den letzten Tagen';
+}
+function vxHeuteBuildLaraMessage(visitRef, todayTotal, newCount, resolvedCount, needsCount, dueCount) {
+  var due = dueCount || 0;
   // Nichts von heute — echter Leerzustand.
-  if (todayTotal === 0) return 'Heute ist noch nichts eingegangen. Ich melde mich, sobald ein Anruf reinkommt.';
+  if (todayTotal === 0) {
+    if (due === 0) return 'Heute ist noch nichts eingegangen. Ich melde mich, sobald ein Anruf reinkommt.';
+    return 'Heute ist noch nichts eingegangen. Fällig ' + vxHeuteDuePhrase(due) + '.';
+  }
 
   var timeStr = vxHeuteFormatVisitTime(visitRef);
   var since = timeStr ? ('Seit deinem letzten Besuch um ' + timeStr) : 'Heute';
+  var dueTail = due > 0 ? ' Dazu ' + vxHeuteDuePhrase(due) + ' fällig.' : '';
 
   // Keine neuen Anrufe seit dem letzten Besuch.
   if (newCount === 0) {
     var head = timeStr ? 'Nichts Neues seit deinem letzten Besuch um ' + timeStr + '.' : 'Heute ist nichts Neues eingegangen.';
-    if (needsCount === 0) return head + ' Alles von heute ist erledigt – nichts braucht dich.';
-    return head + ' Weiterhin offen: ' + vxHeuteOpenPhrase(needsCount) + '.';
+    if (needsCount === 0) {
+      if (due > 0) return head + ' Alles von heute ist erledigt. Fällig ' + vxHeuteDuePhrase(due) + '.';
+      return head + ' Alles von heute ist erledigt – nichts braucht dich.';
+    }
+    return head + ' Weiterhin offen: ' + vxHeuteOpenPhrase(needsCount) + '.' + dueTail;
   }
 
   // Neue Anrufe seit dem letzten Besuch.
   var intro = since + ' ' + vxHeuteCallPhrase(newCount) + ' eingegangen.';
   if (needsCount === 0) {
-    return intro + ' ' + (newCount === 1 ? 'Den habe ich' : 'Alle habe ich') + ' selbst erledigt – nichts braucht dich.';
+    var selfDone = (newCount === 1 ? 'Den habe ich' : 'Alle habe ich') + ' selbst erledigt';
+    if (due > 0) return intro + ' ' + selfDone + '. Fällig ' + vxHeuteDuePhrase(due) + '.';
+    return intro + ' ' + selfDone + ' – nichts braucht dich.';
   }
   var waiting = needsCount === 1 ? 'Einer wartet' : vxHeuteCapitalize(vxHeuteSpellNumber(needsCount)) + ' warten';
-  if (resolvedCount === 0) return intro + ' ' + waiting + ' auf dich.';
+  if (resolvedCount === 0) return intro + ' ' + waiting + ' auf dich.' + dueTail;
   return intro + ' ' + waiting + ' auf dich, '
-    + (resolvedCount === 1 ? 'einen' : vxHeuteSpellNumber(resolvedCount)) + ' habe ich selbst erledigt.';
+    + (resolvedCount === 1 ? 'einen' : vxHeuteSpellNumber(resolvedCount)) + ' habe ich selbst erledigt.' + dueTail;
 }
 // [BUGFIX] vxHeuteActivityTime()/vxHeuteActivityTimestamp() (verwendet von
 // der alten, jetzt versteckten "Heute passiert"-Chronologie) ziehen
@@ -20733,6 +20815,25 @@ function vxHeuteHandoverCardTime(record, variant) {
     return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
   }
 }
+// Benennt an der Karte die zugesagte Aktion (calls.next_action) und ihren
+// Termin. Beide Texte kommen aus den bestehenden Formatierern
+// (getFollowUpActionLabel/formatTaskDueLabel) — hier wird kein zweiter
+// Wortlaut für dieselbe Sache erfunden.
+function vxHeuteFollowUpDueRowHtml(record) {
+  if (!vxHeuteIsFollowUpDue(record)) return '';
+  var state = (typeof getFollowUpBadgeState === 'function') ? getFollowUpBadgeState(record) : '';
+  var action = '';
+  try { if (typeof getFollowUpActionLabel === 'function') action = String(getFollowUpActionLabel(record) || '').trim(); } catch (e) {}
+  if (!action) action = 'Nachfassen';
+  var dueLabel = '';
+  try { if (typeof formatTaskDueLabel === 'function') dueLabel = String(formatTaskDueLabel(record, { emptyLabel: '' }) || '').trim(); } catch (e) {}
+  var badge = (typeof vxUiBadge === 'function')
+    ? vxUiBadge(action, state === 'overdue' ? 'danger' : 'info')
+    : '<span class="vx-ui-badge">' + _esc(action) + '</span>';
+  return '<div class="vx-handover-card-due">' + badge
+    + (dueLabel ? '<span class="vx-handover-card-due-text">' + _esc(dueLabel) + '</span>' : '')
+    + '</div>';
+}
 function vxHeuteHandoverCardHtml(rec, variant) {
   var id = String((rec && rec.id) || vxHeuteGetRecordValue(rec, ['id','call_id']) || '');
   var phone = String(vxHeuteGetRecordValue(rec, ['caller_phone','phone_number','phone']) || '').trim();
@@ -20740,6 +20841,13 @@ function vxHeuteHandoverCardHtml(rec, variant) {
   var summary = vxHeuteHandoverDescription(rec);
   var time = vxHeuteHandoverCardTime(rec, variant);
   if (variant === 'needs') {
+    var dueRow = vxHeuteFollowUpDueRowHtml(rec);
+    // Bei einer übernommenen Folgeaktion bleibt die Zeit oben rechts leer:
+    // dort steht sonst die Eingangszeit eines Anrufs von vorgestern, die auf
+    // einer Karte unter "Braucht dich" wie eine heutige Uhrzeit gelesen wird.
+    // Die Zeitangabe, die hier zählt, ist der Termin — und der steht in der
+    // Fälligkeitszeile.
+    if (vxHeuteIsCarriedOverFollowUp(rec)) time = '';
     return '<article class="vx-handover-card vx-handover-card--needs" data-id="'+_esc(id)+'" data-phone="'+_esc(phone)+'"'
       + ' role="button" tabindex="0" onclick="vxHeuteCardClick(event,this);">'
       + '<div class="vx-handover-card-body">'
@@ -20748,6 +20856,7 @@ function vxHeuteHandoverCardHtml(rec, variant) {
       + '<div class="vx-handover-card-head"><div class="vx-handover-card-title">'+_esc(title)+'</div>'
       + (time ? '<div class="vx-handover-card-time">'+_esc(time)+'</div>' : '') + '</div>'
       + (summary ? '<div class="vx-handover-card-desc">'+_esc(summary)+'</div>' : '')
+      + dueRow
       + (phone ? '<div class="vx-handover-card-actions">'
         + '<button type="button" class="vx-handover-btn vx-handover-btn--primary" data-action="call" data-rec-id="'+_esc(id)+'" data-phone="'+_esc(phone)+'">Zurückrufen</button>'
         + '</div>' : '')
@@ -20802,16 +20911,23 @@ function vxHeuteRenderLaraHandover(sourceRecords) {
 
   var visitRef = vxHeuteResolveVisitReference();
   var todayCalls = vxHeuteGetHandoverCalls(sourceRecords);
-  var needsRecords = todayCalls.filter(function(r) { return !vxHeuteIsDoneRecord(r); })
-    .sort(function(a,b){ return (new Date(vxHeuteGetTimestamp(b,['created_at','inserted_at'])||0).getTime()) - (new Date(vxHeuteGetTimestamp(a,['created_at','inserted_at'])||0).getTime()); });
+  // Die Karten zeigen beides; die Nachricht trennt beides. carriedFollowUps
+  // sind Anrufe früherer Tage, die nur wegen ihres heutigen Termins wieder
+  // hier stehen — sie dürfen weder als heutiger Eingang noch als "neu seit
+  // deinem letzten Besuch" gezählt werden.
+  var carriedFollowUps = todayCalls.filter(function(r) { return vxHeuteIsCarriedOverFollowUp(r); });
+  var todayOnlyCalls = todayCalls.filter(function(r) { return carriedFollowUps.indexOf(r) === -1; });
+  var needsRecords = vxHeuteSortNeedsRecords(todayCalls.filter(function(r) { return !vxHeuteIsDoneRecord(r); }));
   var resolvedRecords = todayCalls.filter(vxHeuteIsDoneRecord)
     .sort(function(a,b){ return (new Date(vxHeuteHandoverCardTimestamp(b,'resolved')||0).getTime()) - (new Date(vxHeuteHandoverCardTimestamp(a,'resolved')||0).getTime()); });
-  var newCount = vxHeuteCountSinceVisit(todayCalls, visitRef);
+  var newCount = vxHeuteCountSinceVisit(todayOnlyCalls, visitRef);
+  var freshNeedsCount = needsRecords.length - carriedFollowUps.length;
 
   if (typeof vxDebugLog === 'function') {
     vxDebugLog('[heute:handover]', {
       source: (sourceRecords || []).length,
       todayCalls: todayCalls.length,
+      carriedFollowUps: carriedFollowUps.length,
       needs: needsRecords.length,
       resolved: resolvedRecords.length,
       newSinceVisit: newCount,
@@ -20819,7 +20935,7 @@ function vxHeuteRenderLaraHandover(sourceRecords) {
     });
   }
 
-  msgEl.textContent = vxHeuteBuildLaraMessage(visitRef, todayCalls.length, newCount, resolvedRecords.length, needsRecords.length);
+  msgEl.textContent = vxHeuteBuildLaraMessage(visitRef, todayOnlyCalls.length, newCount, resolvedRecords.length, freshNeedsCount, carriedFollowUps.length);
   var assistantName = (typeof customerMeta !== 'undefined' && customerMeta && customerMeta.assistantName) ? customerMeta.assistantName : 'Lara';
   if (metaEl) {
     metaEl.textContent = assistantName + ' · gerade eben';
