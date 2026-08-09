@@ -2759,6 +2759,19 @@ body,.main{background:#F7F8FC;}
           </div>
         </div>
 
+        <!-- Benachrichtigungen -->
+        <div class="card" style="margin-bottom:12px;">
+          <div class="card-head">
+            <h3>Meine Benachrichtigungen</h3>
+            <button class="btn btn-primary btn-sm" onclick="saveAdminNotificationSettings()">Speichern</button>
+          </div>
+          <div style="font-size:12px;color:var(--slate);margin-bottom:14px;">
+            Gilt nur für Ihr Konto. Ereignisse ohne Versandweg sind als solche gekennzeichnet — sie erhalten einen Schalter, sobald die Route in der Mail-Engine steht.
+          </div>
+          <div id="admin-notif-rows"><div style="font-size:12px;color:var(--slate);">Wird geladen …</div></div>
+          <div id="admin-notif-feedback" style="margin-top:10px;font-size:12px;" role="status" aria-live="polite"></div>
+        </div>
+
         <!-- Admin-Verwaltung -->
         <div class="card" style="margin-bottom:12px;">
           <div class="card-head">
@@ -8517,6 +8530,77 @@ function renderSettings(){
         </tr>`;
       }).join('')||'<tr><td colspan="5"><div class="empty">Keine Admins.</div></td></tr>';
     }).catch(e=>console.warn('[settings] admins:',e));
+  }
+  loadAdminNotificationSettings();
+}
+
+// ── Meine Benachrichtigungen ────────────────────────────────────────────────
+//
+// Ereignisse ohne Versandweg bekommen eine Zustandszeile statt eines
+// Schalters. Die Diagnose vom 09.08. hat im Kunden-Dashboard vier Schalter
+// gefunden, die nichts steuerten - ein Schalter, der laut Backend gar nichts
+// ausloesen kann, waere derselbe Fehler an neuer Stelle. Welche Ereignisse
+// verfuegbar sind, entscheidet das Backend (mailType gesetzt), nicht diese
+// Datei.
+let _adminNotifEvents=[];
+
+function adminNotifRowHtml(item){
+  const control=item.available
+    ? `<label style="display:inline-flex;align-items:center;gap:8px;cursor:pointer;">
+         <input type="checkbox" data-admin-notif-key="${esc(item.key)}" ${item.email_enabled?'checked':''}>
+         <span style="font-size:12px;color:var(--slate);">E-Mail</span>
+       </label>`
+    : `<span class="chip" title="${esc(item.unavailable_reason||'')}">Noch nicht aktiv</span>`;
+  return `<div class="detail-item" style="align-items:flex-start;gap:16px;">
+    <span class="detail-k" style="flex:1;">
+      <strong style="display:block;">${esc(item.title)}</strong>
+      <span style="font-size:11px;color:var(--slate);line-height:1.45;">${esc(item.description)}</span>
+    </span>
+    <span class="detail-v" style="flex:0 0 auto;">${control}</span>
+  </div>`;
+}
+
+async function loadAdminNotificationSettings(){
+  const host=document.getElementById('admin-notif-rows');
+  if(!host||!(authClient&&authClient.auth)) return;
+  try{
+    const {data:{session}}=await authClient.auth.getSession();
+    if(!session?.access_token) throw new Error('Admin-Session fehlt.');
+    const res=await fetch('/.netlify/functions/admin-notification-settings',{
+      headers:{'Authorization':`Bearer ${session.access_token}`}
+    });
+    const json=await res.json().catch(()=>({}));
+    if(!res.ok) throw new Error(json.error||`HTTP ${res.status}`);
+    _adminNotifEvents=Array.isArray(json.events)?json.events:[];
+    host.innerHTML=_adminNotifEvents.map(adminNotifRowHtml).join('')
+      ||'<div style="font-size:12px;color:var(--slate);">Keine Ereignisse definiert.</div>';
+  }catch(error){
+    host.innerHTML=`<div style="font-size:12px;color:var(--red,#DC2626);">Einstellungen konnten nicht geladen werden: ${esc(error?.message||error)}</div>`;
+  }
+}
+
+async function saveAdminNotificationSettings(){
+  const feedback=document.getElementById('admin-notif-feedback');
+  const setFeedback=(text,color)=>{if(feedback){feedback.textContent=text;feedback.style.color=color;}};
+  setFeedback('Wird gespeichert …','var(--slate)');
+  try{
+    const events={};
+    document.querySelectorAll('[data-admin-notif-key]').forEach(input=>{
+      events[input.getAttribute('data-admin-notif-key')]=input.checked===true;
+    });
+    if(!Object.keys(events).length){
+      setFeedback('Keine änderbaren Ereignisse vorhanden.','var(--slate)');
+      return;
+    }
+    const json=await callAdminFunction('admin-notification-settings',{events});
+    _adminNotifEvents=Array.isArray(json?.events)?json.events:_adminNotifEvents;
+    // Neu zeichnen statt nur den Zustand zu merken: sonst zeigt die Seite den
+    // gesendeten Wunsch, nicht den gespeicherten Stand.
+    const host=document.getElementById('admin-notif-rows');
+    if(host) host.innerHTML=_adminNotifEvents.map(adminNotifRowHtml).join('');
+    setFeedback('Gespeichert.','#059669');
+  }catch(error){
+    setFeedback('Fehler: '+(error?.message||error),'var(--red,#DC2626)');
   }
 }
 

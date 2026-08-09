@@ -25,7 +25,13 @@ const paths = {
   settings: 'customer-dashboard/netlify/functions/customer-update-settings.js',
   callNotification: 'customer-dashboard/netlify/functions/_lib/call-notification.js',
   profile: 'customer-dashboard/netlify/functions/customer-assistant-profile.js',
-  migration: 'supabase/migrations/2026-08-09_notification_mode_gating.sql'
+  migration: 'supabase/migrations/2026-08-09_notification_mode_gating.sql',
+  adminEvents: 'admin-panel/netlify/functions/_lib/admin-notification-events.js',
+  adminEventsCopy: 'customer-dashboard/netlify/functions/_lib/admin-notification-events.js',
+  adminSettings: 'admin-panel/netlify/functions/admin-notification-settings.js',
+  adminMigration: 'supabase/migrations/2026-08-09_admin_notification_settings.sql',
+  adminPanel: 'admin-panel/index.html',
+  aiChangeRequest: 'customer-dashboard/netlify/functions/ai-change-request-create.js'
 };
 const src = Object.fromEntries(
   Object.entries(paths).map(([key, path]) => [key, fs.readFileSync(path, 'utf8')])
@@ -254,5 +260,111 @@ check(
   'getElementById traf immer die erste Kopie, die zweite speicherte nie'
 );
 
-console.log(`\n${failed === 0 ? 'Benachrichtigungseinstellungen verifiziert.' : `${failed} Pruefung(en) fehlgeschlagen.`}`);
+
+// ─── Admin-Portal ───────────────────────────────────────────────────────────
+//
+// Dieselbe Fehlerklasse, andere Seite: die Diagnose fand fuenf beschlossene
+// Events, von denen genau eines zustellt. Ein Schalter fuer die uebrigen vier
+// waere ein Schalter ohne Wirkung -- deshalb pruefen die naechsten Zeilen, dass
+// die Oberflaeche nur anbietet, was das Backend auch versenden kann.
+const adminEvents = require(`../${paths.adminEvents}`);
+
+check(
+  'Beide Kopien von admin-notification-events.js sind identisch',
+  src.adminEvents === src.adminEventsCopy,
+  'Netlify bundelt pro Site - die Kopien duerfen nicht auseinanderlaufen'
+);
+
+const EXPECTED_EVENTS = [
+  'ai_change_request',
+  'countersign_pending',
+  'contract_start_confirmed',
+  'billing_delivery_failure',
+  'cancellation_submitted'
+];
+check(
+  'Die fuenf beschlossenen Admin-Events sind definiert',
+  EXPECTED_EVENTS.every(key => adminEvents.EVENT_KEYS.includes(key))
+    && adminEvents.EVENT_KEYS.length === EXPECTED_EVENTS.length,
+  adminEvents.EVENT_KEYS.join(', ')
+);
+
+for (const key of EXPECTED_EVENTS) {
+  check(
+    `Die Migration kennt ${key}`,
+    new RegExp(`'${key}'`).test(src.adminMigration)
+  );
+}
+
+// Der Werksstandard aus dem Zielbild: 1, 2, 4, 5 an -- 3 aus.
+const defaults = Object.fromEntries(
+  adminEvents.ADMIN_NOTIFICATION_EVENTS.map(event => [event.key, event.defaultEmail])
+);
+check('Werksstandard: KI-Aenderungsanfrage an', defaults.ai_change_request === true);
+check('Werksstandard: Gegenzeichnung ausstehend an', defaults.countersign_pending === true);
+check('Werksstandard: Vertragsstart bestaetigt aus', defaults.contract_start_confirmed === false);
+check('Werksstandard: Billing-/Zustellfehler an', defaults.billing_delivery_failure === true);
+check('Werksstandard: Kuendigung eingereicht an', defaults.cancellation_submitted === true);
+
+// Genau ein Event hat heute einen Versandweg. Faellt diese Pruefung, weil ein
+// weiterer mailType gesetzt wurde, gehoert die passende Route in Make dazu --
+// sonst verspricht die Oberflaeche einen Versand, den es nicht gibt.
+const withMailType = adminEvents.ADMIN_NOTIFICATION_EVENTS.filter(event => event.mailType);
+check(
+  'Nur Events mit mailType gelten als verfuegbar',
+  withMailType.length === 1 && withMailType[0].key === 'ai_change_request',
+  `mit mailType: ${withMailType.map(event => event.key).join(', ') || '(keins)'}`
+);
+for (const event of adminEvents.ADMIN_NOTIFICATION_EVENTS.filter(item => !item.mailType)) {
+  check(
+    `${event.key} nennt seine kuenftige Ausloesestelle`,
+    Boolean(event.plannedTrigger),
+    'sonst ist beim Nachbauen nicht auffindbar, wo der Emitter hingehoert'
+  );
+}
+check(
+  'Die Oberflaeche zeigt nicht versendbare Events als Zustand statt als Schalter',
+  /available\s*:\s*Boolean\(event\.mailType\)/.test(src.adminSettings)
+    && /Noch nicht aktiv/.test(src.adminPanel),
+  'ein Schalter ohne Versandweg ist genau der Fehler, den die Diagnose gefunden hat'
+);
+
+// B9: der Empfaenger kommt aus der Einstellung, nicht aus dem Sammelpostfach.
+check(
+  'ai_change_request loest die Empfaenger aus admin_notification_settings auf',
+  /resolveAdminRecipients\(sbAdmin,\s*'ai_change_request'\)/.test(src.aiChangeRequest)
+    && /recipient:\s*\{\s*email:/.test(src.aiChangeRequest),
+  'der Payload trug bis 2026-08-09 keinen Empfaenger'
+);
+check(
+  'Ohne Empfaenger wird kein Erfolg behauptet',
+  /skipped:\s*true/.test(src.aiChangeRequest) && /accepted:\s*false/.test(src.aiChangeRequest),
+  'ein abgeschaltetes Event darf nicht wie ein zugestelltes aussehen'
+);
+check(
+  '"Niemand will das" und "Abfrage gescheitert" sind unterscheidbar',
+  /no_recipients_enabled/.test(src.adminEvents) && /lookup_failed/.test(src.adminEvents)
+);
+
+// Die Tabelle ist nicht aus dem Browser erreichbar.
+check(
+  'admin_notification_settings ist gegen Browser-Zugriff gesperrt',
+  /enable row level security/.test(src.adminMigration)
+    && /revoke all on public\.admin_notification_settings from anon/.test(src.adminMigration)
+    && /revoke all on public\.admin_notification_settings from authenticated/.test(src.adminMigration),
+  'dieselbe Annahme hat 2026-08-08 bei public.notifications nicht gehalten'
+);
+check(
+  'Die Einstellungs-Function laeuft nur fuer eingeloggte Admins',
+  /requireAdminCaller/.test(src.adminSettings)
+);
+check(
+  'Ein Admin aendert nur die eigenen Einstellungen',
+  /\.eq\('admin_id',\s*adminId\)/.test(src.adminSettings)
+    && !/body\.admin_id/.test(src.adminSettings),
+  'sonst kann ein Admin die Benachrichtigungen eines anderen abschalten'
+);
+
+
+console.log(`\n${failed === 0 ? 'Benachrichtigungseinstellungen verifiziert (Kunden-Dashboard und Admin-Portal).' : `${failed} Pruefung(en) fehlgeschlagen.`}`);
 process.exit(failed === 0 ? 0 : 1);

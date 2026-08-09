@@ -4,6 +4,7 @@ const { createClient } = require('@supabase/supabase-js');
 const { requireCustomerCaller } = require('./_lib/require-customer');
 const { insertOperationalCase } = require('./_lib/create-operational-case');
 const { deliverMail } = require('./_lib/mail-delivery');
+const { resolveAdminRecipients } = require('./_lib/admin-notification-events');
 
 const headers = {
   'Access-Control-Allow-Origin': '*',
@@ -72,20 +73,57 @@ exports.handler = async (event) => {
       || customerRow?.email
       || caller.customerId;
 
-    const mailDelivery = await deliverMail(sbAdmin, {
-      mailType: 'ai_change_request',
-      payload: {
-        customer_id: caller.customerId,
-        customer_name: customerName,
-        message,
-        case_id: createdCase?.id || null,
-        request_id: request.id,
-        admin_url: 'https://admin.voxera.ch/#ai-setup',
-        timestamp: now
-      },
-      payloadSummary: `ai_change_request -> ${caller.customerId}`,
-      dedupeKey: `ai_change_request:${request.id}`
-    });
+    // Empfaenger aus admin_notification_settings statt aus dem Sammelpostfach
+    // der Mail-Engine. Bis 2026-08-09 trug dieser Payload keinen Empfaenger:
+    // wer benachrichtigt wurde, stand in Make, und einstellen konnte es
+    // niemand.
+    //
+    // Drei Ausgaenge, bewusst unterschieden - "niemand will das" und "die
+    // Abfrage ist gescheitert" duerfen nicht dasselbe Ergebnis liefern:
+    const { recipients, reason: recipientReason, error: recipientError } =
+      await resolveAdminRecipients(sbAdmin, 'ai_change_request');
+
+    let mailDelivery;
+    if (!recipients.length) {
+      // Kein Versand, aber auch keine erfundene Erfolgsmeldung. Der Grund geht
+      // mit ins Ergebnis, damit das UI "bewusst abgeschaltet" von "kaputt"
+      // unterscheiden kann.
+      mailDelivery = {
+        attempted: false,
+        accepted: false,
+        status: null,
+        outbox_id: null,
+        error: recipientError,
+        skipped: true,
+        reason: recipientReason
+      };
+      console.log(JSON.stringify({
+        level: recipientReason === 'lookup_failed' ? 'error' : 'info',
+        event: 'ai_change_request_no_admin_recipients',
+        reason: recipientReason,
+        request_id: request.id
+      }));
+    } else {
+      mailDelivery = await deliverMail(sbAdmin, {
+        mailType: 'ai_change_request',
+        payload: {
+          customer_id: caller.customerId,
+          customer_name: customerName,
+          message,
+          case_id: createdCase?.id || null,
+          request_id: request.id,
+          admin_url: 'https://admin.voxera.ch/#ai-setup',
+          timestamp: now,
+          // Die Mail-Engine nimmt recipient.email als Ziel. Mehrere Admins
+          // stehen zusaetzlich in recipients, damit Szenario 09 sie spaeter
+          // ohne Payload-Aenderung auffaechern kann.
+          recipient: { email: recipients[0].email, name: recipients[0].name },
+          recipients: recipients.map(entry => ({ email: entry.email, name: entry.name }))
+        },
+        payloadSummary: `ai_change_request -> ${recipients.map(entry => entry.email).join(', ')}`,
+        dedupeKey: `ai_change_request:${request.id}`
+      });
+    }
 
     return response(200, { success: true, request, case: createdCase, mail_delivery: mailDelivery });
   } catch (error) {

@@ -329,3 +329,61 @@ Die Karte bleibt damit das, was sie ist: eine Statusanzeige. Die Einstellungssei
 **Codestellen:** siehe Datei:Zeile-Angaben in den jeweiligen Befunden.
 
 **Nicht verifiziert:** kein Live-Anruf, kein echter Mailversand ausgelöst. Die Aussage "Szenario 01 ist aus" ist aus der Roadmap vom 09.08. übernommen und hier nicht erneut gegen Make geprüft — Make wurde auftragsgemäss nicht angefasst.
+
+---
+
+# Nachtrag: Umsetzung (09.08., nach Freigabe E1–E9)
+
+Alle neun Entscheidungen wurden wie empfohlen freigegeben. Was gebaut wurde, und wo es vom Zielbild abweicht.
+
+## Eine Abweichung von Abschnitt 4.2 — begründet
+
+Das Zielbild nennt "Anruf mit Rückrufwunsch" und "Zusammenfassung jedes Anrufs" als zwei gleichrangige Ereignisse. Beim Bauen zeigte sich: das sind sie nicht.
+
+`notification_mode` kennt drei Zustände. Zwei unabhängige Schalter hätten vier versprochen — und der vierte, "keine Rückruf-Mail, aber Zusammenfassung nach jedem Anruf", existiert weder im Datenmodell noch fachlich: ein Rückrufwunsch *ist* ein Anruf, die Zusammenfassung würde ihn mit abdecken. Zwei gleichrangige Zeilen hätten damit eine Unabhängigkeit vorgetäuscht, die es nicht gibt — dieselbe Fehlerklasse wie B2, nur neu gebaut.
+
+**Umgesetzt als Schalter plus Unterschalter:**
+
+| Rückrufwunsch | Auch ohne Rückrufwunsch | `notification_mode` |
+|---|---|---|
+| aus | *(gesperrt)* | `none` |
+| an | aus | `callback_only` *(Werksstandard)* |
+| an | an | `all_calls` |
+
+Der Unterschalter wird gesperrt statt still ignoriert, und die Zeile sagt warum ("Nicht verfügbar, solange Sie gar keine E-Mails erhalten möchten"). Jeder Zustand ist erreichbar, keiner ist erfunden.
+
+## Kunden-Dashboard
+
+| Befund | Umsetzung |
+|---|---|
+| **B1** | `decideMail()` in `_lib/call-notification.js` gatet auf `notification_mode`. Die drei Legacy-Booleans kommen im ausführbaren Teil der Datei nicht mehr vor; das Verify-Skript prüft das auf Quellcode-Ebene, damit die Bedingung nicht zurückkehrt. |
+| **B2** | Statt drei Glocken-Schaltern einer, der sagt was er tut ("Hinweise in der Glocke"). Die Kategorie-Zuordnung bleibt dokumentiert für einen späteren `callback`/`task_due`-Producer. |
+| **B3** | Die doppelten `inapp-setting-*`-IDs sind entfernt. |
+| **B4** | `in_app_notification_settings` läuft über `customer-update-settings.js` — ein Request statt zweier Schreibwege, also nichts mehr halb gespeichert. Systemhinweise sind serverseitig auf `true` festgenagelt. |
+| **B5** | `notificationDetail()` und `notificationConfigured` kommen aus `notification_mode`. `Telefon/SMS` entfernt. Neuer Verweis von der Karte auf die Einstellungsseite. |
+| **B6** | Werksstandard `callback_only` an drei Stellen identisch: Migration, `call-notification.js`, `index.html`. |
+
+**Nebenfund, mitentfernt:** `selectNotifCard()` / `saveNotifSettings()` in `#tab-einstellungen` waren ein *dritter* Schreibweg auf `notification_mode`, mit eigenem Autosave über `patchCustomerRecord()`. `saveNotifSettings()` las `notification-mode-hidden` und fällt ohne dieses Feld auf `'none'` zurück — nach dem Entfernen der Karten hätte ein versehentlicher Aufruf die Einstellung des Kunden auf "keine E-Mails" gesetzt. Deshalb mit entfernt statt unbenutzt stehengelassen. Ton-Auswahl und Browser-Push bleiben unangetastet: eigene Konsumenten (`playNotifSound`), nichts mit dem Mailversand zu tun.
+
+## Admin-Portal (Stufe 1)
+
+- **Neue Tabelle** `admin_notification_settings (admin_id, event_key, email_enabled, in_app_enabled)`, RLS an, keine Grants für `anon`/`authenticated` — der Zugriff läuft ausschliesslich über Service-Role. Bewusst nicht auf fehlende Grants verlassen: genau diese Annahme hielt am 08.08. bei `public.notifications` nicht.
+- **Neue Karte** "Meine Benachrichtigungen" in `Einstellungen`, über `admin-notification-settings.js`. Ein Admin ändert nur die eigenen Einstellungen.
+- **Events 2–5** erscheinen als **"Noch nicht aktiv"** statt als Schalter. Was verfügbar ist, entscheidet das Backend (`mailType` gesetzt) — nicht die Oberfläche. Jedes noch nicht gebaute Event nennt seine künftige Auslösestelle im Code.
+- **B9 gelöst:** `ai_change_request` löst die Empfänger aus der Tabelle auf und setzt `recipient.email` in den Payload. Ohne Empfänger wird **kein Erfolg behauptet** — und "niemand hat es eingeschaltet" (`no_recipients_enabled`) ist von "die Abfrage ist gescheitert" (`lookup_failed`) unterscheidbar.
+
+## Verifikation
+
+- `verify-notification-settings.mjs` (neu): **60 Prüfungen grün.** Prüft die Kette statt der Stellen — Schalter → Modus → Endpoint → Gating. Fällt ein Glied aus, fällt der Test, auch wenn jede Datei für sich fehlerfrei bleibt.
+- `verify-call-notification-migration.mjs`: 19/19 grün, Gating-Tests auf das neue Modell umgestellt.
+- **52 von 53** Verify-Skripten grün. Der eine rote ist `verify-db-security-invariants.mjs` — fehlende DB-Zugangsdaten, auf `main` identisch rot.
+- Inline-Skriptblöcke syntaktisch geprüft: 31 im Kunden-Dashboard, 4 im Admin-Panel, alle fehlerfrei. Keine neuen doppelten DOM-IDs.
+- Beide Migrationen **auf Staging gefahren**: Defaults, Kommentare, RLS, Grants, FK-Kaskade und Check-Constraint verifiziert. **Produktion bewusst nicht angefasst.**
+
+## Ehrlich benannte Grenzen
+
+- **Kein Live-Anruf, kein echter Mailversand ausgelöst.** Die Wirkkette ist an Fixtures und Quellcode verifiziert, nicht an einer zugestellten Mail.
+- **Die Oberflächen wurden nicht im Browser geklickt.** Die Logik läuft im Test gegen einen DOM-Stub; Layout und Bedienung sind unbelegt.
+- **Beide Migrationen stehen auf Produktion noch aus.** Solange sie nicht laufen, tragen die drei `callback_only`-Kunden weiter `new_log_email_active = true` — folgenlos, solange der migrierte Versandweg nicht live ist, aber die Reihenfolge zählt: **erst Migration, dann Deploy des Szenario-01-Pfads.**
+- **`admin_notification_settings` ist auf Produktion leer**, bis die Migration läuft. Der Seed legt für den einen aktiven Admin fünf Zeilen an; bis dahin liefert `resolveAdminRecipients()` `no_recipients_enabled` und `ai_change_request` versendet nicht. Das ist der sichtbare, gewollte Zustand — kein stiller Ausfall —, aber es heisst: **Migration vor Deploy**, sonst hört eine Benachrichtigung auf, die heute funktioniert.
+- **Stufe 2** (Emitter für Events 2–5 plus vier Routen in Make-Szenario 09) ist wie freigegeben nicht Teil dieses Auftrags, sondern Phase 4 in PR #857.
