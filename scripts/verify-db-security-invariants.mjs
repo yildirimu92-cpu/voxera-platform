@@ -28,6 +28,7 @@ const CATALOG_SQL = path.join(REPO, 'supabase/verification/db_security_invariant
 const BEHAVIOR_SQL = path.join(REPO, 'supabase/verification/db_security_invariants_behavior.sql');
 const BASELINE = path.join(REPO, 'supabase/verification/db-security-baseline.json');
 const MIGRATIONS_DIR = path.join(REPO, 'supabase/migrations');
+const SQL_DIR = path.join(REPO, 'supabase/sql');
 
 const EXIT_OK = 0;
 const EXIT_VIOLATION = 1;
@@ -251,7 +252,6 @@ function checkLedger(baseline) {
   const nameOf = (f) => f.replace(/^\d{4}-\d{2}-\d{2}_/, '').replace(/\.sql$/, '');
 
   const tracked = files.filter((f) => !preLedger.has(f));
-  const repoNames = new Map(tracked.map((f) => [nameOf(f), f]));
 
   // Richtung 1 -- der P0-Fehlermodus: Migration liegt im Repo, wurde auf der DB
   // aber nie angewandt. Genau hier blieb der alte Check monatelang gruen.
@@ -264,6 +264,23 @@ function checkLedger(baseline) {
 
   // Richtung 2: auf der DB angewandt, aber keine Repo-Datei -- eine Aenderung,
   // die am Repo vorbei eingespielt wurde.
+  //
+  // Hier zaehlt SQL_DIR mit, in Richtung 1 bewusst nicht. Das Repo legt DDL
+  // ueberwiegend unter supabase/sql/ ab (66 Dateien gegenueber 17 unter
+  // supabase/migrations/); wer von dort aus einspielt, erzeugt sonst
+  // zwangslaeufig eine Waise, obwohl die Aenderung sehr wohl reproduzierbar
+  // im Repo steht. Die Frage dieser Richtung ist "gibt es eine Repo-Datei",
+  // nicht "liegt sie im richtigen Ordner".
+  //
+  // Umgekehrt darf Richtung 1 supabase/sql/ NICHT mitlesen: die Dateien dort
+  // stammen groesstenteils aus der Zeit vor dem Ledger (ab 2026-04) und wuerden
+  // reihenweise als "nicht angewandt" gemeldet -- ein Check, der am ersten Tag
+  // rot ist, wird abgeschaltet und schuetzt dann gar nichts mehr.
+  const sqlFiles = fs.existsSync(SQL_DIR)
+    ? fs.readdirSync(SQL_DIR).filter((f) => f.endsWith('.sql'))
+    : [];
+  const repoNames = new Map([...tracked, ...sqlFiles].map((f) => [nameOf(f), f]));
+
   const orphans = [...info.ledger.keys()].filter((n) => !repoNames.has(n));
   add(orphans.length === 0 ? 'PASS' : 'FAIL', 'G-ledger',
     'keine DB-Migration ohne Repo-Datei',
