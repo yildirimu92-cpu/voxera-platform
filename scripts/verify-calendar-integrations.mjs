@@ -131,7 +131,7 @@ for (const forbidden of [
   if (source.runtime.includes(forbidden)) failures.push('Calendar runtime still owns presentation: ' + forbidden);
 }
 if ((source.css.match(/!important/g) || []).length) failures.push('Calendar component CSS must not use !important');
-if (!source.loader.includes('/shared/customer-runtime-calendar-settings.js?v=20260808-1')) failures.push('Calendar runtime cache version missing');
+if (!source.loader.includes('/shared/customer-runtime-calendar-settings.js?v=20260809-1')) failures.push('Calendar runtime cache version missing');
 if (!source.designLoader.includes('/shared/customer-settings-components.css?v=20260809-1')) failures.push('Calendar component stylesheet loader missing');
 
 for (const key of ['connections','callback','tool']) {

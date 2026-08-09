@@ -105,7 +105,7 @@
       "source": "customer-dashboard/shared/customer-runtime-calendar-settings.js",
       "event": "click",
       "triggerTokens": ["data-calendar-connect"],
-      "handlerTokens": ["connect(node.dataset.calendarConnect)"]
+      "handlerTokens": ["connect(node.dataset.calendarConnect, node)"]
     },
     {
       "id": "calendar-test",
