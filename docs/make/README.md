@@ -96,6 +96,23 @@ raus darf.
 > `mail_type`; wer welche Mail bekommt, entscheidet ausschliesslich der Code.
 > Der Schalterwechsel braucht später also keine erneute Make-Änderung.
 
+> **Ein neuer `mail_type` braucht zwei Änderungen in Szenario 09, nicht eine.**
+> Beim Rauchtest am 09.08.2026 lieferten beide Läufe Status „Erfolg" mit **drei**
+> Operationen bei kleinem Transfer — eine korrekt geroutete Mail ohne Anhang
+> kostet zwei (Webhook + ein E-Mail-Modul). Der Testkunde bekam die richtige
+> Mail, info@voxera.ch zusätzlich die Alarmmail „unbekannter mail_type".
+>
+> Grund: der Make-Router schickt das Bundle durch *jede* Route, deren Filter
+> zutrifft. Die Fallback-Route ist nicht als echte Make-Fallback-Route
+> markiert, sondern über einen Filter gebaut, der die bekannten `mail_type`-Werte
+> aufzählt. Ein neuer Typ hat also seine eigene Route **und** gilt weiterhin als
+> unbekannt, bis er in der Fallback-Bedingung ausgenommen wird.
+>
+> Wer hier einen `mail_type` ergänzt: Route anlegen **und** den Typ in die
+> Ausnahmeliste der Fallback-Route eintragen. Sonst geht pro Vorgang eine
+> Alarmmail an info@voxera.ch — und ein Alarmkanal, der bei jedem normalen
+> Vorgang anschlägt, wird nach kurzer Zeit ignoriert.
+
 Mapping der Routen:
 
 - Filter: `{{1.mail_type}}` gleich `call_notification_email` bzw.
