@@ -28,8 +28,11 @@ function response(statusCode, payload) {
 
 async function loadPromptInputs(sb, customerId, customer) {
   const nowIso = new Date().toISOString();
-  const [masterResult, operationalResult, calendarResult] = await Promise.all([
+  const [masterResult, coreResult, operationalResult, calendarResult] = await Promise.all([
     sb.from('system_config').select('value').eq('key', 'prompt_master_l1').maybeSingle(),
+    // J4: Schema der generischen Betriebsfelder. Eine Quelle fuer beide
+    // Netlify-Sites — ein gemeinsames JS-Modul gibt es zwischen ihnen nicht.
+    sb.from('system_config').select('value').eq('key', 'core_field_steps').maybeSingle(),
     sb.from('customer_operational_updates')
       .select('id,type,title,message,behavior,starts_at,ends_at,status')
       .eq('customer_id', customerId)
@@ -41,6 +44,7 @@ async function loadPromptInputs(sb, customerId, customer) {
   ]);
 
   if (masterResult.error) throw masterResult.error;
+  if (coreResult.error) throw coreResult.error;
   if (operationalResult.error) {
     const error = new Error('operational_updates_lookup_failed');
     error.cause = operationalResult.error;
@@ -49,13 +53,18 @@ async function loadPromptInputs(sb, customerId, customer) {
   if (calendarResult.error) throw calendarResult.error;
 
   let industryPrompt = '';
+  // J1: extra_steps liefert Label und Optionstexte zu den Branchenantworten.
+  // Ohne sie kann der Builder eine Antwort nur als rohen Schluesselwert
+  // wiedergeben — und tat es deshalb bisher gar nicht.
+  let industryFields = [];
   if (customer.industry_template_id) {
     const { data, error } = await sb.from('industry_templates')
-      .select('prompt_block')
+      .select('prompt_block,extra_steps')
       .eq('id', customer.industry_template_id)
       .maybeSingle();
     if (error) throw error;
     industryPrompt = data?.prompt_block || '';
+    industryFields = Array.isArray(data?.extra_steps) ? data.extra_steps : [];
   }
 
   let assistantRole = 'die Assistentin';
@@ -70,9 +79,11 @@ async function loadPromptInputs(sb, customerId, customer) {
 
   return {
     masterPrompt: masterResult.data?.value || '',
+    coreFields: coreResult.data?.value || '',
     operationalUpdates: operationalResult.data || [],
     calendarSettings: calendarResult.data || null,
     industryPrompt,
+    industryFields,
     assistantRole
   };
 }
@@ -93,7 +104,13 @@ async function trimSyncLogs(sb, customerId) {
 // bleibt changed_fields leer statt geraten zu werden.
 function diffPrevValues(prevValues, customer) {
   if (!prevValues || typeof prevValues !== 'object' || Array.isArray(prevValues)) return {};
-  const normalize = (value) => (value === null || value === undefined ? '' : value);
+  // jsonb-Spalten (ai_branch_extra) kaemen als Objekte an und waeren mit `!==`
+  // immer verschieden — ein Phantom-Diff bei jedem Sync.
+  const normalize = (value) => {
+    if (value === null || value === undefined) return '';
+    if (typeof value === 'object') return JSON.stringify(value);
+    return value;
+  };
   const changed = {};
   for (const key of Object.keys(prevValues)) {
     const before = normalize(prevValues[key]);
@@ -162,6 +179,8 @@ exports.handler = async (event) => {
       customer,
       masterPrompt: inputs.masterPrompt,
       industryPrompt: inputs.industryPrompt,
+      industryFields: inputs.industryFields,
+      coreFields: inputs.coreFields,
       assistantRole: inputs.assistantRole,
       operationalUpdates: inputs.operationalUpdates
     });
@@ -236,17 +255,25 @@ exports.handler = async (event) => {
     prev_values: Object.keys(prev_values || {}).length ? prev_values : null,
     created_at: new Date().toISOString()
   };
-  const { error: syncLogError } = await sb.from('elevenlabs_sync_log').insert(syncLogRow);
-  if (syncLogError) {
-    // Falls `prev_values` in dieser Umgebung (noch) keine Spalte ist, darf das
-    // Log selbst nicht verloren gehen -- ein zweiter Versuch ohne die neuen
-    // Felder haelt zumindest status/triggered_by/prompt_snapshot fest.
-    console.warn('[trigger-elevenlabs-sync] sync_log_insert_failed', syncLogError.message);
-    const { changed_fields: _cf, prev_values: _pv, ...fallbackRow } = syncLogRow;
-    const { error: fallbackError } = await sb.from('elevenlabs_sync_log').insert(fallbackRow);
-    if (fallbackError) {
-      console.warn('[trigger-elevenlabs-sync] sync_log_fallback_insert_failed', fallbackError.message);
-    }
+  // Stufenweise, nicht alles-oder-nichts. Die erste Fassung dieses Fallbacks
+  // warf bei einem beliebigen Insert-Fehler `prev_values` UND `changed_fields`
+  // zusammen weg — also auch die Spalte, wegen der der S9-Fix ueberhaupt
+  // gebaut wurde. Am 09.08. war das keine Theorie: `prev_values` existierte in
+  // Produktion zeitweise nicht (nachgemessen, spaeter nachgezogen; DDL in
+  // supabase/sql/2026-08-09_elevenlabs_sync_log_prev_values.sql), und der
+  // Fallback haette den Diagnosewert des Logs stillschweigend mit entsorgt.
+  // Jeder Schritt gibt nur auf, was der vorige nachweislich nicht aufnehmen
+  // konnte.
+  const { prev_values: _prevColumn, changed_fields: _changedColumn, ...bareRow } = syncLogRow;
+  const logAttempts = [
+    syncLogRow,
+    { ...bareRow, changed_fields: syncLogRow.changed_fields },
+    bareRow
+  ];
+  for (let attempt = 0; attempt < logAttempts.length; attempt += 1) {
+    const { error: syncLogError } = await sb.from('elevenlabs_sync_log').insert(logAttempts[attempt]);
+    if (!syncLogError) break;
+    console.warn(`[trigger-elevenlabs-sync] sync_log_insert_failed (Stufe ${attempt + 1})`, syncLogError.message);
   }
   await trimSyncLogs(sb, customer_id);
 

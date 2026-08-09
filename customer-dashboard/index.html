@@ -2653,7 +2653,7 @@ body.vx-detail-v2-open #confirm-overlay.open {
   gap:14px;padding:24px;
   opacity:0;
   pointer-events:none;
-  transition:opacity 0.36s var(--ease);
+  transition:opacity 0.3s var(--ease);
   overflow:hidden;
 }
 #splash-screen::before{
@@ -14605,34 +14605,13 @@ function vxParseLocationHours(raw) {
 
 
 
-function vxBuildAssistantSaveFeedback(result, options) {
-  const opts = options || {};
-  const errors = Array.isArray(result?.errors) ? result.errors : [];
-  const blocked = Array.isArray(result?.blocked_fields) ? result.blocked_fields : [];
-  const syncStatus = String(result?.sync_status || 'skipped_no_sync_fields');
-  const syncError = result?.sync_error ? String(result.sync_error) : '';
-  const hasPartial = blocked.length > 0 || errors.length > 0;
-  if (hasPartial) {
-    return {
-      color: '#B45309',
-      text: 'Teilweise gespeichert. Einige Felder können nur durch Voxera angepasst werden.'
-    };
-  }
-  if (opts.forwardingOnly || syncStatus === 'skipped_forwarding_only') {
-    return { color: '#059669', text: 'Weiterleitungsdaten gespeichert.' };
-  }
-  if (syncStatus === 'success') {
-    return { color: '#059669', text: 'Gespeichert und mit dem Assistenten synchronisiert.' };
-  }
-  if (syncStatus === 'failed') {
-    const suffix = syncError ? (' (' + syncError + ')') : '';
-    return { color: '#B45309', text: 'Gespeichert, aber Synchronisierung fehlgeschlagen. Voxera prüft dies.' + suffix };
-  }
-  if (syncStatus === 'skipped_no_agent') {
-    return { color: '#B45309', text: 'Gespeichert. Der Assistent ist noch nicht vollständig eingerichtet.' };
-  }
-  return { color: '#059669', text: 'Gespeichert.' };
-}
+// vxBuildAssistantSaveFeedback() stand hier bis N6 (09.08.). Die Funktion war
+// seit dem Loeschen des Alt-Screens (S1) unerreichbar und trug den Kern des
+// Workarounds: sie quittierte `skipped_forwarding_only` gruen als
+// "Weiterleitungsdaten gespeichert." — eine Erfolgsmeldung fuer eine Aenderung,
+// die den Agenten nie erreicht hat. Der Status existiert nicht mehr; die
+// Rueckmeldung des Assistent-Screens lebt in
+// customer-runtime-assistant-profile.js (updateAssistant).
 
 
 // Accordion Status-Anzeigen aktualisieren (nach Datenladen)
@@ -29193,6 +29172,13 @@ function delay(ms) {
 // statt an einer festen Animationsdauer - und wird im finally IMMER auf
 // 100% gebracht, egal ob loadPromise erfolgreich war oder fehlgeschlagen
 // ist, damit er nie auf einem Zwischenstand haengen bleibt.
+//
+// opts.onBeforeFade(): wird aufgerufen, BEVOR der Splash zu blenden beginnt
+// (er deckt den dahinterliegenden Inhalt zu diesem Zeitpunkt noch komplett
+// ab, z-index 9999). Das ist die Stelle, an der der aufrufende Code den
+// Zielinhalt (z.B. #app) sichtbar machen soll: der Splash gibt ihn dann
+// waehrend seiner eigenen Opacity-Transition frei, statt dass er danach
+// aus komplettem Leerraum heraus schlagartig aufploppt.
 async function runInitialLoader(loadPromise, options) {
   var opts = options || {};
   var minVisibleMs = Number(opts.minVisibleMs || 1000);
@@ -29215,6 +29201,7 @@ async function runInitialLoader(loadPromise, options) {
     if (elapsed < minVisibleMs) {
       await delay(minVisibleMs - elapsed);
     }
+    if (typeof opts.onBeforeFade === 'function') opts.onBeforeFade();
     if (splash) {
       splash.classList.add('fading');
       await delay(300);
@@ -29287,13 +29274,25 @@ function showApp(user) {
     console.error('[voxera-dashboard] initial load failed', err);
   });
 
-  runInitialLoader(initialLoadSequence, { minVisibleMs: 1050 }).then(function() {
-    // Abgemeldet, waehrend der Loader lief: #app hier trotzdem einzublenden
-    // hiess Login-Karte und Bottom-Nav gleichzeitig auf dem Schirm. Die
-    // Sichtbarkeit der App gehoert an eine gueltige Sitzung, nicht an das
-    // Ende eines Timers.
+  runInitialLoader(initialLoadSequence, {
+    minVisibleMs: 1050,
+    // Blendet #app ein, WAEHREND der Splash ihn noch komplett verdeckt (statt
+    // erst danach): der Splash gibt den fertigen Inhalt dann waehrend seiner
+    // eigenen Opacity-Transition frei. Vorher wurde #app erst nach Ablauf des
+    // Fades gezeigt - dazwischen lag ein Frame reiner Leerraum, gefolgt von
+    // einem unanimierten Sofort-Popup des kompletten Dashboards. Das wirkte,
+    // als waere die Seite noch nicht fertig, obwohl die Daten schon laengst
+    // vollstaendig gerendert waren.
+    onBeforeFade: function() {
+      // Abgemeldet, waehrend der Loader lief: #app hier trotzdem einzublenden
+      // hiess Login-Karte und Bottom-Nav gleichzeitig auf dem Schirm. Die
+      // Sichtbarkeit der App gehoert an eine gueltige Sitzung, nicht an das
+      // Ende eines Timers.
+      if (bootGeneration !== vxAppBootGeneration) return;
+      document.getElementById('app').style.display = 'flex';
+    }
+  }).then(function() {
     if (bootGeneration !== vxAppBootGeneration) return;
-    document.getElementById('app').style.display = 'flex';
     window._vxRefreshIntervalMs = 12000;
     autoRefreshTimer = setInterval(function() { safeLoadData({ periodic: true }); }, 12000);
     showAppInProgress = false;

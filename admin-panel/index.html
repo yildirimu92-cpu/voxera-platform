@@ -4378,8 +4378,8 @@ const state={
     {key:'Automatisierte Billing Mails',desc:'Geplant für Q2',state:'OFF'},
     {key:'Live Call Quality Scoring',desc:'Interner Canary',state:'PARTIAL'}
   ],
-  promptMasterL1: '',
   defaultAssistantName: 'Lara',
+  coreFieldSteps: [],
   aiGlobal:{
     prompt:'Du bist ein professioneller Voice Assistant für Schweizer KMU. Du kommunizierst freundlich, klar, strukturiert und lösungsorientiert. Du nimmst Anrufe zuverlässig entgegen, erfasst Anliegen sauber und leitest relevante Informationen korrekt weiter. Du erfindest keine Informationen und machst keine verbindlichen Zusagen, wenn diese nicht ausdrücklich im Kundenkontext hinterlegt sind. Bei kritischen oder dringenden Anliegen handelst du ruhig, professionell und priorisierst eine saubere Eskalation.',
     tone:'Professionell, freundlich, ruhig',
@@ -7236,8 +7236,55 @@ const WIZARD_BRANCH_EXTRA_FIELDS = {
     { key:'max_gruppe', label:'Max Gruppe ohne Rückruf' }
   ]
 };
+// J4: Welche Spalte ein generisches Feld beschreibt, steht im Code und nicht im
+// Schema aus system_config — sonst waere eine Zeile dort eine Schreibberechtigung
+// auf beliebige Kundenspalten. Dieselbe Liste fuehren
+// _lib/prompt-builder-v2.js und die beiden customer-dashboard-Funktionen.
+const CORE_FIELD_COLUMN_MAP = {
+  coverage_mode: 'sprechstunden_modus',
+  opening_hours: 'ai_opening_hours',
+  appointment_mode: 'ai_appointment_mode',
+  online_booking_url: 'ai_online_booking_url'
+};
+
+function coreWizardValues(customer){
+  const values = {};
+  Object.entries(CORE_FIELD_COLUMN_MAP).forEach(([key, column]) => {
+    values[key] = customer?.[column] || '';
+  });
+  return values;
+}
+
+function coreWizardPatch(data){
+  const patch = {};
+  Object.entries(CORE_FIELD_COLUMN_MAP).forEach(([key, column]) => {
+    const raw = data?.[key];
+    // Das Wochenraster ist ein Objekt und darf nicht durch String() — daraus
+    // wuerde "[object Object]" in einer jsonb-Spalte.
+    if(raw && typeof raw === 'object'){
+      const hasAny = Object.values(raw).some(list => Array.isArray(list) && list.length);
+      patch[column] = hasAny ? raw : null;
+      return;
+    }
+    patch[column] = String(raw || '').trim() || null;
+  });
+  return patch;
+}
+
 function getWizardSteps(templateId){
   const defaults = getTemplateDefaults(templateId);
+  // J4: Die generischen Betriebsfragen (Einsatz-Modus, Terminbefugnis,
+  // Buchungslink) lagen bis hierher in den extra_steps von sieben Vorlagen und
+  // fehlten den zwoelf uebrigen. Jetzt kommen sie aus einer Quelle und gelten
+  // fuer jede Vorlage — auch fuer 'generic'.
+  const coreSteps = (Array.isArray(state.coreFieldSteps) ? state.coreFieldSteps : []).map(stepDef => ({
+    id: String(stepDef.id||'core'),
+    title: stepDef.title || 'Betrieb',
+    sub: stepDef.sub || '',
+    fields: Array.isArray(stepDef.fields) ? stepDef.fields : [],
+    render: (data) => renderWizardDynamicStep(stepDef, data),
+    collect: (data) => collectWizardDynamicStep(stepDef, data)
+  })).filter(step => step.fields.length > 0);
   // Convert each JSON-defined extra step into render+collect handlers
   const dynamicSteps = (defaults.extraSteps||[]).map(stepDef => ({
     id: String(stepDef.id||'extra_'+Math.random().toString(36).slice(2,7)),
@@ -7272,6 +7319,7 @@ function getWizardSteps(templateId){
       render: renderWizardStepBranche,
       collect: collectWizardStepBranche
     },
+    ...coreSteps,
     {
       id:'identitaet',
       title:'Assistent & Identität',
@@ -7320,6 +7368,52 @@ function getWizardSteps(templateId){
 }
 
 // ── Dynamic step renderer (driven by template.extra_steps JSON) ──
+// J5: Wochenraster im Wizard. Derselbe Feldtyp und dieselbe Struktur wie im
+// Kunden-Dashboard — die Frage steht seit J4 in einer Quelle, also darf sie
+// nicht an zwei Orten unterschiedlich aussehen.
+const WIZARD_HOURS_DAYS = [
+  ['mon','Montag'],['tue','Dienstag'],['wed','Mittwoch'],['thu','Donnerstag'],
+  ['fri','Freitag'],['sat','Samstag'],['sun','Sonntag']
+];
+
+function renderWizardHoursField(stepDef, f, data){
+  const week = (data[f.key] && typeof data[f.key] === 'object') ? data[f.key] : {};
+  const rows = WIZARD_HOURS_DAYS.map(([day,label])=>{
+    const intervals = Array.isArray(week[day]) ? week[day] : [];
+    const slots = [0,1].map(i=>{
+      const pair = intervals[i] || ['',''];
+      const base = 'wz-hours-'+esc(stepDef.id)+'-'+day+'-'+i;
+      return `<input type="time" class="input" style="max-width:120px" id="${base}-from" data-wz-hours="${day}" data-wz-slot="${i}" data-wz-edge="from" value="${esc(pair[0]||'')}">`
+        + `<span style="opacity:.6">–</span>`
+        + `<input type="time" class="input" style="max-width:120px" id="${base}-to" data-wz-hours="${day}" data-wz-slot="${i}" data-wz-edge="to" value="${esc(pair[1]||'')}">`;
+    }).join(' ');
+    return `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px">
+      <div style="min-width:110px;font-size:13px">${esc(label)}</div>
+      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">${slots}</div>
+      <div style="font-size:12px;opacity:.65">${intervals.length?'':'geschlossen'}</div>
+    </div>`;
+  }).join('');
+  return `<div class="wizard-field">
+    <label>${esc(f.label||f.key)}</label>
+    ${rows}
+    <div class="wizard-hint">Ein leeres Feldpaar bedeutet geschlossen.${f.hint?' '+esc(f.hint):''}</div>
+  </div>`;
+}
+
+function collectWizardHoursField(data, key){
+  const week = {};
+  WIZARD_HOURS_DAYS.forEach(([day])=>{ week[day]=[]; });
+  document.querySelectorAll('[data-wz-hours]').forEach(node=>{
+    const day=node.dataset.wzHours, slot=Number(node.dataset.wzSlot);
+    if(!week[day]) return;
+    week[day][slot]=week[day][slot]||['',''];
+    week[day][slot][node.dataset.wzEdge==='from'?0:1]=String(node.value||'').trim();
+  });
+  // Halbe Zeitspannen sind keine Aussage und werden verworfen, nicht gespeichert.
+  WIZARD_HOURS_DAYS.forEach(([day])=>{ week[day]=(week[day]||[]).filter(p=>p&&p[0]&&p[1]); });
+  data[key]=week;
+}
+
 function renderWizardDynamicStep(stepDef, data){
   const fields = Array.isArray(stepDef.fields) ? stepDef.fields : [];
   const _wNl=(v)=>(v||'').replace(/\\n/g,'\n');
@@ -7327,6 +7421,9 @@ function renderWizardDynamicStep(stepDef, data){
     const key = f.key || '';
     const val = data[key] ?? '';
     const inputId = 'wz-dyn-'+esc(stepDef.id)+'-'+esc(key);
+    if(f.type === 'hours'){
+      return renderWizardHoursField(stepDef, f, data);
+    }
     if(f.type === 'radio'){
       const opts = Array.isArray(f.options) ? f.options : [];
       return `<div class="wizard-field">
@@ -7361,6 +7458,10 @@ function collectWizardDynamicStep(stepDef, data){
     const key = f.key || '';
     if(!key) return;
     const inputId = 'wz-dyn-'+stepDef.id+'-'+key;
+    if(f.type === 'hours'){
+      collectWizardHoursField(data, key);
+      return;
+    }
     if(f.type === 'radio'){
       const sel = document.querySelector(`input[name="${inputId}"]:checked`);
       if(sel) data[key] = sel.value;
@@ -7494,6 +7595,10 @@ async function openAiWizard(customerId){
     websiteUrl:      c?.ai_website_url || '',
     shortDescription:c?.ai_short_description || '',
     branchExtra:     c?.ai_branch_extra || {},
+    // Schicht A: die Antworten liegen in typisierten Spalten, der Wizard
+    // arbeitet aber mit den Schema-Schluesseln. Die Zuordnung steht in
+    // CORE_FIELD_COLUMN_MAP — bewusst im Code, nicht im Schema.
+    ...coreWizardValues(c),
     forwarding1Name: c?.ai_forwarding_1_name || '',
     forwarding1Number: c?.ai_forwarding_1_number || '',
     forwarding1Trigger: c?.ai_forwarding_1_trigger || '',
@@ -7521,7 +7626,12 @@ async function openAiWizard(customerId){
   // Pre-seed dynamic-step field values from customer record for known keys
   // (e.g. sprechstunden_modus, notfallnummer_*) – this keeps backward compat
   // with already-filled customer columns.
-  const knownCustomerKeys = ['sprechstunden_modus','notfallnummer_lebensgefahr','notfallnummer_dringend','notfall_service_name'];
+  // sprechstunden_modus fehlt hier bewusst: Schicht A liest die Spalte ueber
+  // coreWizardValues() unter ihrem Schema-Schluessel coverage_mode ein. Stuende
+  // sie hier zusaetzlich, laege dieselbe Antwort unter zwei Namen im
+  // Wizard-Datensatz. Die notfallnummer_*-Schluessel bleiben, sie sind weiterhin
+  // Branchenfelder (siehe Befund G9).
+  const knownCustomerKeys = ['notfallnummer_lebensgefahr','notfallnummer_dringend','notfall_service_name'];
   knownCustomerKeys.forEach(k => {
     if(c && c[k] !== undefined && c[k] !== null) data[k] = c[k];
   });
@@ -7689,7 +7799,9 @@ async function wizardFinish(){
   if(c){
     c.spezialgebiet=d.spezialgebiet||null;
     c.kanton=d.kanton||null;
-    c.sprechstunden_modus=d.sprechstunden_modus||'rund_um_die_uhr';
+    // sprechstunden_modus wird seit J4 von Schicht A geschrieben
+    // (coreWizardPatch, Schluessel coverage_mode). Ein zweiter Schreiber hier
+    // haette den zurueckgesetzten Default sofort wieder gesetzt.
     c.notfallnummer_lebensgefahr=d.notfallnummer_lebensgefahr||'144';
     c.notfallnummer_dringend=d.notfallnummer_dringend||null;
     c.notfall_service_name=d.notfall_service_name||null;
@@ -7709,7 +7821,6 @@ async function wizardFinish(){
       const praxisPatch={
         spezialgebiet: d.spezialgebiet||null,
         kanton: d.kanton||null,
-        sprechstunden_modus: d.sprechstunden_modus||'rund_um_die_uhr',
         notfallnummer_lebensgefahr: d.notfallnummer_lebensgefahr||'144',
         notfallnummer_dringend: d.notfallnummer_dringend||null,
         notfall_service_name: d.notfall_service_name||null,
@@ -7721,6 +7832,7 @@ async function wizardFinish(){
         ai_website_url: d.websiteUrl || null,
         ai_short_description: d.shortDescription || null,
         ai_branch_extra: d.branchExtra && Object.keys(d.branchExtra).length ? d.branchExtra : null,
+        ...coreWizardPatch(d),
         ai_forwarding_1_name: d.forwarding1Name || null,
         ai_forwarding_1_number: d.forwarding1Number || null,
         ai_forwarding_1_trigger: d.forwarding1Trigger || null,
@@ -7755,7 +7867,11 @@ async function wizardFinish(){
         })(),
         ai_internal_notes: (()=>{
           // Persist dynamic wizard fields that don't have own DB columns
-          const dynKeys=['termin_modus','booking_url','pannendaten_aufnehmen','takeaway_aktiv',
+          // termin_modus, booking_url und sprechstunden_modus stehen hier nicht
+          // mehr: sie sind seit J4 generische Felder mit eigenen Spalten
+          // (coreWizardPatch). Zwei Speicherorte fuer dieselbe Antwort waren
+          // genau der Befund G4.
+          const dynKeys=['pannendaten_aufnehmen','takeaway_aktiv',
             'allergien_abfragen','faerbung_beratung','kinder_service','sprachen','gaeste_typen',
             'haeufigste_anliegen','stylisten_namen','medizinische_abgrenzung','max_gruppe_ohne_rueckruf'];
           const dynData={};
@@ -14983,7 +15099,9 @@ function mapDbCustomerToUi(dbRow, dbOnboarding, dbSubscription) {
     // Praxis-spezifische Felder
     praxis_typ: dbRow.praxis_typ || null,
     spezialgebiet: dbRow.spezialgebiet || null,
-    sprechstunden_modus: dbRow.sprechstunden_modus || 'rund_um_die_uhr',
+    // Kein Ersatzwert mehr: seit J4 bedeutet null "noch nicht beantwortet", und
+    // ein unbestaetigter Default darf nicht als Antwort erscheinen.
+    sprechstunden_modus: dbRow.sprechstunden_modus || null,
     sprechstunden_zeiten: dbRow.sprechstunden_zeiten || null,
     notfallnummer_lebensgefahr: dbRow.notfallnummer_lebensgefahr || '144',
     notfallnummer_dringend: dbRow.notfallnummer_dringend || null,
@@ -15153,19 +15271,22 @@ async function loadDataFromSupabase(opts) {
   }
   if (!skipLoaderToggle) showLoadingState();
   try {
-    // 0. Load system_config (L1 prompt master + global settings)
+    // 0. Load system_config (globale Einstellungen)
     // Wrapped in own try/catch — never blocks customer/data loading if it fails
     try {
       const { data: sysConfigRows } = await authClient
         .from('system_config')
         .select('key,value');
       const sysConfig = Object.fromEntries((sysConfigRows||[]).map(r=>[r.key, r.value]));
-      state.promptMasterL1 = sysConfig['prompt_master_l1'] || '';
       state.defaultAssistantName = sysConfig['default_assistant_name'] || 'Lara';
+      // J4 / Schicht A: Schema der generischen Betriebsfelder. Gleiche Form wie
+      // industry_templates.extra_steps, deshalb bedienen es derselbe
+      // Schritt-Renderer und derselbe Collector.
+      state.coreFieldSteps = (()=>{ try{ const v=JSON.parse(sysConfig['core_field_steps']||'[]'); return Array.isArray(v)?v:[]; }catch(_e){ return []; } })();
     } catch(_sysErr) {
-      console.warn('[system_config] Could not load — continuing without L1 prompt:', _sysErr?.message);
-      state.promptMasterL1 = state.promptMasterL1 || '';
+      console.warn('[system_config] Could not load — continuing with defaults:', _sysErr?.message);
       state.defaultAssistantName = state.defaultAssistantName || 'Lara';
+      state.coreFieldSteps = state.coreFieldSteps || [];
     }
 
     // 1. Load customers (all columns)
@@ -15966,164 +16087,32 @@ async function savePlanConfig() {
   }
 }
 
-function resolvePromptVariables(text, customer){
-  // Resolve new AI personality variables
-  const assistantName = customer?.assistant_name || 'Lara';
-  const customerType  = customer?.ai_customer_type || 'company';
-  const addressForm   = customer?.ai_address_form || 'sie';
-  const tone          = customer?.ai_tone || 'professional';
-  const language      = customer?.ai_language || 'de';
-  const greeting      = customer?.ai_greeting || '';
-
-  // Wir/Ich-Form based on customerType
-  const wirOderIch = customerType === 'company' ? 'wir' : 'ich';
-  const wirMeldetSich = customerType === 'company' ? 'Wir melden uns' : 'Ich melde mich';
-  const wirRuftZurueck = customerType === 'company' ? 'Wir rufen Sie zurück' : 'Ich rufe Sie zurück';
-
-  // Ton-Beschreibung für Prompt
-  const tonMap = { formal: 'konservativ-formell (Anwalt, Bank, Arzt)', professional: 'warm-professionell (Schweizer Standard)', casual: 'locker und direkt (Startup, Fitness)' };
-  const tonText = tonMap[tone] || tonMap.professional;
-
-  // Anrede
-  const anredeText = addressForm === 'du' ? 'Du-Form (informell, persönlich)' : 'Sie-Form (formell, höflich)';
-
-  // Gender-aware assistant role
-  const voiceGender = customer?.voice_id ? 'female' : 'female'; // default female (Lara)
-  const assistantRole = voiceGender === 'male' ? 'der Assistent' : 'die Assistentin';
-
-  // Display and legal name (uppercase variable names — L1 v2.0)
-  const displayNameV2 = (customer?.customer_display_name) || (customer?.name) || '';
-  const legalNameV2   = (customer?.customer_legal_name)   || (customer?.name) || '';
-
-  // Auto-greeting if not set
-  const autoGreeting = greeting || (displayNameV2
-    ? `Grüezi, hier ist ${assistantName} von ${displayNameV2}. Das Gespräch wird zur Bearbeitung aufgezeichnet. Wie kann ich Ihnen helfen?`
-    : '');
-
-  text = text
-    .replace(/\{\{ASSISTANT_NAME\}\}/g, assistantName)
-    .replace(/\{\{ASSISTANT_ROLE\}\}/g, assistantRole)
-    .replace(/\{\{CUSTOMER_DISPLAY_NAME\}\}/g, displayNameV2)
-    .replace(/\{\{CUSTOMER_LEGAL_NAME\}\}/g, legalNameV2)
-    .replace(/\{\{WIR_ODER_ICH\}\}/g, wirOderIch)
-    .replace(/\{\{WIR_MELDET_SICH\}\}/g, wirMeldetSich)
-    .replace(/\{\{WIR_RUFT_ZURUECK\}\}/g, wirRuftZurueck)
-    .replace(/\{\{TON\}\}/g, tonText)
-    .replace(/\{\{ANREDE\}\}/g, anredeText)
-    .replace(/\{\{SPRACHE\}\}/g, language)
-    .replace(/\{\{BEGRUESSUNG\}\}/g, autoGreeting);
-
-  // Legacy variable resolution below
-
-  if(!text) return text||'';
-  const sprechstundenLabel={
-    'rund_um_die_uhr':'24/7 (Rund um die Uhr)',
-    'ausserhalb_sprechstunde':'Ausserhalb der Sprechstunden',
-    'backup':'Backup-Routing (bei Nicht-Erreichbarkeit)'
-  };
-  // Resolve assistant_name: customer override → default from state → 'Lara'
-  // assistantName already declared above
-  // Resolve customer display name (spoken brand) and legal name (internal/tools)
-  const displayName = (customer?.customer_display_name) || (customer?.name) || '';
-  const legalName   = (customer?.customer_legal_name)   || (customer?.name) || '';
-  // Resolve ai_summary from customer state
-  const aiSummary = (() => {
-    if(!customer) return '';
-    const cfg = customer.id ? (state.aiConfigs||{})[customer.id] : null;
-    return (cfg?.summary) || (customer.ai_summary) || '';
-  })();
-
-  return text
-    // L1 core variables
-    .replace(/\{\{assistant_name\}\}/g, assistantName)
-    .replace(/\{\{customer_display_name\}\}/g, displayName)
-    .replace(/\{\{customer_legal_name\}\}/g, legalName)
-    .replace(/\{\{ai_summary\}\}/g, aiSummary)
-    // Legacy variable — kept for backward compat
-    .replace(/\{\{customer_name\}\}/g, displayName)
-    .replace(/\{\{praxis_name\}\}/g, displayName)
-    // Branch-specific variables
-    .replace(/\{\{spezialgebiet\}\}/g, customer?.spezialgebiet||customer?.praxis_typ||'')
-    .replace(/\{\{sprechstunden_modus\}\}/g, sprechstundenLabel[customer?.sprechstunden_modus]||customer?.sprechstunden_modus||'')
-    .replace(/\{\{notfallnummer_lebensgefahr\}\}/g, customer?.notfallnummer_lebensgefahr||'112')
-    .replace(/\{\{notfallnummer_dringend\}\}/g, customer?.notfallnummer_dringend||'')
-    .replace(/\{\{notfall_service_name\}\}/g, customer?.notfall_service_name||'')
-    .replace(/\{\{kanton\}\}/g, customer?.kanton||'')
-    .replace(/\{\{voxera_number\}\}/g, customer?.voxera_number||customer?.voxera||'');
-}
-
-function buildCustomerLayer(c, cfg){
-  const parts=[];
-  const r=(t)=>resolvePromptVariables(t||'',c);
-  // Convert escaped \n (from DB) to real newlines before building prompt
-  const toNl=(v)=>(v||'').replace(/\\n/g,'\n').trim();
-  const bizDesc=toNl(cfg.businessDescription);
-  const services=toNl(cfg.services);
-  const locHours=toNl(cfg.locationHours);
-  const faq=toNl(cfg.bookingFaq);
-  const instructions=toNl(cfg.instructions);
-  const fallback=toNl(cfg.fallbackEscalation);
-  const constraints=toNl(cfg.responseConstraints);
-  const rawNotes=(cfg.internalNotes||'').trim();
-  // Parse wizard dynamic fields
-  let wz={};
-  try{ const m=rawNotes.match(/\[WIZARD\] ({.*})/); if(m) wz=JSON.parse(m[1]); }catch(_e){}
-  if(bizDesc) parts.push('## GESCHÄFTSPROFIL\n'+r(bizDesc));
-  if(services) parts.push('## LEISTUNGEN\n'+r(services));
-  if(locHours) parts.push('## STANDORT & ERREICHBARKEIT\n'+r(locHours));
-  if(faq) parts.push('## TERMINLOGIK & FAQ\n'+r(faq));
-  if(instructions) parts.push('## KUNDENSPEZIFISCHE ANWEISUNGEN\n'+r(instructions));
-  if(fallback) parts.push('## ESKALATION & FALLBACK\n'+r(fallback));
-  if(constraints) parts.push('## ANTWORTGRENZEN\n'+r(constraints));
-  const wzLines=[];
-  if(wz.termin_modus==='aufnehmen') wzLines.push('Terminanfragen: Daten aufnehmen, wir bestätigen per Rückruf.');
-  if(wz.termin_modus==='direkt') wzLines.push('Terminanfragen: An Online-Booking verweisen'+(wz.booking_url?' ('+wz.booking_url+')':'')+'.');
-  if(wz.takeaway_aktiv==='ja') wzLines.push('Take-Away: Bestellungen aufnehmen, Abholzeit bestätigen.');
-  if(wz.takeaway_aktiv==='nein') wzLines.push('Take-Away: Nicht angeboten.');
-  if(wz.sprachen) wzLines.push('Sprachen: '+wz.sprachen.replace('de_en_fr','DE/EN/FR').replace('de_en','DE/EN').replace('de','Nur Deutsch'));
-  if(wz.haeufigste_anliegen) wzLines.push('Häufige Anliegen:\n'+wz.haeufigste_anliegen);
-  if(wz.allergien_abfragen==='immer') wzLines.push('Allergien: Bei Erstanfragen aktiv erfragen.');
-  if(wz.pannendaten_aufnehmen==='ja') wzLines.push('Pannenmeldungen: Standort, Fahrzeug, Kontakt aufnehmen.');
-  if(wzLines.length) parts.push('## BETRIEBLICHE KONFIGURATION\n'+wzLines.join('\n'));
-  return parts.length?parts.join('\n\n'):'(Kein Kundenkontext hinterlegt)';
-}
-
-function buildAiPrompt(){
-  const c=state.aiSelectedCustomerId?customerById(state.aiSelectedCustomerId):null;
-  const cfg=state.aiSelectedCustomerId?state.aiConfigs[state.aiSelectedCustomerId]||{}:{};
-  const tpl=cfg.industryTemplateId?state.industryTemplates.find(t=>t.id===cfg.industryTemplateId):null;
-  // L1: Master Prompt from system_config
-  let l1=state.promptMasterL1||'';
-  if(!l1) return '⚠ L1 Master Prompt nicht geladen. Bitte Seite neu laden.';
-  // Strip meta-header (documentation block before first "---" separator)
-  const _metaSep=l1.indexOf('\n---\n');
-  if(_metaSep>0) l1=l1.slice(_metaSep+5);
-  l1=resolvePromptVariables(l1,c);
-  // L2: Industry Layer from template prompt_block
-  const l2=tpl?.prompt_block?resolvePromptVariables(tpl.prompt_block,c):'(Keine Branchenvorlage ausgewählt)';
-  // L3: Customer Layer built from wizard + AI config fields
-  const l3=c?buildCustomerLayer(c,cfg):'(Kein Kunde ausgewählt)';
-  // Compose: replace all placeholders (regex handles multiple occurrences)
-  return l1.replace(/\{\{INDUSTRY_LAYER\}\}/g,l2).replace(/\{\{CUSTOMER_LAYER\}\}/g,l3);
-}
-function buildAiGreeting(){
-  // Extract greeting from ERSTE NACHRICHT section of the assembled prompt
-  const prompt = buildAiPrompt();
-  // Look for the greeting line between ERSTE NACHRICHT and WICHTIG
-  const match = prompt.match(/Beim ersten Kontakt sagst du genau diesen Satz[^:]*:\s*\n+[„"]([^"„"]+)[""„]/);
-  if(match) return match[1];
-  // Fallback: look for Grüezi line
-  const greetMatch = prompt.match(/(Grüezi[^\n]{10,120})/);
-  if(greetMatch) return greetMatch[1].trim();
-  return '(Begrüssung nicht gefunden — bitte manuell in ERSTE NACHRICHT Sektion prüfen)';
-}
+// G8 / J10 (Diagnose 09.08.): Hier stand ein zweiter, vollstaendiger
+// Prompt-Bauer im Browser (resolvePromptVariables/buildCustomerLayer/
+// buildAiPrompt/buildAiGreeting). Er war nur Rueckfall, wenn die
+// Server-Vorschau fehlschlaegt — baute dabei aber einen Prompt OHNE
+// `## VERBINDLICHE SICHERHEITSREGELN`, ohne Terminbefugnis, ohne
+// Pflichtinformationen und ohne die aktuellen Betriebsinformationen.
+// Direkt daneben oeffnet der Wizard die Vorschau automatisch, damit ein
+// Admin sie "immediately for ElevenLabs" kopieren kann. Der Toast meldete
+// nur "lokale Vorschau", nicht "unvollstaendig" — wer im Fehlerfall
+// kopierte, uebertrug einen Agenten ohne Sicherheitsregeln.
+//
+// Der Bauer wich ausserdem inhaltlich ab: eigene Formulierungen der
+// Wizard-Zeilen und ein erfundener Standard "112" fuer eine fehlende
+// Notfallnummer, gelesen aus Feldern, die es auf customers gar nicht gibt.
+//
+// Es gibt jetzt genau eine Quelle fuer den Prompt: den Server
+// (prompt-preview -> buildPromptV2, dieselbe Funktion wie der Sync).
+// admin-runtime-prompt-builder-v2.js holt sie. Faellt das aus, sagt die
+// Vorschau das ehrlich, statt eine unvollstaendige Fassung zu zeigen.
+window.AI_PREVIEW_UNAVAILABLE = 'Die Vorschau konnte nicht geladen werden.\n\nDer produktive Prompt wird ausschliesslich serverseitig erstellt. Es gibt hier bewusst keine lokale Ersatzfassung — eine solche waere unvollstaendig und duerfte nicht in einen Agenten kopiert werden.\n\nBitte die Seite neu laden und es erneut versuchen.';
 function openAiPreview(){
-  const prompt = buildAiPrompt();
-  const el = document.getElementById('ai-preview-content');
-  if(el) el.textContent = prompt || '(Keine Konfiguration vorhanden)';
-  const greetEl = document.getElementById('ai-preview-greeting');
-  if(greetEl) greetEl.textContent = buildAiGreeting();
-  document.getElementById('ai-preview-modal')?.classList.add('open');
+  const el = document.getElementById("ai-preview-content");
+  if(el) el.textContent = window.AI_PREVIEW_UNAVAILABLE;
+  const greetEl = document.getElementById("ai-preview-greeting");
+  if(greetEl) greetEl.textContent = "—";
+  document.getElementById("ai-preview-modal")?.classList.add("open");
 }
 function closeAiPreview(){
   document.getElementById('ai-preview-modal')?.classList.remove('open');

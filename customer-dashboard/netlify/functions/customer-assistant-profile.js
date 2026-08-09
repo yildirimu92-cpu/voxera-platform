@@ -3,6 +3,8 @@
 const { createClient } = require('@supabase/supabase-js');
 const { requireCustomerCaller } = require('./_lib/require-customer');
 const { buildGreetingView } = require('./_lib/assistant-greeting');
+const { parseOpeningHours } = require('./_lib/opening-hours');
+const { canEditForwarding } = require('./_lib/assistant-write-policy');
 
 const headers = {
   'Access-Control-Allow-Origin': '*',
@@ -14,6 +16,45 @@ const headers = {
 
 const response = (statusCode, payload) => ({ statusCode, headers, body: JSON.stringify(payload) });
 const text = (value) => String(value == null ? '' : value).trim();
+
+// J4 / Schicht A. Diese Liste steht bewusst auch hier und nicht nur im
+// Prompt-Builder: admin-panel und customer-dashboard sind zwei getrennte
+// Netlify-Sites ohne gemeinsamen Modulpfad. Das SCHEMA (welche Frage, welches
+// Label) liegt deshalb einmalig in system_config.core_field_steps; die Liste
+// der ueberhaupt zulaessigen Spalten gehoert in den Code, sonst waere eine
+// Zeile in system_config eine Leseberechtigung auf beliebige Kundenspalten.
+// Aenderungen hier und in _lib/prompt-builder-v2.js gehoeren zusammen.
+const CORE_FIELD_COLUMNS = new Set(['sprechstunden_modus', 'ai_appointment_mode', 'ai_online_booking_url', 'ai_opening_hours']);
+
+function parseCoreSteps(value) {
+  if (Array.isArray(value)) return value;
+  try {
+    const parsed = JSON.parse(String(value || ''));
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (_error) {
+    return [];
+  }
+}
+
+function coreValues(customer, steps) {
+  const values = {};
+  (Array.isArray(steps) ? steps : []).forEach((step) => {
+    (Array.isArray(step?.fields) ? step.fields : []).forEach((field) => {
+      const key = text(field?.key);
+      const column = text(field?.column);
+      if (!key || !CORE_FIELD_COLUMNS.has(column)) return;
+      const raw = customer?.[column];
+      // Ein jsonb-Wert (Oeffnungszeiten) darf nicht durch text() laufen.
+      if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+        if (Object.keys(raw).length) values[key] = raw;
+        return;
+      }
+      const value = text(raw);
+      if (value) values[key] = value;
+    });
+  });
+  return values;
+}
 
 const PROMPT_FUNCTIONS = new Set([
   'information', 'consulting', 'lead', 'appointment', 'quote', 'callback', 'support', 'transfer'
@@ -97,12 +138,24 @@ function buildCapabilities(customer, profile, calendarReady, calendarAttention) 
     || Boolean(text(customer.phone_notification_to));
   const faqConfigured = Boolean(text(customer.ai_booking_faq));
 
+  // Nennt den fehlenden Baustein statt einer pauschalen Formel — sonst liest
+  // sich "Einrichtung prüfen" wie ein technischer Mangel, auch wenn (wie bei
+  // einem verbundenen Kalender) der eigentliche fehlende Baustein an anderer
+  // Stelle liegt und mit dem Kalender nichts zu tun hat.
+  const missingCallParts = [];
+  if (!hasAgent) missingCallParts.push('Technischer Assistent');
+  if (!hasNumber) missingCallParts.push('Rufnummer');
+  if (!forwardingActive) missingCallParts.push('Rufweiterleitung');
+  const callSetupComplete = missingCallParts.length === 0;
+
   let calls;
   if (lifecycle === 'paused') calls = status('attention', 'Pausiert', 'Der Assistent ist vorübergehend pausiert.');
-  else if (hasAgent && hasNumber && forwardingActive && ['activated', 'live'].includes(lifecycle)) {
+  else if (callSetupComplete && ['activated', 'live'].includes(lifecycle)) {
     calls = status('active', 'Aktiv', 'Rufnummer, Weiterleitung und Assistent sind eingerichtet.');
+  } else if (callSetupComplete) {
+    calls = status('attention', 'Einrichtung prüfen', 'Technisch eingerichtet — der Kundenbetrieb ist aber noch nicht live geschaltet.');
   } else if (hasAgent || hasNumber || forwardingActive) {
-    calls = status('attention', 'Einrichtung prüfen', 'Mindestens ein technischer Bestandteil ist noch nicht vollständig aktiv.');
+    calls = status('attention', 'Einrichtung prüfen', `Noch nicht vollständig aktiv: ${missingCallParts.join(', ')}.`);
   } else calls = status('inactive', 'Nicht eingerichtet', 'Die technische Anrufannahme ist noch nicht bereit.');
 
   let appointments;
@@ -119,6 +172,12 @@ function buildCapabilities(customer, profile, calendarReady, calendarAttention) 
     existingAppointments = status('active', 'Aktiv', 'Bestehende Voxera-Termine können verschoben oder abgesagt werden.');
   } else if (profile.appointmentMode === 'direct' && calendarAttention) {
     existingAppointments = status('attention', 'Kalender prüfen', 'Die Bearbeitung bestehender Termine benötigt eine aktive Kalenderverbindung.');
+  } else if (calendarReady) {
+    // Der Kalender selbst ist fertig verbunden — der fehlende Baustein ist der
+    // Terminmodus (Direktbuchung), nicht die Kalenderverbindung. Ohne diesen
+    // Zweig liest sich "Nicht eingerichtet" so, als muesste der Kunde an der
+    // Kalenderverbindung noch etwas nachbessern, obwohl die bereits steht.
+    existingAppointments = status('inactive', 'Nicht aktiviert', 'Ihr Kalender ist verbunden — die Bearbeitung ist aber nur bei aktivierter Direktbuchung möglich.');
   } else existingAppointments = status('inactive', 'Nicht eingerichtet', 'Nur bei direkter Kalenderbuchung verfügbar.');
 
   return [
@@ -187,7 +246,15 @@ function buildUrgent(customer) {
   }
   return {
     emergency_number: text(customer.ai_emergency_number) || '144',
-    forwarding
+    forwarding,
+    // Ungefiltert, fuer den Editor. `forwarding` oben zeigt nur, was der Agent
+    // tatsaechlich nutzt — ein halb ausgefuelltes Ziel faellt dort heraus und
+    // waere sonst im Formular unsichtbar und damit nicht reparierbar.
+    slots: [1, 2].map((index) => ({
+      name: text(customer[`ai_forwarding_${index}_name`]),
+      number: text(customer[`ai_forwarding_${index}_number`]),
+      trigger: text(customer[`ai_forwarding_${index}_trigger`])
+    }))
   };
 }
 
@@ -336,7 +403,8 @@ exports.handler = async (event) => {
       'missed_call_email_active', 'phone_notification_to', 'updated_at',
       'ai_emergency_number', 'ai_forwarding_1_name', 'ai_forwarding_1_number', 'ai_forwarding_1_trigger',
       'ai_forwarding_2_name', 'ai_forwarding_2_number', 'ai_forwarding_2_trigger',
-      'ai_response_constraints', 'ai_language', 'ai_branch_extra', 'industry_template_id'
+      'ai_response_constraints', 'ai_language', 'ai_branch_extra', 'industry_template_id',
+      'sprechstunden_modus', 'ai_appointment_mode', 'ai_online_booking_url', 'ai_opening_hours'
     ].join(','))
     .eq('id', caller.customerId)
     .maybeSingle();
@@ -354,7 +422,7 @@ exports.handler = async (event) => {
   if (planError) return response(500, { error: 'plan_config_load_failed', detail: planError.message });
 
   const industryId = text(customer.industry_template_id);
-  const [calendarSettingsResult, calendarConnectionsResult, operationalResult, industryResult] = await Promise.all([
+  const [calendarSettingsResult, calendarConnectionsResult, operationalResult, industryResult, coreResult] = await Promise.all([
     sbAdmin.from('calendar_settings')
       .select('active_provider,feature_enabled,updated_at')
       .eq('customer_id', caller.customerId)
@@ -368,7 +436,8 @@ exports.handler = async (event) => {
       .eq('status', 'published'),
     industryId
       ? sbAdmin.from('industry_templates').select('id,name,extra_steps').eq('id', industryId).maybeSingle()
-      : Promise.resolve({ data: null, error: null })
+      : Promise.resolve({ data: null, error: null }),
+    sbAdmin.from('system_config').select('value').eq('key', 'core_field_steps').maybeSingle()
   ]);
 
   if (calendarSettingsResult.error) {
@@ -396,6 +465,14 @@ exports.handler = async (event) => {
     console.warn('[customer-assistant-profile] industry_template_unavailable', {
       customer_id: caller.customerId,
       message: industryResult.error.message
+    });
+  }
+  // Fehlt das Schema, bleibt der generische Abschnitt leer — der Screen zeigt
+  // dann genau die Felder, die es vor J4 gab, statt einen Fehler.
+  if (coreResult.error) {
+    console.warn('[customer-assistant-profile] core_field_steps_unavailable', {
+      customer_id: caller.customerId,
+      message: coreResult.error.message
     });
   }
 
@@ -437,7 +514,13 @@ exports.handler = async (event) => {
     customer.ai_booking_faq
   ];
   const completedFields = permanentFields.filter((value) => String(value || '').trim()).length;
+  const coreSteps = parseCoreSteps(coreResult.data?.value);
+  const coreValueMap = coreValues(customer, coreSteps);
+  const openingHoursSuggestion = parseOpeningHours(customer.ai_location_hours);
   const parsedProfile = promptProfile(customer.ai_internal_notes);
+  // Rangfolge wie im Prompt-Builder: die typisierte Spalte fuehrt. Sonst zeigte
+  // diese Seite eine andere Terminbefugnis an, als der Agent tatsaechlich hat.
+  if (coreValueMap.appointment_mode) parsedProfile.appointmentMode = coreValueMap.appointment_mode;
   const greeting = buildGreetingView(customer);
 
   return response(200, {
@@ -470,7 +553,11 @@ exports.handler = async (event) => {
       // Etappe 6 / S3: einzige Schaltstelle fuer die Ton-Sperre. Das Frontend
       // kennt keinen Plan-Namen — Freischalten ist ein Update auf
       // plan_config.allow_custom_tone, kein Deploy.
-      can_change_tone: planConfig?.allow_custom_tone === true
+      can_change_tone: planConfig?.allow_custom_tone === true,
+      // N6: dieselbe Aufteilung fuer die Weiterleitung. Die Regel steht in
+      // _lib/assistant-write-policy.js und wird von customer-update-assistant
+      // serverseitig durchgesetzt — das Frontend liest nur das Ergebnis.
+      can_change_forwarding: canEditForwarding(planCode)
     },
     capabilities: buildCapabilities(customer, parsedProfile, calendarReady, calendarAttention),
     technical_status: buildTechnicalStatus(customer, calendarReady, calendarAttention, activeProvider),
@@ -481,6 +568,22 @@ exports.handler = async (event) => {
       id: industryId || null,
       name: text(industryResult.data?.name) || null,
       assigned: Boolean(industryId && industryResult.data)
+    },
+    // Gleicher Renderer wie die Branchenfelder, anderer Speicher: die Werte
+    // kommen aus typisierten Spalten statt aus ai_branch_extra (Entscheid F1).
+    // Diese Felder gelten fuer jeden Kunden — auch fuer die drei von vier ohne
+    // Branchenvorlage, die ai_branch_extra gar nicht beschreiben koennen.
+    core_sections: buildBranchSections({ extra_steps: coreSteps }, coreValueMap),
+    // J5 / Entscheid F3: Der Parser schlaegt vor, der Kunde bestaetigt. Der
+    // Vorschlag wird ausdruecklich NICHT gespeichert -- er reist nur mit, damit
+    // die Oberflaeche ihn zeigen kann. `ignored` nennt die Zeilen mit
+    // Zeitangaben, die der Parser nicht verwerten konnte; ohne diese Liste
+    // suggerierte der Vorschlag eine Vollstaendigkeit, die er nicht hat.
+    opening_hours: {
+      confirmed: coreValueMap.opening_hours || null,
+      suggestion: coreValueMap.opening_hours ? null : openingHoursSuggestion.hours,
+      unparsed_lines: coreValueMap.opening_hours ? [] : openingHoursSuggestion.ignored,
+      source_text: text(customer.ai_location_hours) || null
     },
     branch_sections: buildBranchSections(industryResult.data, branchValues(customer)),
     operational_updates: {
@@ -515,6 +618,8 @@ exports._test = {
   buildBoundaries,
   buildBranchSections,
   branchValues,
+  parseCoreSteps,
+  coreValues,
   lines,
   VOXERA_RULES
 };
