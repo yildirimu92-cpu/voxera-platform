@@ -463,7 +463,7 @@
     return '<section class="vx-ap-card vx-ap-hero">' +
       '<div class="vx-ap-hero-label">So meldet sich Ihr Assistent</div>' +
       spoken + explain + stale + notice +
-      '<div class="vx-ap-summary">' + rows + '</div>' +
+      '<div class="vx-ap-summary vx-ap-summary--compact">' + rows + '</div>' +
       originChip('self', 'Von Ihnen gesetzt') +
       '<div class="vx-ap-hero-foot">' +
       (current ? '<button type="button" class="vx-ap-btn secondary" data-vx-preview="' + esc(current.voice_id) + '"' + (previewLoading ? ' disabled' : '') + '><i class="ph-bold ph-play" aria-hidden="true"></i> Anhören</button>' : '') +

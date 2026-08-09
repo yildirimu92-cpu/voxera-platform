@@ -398,6 +398,19 @@ Die Tabelle beantwortete: welche Branche braucht überhaupt eine Notfallnummer, 
 - **Keine Notfallnummer:** `generic`, `physiotherapie`, `garage` (Pannendienst ist eine eigene Nummer), `restaurant`, `coiffeur`, `kosmetik`, `treuhand`, `immobilien`, `reinigung`, `anwalt`, `baeckerei`, `digitalmarketing`
 - **Keine Weiterleitung nötig:** `coiffeur`, `kosmetik`, `fitness`, `baeckerei`
 
+### Gemessen statt geschätzt
+
+Der Einwand gegen E8 war die Seitenlänge. Beide Stände im Browser gerendert, 390 × 780, derselbe Beispielkunde (Handwerksbetrieb, laufende Ferienmeldung, Branche zugeordnet, Weiterleitung konfiguriert):
+
+| | Höhe | Bildschirme | Inhalt |
+|---|---|---|---|
+| **vorher** | 3326 px | 4.26 | nur der Reiter „Assistent" — Geschäftsprofil und Aktuelle Infos lagen hinter zwei weiteren Reitern |
+| **nachher** | 3346 px | 4.29 | die ganze Seite inkl. Band und der neuen Kategorie „Grenzen und Eskalation" |
+
+**20 Pixel länger, bei einer zusätzlichen Kategorie und ohne Umschalter.** Die Diagnose hatte vermutet, dass die Länge nicht aus der Umgliederung kommt; die Messung bestätigt es deutlicher als erwartet.
+
+Ein Fund aus dem Rendern, direkt behoben: `.vx-ap-summary-row` stapelt auf Mobile Label über Wert. Für die Kernidentität — fünf kurze Werte wie „Sie", „Deutsch", „Sofia" — kostete das rund 145 px für nichts. Diese eine Zusammenfassung bleibt jetzt zweispaltig (`.vx-ap-summary--compact`), alle übrigen stapeln unverändert.
+
 ### Bewusst nicht mitgemacht
 
 - **D6 / S7** (zwei Module streiten um Fähigkeiten- und Betriebsstatus-Karte) bleibt offen. Der Einhängepunkt ist jetzt ein ausdrücklicher Anker statt eines Kartentitel-Regex — vorher hätte die Umbenennung der Karte die Fähigkeiten still ans Ende verschoben. Die eigentliche Entflechtung ist ein eigener Schritt und stand nicht in I1–I8.

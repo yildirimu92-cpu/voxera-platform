@@ -767,6 +767,21 @@ body.vx-customer-design-foundation .vx-ap-urgent-feedback {
     text-align: left;
   }
 
+  /* Ausnahme fuer die Kernidentitaet: dort stehen fuenf kurze Werte
+     untereinander ("Sie", "Deutsch", "Sofia"). Gestapelt kosten sie auf 390px
+     rund 100px Hoehe fuer nichts — und die Seitenlaenge ist genau der Punkt,
+     an dem der Umschalter aufgegeben wurde. Zweispaltig bleiben nur Zeilen,
+     deren Werte kurz sind; die uebrigen Zusammenfassungen stapeln weiter. */
+  body.vx-customer-design-foundation .vx-ap-summary--compact .vx-ap-summary-row {
+    grid-template-columns: minmax(96px, .4fr) minmax(0, 1fr);
+    gap: var(--vx-space-3);
+    padding: 9px 0;
+  }
+
+  body.vx-customer-design-foundation .vx-ap-summary--compact .vx-ap-summary-value {
+    text-align: right;
+  }
+
   body.vx-customer-design-foundation #vx-business-profile-body .vx-ap-title {
     font-size: 21px;
   }

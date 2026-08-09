@@ -47,12 +47,14 @@ assert.ok(lineCount(runtime) <= 55, `design runtime is too large: ${lineCount(ru
 assert.ok(lineCount(foundationCss) <= 500, 'foundation CSS exceeded the initial size budget');
 // Etappe 6 / S2: +83 Zeilen fuer den Kopfbereich "So meldet sich Ihr
 // Assistent". S3: +50 fuer den Ansprache-/Ton-Editor darin. Umgliederung
-// (E8, 09.08.): +118 fuer die zweite Achse der neuen Struktur — Herkunftsmarke,
-// Regellisten, Unterabschnitte und das "Aktuell"-Band, das den dritten Reiter
-// ersetzt. Alles neue Komponenten, kein Wildwuchs. Budget behaelt denselben
-// Spielraum wie zuvor (~15 Zeilen), damit der Waechter weiterhin anschlaegt,
-// bevor die Datei unbemerkt waechst.
-assert.ok(lineCount(assistantCss) <= 1250, 'assistant component CSS exceeded its consolidated size budget');
+// (E8, 09.08.): +134 fuer die zweite Achse der neuen Struktur — Herkunftsmarke,
+// Regellisten, Unterabschnitte, das "Aktuell"-Band, das den dritten Reiter
+// ersetzt, und die zweispaltige Ausnahme fuer die Kernidentitaet auf Mobile
+// (fuenf kurze Werte gestapelt kosteten dort rund 100px fuer nichts).
+// Alles neue Komponenten, kein Wildwuchs. Budget behaelt denselben Spielraum
+// wie zuvor (~15 Zeilen), damit der Waechter weiterhin anschlaegt, bevor die
+// Datei unbemerkt waechst.
+assert.ok(lineCount(assistantCss) <= 1270, 'assistant component CSS exceeded its consolidated size budget');
 assert.ok(lineCount(statusCss) <= 300, 'assistant status CSS exceeded its consolidated size budget');
 // Design-Nachzug 4 (2026-08-08): +46 Zeilen. Der groessere Teil davon ist
 // EIN Block — die Zuruecknahme der geerbten Feldbeschriftungs-Typografie auf
