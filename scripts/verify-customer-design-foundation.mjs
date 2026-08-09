@@ -74,13 +74,14 @@ assert.ok(lineCount(statusCss) <= 300, 'assistant status CSS exceeded its consol
 // Block selbst. Budget behaelt denselben Spielraum wie zuvor.
 assert.ok(lineCount(settingsCss) <= 845, 'settings component CSS exceeded its consolidated size budget');
 assert.ok(lineCount(supportCss) <= 220, 'support component CSS exceeded its size budget');
-// Navigation Premium-Redesign (2026-08-09): +81 Zeilen. Der Zuwachs ist der
-// Gold-Icon-Chip als gemeinsamer Aktiv-Zustand von Seitenleiste und Tab-Leiste,
-// samt Herleitung. Netto ist das Produkt schlanker geworden: dieselbe Aussage
-// stand vorher an fuenf Orten (drei Inline-Bloecke in index.html, dieses Modul
-// und die !important-Farben des Reparaturskripts). Budget behaelt denselben
-// Spielraum wie zuvor, damit der Waechter weiterhin anschlaegt.
-assert.ok(lineCount(navigationCss) <= 345, 'navigation component CSS exceeded its size budget');
+// Navigation Premium-Redesign (2026-08-09): +122 Zeilen. Der groessere Teil
+// ist der Gold-Icon-Chip als gemeinsamer Aktiv-Zustand von Seitenleiste und
+// Tab-Leiste samt Herleitung, dazu der Fokusring beider Formen und die
+// Gruss-Zeile auf "Heute". Netto ist das Produkt schlanker geworden: der
+// Aktiv-Zustand stand vorher an fuenf Orten (drei Inline-Bloecke in
+// index.html, dieses Modul und die !important-Farben des Reparaturskripts).
+// Budget behaelt denselben Spielraum wie zuvor.
+assert.ok(lineCount(navigationCss) <= 390, 'navigation component CSS exceeded its size budget');
 
 for (const token of [
   'Styling lives exclusively in explicit CSS modules.',

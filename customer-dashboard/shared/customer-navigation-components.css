@@ -156,6 +156,40 @@ body.vx-customer-design-foundation .vx-screen-meta-text {
   line-height: 1.4;
 }
 
+/* Der Gruss auf "Heute" ist die einzige Stelle, an der das Produkt den Kunden
+   beim Namen nennt. Die Tageszeit-Floskel führt leise, der Firmenname trägt
+   die Zeile — auf der Kartentitel-Stufe der Typo-Leiter, also eine Stufe
+   unter dem Screen-Namen in der Leiste darüber. Beide Teile stehen in
+   derselben Zeile; erst wenn der Platz knapp wird, bricht der Name um. */
+body.vx-customer-design-foundation .vx-heute-greeting {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0;
+  min-width: 0;
+  margin: 0 0 var(--vx-space-3);
+}
+
+body.vx-customer-design-foundation .vx-greeting-lead {
+  color: var(--vx-color-text-muted);
+  font-family: var(--vx-font-body, inherit);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: normal;
+}
+
+body.vx-customer-design-foundation .vx-greeting-lead + .vx-greeting-name {
+  margin-left: 6px;
+}
+
+body.vx-customer-design-foundation .vx-greeting-name {
+  color: var(--vx-color-text);
+  font-family: var(--vx-font-display);
+  font-size: var(--vx-ui-title-size);
+  font-weight: var(--vx-ui-title-weight);
+  letter-spacing: var(--vx-ui-title-tracking);
+}
+
 body.vx-customer-design-foundation .vx-screen-meta-action {
   padding: 0;
   border: 0;

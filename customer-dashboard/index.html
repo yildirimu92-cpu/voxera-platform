@@ -7569,6 +7569,13 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
             <!-- Greeting and date left the header in Etappe 2 and live here as
                  the first card of the content area — ordinary card, no
                  special treatment. -->
+            <!-- Seit dem Heute-Redesign (Lara-Uebergabe) per
+                 display:none!important dauerhaft unsichtbar, siehe die Regel
+                 in #vx-lara-handover-styles. Die Karte bekommt seit dem
+                 09.08.2026 auch keinen Inhalt mehr geschrieben — der Gruss
+                 steht als sichtbare Zeile weiter unten
+                 (#dash-personal-greeting). Das Markup bleibt, weil
+                 bestehendes Render-/Event-Wiring den Abschnitt kennt. -->
             <section id="dash-greeting-block" class="vx-ui-card vx-screen-meta">
               <div class="vx-screen-meta-main">
                 <div id="dash-greeting-title" class="vx-screen-meta-title"></div>
@@ -7614,6 +7621,14 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
                  Steht bewusst VOR der Lara-Uebergabe: der Hinweis sagt, was
                  gerade in dieser Sekunde passiert, die Uebergabe sagt, was
                  seither liegen geblieben ist. -->
+            <!-- Der einzige Ort, an dem das Produkt den Kunden beim Namen
+                 nennt. Bewusst eine Zeile und keine Karte: der Heute-Screen
+                 wurde mit der Lara-Übergabe absichtlich auf wenige Blöcke
+                 reduziert, und ein Gruss ist kein Block. Sie steht vor dem
+                 Live-Hinweis, weil sie den Screen anredet und nicht meldet,
+                 was gerade passiert. -->
+            <p id="dash-personal-greeting" class="vx-heute-greeting"></p>
+
             <div id="dash-live-ambient" role="status" aria-live="polite"></div>
 
             <!-- Lara-Übergabe: ersetzt KPI-Kacheln + "Heute passiert"-Chronologie.
@@ -20703,31 +20718,40 @@ function renderDashboard(records, manualTasks) {
 
   // ── NEW DASHBOARD SECTIONS ──────────────────────────────────────────
 
-  // Greeting + datetime
-  var greetingEl = document.getElementById('dash-greeting-title');
-  var greetingSubEl = document.getElementById('dash-greeting-sub');
-  var dtEl = document.getElementById('dash-datetime-label');
-  var now2 = new Date();
-  var hour = now2.getHours();
-  var greeting = hour < 12 ? 'Guten Morgen' : hour < 18 ? 'Guten Nachmittag' : 'Guten Abend';
-  var customerName = (customerMeta && customerMeta.displayName) ? customerMeta.displayName : (customerMeta && customerMeta.customerName) ? customerMeta.customerName : (customerContext && customerContext.displayName) ? customerContext.displayName : '';
-  if (greetingEl) greetingEl.textContent = greeting + (customerName ? ', ' + customerName : '');
-  if (greetingSubEl) {
-    // [PATCH 2026-05-13 v2 — Aufgaben-Zählung Konsistenz]
-    // Vorher: eigene Inline-Filterung über manualTasks → driftete mit topbar und tagesbericht
-    // Jetzt: zentrale getOpenTaskCount()-Funktion, dieselbe wie topbar verwendet
-    // [BUG FIX v2.54] Gleicher Filter wie KPI: isOnToday-Records ausschliessen
-    var parts = [];
-    if (anfragenOps.inbox > 0) parts.push(anfragenOps.inbox + ' Inbox');
-    if (anfragenOps.planned > 0) parts.push(anfragenOps.planned + ' geplant');
-    var heuteCountsForSub = (typeof vxGetHeuteKpiCounts === 'function') ? vxGetHeuteKpiCounts(records || [], manualTasks || allManualTaskRecords || []) : null;
-    if (heuteCountsForSub && heuteCountsForSub.importantNow > 0) parts.push(heuteCountsForSub.importantNow + ' wichtig');
-    greetingSubEl.textContent = parts.length > 0 ? parts.join(' · ') : 'Keine offenen Inbox- oder Follow-up-Einträge';
-  }
-  if (dtEl) {
-    var days = ['So','Mo','Di','Mi','Do','Fr','Sa'];
-    var months = ['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'];
-    dtEl.textContent = days[now2.getDay()] + ', ' + now2.getDate() + '. ' + months[now2.getMonth()] + ' · ' + String(now2.getHours()).padStart(2,'0') + ':' + String(now2.getMinutes()).padStart(2,'0');
+  // ── Persoenlicher Gruss ─────────────────────────────────────────────
+  // Der Gruss stand bisher in #dash-greeting-title, zusammen mit einer
+  // Zaehlerzeile und einer Datum-/Uhrzeit-Angabe. Dieser ganze Block ist seit
+  // dem Heute-Redesign (Lara-Uebergabe) per display:none!important dauerhaft
+  // unsichtbar — die drei Schreibvorgaenge liefen also ins Leere, und der
+  // einzige persoenliche Bezug des Produkts war damit gar nicht vorhanden.
+  //
+  // Jetzt eine sichtbare Zeile: die Tageszeit-Floskel fuehrt leise, der
+  // Firmenname traegt sie auf der Kartentitel-Stufe der Typo-Leiter. Ohne
+  // bekannten Namen bleibt es bei der Floskel allein, kein leerer Platzhalter.
+  //
+  // Zaehler und Uhrzeit sind nicht mitgewandert: die Zaehler stehen seit dem
+  // Redesign an den Abschnitten selbst ("Braucht dich", "Erledigt"), die
+  // Uhrzeit in der Meldezeile der Uebergabe. Sie hier zu wiederholen waere
+  // eine zweite Wahrheit fuer dieselbe Zahl.
+  var greetingEl = document.getElementById('dash-personal-greeting');
+  if (greetingEl) {
+    var now2 = new Date();
+    var hour = now2.getHours();
+    var greeting = hour < 12 ? 'Guten Morgen' : hour < 18 ? 'Guten Nachmittag' : 'Guten Abend';
+    var customerName = (customerMeta && customerMeta.displayName) ? customerMeta.displayName
+      : (customerMeta && customerMeta.customerName) ? customerMeta.customerName
+      : (customerContext && customerContext.displayName) ? customerContext.displayName : '';
+    greetingEl.textContent = '';
+    var greetLead = document.createElement('span');
+    greetLead.className = 'vx-greeting-lead';
+    greetLead.textContent = customerName ? greeting + ',' : greeting;
+    greetingEl.appendChild(greetLead);
+    if (customerName) {
+      var greetName = document.createElement('span');
+      greetName.className = 'vx-greeting-name';
+      greetName.textContent = customerName;
+      greetingEl.appendChild(greetName);
+    }
   }
 
   // Tagesbericht deaktiviert: Heute arbeitet jetzt mit Aufmerksamkeit + Verlauf.
