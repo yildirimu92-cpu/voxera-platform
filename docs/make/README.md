@@ -74,15 +74,27 @@ Function `call-intake-resolve-customer` und deren Secret
 
 Zwei `mail_type`-Werte, passend zu den zwei Vorlagen aus Szenario 01:
 
-| `mail_type` | Vorlage aus Szenario 01 | Kundenschalter |
+| `mail_type` | Vorlage aus Szenario 01 | Wann sie rausgeht |
 |---|---|---|
-| `callback_request_email` | Modul 6, „Rückruf angefordert" (rot, `#DC2626`) | `notification_active` |
-| `call_notification_email` | Modul 14, „Neuer Anruf" (blau, `#1A6FE8`) | `new_log_email_active` |
+| `callback_request_email` | Modul 6, „Rückruf angefordert" (rot, `#DC2626`) | `notification_mode` ist `callback_only` oder `all_calls` |
+| `call_notification_email` | Modul 14, „Neuer Anruf" (blau, `#1A6FE8`) | `notification_mode` ist `all_calls` |
 
 Das Gating sitzt jetzt im Code (`decideMail()` in `_lib/call-notification.js`),
 nicht mehr im Router-Filter. Die Make-Routen filtern nur noch auf den
 `mail_type` — erreicht eine Mail Szenario 09, ist bereits entschieden, dass sie
 raus darf.
+
+> **Der Zwischenstand ist abgelöst.** Während der Migration gatete
+> `decideMail()` bewusst auf die Legacy-Booleans `notification_active` /
+> `new_log_email_active`, damit der Umzug das Verhalten nicht nebenbei
+> mitändert. Der Auftrag „Benachrichtigungseinstellungen" hat die Funktion
+> anschliessend wie abgestimmt auf `notification_mode` umgestellt — die
+> einzige Spalte, die die Einstellungsseite des Kunden schreibt. Die
+> Legacy-Booleans liest hier niemand mehr.
+>
+> Die Make-Routen waren davon **nicht** betroffen: sie filtern nur auf den
+> `mail_type`, und beide Typen sind unverändert geblieben. Der Wechsel war
+> reine Code-Sache, ohne erneute Make-Änderung.
 
 Mapping der Routen:
 

@@ -50,6 +50,14 @@ const CALL_MAIL_TYPE = 'call_notification_email';
 // Deshalb gatet decideMail() jetzt auf notification_mode. Die Legacy-Booleans
 // werden hier nicht mehr gelesen; 2026-08-09_notification_mode_gating.sql
 // gleicht sie ein letztes Mal an und dokumentiert sie als tot.
+//
+// Damit ist die Uebergabe vollzogen, die der Migrationsauftrag in 836dea3
+// angekuendigt hat ("ZWISCHENSTAND, NICHT DER ZIELZUSTAND"): erst die
+// Migration mit Verhaltensparitaet, dann dieser Wechsel als eigener benannter
+// Schritt. Die Make-Routen sind davon unberuehrt - Szenario 09 filtert nur
+// nach mail_type, und die beiden Typen callback_request_email /
+// call_notification_email aendern sich nicht. Der Wechsel ist reine
+// Code-Sache, keine Make-Handarbeit.
 const CUSTOMER_COLUMNS = 'id, customer_name, contact_name, email, voxera_number, notification_mode';
 
 // Werksstandard, wenn die Spalte leer oder unbekannt belegt ist. Entspricht
