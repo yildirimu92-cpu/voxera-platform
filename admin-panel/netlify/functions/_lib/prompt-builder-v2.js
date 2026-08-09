@@ -71,10 +71,26 @@ function parsePromptProfile(notes) {
   };
 }
 
+// Der Master-Prompt beginnt mit einem Kopf, der nur fuer uns gedacht ist:
+// Datei-Zweck, Architekturhinweis und die Liste der {{...}}-Variablen. Getrennt
+// wird er vom eigentlichen Prompt durch eine `---`-Zeile.
+//
+// Gesucht wurde bis 09.08. ausschliesslich '\n---\n'. Der Wert in
+// system_config.prompt_master_l1 wird aber aus einer Datei mit CRLF-Zeilenenden
+// gepflegt, dort steht '\r\n---\r\n'. Der Trenner wurde deshalb nie gefunden,
+// die Funktion gab den ganzen Text zurueck — und rund 700 Zeichen interne
+// Dokumentation gingen bei jedem Sync an den Agenten, inklusive der Zeile
+// `{{ASSISTANT_NAME}} — Name der Assistenz (Standard: "Lara")`. Das ist nicht
+// nur Ballast: es beschreibt dem Modell, das mit Anrufenden spricht, den Aufbau
+// seines eigenen Prompts.
+//
+// Bewusst nur der Trenner wird tolerant gesucht, nicht der ganze Text
+// normalisiert: eine globale CRLF-Umschreibung wuerde jeden Kundenprompt in
+// seinen Bytes veraendern, ohne dass sich inhaltlich etwas verbessert.
 function stripMasterMeta(value) {
   const source = String(value || '');
-  const separator = source.indexOf('\n---\n');
-  return (separator > 0 ? source.slice(separator + 5) : source).trim();
+  const separator = /\r?\n---\r?\n/.exec(source);
+  return (separator ? source.slice(separator.index + separator[0].length) : source).trim();
 }
 
 function buildGreeting(name, type, personName, firmName, language) {
