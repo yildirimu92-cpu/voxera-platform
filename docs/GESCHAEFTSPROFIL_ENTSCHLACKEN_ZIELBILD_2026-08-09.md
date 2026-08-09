@@ -518,11 +518,8 @@ verbliebene Risikoposten war.
 
 ### 11.4 Was ungeprüft bleibt
 
-- **Die Migration ist auf keiner echten Datenbank angewandt** — weder Staging
-  noch Produktion. Das ist eine Freigabeentscheidung, wie bei J4/J5/J6. Die
-  lokale Postgres beweist Syntax, Idempotenz und Rückbau, nicht den Zustand
-  Ihrer Daten. Für den Staging-Lauf gilt die Lehre aus J6: **zuerst den
-  Ausgangszustand herstellen**, Staging spiegelt Produktion nicht automatisch.
+- ~~Die Migration ist auf keiner echten Datenbank angewandt.~~ **Erledigt, siehe
+  11.5.**
 - **Kein Live-Anruf.** Der Prompt enthält die Terminregeln nachweislich; ob das
   Modell sie befolgt, ist damit nicht gezeigt. Unverändert offen seit J1.
 - **Die Klick-Abnahme lief gegen einen gestubbten Endpoint.** Sie beweist, dass
@@ -533,3 +530,52 @@ verbliebene Risikoposten war.
 - **Kein Kunde hat bestätigte Terminregeln**, der Zustand 2 ist also nur an
   gesetzten Werten geprüft, nicht an gewachsenen Daten.
 - **Der Fan-out nach dem Versionswechsel ist nicht gelaufen.**
+
+### 11.5 Migration auf Produktion angewandt (09.08., nach Freigabe)
+
+Ohne Staging-Zwischenschritt, wie entschieden — nur vier Kunden betroffen.
+Reihenfolge: Repo-Migration zuerst (Commit `79020a9`), dann anwenden.
+
+**Zur Belastbarkeit des vorherigen Rückbau-Beweises.** Der Test aus 11.2 lief mit
+*synthetischen* Daten: das Schema von Hand angelegt, J6 und J7 darauf laufen
+lassen, **null Kundenzeilen**. Vor dem Eingriff nachgeholt, was diese Lücke
+schliesst: der `core_field_steps`-Wert auf Produktion ist **byte-identisch** mit
+dem, den J6+J7 lokal erzeugen — `md5 dfdb601725892c322e2afbb16a115141`, 6012
+Zeichen, in beiden Richtungen gemessen. Der Migrations- und Rückbau-Test lief
+damit nachträglich nachweislich gegen die echte Basis. Der Rückbau stellt genau
+diesen Hash wieder her.
+
+Was der lokale Test weiterhin nicht deckt: die Kundenzeilen. Dafür ist der
+Beweis direkt auf Produktion geführt und stärker als jede Kopie — Fingerabdruck
+über alle 21 betroffenen Spalten aller vier Kunden, vor und nach dem Eingriff:
+`4488a17b588f9ee3fd1c3686d599cfc1` → `4488a17b588f9ee3fd1c3686d599cfc1`.
+
+| Prüfung | Ergebnis |
+|---|---|
+| Ausgangszustand | 5 Schritte, `betrieb_angebot=2`, Spalte existierte nicht |
+| Schema-Sicherung vorab | `system_config` unter eigenem Schlüssel, Hash geprüft |
+| Kundenzeilen vorher/nachher | identisch — keine bestehende Spalte angefasst |
+| Nach der Migration | `betrieb_angebot=3`, Feld „Regeln rund um Termine", `short_description` auf `audience: admin` |
+| Neue Spalte | `text`, bei allen vier Kunden `NULL` |
+| Spalten-Grants | 11, identisch zur J7-Spalte `ai_service_list` |
+| Trigger auf `customers` | zwei, beide `BEFORE` und ohne Aussenwirkung (`set_updated_at`, `sync_notification_booleans`) |
+| Schreibprobe | in einer Transaktion geschrieben, gelesen, zurückgerollt; Bestand danach unverändert |
+
+**Datenlage bestätigt die Diagnose:** 0 von 4 Kunden mit bestätigter FAQ-Liste,
+0 mit Leistungsliste, 0 mit bestätigten Öffnungszeiten, 1 mit FAQ-Freitext. Der
+latente Verlust aus Abschnitt 3 hat also tatsächlich noch niemanden getroffen —
+und kann es nach diesem Deploy auch nicht mehr.
+
+### 11.6 Eine Abweichung zwischen Skizze und Wirklichkeit, nicht eigenmächtig geändert
+
+Die Skizze in 4.3 zeigt *Leistungen und häufige Fragen* als dritten Abschnitt.
+Auf Produktion ist `betrieb_angebot` der **letzte** Schritt — J7 hat ihn ans Ende
+angehängt. Die Reihenfolge ist damit: Erreichbarkeit und Termine · Was Sie
+anbieten · Anfahrt und Besuch · Preisauskunft · Leistungen und häufige Fragen.
+
+Das neue Regelfeld steht dadurch ganz unten auf der Seite, hinter der
+Preisauskunft. Sachlich falsch ist das nicht — es steht weiterhin direkt neben
+dem Text, aus dem sein Vorschlag stammt. Aber es ist nicht das, was die Skizze
+zeigt. Die Abschnittsreihenfolge zu ändern wäre eine weitere Schema-Änderung und
+war nicht Teil der Freigabe; sie steht deshalb hier als eigener, offener Punkt
+statt als stille Mitnahme.
