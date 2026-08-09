@@ -1,6 +1,7 @@
 # Diagnose: Lesebreite des Heute-Screens bei grossen Desktop-Breiten
 
-**Datum:** 2026-08-09 · **Branch:** `claude/heut-lesebreite-4g9c05` · **Status: Diagnose. Umsetzung erst nach Freigabe.**
+**Datum:** 2026-08-09 · **Branch:** `claude/heut-lesebreite-4g9c05` · **Status: Diagnose (Teil 1) ·
+Umsetzung (Teil 2, freigegeben).**
 
 Auftragsgrundlage: `briefing-heute-lesebreite.md`. Nebenfund aus der Toast-Diagnose (2G):
 `#tab-dashboard` nutzt `.vx-page-wrap` (`max-width:860px`) nicht; die Karten laufen bei 1440 px
@@ -142,7 +143,7 @@ an den Auftraggeber, ob das ein Folgeauftrag werden soll.
 Make, E-Mail-Vorlagen, Szenario 09, sowie alles, was laut Briefing parallel in anderen Chats
 läuft (Aufräumen, Dashboard-Klicktest, kleinere Restfunde).
 
-## 6. Nicht verifiziert
+## 6. Nicht verifiziert (Teil 1)
 
 - Visuelles Erscheinungsbild nach einer Umsetzung (nicht gebaut, wie im Briefing verlangt).
 - Verträglichkeit von `.vx-page-wrap` mit `.vx-report-stack{display:grid}` im Detail — nur
@@ -150,3 +151,121 @@ läuft (Aufräumen, Dashboard-Klicktest, kleinere Restfunde).
 - Mobil-Verhalten unter 768 px war nicht Gegenstand der Messung (das Briefing verlangt nur
   Desktop-Breiten); die bestehende `@media(max-width:768px){.vx-page-wrap{max-width:100%}}`-Regel
   legt aber nahe, dass dort ohnehin keine Kappung gewünscht ist.
+
+---
+---
+
+# Teil 2 — Umsetzung
+
+Freigabe vom 09.08.: `.vx-page-wrap` auf `#dash-content` (Heute), zusätzlich `tab-auswertung` und
+den Anfragen-Detailbereich mitnehmen — gleiche Ursache (fehlender Breiten-Deckel), aus Abschnitt 4
+als Folgeauftrag benannt und in derselben Freigabe eingeschlossen.
+
+## Was geändert wurde
+
+- **`#dash-content`** (`class="vx-ap-stack vx-report-stack"`) trägt jetzt zusätzlich
+  `vx-page-wrap`. Der ganze Heute-Screen ist gedeckelt, nicht nur Laras Zusammenfassungstext —
+  wie in Abschnitt 4 begründet, weil jede Zeile auf dem Screen gleichermassen ungebremst lief.
+- **`tab-auswertung`**: die äussere `.vx-report-stack`-Hülle trägt jetzt ebenfalls `vx-page-wrap`
+  (`class="vx-report-stack vx-page-wrap"`). Das 4-spaltige KPI-Raster (`.vx-report-kpis`,
+  `grid-template-columns:repeat(4,…)`) bleibt unverändert — es rückt bei 1920 px nur von 1632 px
+  auf 860 px Gesamtbreite zusammen (je Kachel ~193 px statt ~380 px), bricht aber nicht um, weil
+  die Spaltenzahl über Viewport-Breakpoints geschaltet wird, nicht über Container-Breite (geprüft
+  per Screenshot, siehe unten).
+- **Anfragen-Detailbereich**: `#requests-detail-v2` (Host von `vxRenderEntryDetail()`, die aktuell
+  gerenderte Detailkomponente) trägt jetzt `vx-page-wrap` zusätzlich zu `vx-requests-detail`. Die
+  beiden toten CSS-Regeln aus Abschnitt 1 (`#call-detail-scroll-wrap .vx-page-wrap`, Ziel-Element
+  existiert seit PR #824 nicht mehr) wurden **nicht angefasst** — sie greifen nicht auf den neuen
+  Selektor und sind nicht Teil dieses Auftrags.
+- **Zusätzlich, nicht im Zielbild vorhergesehen: `.vx-page-wrap` selbst musste korrigiert werden.**
+  Beim ersten Testlauf (echte Stylesheets, nicht nur der inline `<style>`-Block) griff die Kappung
+  auf Heute und Bericht trotz gesetzter Klasse nicht — `getComputedStyle` zeigte `max-width:100%`
+  statt `860px`. Ursache: `customer-design-system.css` setzt
+  `body.vx-customer-design-foundation :where(#tab-dashboard, #tab-anrufe, #tab-assistent,
+  #tab-auswertung, #tab-mehr) > *{max-width:100%}` — die `:where()`-Klammer trägt zur Spezifität
+  nichts bei, die Regel wiegt also nur `body`+eine Klasse (0-1-1). Das reicht, um die bisherige
+  `.vx-page-wrap{max-width:860px}` (0-1-0) zu schlagen, und zwar für **jedes** direkte Kind der
+  fünf Tab-Screens — nicht nur für unsere drei. `#dash-content` und die `.vx-report-stack`-Hülle
+  sind direkte Kinder von `#tab-dashboard`/`#tab-auswertung` und damit betroffen;
+  `#requests-detail-v2` ist es nicht (verschachtelt unter `#anrufe-split-right`), weshalb der
+  Anfragen-Fix beim ersten Test bereits griff und nur Heute/Bericht nicht. Das erklärt zugleich,
+  warum `.vx-page-wrap` seit dem 08.08. nie wirkte, selbst wenn sie irgendwo verdrahtet worden
+  wäre: als direktes Kind eines der fünf Tab-Screens hätte sie derselbe Reset ausgehebelt.
+  **Fix:** `.vx-page-wrap` bekommt zusätzlich eine `body.vx-customer-design-foundation`-präfigierte
+  Fassung (`body.vx-customer-design-foundation .vx-page-wrap{max-width:860px;width:100%;}`,
+  Spezifität 0-2-1) — dieselbe Technik, die an anderer Stelle im selben `<style>`-Block bereits
+  dokumentiert ist (Kommentar bei `.vx-requests-panel .vx-requests-title`, Zeile ~6819: „Der
+  Präfix hebt die Spezifität um eine Klasse an"). Die alte klassenlose Basisregel bleibt als
+  Fallback stehen. Damit ist `.vx-page-wrap` nicht mehr nur auf drei Elementen verdrahtet, sondern
+  zum ersten Mal seit ihrer Einführung tatsächlich wirksam.
+- Kein `?v=`-Bump nötig — die geänderte Regel steht im inline `<style>`-Block von `index.html`
+  selbst, keine gemeinsam genutzte `.css`-Datei wurde angefasst.
+
+## Live gemessen, vorher/nachher (Playwright, echte Stylesheets, echtes `index.html`)
+
+Methode wie in Teil 1: Skripte entfernt (sonst blockiert der Auth-Boot), `#login-screen`
+ausgeblendet, `#app` und die jeweiligen Sektionen manuell sichtbar geschaltet, mit Platzhalter­
+inhalt gefüllt. Breite = `getBoundingClientRect()` des jeweiligen Inhaltscontainers.
+
+**Methodenhinweis, weil er den Befund oben erst sichtbar gemacht hat:** der erste Testlauf band
+nur die acht `<link>`-Stylesheets aus `<head>` ein, nicht die acht, die
+`customer-runtime-design-foundation.js` zur Laufzeit nachlädt (u. a. `customer-design-system.css`
+mit dem `:where()`-Reset). Mit nur den Kopf-Stylesheets zeigte die Messung fälschlich schon eine
+Kappung auf 860 px — der Reset war schlicht nicht geladen. Erst mit allen acht nachgeladenen
+Dateien im Testaufbau (dieselben, die die Toast-Diagnose in Teil 1 bereits nachlädt) zeigte sich
+`max-width:100%` statt `860px`, und damit der echte Fehler. Alle Zahlen unten stammen aus dem
+Lauf mit vollständigem Stylesheet-Satz.
+
+**Heute (`#dash-content`) und Bericht (`.vx-report-stack`) — identisch, weil dieselbe Änderung:**
+
+| Viewport | vorher | nachher |
+|---|---|---|
+| 1280 px | 992 px | **860 px** |
+| 1440 px | 1152 px | **860 px** |
+| 1920 px | 1632 px | **860 px** |
+
+**Anfragen-Detailbereich (`#requests-detail-v2`) — Splitpanel, daher nur gedeckelt, wo die
+Panel-Spalte ohnehin schon über 860 px läge:**
+
+| Viewport | Panel-Spalte (`.vx-requests-detail-panel`, unverändert) | Detailinhalt vorher | Detailinhalt nachher |
+|---|---|---|---|
+| 1280 px | 632 px | 632 px | 632 px (unverändert — Panel ist schon schmaler als der Deckel) |
+| 1440 px | 792 px | 792 px | 792 px (unverändert, aus demselben Grund) |
+| 1920 px | 1272 px | 1272 px | **860 px** |
+
+Die Panel-Spalte selbst (Grid `minmax(360px,.92fr) minmax(0,1.08fr)`) ändert sich nirgends — nur
+der Inhalt darin hört bei 1920 px auf, die volle Spaltenbreite auszunutzen. Bei 1280/1440 px war
+die Spalte durch die Split-Grid-Aufteilung ohnehin schon schmaler als 860 px; dort ändert die
+Kappung erwartungsgemäss nichts.
+
+Screenshots (vorher/nachher, 1280/1440/1920 px, alle drei Screens) liegen bei — sichtbar geprüft,
+nicht nur gemessen: das KPI-Raster im Bericht bricht bei keiner Breite um, die Kartenzeilen auf
+Heute laufen bündig zum Text, und im Anfragen-Detail endet der Inhalt bei 1920 px sichtbar vor dem
+Panelrand statt bündig mit ihm.
+
+## Prüfstand
+
+- **Kein bestehender Test berührt** — keine JS-Logik geändert, nur CSS-Klassen auf drei Containern
+  plus die eine korrigierte `.vx-page-wrap`-Regel. `tests/live-call-lifecycle.test.cjs` bleibt
+  unberührt und wurde nicht erneut ausgeführt, da kein von ihm geprüfter Pfad angefasst wurde.
+- **Kein CSS-Versionsbump** — s. o.
+- **Gegenprobe für den Spezifitäts-Fix:** mit der alten, unpräfigierten `.vx-page-wrap`-Regel
+  liefert derselbe Testaufbau (vollständiger Stylesheet-Satz) nachweislich `max-width:100%` statt
+  `860px` auf `#dash-content` bei 1920 px — reproduziert vor der Korrektur, verschwunden danach.
+
+## Bewusst nicht mitgemacht
+
+- **Die beiden toten `.vx-page-wrap`-Regeln für den Legacy-Bereich `#call-detail-scroll-wrap`**
+  (Zeilen 4921, 35632) — Aufräumen toten Codes war nicht Teil des Auftrags; sie stören die neue
+  Verdrahtung nicht, weil sie einen anderen, nicht mehr existenten Elternselektor adressieren.
+- **Mobile Ansicht (<768 px)** — nicht Teil des Auftrags, bestehende Mobil-Regel
+  (`max-width:100%` unter 768 px) bleibt unverändert wirksam.
+- Make, E-Mail-Vorlagen, Szenario 09 — unangetastet.
+
+## Nicht verifiziert (Teil 2)
+
+- **Kein echter Kundendaten-Lauf.** Gemessen wurde mit Platzhalterinhalt (Beispielname,
+  Beispieltext), nicht gegen echte Datensätze aus Supabase.
+- **Tablet-/Zwischenbreiten (821–979 px)**, an denen `.vx-requests-layout` und `.vx-report-kpis`
+  eigene Breakpoints haben, wurden nicht einzeln nachgemessen — nur 1280/1440/1920 px, wie
+  angefordert.
