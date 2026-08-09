@@ -22,7 +22,7 @@ const text = (value) => String(value == null ? '' : value).trim();
 // der ueberhaupt zulaessigen Spalten gehoert in den Code, sonst waere eine
 // Zeile in system_config eine Leseberechtigung auf beliebige Kundenspalten.
 // Aenderungen hier und in _lib/prompt-builder-v2.js gehoeren zusammen.
-const CORE_FIELD_COLUMNS = new Set(['ai_coverage_mode', 'ai_appointment_mode', 'ai_online_booking_url']);
+const CORE_FIELD_COLUMNS = new Set(['sprechstunden_modus', 'ai_appointment_mode', 'ai_online_booking_url']);
 
 function parseCoreSteps(value) {
   if (Array.isArray(value)) return value;
@@ -354,7 +354,7 @@ exports.handler = async (event) => {
       'ai_emergency_number', 'ai_forwarding_1_name', 'ai_forwarding_1_number', 'ai_forwarding_1_trigger',
       'ai_forwarding_2_name', 'ai_forwarding_2_number', 'ai_forwarding_2_trigger',
       'ai_response_constraints', 'ai_language', 'ai_branch_extra', 'industry_template_id',
-      'ai_coverage_mode', 'ai_appointment_mode', 'ai_online_booking_url'
+      'sprechstunden_modus', 'ai_appointment_mode', 'ai_online_booking_url'
     ].join(','))
     .eq('id', caller.customerId)
     .maybeSingle();

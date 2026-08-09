@@ -51,7 +51,9 @@ const SAFE_VARIABLE_KEY = /^[A-Za-z0-9_]+$/;
 // werden darf, steht hier. Ohne sie waere eine Zeile in system_config eine
 // Schreibberechtigung auf beliebige Kundenspalten.
 const CORE_FIELD_COLUMNS = Object.freeze([
-  'ai_coverage_mode',
+  // Bestehende Spalte, seit dem Staging-Lauf bewusst wiederverwendet statt
+  // durch ein neues ai_coverage_mode gedoppelt (Entscheid A, 09.08.).
+  'sprechstunden_modus',
   'ai_appointment_mode',
   'ai_online_booking_url'
 ]);

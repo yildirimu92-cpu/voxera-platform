@@ -7241,7 +7241,7 @@ const WIZARD_BRANCH_EXTRA_FIELDS = {
 // auf beliebige Kundenspalten. Dieselbe Liste fuehren
 // _lib/prompt-builder-v2.js und die beiden customer-dashboard-Funktionen.
 const CORE_FIELD_COLUMN_MAP = {
-  coverage_mode: 'ai_coverage_mode',
+  coverage_mode: 'sprechstunden_modus',
   appointment_mode: 'ai_appointment_mode',
   online_booking_url: 'ai_online_booking_url'
 };
@@ -7564,7 +7564,12 @@ async function openAiWizard(customerId){
   // Pre-seed dynamic-step field values from customer record for known keys
   // (e.g. sprechstunden_modus, notfallnummer_*) – this keeps backward compat
   // with already-filled customer columns.
-  const knownCustomerKeys = ['sprechstunden_modus','notfallnummer_lebensgefahr','notfallnummer_dringend','notfall_service_name'];
+  // sprechstunden_modus fehlt hier bewusst: Schicht A liest die Spalte ueber
+  // coreWizardValues() unter ihrem Schema-Schluessel coverage_mode ein. Stuende
+  // sie hier zusaetzlich, laege dieselbe Antwort unter zwei Namen im
+  // Wizard-Datensatz. Die notfallnummer_*-Schluessel bleiben, sie sind weiterhin
+  // Branchenfelder (siehe Befund G9).
+  const knownCustomerKeys = ['notfallnummer_lebensgefahr','notfallnummer_dringend','notfall_service_name'];
   knownCustomerKeys.forEach(k => {
     if(c && c[k] !== undefined && c[k] !== null) data[k] = c[k];
   });
@@ -7712,7 +7717,9 @@ async function wizardFinish(){
   if(c){
     c.spezialgebiet=d.spezialgebiet||null;
     c.kanton=d.kanton||null;
-    c.sprechstunden_modus=d.sprechstunden_modus||'rund_um_die_uhr';
+    // sprechstunden_modus wird seit J4 von Schicht A geschrieben
+    // (coreWizardPatch, Schluessel coverage_mode). Ein zweiter Schreiber hier
+    // haette den zurueckgesetzten Default sofort wieder gesetzt.
     c.notfallnummer_lebensgefahr=d.notfallnummer_lebensgefahr||'144';
     c.notfallnummer_dringend=d.notfallnummer_dringend||null;
     c.notfall_service_name=d.notfall_service_name||null;
@@ -7732,7 +7739,6 @@ async function wizardFinish(){
       const praxisPatch={
         spezialgebiet: d.spezialgebiet||null,
         kanton: d.kanton||null,
-        sprechstunden_modus: d.sprechstunden_modus||'rund_um_die_uhr',
         notfallnummer_lebensgefahr: d.notfallnummer_lebensgefahr||'144',
         notfallnummer_dringend: d.notfallnummer_dringend||null,
         notfall_service_name: d.notfall_service_name||null,
@@ -15010,7 +15016,9 @@ function mapDbCustomerToUi(dbRow, dbOnboarding, dbSubscription) {
     // Praxis-spezifische Felder
     praxis_typ: dbRow.praxis_typ || null,
     spezialgebiet: dbRow.spezialgebiet || null,
-    sprechstunden_modus: dbRow.sprechstunden_modus || 'rund_um_die_uhr',
+    // Kein Ersatzwert mehr: seit J4 bedeutet null "noch nicht beantwortet", und
+    // ein unbestaetigter Default darf nicht als Antwort erscheinen.
+    sprechstunden_modus: dbRow.sprechstunden_modus || null,
     sprechstunden_zeiten: dbRow.sprechstunden_zeiten || null,
     notfallnummer_lebensgefahr: dbRow.notfallnummer_lebensgefahr || '144',
     notfallnummer_dringend: dbRow.notfallnummer_dringend || null,

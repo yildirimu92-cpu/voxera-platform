@@ -280,7 +280,7 @@ function loadFunctionModule(path) {
 const CORE_SCHEMA = [{
   id: 'betrieb_kern',
   fields: [
-    { key: 'coverage_mode', column: 'ai_coverage_mode', type: 'radio', options: [{ val: 'backup' }, { val: 'rund_um_die_uhr' }] },
+    { key: 'coverage_mode', column: 'sprechstunden_modus', type: 'radio', options: [{ val: 'backup' }, { val: 'rund_um_die_uhr' }] },
     { key: 'online_booking_url', column: 'ai_online_booking_url', type: 'text' }
   ]
 }];
@@ -290,7 +290,7 @@ try {
   const { parseCoreSteps, coreFieldRules, sanitizeCoreFields } = updateModule._test;
 
   const rules = coreFieldRules(CORE_SCHEMA);
-  assert.equal(rules.get('coverage_mode').column, 'ai_coverage_mode');
+  assert.equal(rules.get('coverage_mode').column, 'sprechstunden_modus');
 
   // Der Kern der Trennung: das Schema darf die Frage bestimmen, nicht das Ziel.
   const hijackRules = coreFieldRules([{ id: 'x', fields: [
@@ -300,7 +300,7 @@ try {
   assert.equal(hijackRules.size, 0, 'Eine system_config-Zeile konnte eine fremde Spalte als Ziel setzen');
 
   const accepted = sanitizeCoreFields({ coverage_mode: 'backup' }, rules);
-  assert.equal(JSON.stringify(accepted.patch), JSON.stringify({ ai_coverage_mode: 'backup' }));
+  assert.equal(JSON.stringify(accepted.patch), JSON.stringify({ sprechstunden_modus: 'backup' }));
   assert.equal(accepted.rejected.length, 0);
 
   const badOption = sanitizeCoreFields({ coverage_mode: 'immer_alles' }, rules);
@@ -312,7 +312,7 @@ try {
 
   // Leeren muss zuruecknehmbar sein: jedes Feld hat eine eigene Spalte.
   const cleared = sanitizeCoreFields({ coverage_mode: '' }, rules);
-  assert.equal(JSON.stringify(cleared.patch), JSON.stringify({ ai_coverage_mode: null }));
+  assert.equal(JSON.stringify(cleared.patch), JSON.stringify({ sprechstunden_modus: null }));
 
   // Geschweifte Klammern raus, sonst schriebe eine Antwort einen Platzhalter.
   const braces = sanitizeCoreFields({ online_booking_url: 'https://x.ch/{{ASSISTANT_NAME}}' }, rules);

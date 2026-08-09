@@ -41,7 +41,7 @@ const BRANCH_TEXT_LIMIT = 400;
 // Schreibberechtigung auf plan_code, status oder elevenlabs_agent_id.
 // Dieselbe Liste steht in _lib/prompt-builder-v2.js und in
 // customer-assistant-profile.js; die drei gehoeren zusammen gepflegt.
-const CORE_FIELD_COLUMNS = new Set(['ai_coverage_mode', 'ai_appointment_mode', 'ai_online_booking_url']);
+const CORE_FIELD_COLUMNS = new Set(['sprechstunden_modus', 'ai_appointment_mode', 'ai_online_booking_url']);
 const CORE_TEXT_LIMIT = 400;
 
 function parseCoreSteps(value) {

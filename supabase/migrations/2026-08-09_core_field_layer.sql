@@ -9,10 +9,12 @@
 -- zugeordnet bekommt, kann seinen Einsatz-Modus nicht angeben, obwohl die
 -- Frage mit der Branche nichts zu tun hat.
 --
--- Diese Migration macht drei Dinge:
---   1. zwei typisierte Spalten fuer die generischen Antworten,
---   2. das Schema der generischen Felder als eine Quelle in system_config,
---   3. die drei Schluessel aus den sieben Branchenvorlagen entfernen.
+-- Diese Migration macht vier Dinge:
+--   1. eine neue typisierte Spalte (ai_appointment_mode) und die bestehende
+--      sprechstunden_modus als Schicht-A-Spalte herrichten,
+--   2. den unbestaetigten Default in sprechstunden_modus zuruecksetzen,
+--   3. das Schema der generischen Felder als eine Quelle in system_config,
+--   4. die drei Schluessel aus den sieben Branchenvorlagen entfernen.
 --
 -- Warum typisierte Spalten und nicht `customers.ai_branch_extra` (Entscheid F1):
 --   customer-update-assistant.js antwortet mit HTTP 409 `no_industry_template`,
@@ -41,9 +43,13 @@
 -- Datenlage zum Zeitpunkt der Migration (live geprueft, 09.08.):
 --   `ai_branch_extra` ist bei allen 4 Kunden null, kein Kunde traegt eine
 --   `[WIZARD]`-Zeile in `ai_internal_notes`, `ai_online_booking_url` ist
---   ueberall null. Es gibt also keine Antwort, die umgezogen werden muesste --
---   deshalb enthaelt diese Migration bewusst keine Datenuebernahme. Dieses
---   Fenster schliesst sich, sobald der erste Kunde Branchenfelder ausfuellt.
+--   ueberall null. Es gibt also keine Antwort, die umgezogen werden muesste.
+--   Dieses Fenster schliesst sich, sobald der erste Kunde Branchenfelder
+--   ausfuellt.
+--
+--   Eine Datenaenderung enthaelt die Migration dennoch, und zwar genau eine:
+--   das Zuruecksetzen des unbestaetigten Defaults in sprechstunden_modus
+--   (Schritt 2, ausdruecklich entschieden am 09.08.).
 --
 -- Keine Spalten-Grants noetig: beide Schreibpfade (customer-update-assistant.js
 -- und admin-mutate) laufen ueber den Service-Role-Key und damit an RLS und
@@ -53,33 +59,64 @@
 
 begin;
 
--- 1. Typisierte Spalten -------------------------------------------------------
+-- 1. Spalten ------------------------------------------------------------------
 --
--- `ai_appointment_mode` loest zugleich eine bestehende Doppelung auf: dieselbe
--- Entscheidung lag bisher zweimal vor, als `termin_modus` (aufnehmen|direkt) in
--- den Branchenvorlagen und als `appointmentMode` (none|request|direct) in der
--- `[PROMPT_V2]`-Zeile. Uebernommen wird das reichere Vokabular; der
--- Prompt-Builder liest ab jetzt die Spalte zuerst und faellt nur fuer Kunden,
--- die seither nicht neu gespeichert wurden, auf die Notiz-Zeile zurueck --
--- dieselbe Rangfolge wie bei ai_branch_extra seit D4/E10.
+-- Nur EINE neue Spalte. Der Staging-Lauf vom 09.08. hat gezeigt, dass
+-- `customers.sprechstunden_modus` bereits existiert -- text, Spalten-Default
+-- 'rund_um_die_uhr', vom Admin-Wizard vorgelesen (index.html knownCustomerKeys)
+-- und zurueckgeschrieben (praxisPatch). Eine zusaetzliche `ai_coverage_mode`
+-- waere ein zweites Zuhause fuer dieselbe Angabe gewesen, also genau die
+-- Doppelung, die dieser Auftrag beseitigt. Schicht A benutzt deshalb die
+-- bestehende Spalte weiter (Entscheid A vom 09.08.).
+--
+-- Das erklaert zugleich G3 genauer: `sprechstunden_modus` erreichte den Prompt
+-- nicht, weil der Wizard die Antwort in diese eigene Spalte schrieb, waehrend
+-- der Builder `ai_branch_extra` und die `[WIZARD]`-Zeile liest. Geschrieben
+-- wurde sie also -- nur an einen Ort, den niemand liest.
+--
+-- `ai_appointment_mode` ist dagegen wirklich neu (eine `termin_modus`-Spalte
+-- gibt es nicht) und loest eine bestehende Doppelung auf: dieselbe Entscheidung
+-- lag als `termin_modus` (aufnehmen|direkt) in den Branchenvorlagen und als
+-- `appointmentMode` (none|request|direct) in der `[PROMPT_V2]`-Zeile vor.
+-- Uebernommen wird das reichere Vokabular; der Prompt-Builder liest ab jetzt
+-- die Spalte zuerst und faellt nur fuer Kunden, die seither nicht neu
+-- gespeichert wurden, auf die Notiz-Zeile zurueck -- dieselbe Rangfolge wie bei
+-- ai_branch_extra seit D4/E10.
 
 alter table public.customers
-  add column if not exists ai_coverage_mode text,
   add column if not exists ai_appointment_mode text;
 
-comment on column public.customers.ai_coverage_mode is
-  'Schicht A: wann der Assistent Anrufe uebernimmt. rund_um_die_uhr | ausserhalb_sprechstunde | backup. Schema in system_config.core_field_steps.';
 comment on column public.customers.ai_appointment_mode is
   'Schicht A: Terminbefugnis. none | request | direct. Fuehrende Quelle vor [PROMPT_V2].appointmentMode.';
+comment on column public.customers.sprechstunden_modus is
+  'Schicht A: wann der Assistent Anrufe uebernimmt. rund_um_die_uhr | ausserhalb_sprechstunde | backup. Schema in system_config.core_field_steps. NULL bedeutet: noch nicht beantwortet.';
+
+-- Der Spalten-Default muss weg, sonst ist "noch nicht beantwortet" gar nicht
+-- darstellbar: jede neue Zeile traegt sofort 'rund_um_die_uhr'.
+alter table public.customers alter column sprechstunden_modus drop default;
+
+-- Und die vorhandenen Default-Werte werden zurueckgesetzt (Entscheid vom
+-- 09.08.). Zum Zeitpunkt der Migration steht bei allen vier Kunden exakt der
+-- Default; ob ihn jemand gewaehlt hat oder ob er nie angefasst wurde, ist am
+-- Wert nicht unterscheidbar -- der Wizard schreibt bei unveraenderter
+-- Vorauswahl denselben Wert. Ein unbestaetigter Default darf nicht als Fakt im
+-- Prompt behauptet werden; die Frage wird stattdessen neu gestellt.
+--
+-- Bewusst nur der Default-Wert und nicht alles: haette jemand ausdruecklich
+-- 'ausserhalb_sprechstunde' oder 'backup' gewaehlt, waere das eine echte
+-- Antwort und bliebe stehen.
+update public.customers
+set sprechstunden_modus = null
+where sprechstunden_modus = 'rund_um_die_uhr';
 
 -- Werte werden im Schreibpfad gegen das Schema geprueft (sanitizeCoreFields).
 -- Die Constraints hier sind die zweite Sperre, nicht die erste: sie halten auch
 -- dann, wenn jemand direkt auf der Datenbank arbeitet.
 do $core_checks$
 begin
-  if not exists (select 1 from pg_constraint where conname = 'customers_ai_coverage_mode_check') then
-    alter table public.customers add constraint customers_ai_coverage_mode_check
-      check (ai_coverage_mode is null or ai_coverage_mode in ('rund_um_die_uhr','ausserhalb_sprechstunde','backup'));
+  if not exists (select 1 from pg_constraint where conname = 'customers_sprechstunden_modus_check') then
+    alter table public.customers add constraint customers_sprechstunden_modus_check
+      check (sprechstunden_modus is null or sprechstunden_modus in ('rund_um_die_uhr','ausserhalb_sprechstunde','backup'));
   end if;
   if not exists (select 1 from pg_constraint where conname = 'customers_ai_appointment_mode_check') then
     alter table public.customers add constraint customers_ai_appointment_mode_check
@@ -107,7 +144,7 @@ values (
       "fields": [
         {
           "key": "coverage_mode",
-          "column": "ai_coverage_mode",
+          "column": "sprechstunden_modus",
           "type": "radio",
           "label": "Wann übernimmt der Assistent",
           "hint": "Bestimmt, welche Anrufe überhaupt beim Assistenten landen.",

@@ -325,7 +325,7 @@ const CORE_STEPS_JSON = JSON.stringify([{
   id:'betrieb_kern',
   title:'Erreichbarkeit und Termine',
   fields:[
-    { key:'coverage_mode', column:'ai_coverage_mode', type:'radio', label:'Wann übernimmt der Assistent', options:[
+    { key:'coverage_mode', column:'sprechstunden_modus', type:'radio', label:'Wann übernimmt der Assistent', options:[
       { val:'rund_um_die_uhr', label:'Immer', sub:'Alle Anrufe werden entgegengenommen, auch nachts und am Wochenende.' },
       { val:'ausserhalb_sprechstunde', label:'Nur ausserhalb der Öffnungszeiten', sub:'Der Assistent springt ein, wenn der Betrieb geschlossen ist.' },
       { val:'backup', label:'Nur wenn niemand abhebt', sub:'Der Assistent übernimmt erst, wenn im Betrieb niemand den Anruf annimmt.' }
@@ -388,7 +388,7 @@ check('J4: the booking link hangs on the appointment section, not beside it', ()
 
 check('J4: a generic answer reaches the prompt for a customer without any template', () => {
   const built = buildPromptV2({
-    customer:{ ...coreCustomer, ai_coverage_mode:'ausserhalb_sprechstunde' },
+    customer:{ ...coreCustomer, sprechstunden_modus:'ausserhalb_sprechstunde' },
     masterPrompt:'{{CUSTOMER_LAYER}}',
     coreFields:CORE_STEPS_JSON
   });
@@ -398,15 +398,30 @@ check('J4: a generic answer reaches the prompt for a customer without any templa
 check('J4: the schema may choose the question, never the target column', () => {
   const hijack = JSON.stringify([{ id:'x', fields:[
     { key:'plan_code', column:'plan_code', type:'text', label:'Plan' },
-    { key:'coverage_mode', column:'ai_coverage_mode', type:'radio', label:'Einsatz', options:[{ val:'backup', label:'Backup' }] }
+    { key:'coverage_mode', column:'sprechstunden_modus', type:'radio', label:'Einsatz', options:[{ val:'backup', label:'Backup' }] }
   ] }]);
   const built = buildPromptV2({
-    customer:{ ...coreCustomer, plan_code:'professional', ai_coverage_mode:'backup' },
+    customer:{ ...coreCustomer, plan_code:'professional', sprechstunden_modus:'backup' },
     masterPrompt:'{{CUSTOMER_LAYER}}',
     coreFields:hijack
   });
   assert.ok(!built.prompt.includes('professional'), 'Eine system_config-Zeile konnte eine fremde Kundenspalte in den Prompt holen');
   assert.match(built.prompt, /Einsatz: Backup/);
+});
+
+check('J4: an unanswered coverage question stays silent instead of asserting a default', () => {
+  const built = buildPromptV2({
+    customer:{ ...coreCustomer, sprechstunden_modus:null },
+    masterPrompt:'{{CUSTOMER_LAYER}}',
+    coreFields:CORE_STEPS_JSON
+  });
+  assert.ok(!built.prompt.includes('Wann übernimmt der Assistent'), 'Eine unbeantwortete Frage erzeugt eine Prompt-Zeile');
+  assert.ok(!built.prompt.includes('Immer'), 'Der zurueckgesetzte Default steht wieder im Prompt');
+});
+
+check('J4: no code path re-introduces the unconfirmed coverage default', () => {
+  assert.ok(!adminIndex.includes("|| 'rund_um_die_uhr'"), 'Der Admin setzt den Default wieder ein');
+  assert.ok(!adminIndex.includes('sprechstunden_modus: d.sprechstunden_modus'), 'Der Wizard schreibt die Spalte am Kernfeld vorbei');
 });
 
 check('J4: a broken schema degrades to the previous behaviour', () => {
