@@ -8,6 +8,7 @@ on:
       - 'admin-panel/shared/**'
       - 'config/mail-engine-contracts.json'
       - 'scripts/verify-mail-engine-contracts.mjs'
+      - 'scripts/verify-call-notification-migration.mjs'
       - '.github/workflows/verify-mail-engine-contracts.yml'
   push:
     branches:
@@ -18,6 +19,7 @@ on:
       - 'admin-panel/shared/**'
       - 'config/mail-engine-contracts.json'
       - 'scripts/verify-mail-engine-contracts.mjs'
+      - 'scripts/verify-call-notification-migration.mjs'
 
 permissions:
   contents: read
@@ -34,3 +36,5 @@ jobs:
           node-version: '20'
       - name: Verify central mail contracts
         run: node scripts/verify-mail-engine-contracts.mjs
+      - name: Verify call notification migration
+        run: node scripts/verify-call-notification-migration.mjs

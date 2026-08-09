@@ -31,6 +31,8 @@ const { createOutboxEvent, markOutboxSent, markOutboxFailed } = require('./webho
 const MAIL_ENGINE_TYPES = Object.freeze([
   'ai_change_request',
   'assistant_updated_email',
+  'call_notification_email',
+  'callback_request_email',
   'contract_expired_email',
   'contract_signed_email',
   'invoice_email',
