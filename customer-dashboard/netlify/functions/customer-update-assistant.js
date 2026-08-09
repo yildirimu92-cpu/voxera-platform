@@ -2,6 +2,7 @@
 
 const { createClient } = require('@supabase/supabase-js');
 const { requireCustomerCaller } = require('./_lib/require-customer');
+const { sanitizeOpeningHours } = require('./_lib/opening-hours');
 const { normalizePhoneE164 } = require('./_lib/phone-normalize');
 const { FORWARDING_FIELDS, canEditForwarding, needsPromptSync } = require('./_lib/assistant-write-policy');
 
@@ -42,7 +43,7 @@ const BRANCH_TEXT_LIMIT = 400;
 // Schreibberechtigung auf plan_code, status oder elevenlabs_agent_id.
 // Dieselbe Liste steht in _lib/prompt-builder-v2.js und in
 // customer-assistant-profile.js; die drei gehoeren zusammen gepflegt.
-const CORE_FIELD_COLUMNS = new Set(['sprechstunden_modus', 'ai_appointment_mode', 'ai_online_booking_url']);
+const CORE_FIELD_COLUMNS = new Set(['sprechstunden_modus', 'ai_appointment_mode', 'ai_online_booking_url', 'ai_opening_hours']);
 const CORE_TEXT_LIMIT = 400;
 
 // Alle Spalten, die dieser Endpoint schreiben kann. Sie werden vor dem Patch
@@ -80,7 +81,7 @@ function coreFieldRules(steps) {
       const options = (Array.isArray(field?.options) ? field.options : [])
         .map((option) => String(option?.val || '').trim())
         .filter(Boolean);
-      rules.set(key, { column, options });
+      rules.set(key, { column, options, type: String(field?.type || 'text').trim() });
     });
   });
   return rules;
@@ -96,6 +97,20 @@ function sanitizeCoreFields(input, rules) {
     const rule = rules.get(key);
     if (!rule) {
       rejected.push(key);
+      return;
+    }
+    // J5: Der Feldtyp `hours` traegt ein Wochenraster statt eines Wertes. Die
+    // Pruefung dafuer steht in _lib/opening-hours.js und ist strenger als die
+    // hiesige: Zeitformat, Ende nach Beginn, keine Ueberschneidungen. Ein
+    // ungueltiges Raster wird abgewiesen, nicht zurechtgebogen -- aus einem
+    // stillschweigend reparierten Zeitplan wuerde eine Auskunft am Telefon.
+    if (rule.type === 'hours') {
+      const { value: week, errors } = sanitizeOpeningHours(value === '' ? null : value);
+      if (errors.length) {
+        rejected.push(key);
+        return;
+      }
+      patch[rule.column] = week;
       return;
     }
     const cleaned = String(value ?? '').replace(/[{}]/g, '').trim().slice(0, CORE_TEXT_LIMIT);

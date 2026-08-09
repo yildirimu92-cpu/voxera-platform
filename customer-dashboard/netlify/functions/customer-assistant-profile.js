@@ -3,6 +3,7 @@
 const { createClient } = require('@supabase/supabase-js');
 const { requireCustomerCaller } = require('./_lib/require-customer');
 const { buildGreetingView } = require('./_lib/assistant-greeting');
+const { parseOpeningHours } = require('./_lib/opening-hours');
 const { canEditForwarding } = require('./_lib/assistant-write-policy');
 
 const headers = {
@@ -23,7 +24,7 @@ const text = (value) => String(value == null ? '' : value).trim();
 // der ueberhaupt zulaessigen Spalten gehoert in den Code, sonst waere eine
 // Zeile in system_config eine Leseberechtigung auf beliebige Kundenspalten.
 // Aenderungen hier und in _lib/prompt-builder-v2.js gehoeren zusammen.
-const CORE_FIELD_COLUMNS = new Set(['sprechstunden_modus', 'ai_appointment_mode', 'ai_online_booking_url']);
+const CORE_FIELD_COLUMNS = new Set(['sprechstunden_modus', 'ai_appointment_mode', 'ai_online_booking_url', 'ai_opening_hours']);
 
 function parseCoreSteps(value) {
   if (Array.isArray(value)) return value;
@@ -42,7 +43,13 @@ function coreValues(customer, steps) {
       const key = text(field?.key);
       const column = text(field?.column);
       if (!key || !CORE_FIELD_COLUMNS.has(column)) return;
-      const value = text(customer?.[column]);
+      const raw = customer?.[column];
+      // Ein jsonb-Wert (Oeffnungszeiten) darf nicht durch text() laufen.
+      if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+        if (Object.keys(raw).length) values[key] = raw;
+        return;
+      }
+      const value = text(raw);
       if (value) values[key] = value;
     });
   });
@@ -397,7 +404,7 @@ exports.handler = async (event) => {
       'ai_emergency_number', 'ai_forwarding_1_name', 'ai_forwarding_1_number', 'ai_forwarding_1_trigger',
       'ai_forwarding_2_name', 'ai_forwarding_2_number', 'ai_forwarding_2_trigger',
       'ai_response_constraints', 'ai_language', 'ai_branch_extra', 'industry_template_id',
-      'sprechstunden_modus', 'ai_appointment_mode', 'ai_online_booking_url'
+      'sprechstunden_modus', 'ai_appointment_mode', 'ai_online_booking_url', 'ai_opening_hours'
     ].join(','))
     .eq('id', caller.customerId)
     .maybeSingle();
@@ -509,6 +516,7 @@ exports.handler = async (event) => {
   const completedFields = permanentFields.filter((value) => String(value || '').trim()).length;
   const coreSteps = parseCoreSteps(coreResult.data?.value);
   const coreValueMap = coreValues(customer, coreSteps);
+  const openingHoursSuggestion = parseOpeningHours(customer.ai_location_hours);
   const parsedProfile = promptProfile(customer.ai_internal_notes);
   // Rangfolge wie im Prompt-Builder: die typisierte Spalte fuehrt. Sonst zeigte
   // diese Seite eine andere Terminbefugnis an, als der Agent tatsaechlich hat.
@@ -566,6 +574,17 @@ exports.handler = async (event) => {
     // Diese Felder gelten fuer jeden Kunden — auch fuer die drei von vier ohne
     // Branchenvorlage, die ai_branch_extra gar nicht beschreiben koennen.
     core_sections: buildBranchSections({ extra_steps: coreSteps }, coreValueMap),
+    // J5 / Entscheid F3: Der Parser schlaegt vor, der Kunde bestaetigt. Der
+    // Vorschlag wird ausdruecklich NICHT gespeichert -- er reist nur mit, damit
+    // die Oberflaeche ihn zeigen kann. `ignored` nennt die Zeilen mit
+    // Zeitangaben, die der Parser nicht verwerten konnte; ohne diese Liste
+    // suggerierte der Vorschlag eine Vollstaendigkeit, die er nicht hat.
+    opening_hours: {
+      confirmed: coreValueMap.opening_hours || null,
+      suggestion: coreValueMap.opening_hours ? null : openingHoursSuggestion.hours,
+      unparsed_lines: coreValueMap.opening_hours ? [] : openingHoursSuggestion.ignored,
+      source_text: text(customer.ai_location_hours) || null
+    },
     branch_sections: buildBranchSections(industryResult.data, branchValues(customer)),
     operational_updates: {
       active_count: activeUpdates.length,

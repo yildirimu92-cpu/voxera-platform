@@ -62,7 +62,11 @@ const PROMPT_RELEVANT_FIELDS = new Set([
   // neuen Feldern.
   'sprechstunden_modus',
   'ai_appointment_mode',
-  'ai_online_booking_url'
+  'ai_online_booking_url',
+  // J5: bestaetigte Oeffnungszeiten. Sie stehen als eigener Prompt-Abschnitt
+  // mit Vorrang vor dem Freitext -- ohne Sync spraeche der Agent weiter die
+  // alten Zeiten aus, waehrend das Dashboard die neuen zeigt.
+  'ai_opening_hours'
 ]);
 
 // Die sieben Spalten, die der Kunde ueber den Weiterleitungs-Editor bearbeitet.
