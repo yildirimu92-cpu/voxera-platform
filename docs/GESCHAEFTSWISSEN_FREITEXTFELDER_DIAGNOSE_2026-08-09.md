@@ -566,6 +566,25 @@ Staging spiegelte den Produktionsstand exakt (`sprechstunden_modus` text mit Def
 
 **Auf Produktion wurde bis hierher ausschliesslich gelesen.**
 
+### 11.11 Migration auf Produktion angewendet
+
+**Freigegeben und ausgeführt am 09.08.**, registriert als `20260809145741 core_field_layer`. Vorher wurde der Ist-Stand gesichert und ein Rückbau-Skript hinterlegt: `supabase/verification/2026-08-09_core_field_layer_rollback.sql`.
+
+| Prüfung nach dem Lauf | Ergebnis |
+|---|---|
+| Spalten-Default auf `sprechstunden_modus` | `(keiner)` |
+| `ai_appointment_mode` | angelegt |
+| `ai_coverage_mode` | korrekt nicht vorhanden |
+| Beide Check-Constraints | vorhanden |
+| Die vier Kunden | alle `NULL` |
+| Schema-Ziele | `sprechstunden_modus`, `ai_appointment_mode`, `ai_online_booking_url` |
+| Vorlagenfelder gesamt | **39 → 23** |
+| Verbliebene `sprechstunden_modus` / `termin_modus` / `booking_url` | keine |
+
+Die Felder je Vorlage stimmen exakt mit dem `SELECT`-Trockenlauf und beiden Staging-Läufen überein: `coiffeur` 3, `facharzt` 3, `garage` 4, `hotel` 2, `kosmetik` 3, `restaurant` 3, `versicherung` 5.
+
+> **Der Deploy muss jetzt folgen, und zwar zeitnah.** Es entsteht keine Störung — die aktuell ausgelieferte Anwendung liest die neuen Spalten nicht. Aber der ausgelieferte Admin-Wizard schreibt `sprechstunden_modus` noch mit `|| 'rund_um_die_uhr'`. **Jeder Wizard-Speichervorgang vor dem Deploy setzt den gerade zurückgesetzten Default für diesen Kunden wieder.** Der Wert bliebe gültig (die Constraint lässt ihn zu), aber die Frage gälte wieder als beantwortet, ohne dass jemand sie beantwortet hat. Das ist der einzige zeitkritische Punkt.
+
 ### 11.9 Was nach J1, J2, J10 und J4 unbewiesen bleibt
 
 - **Kein Live-Anruf.** Dass die 23 Felder jetzt *wirken*, ist am gebauten Prompt geprüft, nicht am Telefon. Der Prompt enthält die Angaben nachweislich — ob das Modell sie befolgt, ist damit nicht gezeigt.
