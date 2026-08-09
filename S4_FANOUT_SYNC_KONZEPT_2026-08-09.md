@@ -1,9 +1,17 @@
 # S4 — Fan-out-Mechanismus für "wirkt erst beim nächsten Sync"-Fixes
 
-**Diagnose und Konzeptvorschlag, 09.08.2026. Keine Umsetzung.**
+**Diagnose und Konzeptvorschlag, 09.08.2026.**
 
-Auftrag: mehrere Ansätze durchdenken, Vor-/Nachteile benennen, Empfehlung geben,
-Entscheidung beim User lassen. Bestehende Sync-Auslöser (S1–S13) bleiben unverändert.
+**Status: freigegeben und umgesetzt (09.08.).** Alle vier Punkte aus Abschnitt 6
+sind entschieden: Stufenplan 0→1→2→3 wie vorgeschlagen, Refactor ja, S9-Migration
+sofort, Kostenannahme bestätigt (ElevenLabs rechnet nach TTS-Minuten ab, nicht nach
+Konfigurations-Aufrufen — das Risiko bleibt Ratenlimit, nicht Geld). Was gebaut
+wurde, steht in Abschnitt 7. Die Diagnose darunter bleibt als Begründung unverändert
+stehen.
+
+Ursprünglicher Auftrag: mehrere Ansätze durchdenken, Vor-/Nachteile benennen,
+Empfehlung geben, Entscheidung beim User lassen. Bestehende Sync-Auslöser (S1–S13)
+bleiben unverändert.
 
 ---
 
@@ -335,3 +343,95 @@ Ausserdem, unabhängig von S4 und zeitkritisch: der Produktionsagent trägt nach
 Datenlage weiterhin den S13-Prompt (2.4). Ein einziger manueller Sync über die
 bestehende Sync-Karte behebt das heute — vorausgesetzt, der S13-Deploy ist
 inzwischen ausgeliefert.
+
+---
+
+## 7. Was gebaut wurde (09.08., nach Freigabe)
+
+### Stufe 0 — Blockierer
+
+| | |
+| --- | --- |
+| `2026-08-09_elevenlabs_sync_log_prev_values.sql` | Spalte nachgezogen, auf Produktion **und** Staging angewandt. Damit schreibt der S9-Fix erstmals wirklich. |
+| `trigger-elevenlabs-sync.js` → `_lib/elevenlabs-sync.js` | `trimSyncLogs()` behält jetzt 10 Zeilen **pro Herkunftsklasse** (`fanout` / `interactive`). Ein Fan-out kann die interaktive Historie und die Rollback-Snapshots nicht mehr verdrängen. |
+
+### Stufe 1 — Sichtbarkeit
+
+`_lib/prompt-fingerprint.js` bildet `v1.<builder>.<hash master>.<hash branche>`.
+Der Soll-Wert wird zur Laufzeit berechnet und **nirgends gespeichert** — ein
+gespeicherter Soll-Wert könnte selbst veralten. Der Ist-Wert steht auf
+`customers.prompt_fingerprint` und wird nur nach einem erfolgreichen Sync
+fortgeschrieben.
+
+Drei Zustände statt zwei: `current`, `outdated`, `unknown`. Der dritte kam aus der
+Live-Datenlage dazu — direkt nach der Einführung hat jeder Bestandskunde
+`prompt_fingerprint = null`. Gälte das als "aktuell", wären ausgerechnet die Kunden
+unsichtbar, für die S4 gebaut wurde. Der Fan-out behandelt `unknown` wie `outdated`;
+nur die Anzeige unterscheidet.
+
+Kosten: null ElevenLabs-Aufrufe. Verhaltensänderung: keine.
+
+### Stufe 2 — gezieltes Nachziehen
+
+* **`_lib/elevenlabs-sync.js`** — der Sync-Kern, aus dem Handler herausgelöst
+  (Weg 3 aus 3.2). Der Handler behält Guard, Parsing und Antwortform; alle acht
+  Auslöser verhalten sich unverändert.
+* **`elevenlabs_sync_queue`** + **`fanout-sync-worker.js`** (alle 5 Min) — Muster
+  von `outbox-retry-worker.js`. Partieller Unique-Index verhindert, dass ein Kunde
+  zweimal offen einsteht. Der Worker hört bei 20 s von selbst auf, damit Netlify
+  ihn nicht mitten im Lauf abschneidet und Zeilen in `running` zurückbleiben.
+* **`elevenlabs-sync-fanout.js`** + Knopf in der Sync-Karte — heisst
+  "Veraltete Kunden synchronisieren (n)", nie "alle". Der Aufrufer darf die Auswahl
+  einschränken, aber nicht erweitern.
+
+### Stufe 3 — Automatik
+
+* **`fanout-sync-planner.js`**, nächtlich (`40 3 * * *`). Zweiter Auslöser Deploy
+  über `FANOUT_DEPLOY_SECRET`; ohne gesetztes Secret antwortet der Endpunkt 404 —
+  **standardmässig also aus**. Der Zeitplan deckt beide Fälle ab, der Deploy nur
+  einen: abgelaufene Betriebsinformationen (S3) laufen ab, ohne dass irgendein
+  Deploy stattfindet.
+* **Canary** — Welle 1 ist genau ein Kunde; Welle 2 wird erst freigegeben, wenn
+  Welle 1 vollständig erfolgreich war.
+* **Abbruch** — Fehlerquote über `FANOUT_ABORT_THRESHOLD` (Standard 0.5, ab
+  2 abgeschlossenen Zeilen) storniert die wartenden Zeilen desselben Laufs.
+* **Rollback** — `action: 'rollback'` schreibt pro Kunde den `prompt_snapshot`
+  zurück, der **vor** dem Lauf zuletzt live war, und leert dabei den
+  Ist-Fingerprint statt ihn zu raten.
+
+### Stellschrauben
+
+| Variable | Standard | Wirkung |
+| --- | --- | --- |
+| `FANOUT_BATCH_SIZE` | 3 | Kunden pro Worker-Tick |
+| `FANOUT_MAX_ATTEMPTS` | 3 | Versuche, bevor eine Zeile `dead` wird |
+| `FANOUT_ABORT_THRESHOLD` | 0.5 | Fehlerquote, ab der ein Lauf abbricht |
+| `FANOUT_ABORT_MIN_SAMPLE` | 2 | Mindeststichprobe für den Abbruch |
+| `FANOUT_MAX_PER_RUN` | 25 | Obergrenze je Planungslauf (Überhang wird geloggt, nicht verschwiegen) |
+| `FANOUT_DEPLOY_SECRET` | — | Ohne Wert ist der Deploy-Auslöser nicht benutzbar |
+
+### Prüfung
+
+`scripts/verify-prompt-fingerprint.mjs` und `scripts/verify-elevenlabs-fanout.mjs`
+führen die echten Funktionen aus (Supabase-Stub bildet nur die Query-Kette nach)
+und prüfen unter anderem: `null` gilt nicht als aktuell, Welle 2 bleibt nach einem
+Fehlschlag stehen, ein einzelner Fehlschlag bricht keinen Lauf ab, eine vor dem
+letzten Sync abgelaufene Betriebsinformation löst nichts aus. Beide hängen in CI.
+
+Sechs bestehende Guards lasen den Sync-Kern an seiner alten Stelle und wurden
+nachgezogen — Aussage identisch, Pfad neu. Der P0-Security-Guard unterscheidet
+jetzt bewusst Handler (Auth) und Kern (Retention), statt beide zu vermengen. Alle
+50 `verify-*.mjs` laufen grün.
+
+### Was bewusst offen blieb
+
+* **Der Produktionskunde trägt weiterhin den S13-Prompt.** Der Fan-out erkennt ihn
+  ab dem ersten Planungslauf als `fingerprint_unknown` und zieht ihn nach — aber
+  erst, wenn dieser Branch deployed ist. Bis dahin behebt ein Klick auf
+  "Jetzt synchronisieren" in der Sync-Karte den Fall sofort.
+* **Der Deploy-Auslöser ist aus.** Einschalten heisst: `FANOUT_DEPLOY_SECRET`
+  setzen und einen Build-Hook auf `fanout-sync-planner` zeigen lassen. Der Canary
+  gilt dann genauso.
+* **Ein verwaistes Sync-Log** eines gelöschten Kunden (`cust_1785533332175_pj98so`)
+  liegt weiterhin in der Tabelle. Kleiner Nebenfund aus der Diagnose, von S4 nicht
+  berührt.
