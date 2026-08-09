@@ -8236,14 +8236,18 @@ async function saveCustomerAiConfig(){
         ai_internal_notes: cfg.internalNotes||null,
         ai_summary: cfg.summary||null,
         industry_template_id: cfg.industryTemplateId||null,
-        // Neue Wizard-Felder
-        assistant_name:   cfg.assistantName||null,
-        ai_customer_type: cfg.customerType||null,
-        ai_address_form:  cfg.addressForm||null,
-        ai_tone:          cfg.tone||null,
-        ai_language:      cfg.language||null,
-        ai_greeting:      cfg.greeting||null,
         updated_at: new Date().toISOString()
+        // Identitaet (assistant_name, ai_customer_type, ai_address_form, ai_tone,
+        // ai_language, ai_greeting) gehoert bewusst NICHT hierher: dieser Tab hat
+        // dafuer keine Eingabefelder. Bis 09.08. standen die sechs Felder hier
+        // als `cfg.assistantName||null` — und weil weder die Hydrierung in
+        // loadDataFromSupabase noch sonst eine Stelle diese cfg-Schluessel je
+        // gesetzt hat, waren sie immer undefined. Jedes Speichern hat damit Name,
+        // Kundentyp, Anrede, Ton, Sprache und Begruessung auf NULL gesetzt und der
+        // Sync direkt darunter hat den Verlust an den Agenten weitergereicht.
+        // Wer diese Felder aendern will, nimmt den Setup-Assistenten (openAiWizard)
+        // oder — kundenseitig — customer-update-assistant. Ein Feld, das ein
+        // Formular nicht anzeigt, darf das Formular auch nicht schreiben.
       };
       await callAdminFunction('admin-mutate',{action:'customers.update',id,patch});
       console.log('[AI Summary] saved successfully');
@@ -14742,7 +14746,9 @@ function wireUi(){
     renderCases();
   });
   try{ document.getElementById('ai-save-global').addEventListener('click',saveGlobalAiConfig); }catch(_e){ console.warn('[init] ai-save-global listener failed'); }
-  document.getElementById('ai-save-customer').addEventListener('click',saveCustomerAiConfig);
+  // Kein zweiter Listener auf #ai-save-customer: der Button traegt bereits
+  // onclick="saveCustomerAiConfig()". Beides zusammen hat pro Klick zwei
+  // parallele Speichervorgaenge und zwei ElevenLabs-Syncs ausgeloest.
   try{ document.getElementById('cases-create-btn').addEventListener('click',()=>{
     // Öffne Modal direkt – Kunde wird im Modal gewählt
     openCaseCaptureModal(null);
