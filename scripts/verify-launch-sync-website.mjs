@@ -96,7 +96,8 @@ async function verifyWebsiteWizardMerge() {
         instructions:generic.instructions,
         fallbackEscalation:generic.fallbackEscalation,
         responseConstraints:generic.responseConstraints,
-        shortDescription:'',
+        short_description:'',
+        target_groups:'',
         websiteUrl:'',
         language:'de',
         customerType:'company',
@@ -148,8 +149,9 @@ async function verifyWebsiteWizardMerge() {
   await context.wizardScrapeWebsite();
   const data = state.aiWizard.data;
   const expected = {
-    businessDescription:'AI-Telefonassistenz für Schweizer KMU.\nZielgruppen: KMU mit hohem Anrufvolumen',
-    shortDescription:'AI-Telefonassistenz für Schweizer KMU.',
+    businessDescription:'AI-Telefonassistenz für Schweizer KMU.',
+    short_description:'AI-Telefonassistenz für Schweizer KMU.',
+    target_groups:'KMU mit hohem Anrufvolumen',
     services:'Starter, Professional und Business Telefonassistenten',
     locationHours:'Luzern, Montag bis Freitag',
     templateId:'garage',

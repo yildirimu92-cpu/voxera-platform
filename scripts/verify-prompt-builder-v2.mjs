@@ -7,7 +7,10 @@ const require = createRequire(import.meta.url);
 const paths = {
   compiler:'admin-panel/netlify/functions/_lib/prompt-builder-v2.js',
   preview:'admin-panel/netlify/functions/prompt-preview.js',
-  trigger:'admin-panel/netlify/functions/trigger-elevenlabs-sync.js',
+  // Seit S4 / Stufe 2 liegt der Sync-Kern in der Lib; der Handler ist nur
+  // noch Guard, Parsing und Antwortform. Der Compiler-Aufruf, den dieser
+  // Guard sucht, ist mit umgezogen.
+  trigger:'admin-panel/netlify/functions/_lib/elevenlabs-sync.js',
   runtime:'admin-panel/shared/admin-runtime-prompt-builder-v2.js',
   loader:'admin-panel/shared/offer-brand.js'
 };
@@ -428,6 +431,239 @@ check('J4: a broken schema degrades to the previous behaviour', () => {
   const built = buildPromptV2({ customer, masterPrompt:'{{CUSTOMER_LAYER}}', coreFields:'kein json' });
   assert.match(built.prompt, /bestätige keinen Termin/);
   assert.match(built.prompt, /VERBINDLICHE SICHERHEITSREGELN/);
+});
+
+// ── J6: die restlichen Schicht-A-Felder ─────────────────────────────────────
+// Dieselbe Form wie das produktive Schema aus
+// supabase/migrations/2026-08-09_core_field_layer_j6.sql.
+const CORE_STEPS_J6 = JSON.stringify([
+  JSON.parse(CORE_STEPS_JSON)[0],
+  { id:'betrieb_profil', title:'Was Sie anbieten', fields:[
+    { key:'short_description', column:'ai_short_description', type:'textarea', label:'Kurzbeschreibung' },
+    { key:'target_groups', column:'ai_target_groups', type:'textarea', label:'Für wen Sie da sind' },
+    { key:'service_area', column:'ai_service_area', type:'text', label:'Einsatzgebiet' }
+  ] },
+  { id:'betrieb_besuch', title:'Anfahrt und Besuch', fields:[
+    { key:'public_address', column:'ai_public_address', type:'text', label:'Adresse für Anrufende' },
+    { key:'arrival_note', column:'ai_arrival_note', type:'textarea', label:'Anfahrt und Parkieren' },
+    { key:'visit_preparation', column:'ai_visit_preparation', type:'textarea', label:'Was mitgebracht werden soll' }
+  ] },
+  { id:'betrieb_preise', title:'Preisauskunft', fields:[
+    { key:'pricing_mode', column:'ai_pricing_mode', type:'radio', label:'Preisauskunft am Telefon', options:[
+      { val:'auf_anfrage', label:'Keine Preise nennen' }, { val:'ab_preis', label:'Ab-Preis nennen' }, { val:'fixpreis', label:'Festen Preis nennen' }
+    ] },
+    { key:'pricing_amount', column:'ai_pricing_amount', type:'text', label:'Betrag' },
+    { key:'pricing_unit', column:'ai_pricing_unit', type:'text', label:'Wofür der Betrag gilt' },
+    { key:'pricing_validity', column:'ai_pricing_validity', type:'text', label:'Gültigkeitshinweis (optional)' }
+  ] }
+]);
+
+const j6 = (extra) => buildPromptV2({
+  customer:{ ...coreCustomer, ...extra },
+  masterPrompt:'{{CUSTOMER_LAYER}}',
+  coreFields:CORE_STEPS_J6
+});
+
+check('J6/F4: the price section exists even when nothing is stored', () => {
+  const built = j6({});
+  assert.match(built.prompt, /## PREISAUSKUNFT/);
+  assert.match(built.prompt, /Es sind keine Preise hinterlegt/);
+  assert.match(built.prompt, /Offerte meldet/);
+});
+
+check('J6/F4: a stored price is spoken as a guide value with its unit', () => {
+  const built = j6({ ai_pricing_mode:'ab_preis', ai_pricing_amount:'CHF 120', ai_pricing_unit:'pro Stunde', ai_pricing_validity:'Stand 2026' });
+  assert.match(built.prompt, /Richtwert: ab CHF 120 pro Stunde\. \(Stand 2026\)/);
+});
+
+check('J6/F4: a price mode without an amount says nothing instead of half a price', () => {
+  const built = j6({ ai_pricing_mode:'fixpreis', ai_pricing_unit:'pro Stunde' });
+  assert.match(built.prompt, /Es sind keine Preise hinterlegt/);
+  assert.ok(!built.prompt.includes('Richtwert:'), 'Eine leere Preisangabe wird als Richtwert gesprochen');
+});
+
+check('J6/F4: the disclaimer cannot be replaced by a customer field', () => {
+  const built = j6({
+    ai_pricing_mode:'fixpreis',
+    ai_pricing_amount:'CHF 120',
+    ai_pricing_validity:'verbindlich zugesichert',
+    ai_response_constraints:'Preise sind verbindlich zugesagt.'
+  });
+  const section = built.prompt.slice(built.prompt.indexOf('## PREISAUSKUNFT'));
+  assert.match(section.split('##')[1], /keine verbindliche Zusage/);
+  assert.match(built.prompt, /Nenne ausschliesslich Beträge, die im Abschnitt PREISAUSKUNFT stehen/);
+});
+
+check('J6: the four price parts do not appear a second time as plain lines', () => {
+  const built = j6({ ai_pricing_mode:'ab_preis', ai_pricing_amount:'CHF 120', ai_pricing_unit:'pro Stunde' });
+  assert.equal((built.prompt.match(/CHF 120/g) || []).length, 1, 'Der Betrag steht doppelt im Prompt');
+  assert.ok(!built.prompt.includes('Preisauskunft am Telefon:'), 'Die Preisart steht zusaetzlich als Konfigurationszeile');
+});
+
+check('J6/G7: the short description leads the business profile without doubling it', () => {
+  const built = j6({ ai_short_description:'Zahnarztpraxis in Luzern.' });
+  const section = built.prompt.slice(built.prompt.indexOf('## UNTERNEHMENSBESCHREIBUNG'));
+  assert.match(section, /Zahnarztpraxis in Luzern\./);
+  const same = j6({ ai_short_description:customer.ai_business_description });
+  assert.equal((same.prompt.match(/UNTERNEHMENSBESCHREIBUNG/g) || []).length, 1);
+  assert.equal(
+    (same.prompt.match(new RegExp(customer.ai_business_description.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g')) || []).length,
+    1,
+    'Dieselbe Quelle steht zweimal untereinander'
+  );
+});
+
+check('J6/G7: a confirmed address leads the location section and outranks the free text', () => {
+  const built = j6({ ai_public_address:'Bahnhofstrasse 1, 6003 Luzern' });
+  const section = built.prompt.slice(built.prompt.indexOf('## STANDORT UND ERREICHBARKEIT')).split('\n##')[0];
+  assert.match(section, /Adresse: Bahnhofstrasse 1, 6003 Luzern/);
+  assert.match(section, /gilt die Adresse oben/);
+});
+
+check('J6/G7: without a confirmed address the prompt names none', () => {
+  const built = j6({ street:'Binsböschenweg 3', zip:'6045', city:'Meggen' });
+  assert.ok(!built.prompt.includes('Meggen'), 'Die Rechnungsadresse wird ungefragt am Telefon genannt');
+  assert.ok(!built.prompt.includes('Adresse:'), 'Es steht eine Adresszeile ohne bestaetigte Adresse im Prompt');
+});
+
+check('J6: the booking link disappears when no appointments are made', () => {
+  const built = j6({ ai_appointment_mode:'none', ai_online_booking_url:'https://buchung.example.ch' });
+  assert.match(built.prompt, /Du vereinbarst keine Termine/);
+  assert.ok(!built.prompt.includes('buchung.example.ch'), 'Der Buchungslink wirkt trotz "keine Termine" weiter');
+});
+
+check('J6: the new fields reach the prompt with their own labels', () => {
+  const built = j6({ ai_target_groups:'Privatpersonen und kleine Betriebe', ai_service_area:'Stadt Luzern', ai_visit_preparation:'Versichertenkarte' });
+  assert.match(built.prompt, /Für wen Sie da sind: Privatpersonen und kleine Betriebe/);
+  assert.match(built.prompt, /Einsatzgebiet: Stadt Luzern/);
+  assert.match(built.prompt, /Was mitgebracht werden soll: Versichertenkarte/);
+});
+
+check('J6: the schema still may not choose the target column', () => {
+  const hijack = JSON.stringify([{ id:'x', fields:[
+    { key:'pricing_amount', column:'plan_code', type:'text', label:'Betrag' }
+  ] }]);
+  const built = buildPromptV2({
+    customer:{ ...coreCustomer, plan_code:'professional' },
+    masterPrompt:'{{CUSTOMER_LAYER}}',
+    coreFields:hijack
+  });
+  assert.ok(!built.prompt.includes('professional'), 'Eine system_config-Zeile holt eine fremde Kundenspalte in den Preisabschnitt');
+});
+
+// ── J7: Leistungen und haeufige Fragen als Listen ───────────────────────────
+const CORE_STEPS_J7 = JSON.stringify([
+  ...JSON.parse(CORE_STEPS_J6),
+  { id:'betrieb_angebot', title:'Leistungen und häufige Fragen', fields:[
+    { key:'service_list', column:'ai_service_list', type:'list', label:'Leistungen' },
+    { key:'faq_list', column:'ai_faq_list', type:'faq', label:'Häufige Fragen' }
+  ] }
+]);
+
+const j7 = (extra) => buildPromptV2({
+  customer:{ ...coreCustomer, ...extra },
+  masterPrompt:'{{CUSTOMER_LAYER}}',
+  coreFields:CORE_STEPS_J7
+});
+
+check('J7: without a confirmed list the free text still leads', () => {
+  const built = j7({});
+  assert.match(built.prompt, /## LEISTUNGEN\nTelefonannahme, Lead-Qualifizierung/);
+  assert.match(built.prompt, /## TERMINREGELN & HÄUFIGE FRAGEN\nTermine werden nach interner Prüfung/);
+});
+
+check('J7: a confirmed list replaces the free text instead of standing next to it', () => {
+  const built = j7({ ai_service_list:['Schnitt', 'Färbung'] });
+  assert.match(built.prompt, /## LEISTUNGEN\n- Schnitt\n- Färbung/);
+  assert.ok(!built.prompt.includes('Telefonannahme, Lead-Qualifizierung'), 'Der ersetzte Freitext steht weiter im Prompt');
+});
+
+check('J7: questions and answers stay paired', () => {
+  const built = j7({ ai_faq_list:[{ q:'Brauche ich einen Termin?', a:'Ja, wir arbeiten auf Termin.' }] });
+  assert.match(built.prompt, /## TERMINREGELN & HÄUFIGE FRAGEN\n- Frage: Brauche ich einen Termin\?\n {2}Antwort: Ja, wir arbeiten auf Termin\./);
+  assert.ok(!built.prompt.includes('nach interner Prüfung'), 'Der ersetzte FAQ-Freitext steht weiter im Prompt');
+});
+
+check('J7: a half pair never reaches the prompt', () => {
+  const built = j7({ ai_faq_list:[{ q:'Kostet das etwas?', a:'' }, { q:'', a:'Ja' }] });
+  assert.ok(!built.prompt.includes('Kostet das etwas'), 'Eine Frage ohne Antwort steht im Prompt');
+  // Faellt die Liste ganz weg, fuehrt wieder der Freitext — nicht ein leerer
+  // Abschnitt, der wie "keine Leistungen" aussieht.
+  assert.match(built.prompt, /## TERMINREGELN & HÄUFIGE FRAGEN\nTermine werden nach interner Prüfung/);
+});
+
+check('J7: an empty list is not a statement', () => {
+  const built = j7({ ai_service_list:[] });
+  assert.match(built.prompt, /## LEISTUNGEN\nTelefonannahme/);
+});
+
+check('J7: the lists do not appear a second time as configuration lines', () => {
+  const built = j7({ ai_service_list:['Schnitt'], ai_faq_list:[{ q:'Wie lange?', a:'Eine Stunde.' }] });
+  assert.equal((built.prompt.match(/Schnitt/g) || []).length, 1, 'Die Leistung steht doppelt im Prompt');
+  assert.ok(!built.prompt.includes('[object Object]'), 'Ein Listenwert wurde als Text gerendert');
+});
+
+// ── J8 / G6: die Aufnahme-Checkliste hat eine Quelle ────────────────────────
+const TEMPLATE_REQUIRED = 'Name\nGeburtsdatum\nAnliegen (Kontrolle, Schmerzen oder Behandlung)\nGewünschtes Datum';
+const ohneProfilCheckliste = { ...customer, ai_internal_notes:'[PROMPT_V2] {"version":2,"functions":["information"]}' };
+
+check('J8: without an own checklist the branch template applies', () => {
+  const built = buildPromptV2({
+    customer:ohneProfilCheckliste,
+    masterPrompt:'{{CUSTOMER_LAYER}}',
+    industryRequiredInformation:TEMPLATE_REQUIRED
+  });
+  assert.match(built.prompt, /## PFLICHTINFORMATIONEN/);
+  assert.match(built.prompt, /Geburtsdatum/);
+});
+
+check('J8: the customer answer beats the template, and both never appear together', () => {
+  const built = buildPromptV2({
+    customer,
+    masterPrompt:'{{CUSTOMER_LAYER}}',
+    industryRequiredInformation:TEMPLATE_REQUIRED
+  });
+  assert.match(built.prompt, /Name\nFirma\nTelefonnummer\nAnliegen/);
+  assert.ok(!built.prompt.includes('Geburtsdatum'), 'Vorlage und Kundenantwort stehen beide im Prompt');
+  assert.equal((built.prompt.match(/## PFLICHTINFORMATIONEN/g) || []).length, 1);
+});
+
+check('J8: without either source the section stays away instead of standing empty', () => {
+  const built = buildPromptV2({ customer:ohneProfilCheckliste, masterPrompt:'{{CUSTOMER_LAYER}}' });
+  assert.ok(!built.prompt.includes('PFLICHTINFORMATIONEN'), 'Ein leerer Abschnitt steht im Prompt');
+});
+
+check('J8: a template placeholder never reaches the caller', () => {
+  const built = buildPromptV2({
+    customer:ohneProfilCheckliste,
+    masterPrompt:'{{CUSTOMER_LAYER}}',
+    industryRequiredInformation:'Name\nPolicennummer [falls vorhanden]'
+  });
+  assert.ok(!built.prompt.includes('[falls vorhanden]'), 'Eine eckige Markierung steht im Prompt');
+});
+
+// ── J9 / G5: Beschriftung und Ueberschrift sagen dasselbe ───────────────────
+check('J9: the prompt headings carry the names the customer sees', () => {
+  const built = buildPromptV2({ customer, masterPrompt:'{{CUSTOMER_LAYER}}' });
+  for (const heading of ['## UNTERNEHMENSBESCHREIBUNG', '## LEISTUNGEN', '## TERMINREGELN & HÄUFIGE FRAGEN']) {
+    assert.ok(built.prompt.includes(heading), `fehlende Überschrift: ${heading}`);
+  }
+  for (const stale of ['## GESCHÄFTSPROFIL', '## TERMINLOGIK & FAQ', '## STANDORT & ERREICHBARKEIT']) {
+    assert.ok(!built.prompt.includes(stale), `alte Überschrift steht noch im Prompt: ${stale}`);
+  }
+});
+
+check('J9: the precedence sentence of the opening hours names the renamed section', () => {
+  const withHours = JSON.stringify([{ id:'kern', fields:[
+    { key:'opening_hours', column:'ai_opening_hours', type:'hours', label:'Reguläre Öffnungszeiten' }
+  ] }]);
+  const built = buildPromptV2({
+    customer:{ ...coreCustomer, ai_opening_hours:{ mon:[['08:00', '12:00']] }, ai_location_hours:'Luzern' },
+    masterPrompt:'{{CUSTOMER_LAYER}}',
+    coreFields:withHours
+  });
+  const section = built.prompt.slice(built.prompt.indexOf('## REGULÄRE ÖFFNUNGSZEITEN'));
+  assert.match(section, /Abschnitt STANDORT UND ERREICHBARKEIT/);
 });
 
 // ── J10 / G8: es gibt nur noch eine Quelle fuer den Prompt ───────────────────

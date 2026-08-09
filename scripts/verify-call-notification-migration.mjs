@@ -16,7 +16,7 @@
  */
 
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import fs from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -190,7 +190,7 @@ check('Leerer/unbekannter Modus faellt auf den Werksstandard callback_only', () 
 check('Das Gating liest die Legacy-Spalten nirgends mehr', () => {
   // Gegenprobe auf Quellcode-Ebene: ein spaeteres Wiedereinfuehren der alten
   // Bedingung faellt sonst erst im Betrieb auf.
-  const source = readFileSync(libPath, 'utf8');
+  const source = fs.readFileSync(libPath, 'utf8');
   const code = source
     .split('\n')
     .filter((line) => !line.trim().startsWith('//'))
@@ -237,9 +237,80 @@ check('Payload traegt die Feldnamen der Szenario-01-Vorlagen', () => {
   ]) {
     assert.ok(field in payload, `Feld ${field} fehlt im Payload`);
   }
-  assert.equal(payload.recipient_email, ACTIVE_CUSTOMER.email);
   assert.equal(payload.customer_id, ACTIVE_CUSTOMER.id);
   assert.equal(payload.duration_seconds, 21);
+});
+
+check('required_payloads aus dem Manifest sind wirklich im Payload', () => {
+  // Diese Pruefung fehlte und hat einen echten Fehler durchgelassen: der
+  // Payload trug ein flaches recipient_email, waehrend jeder andere Mailtyp
+  // der Engine ein verschachteltes recipient.email liefert - und genau das
+  // liest die Route in Szenario 09. Die Mail waere mit leerem Empfaenger
+  // rausgegangen.
+  //
+  // Das Manifest beschrieb den Vertrag die ganze Zeit korrekt; niemand hat ihn
+  // gegen den Code gehalten. Ab jetzt schon, fuer beide Anruf-Mailtypen.
+  const manifest = JSON.parse(
+    fs.readFileSync(path.join(root, 'config', 'mail-engine-contracts.json'), 'utf8')
+  );
+  const payloads = {
+    [CALL_MAIL_TYPE]: buildPayload({
+      customer: ACTIVE_CUSTOMER,
+      call: { caller_phone: '+41799268933' },
+      calledNumber: '+41445052800',
+      callbackRequested: false
+    }),
+    [CALLBACK_MAIL_TYPE]: buildPayload({
+      customer: ACTIVE_CUSTOMER,
+      call: { caller_phone: '+41799268933' },
+      calledNumber: '+41445052800',
+      callbackRequested: true
+    })
+  };
+
+  for (const [mailType, payload] of Object.entries(payloads)) {
+    const required = manifest.required_payloads?.[mailType];
+    assert.ok(required, `required_payloads fehlt fuer ${mailType}`);
+    for (const dottedPath of required) {
+      const value = dottedPath
+        .split('.')
+        .reduce((node, key) => (node == null ? undefined : node[key]), payload);
+      assert.ok(
+        value !== undefined && value !== null && value !== '',
+        `${mailType}: required_payloads nennt "${dottedPath}", der Payload liefert dort nichts`
+      );
+    }
+  }
+});
+
+check('Der Empfaenger ist verschachtelt wie bei den anderen Mailtypen', () => {
+  // Die Route in Szenario 09 liest {{1.recipient.email}}. Ein flaches Feld
+  // liefe dort ins Leere, und Make verschickt eine Mail mit leerem to-Feld,
+  // ohne sichtbar zu scheitern.
+  const payload = buildPayload({
+    customer: ACTIVE_CUSTOMER, call: {}, calledNumber: '', callbackRequested: false
+  });
+  assert.equal(typeof payload.recipient, 'object');
+  assert.equal(payload.recipient.email, ACTIVE_CUSTOMER.email);
+  assert.ok(payload.recipient.name, 'recipient.name fehlt');
+  assert.equal(payload.recipient_email, undefined, 'flaches recipient_email ist zurueck');
+});
+
+check('Der Rauchtest schickt dieselben Felder wie die Produktion', () => {
+  // live-check-call-notification-mail.mjs prueft die Make-Routen mit einem
+  // handgeschriebenen Payload. Waechst buildPayload() um ein Feld, das dort
+  // fehlt, prueft der Rauchtest etwas anderes als das, was spaeter wirklich
+  // rausgeht - und bescheinigt einer Route Funktionsfaehigkeit, die sie im
+  // Ernstfall nicht hat.
+  const smokeTest = fs.readFileSync(
+    path.join(root, 'scripts', 'live-check-call-notification-mail.mjs'),
+    'utf8'
+  );
+  const produced = Object.keys(buildPayload({
+    customer: ACTIVE_CUSTOMER, call: {}, calledNumber: '', callbackRequested: false
+  }));
+  const absent = produced.filter(field => !new RegExp(`\\b${field}:`).test(smokeTest));
+  assert.deepEqual(absent, [], `Im Rauchtest fehlen: ${absent.join(', ')}`);
 });
 
 check('Fehlende Dauer wird zu null, nicht zu NaN', () => {

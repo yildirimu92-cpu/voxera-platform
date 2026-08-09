@@ -174,7 +174,11 @@
   --z-mobile-nav:50;
   --z-onboarding:9000;
   --z-commercial:9800;
-  --z-tour:10000;
+  /* Hiess --z-tour, solange die Spotlight-Tour existierte. Die Tour ist am
+     09.08.2026 entfallen; die Stufe bleibt, weil die mobilen Sortiermenues
+     ueber der Bottom-Nav (Inline-Max 9999) liegen muessen. Der Name folgt
+     jetzt dem einzigen verbliebenen Nutzer. */
+  --z-above-mobile-nav:10000;
   --z-detail-fullscreen:10040;
   --z-overlay:10200;          /* Modalfamilie: alle .overlay-Dialoge */
   --z-overlay-detail:10200;   /* Bestandsname, gleiche Ebene */
@@ -2132,7 +2136,9 @@ body.vx-detail-v2-open #confirm-overlay.open {
 .detail-overlay{display:none;position:fixed;inset:0;background:rgba(15,23,42,.44);backdrop-filter:blur(6px);z-index:var(--z-overlay-detail);align-items:center;justify-content:center;padding:16px;}
 .detail-overlay.open{display:flex;}
 .detail-modal{background:var(--surface);border-radius:var(--r-xl);width:100%;max-width:900px;max-height:min(92vh,calc(100dvh - 20px));box-shadow:0 16px 48px rgba(0,0,0,.12);animation:fadeUp .3s var(--ease) both;display:flex;flex-direction:column;overflow:hidden;}
-.detail-head{padding:22px 24px 12px;border-bottom:1px solid var(--surface2);}
+/* .detail-head hatte hier und an drei weiteren Stellen Regeln, ohne dass die
+   Klasse irgendwo im Markup oder in einem Renderer auftaucht — entfernt
+   2026-08-09. Die uebrigen .detail-*-Regeln bleiben unangetastet. */
 .detail-body{padding:16px 24px 18px;overflow:auto;min-height:0;flex:1;}
 .detail-footer{padding:12px 24px calc(var(--space-3) + env(safe-area-inset-bottom));border-top:1px solid var(--surface2);display:flex;justify-content:flex-end;background:var(--surface);}
 .detail-layout{display:flex;flex-direction:column;gap:0;}
@@ -2160,7 +2166,6 @@ body.vx-detail-v2-open #confirm-overlay.open {
   .detail-overlay{align-items:flex-end;padding:0;}
   .detail-modal{border-radius:18px 18px 0 0;max-height:calc(100dvh - 4px);}
   .detail-layout{grid-template-columns:1fr;gap:10px;}
-  .detail-head{padding:14px 14px 10px;}
   .detail-body{padding:10px 12px 14px;}
   .detail-footer{padding:10px 12px calc(14px + env(safe-area-inset-bottom));}
 
@@ -2258,14 +2263,14 @@ body.vx-detail-v2-open #confirm-overlay.open {
 .dash-status-chip.alert{background:rgba(220,38,38,0.22);border-color:rgba(254,202,202,0.55);}
 .dash-status-chip.ok{background:rgba(5,150,105,0.24);border-color:rgba(167,243,208,0.55);}
 .dash-status-chip.note{background:rgba(255,255,255,0.12);}
-.dash-activation-card{background:#FFF9F2;border:1px solid #FDE68A;border-radius:var(--r-lg);padding:18px 20px;margin-bottom:18px;display:none;box-shadow:var(--shadow-card);}
+.dash-activation-card{background:var(--vx-color-warning-bg);border:1px solid var(--vx-color-warning-border);border-radius:var(--r-lg);padding:18px 20px;margin-bottom:18px;display:none;box-shadow:var(--shadow-card);}
 .dash-activation-card.show{display:block;}
 .dash-activation-card.info{background:#F8FAFF;border-color:#BFDBFE;}
 .dash-activation-card.success{background:var(--green-light);border-color:#86EFAC;}
-.dash-activation-title{font-size:14px;font-weight:700;color:#92400E;margin-bottom:8px;}
+.dash-activation-title{font-size:14px;font-weight:700;color:var(--vx-color-warning);margin-bottom:8px;}
 .dash-activation-card.info .dash-activation-title{color:#1A6FE8;}
 .dash-activation-card.success .dash-activation-title{color:#166534;}
-.dash-activation-text{font-size:13px;color:#B45309;line-height:1.6;margin-bottom:14px;}
+.dash-activation-text{font-size:13px;color:var(--vx-color-warning);line-height:1.6;margin-bottom:14px;}
 .dash-activation-card.info .dash-activation-text{color:#1560C8;}
 .dash-activation-card.success .dash-activation-text{color:#166534;}
 .dash-activation-actions{display:flex;gap:8px;flex-wrap:wrap;}
@@ -2868,9 +2873,9 @@ body.vx-detail-v2-open #confirm-overlay.open {
   word-break: break-all;
 }
 
-.hint-box { border: 1px solid #FDE68A; background: #FFFBEB; border-radius: 12px; overflow: hidden; }
-.hint-trigger { padding: 12px 14px; font-size: 13px; font-weight: 600; color: #92400E; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
-.hint-body { padding: 0 14px 12px; font-size: 12px; color: #92400E; line-height: 1.75; display: none; }
+.hint-box { border: 1px solid var(--vx-color-warning-border); background: var(--vx-color-warning-bg); border-radius: 12px; overflow: hidden; }
+.hint-trigger { padding: 12px 14px; font-size: 13px; font-weight: 600; color: var(--vx-color-warning); cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
+.hint-body { padding: 0 14px 12px; font-size: 12px; color: var(--vx-color-warning); line-height: 1.75; display: none; }
 .hint-body.open { display: block; }
 
 .deact-row {
@@ -2963,8 +2968,8 @@ button, a.btn { min-height: 44px; }
 .activation-btn.tertiary:hover{background:var(--surface2);border-color:#CBD5E1;}
 .activation-btn.danger{background:#FEF2F2;color:#B91C1C;border-color:#FECACA;font-weight:600;}
 .activation-btn.danger:hover{background:#FEE2E2;border-color:#FCA5A5;}
-.activation-btn.warning{background:#FEF3C7;color:#92400E;border-color:#FCD34D;font-weight:600;}
-.activation-btn.warning:hover{background:#FDE68A;border-color:#F59E0B;}
+.activation-btn.warning{background:var(--vx-color-warning-bg);color:var(--vx-color-warning);border-color:var(--vx-color-warning-border);font-weight:600;}
+.activation-btn.warning:hover{background:var(--vx-color-warning-border);border-color:var(--vx-color-warning);}
 .activation-btn.ghost{background:transparent;color:#64748B;border-color:transparent;box-shadow:none;font-weight:600;}
 .activation-btn.ghost:hover{background:var(--surface2);border-color:var(--surface-border);}
 .activation-btn.ghost-danger{background:rgba(220,38,38,0.08);color:#B91C1C;border-color:rgba(220,38,38,0.18);font-weight:600;}
@@ -2985,7 +2990,7 @@ button, a.btn { min-height: 44px; }
 .activation-link-btn{width:100%;border:0.5px solid var(--line);background:var(--surface);color:#64748B;font-size:12px;font-weight:600;border-radius:10px;padding:8px 10px;text-align:left;}
 .activation-info-banner{margin-top:8px;background:#ECFDF3;border:1px solid #BBF7D0;color:#166534;border-radius:10px;padding:8px 10px;font-size:12px;line-height:1.45;}
 .activation-banner--info{background:#EFF6FF;border-color:#BFDBFE;color:#1A6FE8;}
-.activation-banner--warning{background:#FFFBEB;border-color:#FDE68A;color:#92400E;}
+.activation-banner--warning{background:var(--vx-color-warning-bg);border-color:var(--vx-color-warning-border);color:var(--vx-color-warning);}
 .activation-banner--error{background:#FEF2F2;border-color:#FECACA;color:#B91C1C;}
 .activation-panel--live{background:var(--vx-night);color:#fff;}
 .activation-panel--live .activation-info-banner{background:rgba(255,255,255,0.1);border-color:rgba(255,255,255,0.2);color:var(--surface-border);}
@@ -4146,7 +4151,7 @@ body,.main{background:var(--vx-bg);}
       0 12px 32px rgba(13, 31, 60, 0.18),
       0 2px 8px rgba(13, 31, 60, 0.08) !important;
     /* Über jeder mobile-nav (aktuelles Inline-Max ist 9999) */
-    z-index: var(--z-tour) !important;
+    z-index: var(--z-above-mobile-nav) !important;
   }
 
   /* Touch-Targets auf 44px-Niveau (iOS HIG) */
@@ -4361,8 +4366,6 @@ body,.main{background:var(--vx-bg);}
 .modal-head{background:var(--vx-modal-head)!important;padding:14px 18px!important;border-bottom:none!important;}
 .modal h3{color:var(--vx-modal-head-title)!important;font-size:15px!important;margin-bottom:0!important;letter-spacing:-.01em!important;}
 .modal-sub{color:var(--vx-modal-head-sub)!important;margin-bottom:0!important;}
-.detail-head{background:var(--vx-night)!important;padding:14px 18px!important;}
-.detail-head h3,.detail-head .modal-sub{color:#fff!important;}
 
 /* ── Call-Row Premium Layout ─────────────────────────────── */
 .call-row {
@@ -5189,10 +5192,6 @@ body,.main{background:var(--vx-bg);}
   }
   #detail-overlay {
     align-items: flex-end !important;
-  }
-  .detail-head {
-    border-radius: 16px 16px 0 0 !important;
-    padding: 12px 16px !important;
   }
   .modal-body {
     padding: 14px 16px 20px !important;
@@ -6296,6 +6295,18 @@ body.vx-customer-design-foundation .vx-requests-layout{
   min-height:620px;
   overflow:hidden;
   font-family:var(--vx-ui-row-font);
+  /* Aktiv zuruecknehmen, nicht bloss weglassen (2026-08-09): das Element
+     traegt weiterhin die Alt-Klasse .vx-split, und die setzt Fuellfarbe,
+     Rundung und Rahmen. Solange hier nichts stand, blieb der Kartenrahmen
+     um die Liste bestehen — eine umrandete Flaeche mit weissen Zeilenkarten
+     darin, also der "zwei Schichten"-Eindruck, den Heute nicht hat. Der
+     Rahmen kostete die Liste ausserdem 1px pro Seite (gemessen 336px statt
+     338px bei 390px). Die Naht zwischen Liste und Detail kommt weiterhin
+     aus dem border-right von .vx-requests-panel. */
+  background:transparent;
+  border:0;
+  border-radius:0;
+  box-shadow:none;
 }
 
 /* Beide Spalten liegen auf der Canvas-Fläche, damit die weissen Karten
@@ -6971,7 +6982,7 @@ body.vx-customer-design-foundation .vx-report-highlight-value{margin-top:6px;col
 body.vx-customer-design-foundation .vx-report-voice .vx-ops-message{font-family:var(--vx-ui-voice-font);font-size:var(--vx-ui-voice-size);font-weight:var(--vx-ui-voice-weight);line-height:var(--vx-ui-voice-leading);letter-spacing:var(--vx-ui-voice-tracking);color:var(--vx-ui-voice-color);max-width:var(--vx-ui-voice-measure);}
 @media (max-width:560px){body.vx-customer-design-foundation .vx-report-voice .vx-ops-message{font-size:var(--vx-ui-voice-size-sm);}}
 body.vx-customer-design-foundation .vx-report-insight{display:flex;align-items:flex-start;gap:12px;} body.vx-customer-design-foundation .vx-report-insight-icon{display:flex;align-items:center;justify-content:center;flex:0 0 auto;box-sizing:border-box;width:var(--vx-ui-icon-tile-md);height:var(--vx-ui-icon-tile-md);border-radius:var(--vx-ui-icon-tile-md-radius);}
-body.vx-customer-design-foundation .vx-report-insight.tone-warning{background:#fff7ed;color:#9a3412;} body.vx-customer-design-foundation .vx-report-insight.tone-warning .vx-report-insight-icon{background:#fed7aa;} body.vx-customer-design-foundation .vx-report-insight.tone-info{background:#eff6ff;color:#1d4ed8;} body.vx-customer-design-foundation .vx-report-insight.tone-info .vx-report-insight-icon{background:#dbeafe;} body.vx-customer-design-foundation .vx-report-insight.tone-success{background:#ecfdf5;color:#047857;} body.vx-customer-design-foundation .vx-report-insight.tone-success .vx-report-insight-icon{background:#d1fae5;}
+body.vx-customer-design-foundation .vx-report-insight.tone-warning{background:var(--vx-color-warning-bg);color:var(--vx-color-warning);} body.vx-customer-design-foundation .vx-report-insight.tone-warning .vx-report-insight-icon{background:var(--vx-color-warning-border);} body.vx-customer-design-foundation .vx-report-insight.tone-info{background:#eff6ff;color:#1d4ed8;} body.vx-customer-design-foundation .vx-report-insight.tone-info .vx-report-insight-icon{background:#dbeafe;} body.vx-customer-design-foundation .vx-report-insight.tone-success{background:#ecfdf5;color:#047857;} body.vx-customer-design-foundation .vx-report-insight.tone-success .vx-report-insight-icon{background:#d1fae5;}
 body.vx-customer-design-foundation .vx-report-week-chart{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));align-items:end;gap:8px;min-height:120px;}
 body.vx-customer-design-foundation .vx-report-week-col{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:5px;height:116px;} body.vx-customer-design-foundation .vx-report-week-count,body.vx-customer-design-foundation .vx-report-week-label{color:var(--vx-subtle);font-size:11px;font-weight:700;}
 body.vx-customer-design-foundation .vx-report-week-bar{width:100%;height:calc(5px + 72px * var(--vx-report-level));border-radius:6px 6px 2px 2px;background:#e2e8f0;} body.vx-customer-design-foundation .vx-report-week-bar.current{background:var(--vx-brand);} body.vx-customer-design-foundation .vx-report-week-label.current{color:var(--vx-brand);}
@@ -7877,7 +7888,6 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
 
         <!-- MEIN ASSISTENT TAB -->
         <div class="tab-page" id="tab-assistent"></div>
-        </div>
 
         <!-- MEHR TAB -->
         <div class="tab-page" id="tab-mehr">
@@ -7956,6 +7966,18 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
                 <li class="vx-help-step"><span>2</span><div><small id="vx-help-step2">Lara ist eingerichtet und übernimmt Ihre Anrufe. Eingehende Anfragen erscheinen sofort im Dashboard.</small></div></li>
                 <li class="vx-help-step"><span>3</span><div><small id="vx-help-step3">Geschäftsnummer anrufen — Lara nimmt ab. Anruf erscheint im Dashboard.</small></div></li>
               </ol>
+              <!-- Der einzige Weg, die Willkommens-Karte erneut zu oeffnen.
+                   Er steht bewusst hier, auf der lebenden Hilfe-Seite
+                   (#mehr-sub-hilfe), und nicht im abgeloesten Alt-Screen
+                   #tab-einstellungen — dort war der frueher einzige Einstieg,
+                   und er war ausserdem als "Tour" beschriftet, obwohl er die
+                   Karte oeffnete. -->
+              <div class="vx-help-restart">
+                <button type="button" class="btn btn--secondary" onclick="vxOnboardingRestart()">
+                  <i class="ph-bold ph-arrow-counter-clockwise" aria-hidden="true"></i>
+                  Willkommens-Hinweise nochmals ansehen
+                </button>
+              </div>
             </section>
 
             <section class="vx-settings-card">
@@ -8251,7 +8273,12 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
               <button class="btn btn--secondary" onclick="openHelpSection('support')">Mehr erfahren</button>
             </div>
 
-            <!-- Hilfe & Tour – prominent für Mobile -->
+            <!-- Hilfe & Support – prominent für Mobile.
+                 Hiess "Hilfe & Tour", solange die Spotlight-Tour existierte.
+                 Der Knopf darunter oeffnete allerdings nie die Tour, sondern
+                 die Willkommens-Karte — die Beschriftung war schon vorher
+                 falsch. Der lebende Wiedereinstieg steht jetzt auf der
+                 Hilfe-Seite selbst (#mehr-sub-hilfe). -->
             <div class="settings-card" style="background:linear-gradient(135deg,#0D1F3C 0%,#1A3060 100%);border:none;">
               <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">
                 <div style="width:38px;height:38px;border-radius:10px;background:rgba(255,255,255,0.12);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
@@ -8259,7 +8286,7 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
                 </div>
                 <div>
                   <div style="font-size:14px;font-weight:700;color:#fff;">Hilfe & Support</div>
-                  <div style="font-size:12px;color:rgba(255,255,255,0.5);margin-top:1px;">Anleitungen, Tour und direkter Kontakt</div>
+                  <div style="font-size:12px;color:rgba(255,255,255,0.5);margin-top:1px;">Anleitungen und direkter Kontakt</div>
                 </div>
               </div>
               <div style="display:grid;gap:8px;">
@@ -8270,7 +8297,7 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
                 </button>
                 <button onclick="vxOnboardingRestart()" style="width:100%;padding:11px 14px;border-radius:10px;border:none;background:rgba(26,111,232,0.35);color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;text-align:left;display:flex;align-items:center;gap:10px;">
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                  Einrichtungs-Assistent starten
+                  Willkommens-Hinweise nochmals ansehen
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="2" stroke-linecap="round" style="margin-left:auto;"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
                 </button>
                 <button onclick="requestSupport()" style="width:100%;padding:11px 14px;border-radius:10px;border:none;background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.75);font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;text-align:left;display:flex;align-items:center;gap:10px;">
@@ -8284,39 +8311,10 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
           </div>
         </div>
 
-        <!-- HILFE TAB -->
-        <div class="tab-page" id="tab-hilfe">
-          <header class="vx-appbar"><button type="button" class="vx-appbar-back" aria-label="Zurück zu Einstellungen" onclick="vxScreenBack(function(){showTab('mehr',document.getElementById('nav-mehr'));})"><i class="ph-bold ph-arrow-left" aria-hidden="true"></i></button><h1 class="vx-appbar-title">Hilfe &amp; Support</h1></header>
-
-          <section class="vx-settings-card">
-            <div class="vx-settings-card-head"><div><h2 class="vx-settings-card-title">Direkte Hilfe</h2><p class="vx-settings-card-meta">Wählen Sie den passenden nächsten Schritt.</p></div></div>
-            <div class="vx-help-action-grid">
-              <button type="button" class="vx-help-action" onclick="requestSupport()"><span><i class="ph-bold ph-envelope-simple" aria-hidden="true"></i></span><strong>E-Mail</strong><small>Support kontaktieren</small></button>
-              <button type="button" class="vx-help-action" onclick="window.open('https://voxera.ch','_blank','noopener')"><span><i class="ph-bold ph-globe" aria-hidden="true"></i></span><strong>Website</strong><small>Informationen öffnen</small></button>
-              <button type="button" class="vx-help-action" onclick="vxOnboardingRestart()"><span><i class="ph-bold ph-play-circle" aria-hidden="true"></i></span><strong>Einrichtung</strong><small>Assistent erneut starten</small></button>
-            </div>
-          </section>
-
-          <section class="vx-settings-card">
-            <div class="vx-settings-card-head"><div><h2 class="vx-settings-card-title">Erste Schritte</h2><p class="vx-settings-card-meta">Die wichtigsten Punkte für einen zuverlässigen Betrieb.</p></div></div>
-            <ol class="vx-help-step-list">
-              <li class="vx-help-step"><span>1</span><div><strong>Rufumleitung einrichten</strong><small>Ihre Geschäftsnummer wird sicher mit Voxera verbunden.</small></div></li>
-              <li class="vx-help-step"><span>2</span><div><strong>Assistent konfigurieren</strong><small>Name, Stimme und Geschäftswissen im Bereich Assistent prüfen.</small></div></li>
-              <li class="vx-help-step"><span>3</span><div><strong>Testanruf durchführen</strong><small>Die Geschäftsnummer anrufen und den Eintrag unter Anfragen kontrollieren.</small></div></li>
-            </ol>
-          </section>
-
-          <section class="vx-settings-card">
-            <div class="vx-settings-card-head"><div><h2 class="vx-settings-card-title">Häufige Fragen</h2></div></div>
-            <div class="vx-help-faq">
-              <details><summary>Wie schnell sind Änderungen aktiv?</summary><p>Gespeicherte Assistenten-Einstellungen werden normalerweise innerhalb weniger Sekunden synchronisiert.</p></details>
-              <details><summary id="vx-settings-faq-lang-q">Welche Sprachen erkennt Lara?</summary><p>Deutsch, Französisch, Italienisch und Englisch werden automatisch erkannt.</p></details>
-              <details><summary>Was mache ich bei Ferien oder Schliesszeiten?</summary><p>Temporäre Änderungen können im Assistenten unter „Aktuelle Infos“ erfasst werden.</p></details>
-              <details><summary>Wo finde ich gebuchte Termine?</summary><p>Durch Voxera erstellte Termine erscheinen unter Anfragen im Status „Geplant“.</p></details>
-            </div>
-          </section>
-        </div>
-
+        <!-- Der frühere zweite Hilfe-Screen (#tab-hilfe) stand hier — als
+             .tab-page INNERHALB von #tab-einstellungen und damit nie
+             erreichbar. Sein Inhalt lebt seit dem Umzug in #mehr-sub-hilfe
+             weiter; showTab('hilfe') führt jetzt dorthin. -->
         </div><!-- /#tab-einstellungen -->
 
         <!-- ── BENACHRICHTIGUNGEN — Mobile Vollseite ── -->
@@ -8337,6 +8335,13 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
             </div>
           </div>
         </div>
+      </div><!-- /.content — schliesst hinter dem LETZTEN Screen, nicht hinter
+                    #tab-assistent. Bis 2026-08-09 stand dieses Tag dort, und
+                    #tab-mehr, #tab-einstellungen und #tab-benachrichtigungen
+                    lagen dadurch als Flex-Geschwister neben .content statt
+                    darin — Ursache des leeren Streifens ueber den
+                    Einstellungen-Screens und der schmaleren Seiteneinfassung
+                    dort (gemessen 14px statt 26px bei 390px). -->
 
 <!-- MOBILE BOTTOM NAV -->
   <div class="mobile-nav">
@@ -8435,17 +8440,20 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
         <div class="vx-onboarding-icon"><i class="ph-bold ph-sparkle" aria-hidden="true"></i></div>
         <div>
           <h2 id="vx-onboarding-title" class="vx-onboarding-title">Willkommen bei Voxera</h2>
-          <div class="vx-onboarding-sub">Ihr Assistent ist eingerichtet und einsatzbereit.</div>
+          <div id="vx-onboarding-sub" class="vx-onboarding-sub">Ihr Assistent ist eingerichtet und einsatzbereit.</div>
         </div>
       </div>
     </div>
 
     <div class="vx-onboarding-body">
       <p class="vx-onboarding-text" id="vx-onboarding-copy">
-        Lara nimmt Anrufe für Sie entgegen. Anfragen finden Sie unter <strong>Anfragen</strong>,
-        Einstellungen zu Rufumleitung und Benachrichtigungen unter <strong>Mehr</strong>.
+        Ihr Assistent nimmt Anrufe für Sie entgegen. Zwei Bereiche brauchen Sie dafür.
       </p>
-      <button type="button" class="btn btn--primary btn--full" onclick="vxOnboardingFinish()">Verstanden</button>
+      <!-- Inhalt setzt vxOnboardingRenderBody() zur Laufzeit: Assistentenname,
+           Navigationsbeschriftungen und der Zustand der Rufumleitung stehen
+           erst dann fest. -->
+      <ul class="vx-onboarding-list" id="vx-onboarding-list"></ul>
+      <div class="vx-onboarding-actions" id="vx-onboarding-actions"></div>
     </div>
   </div>
 </div>
@@ -8520,7 +8528,7 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
       <div class="modal-body">
         <div id="followup-locked-warning" class="vx-modal-alert vx-modal-alert-warn" style="display:none">
           Dieser Anruf ist erledigt und kann nicht mehr bearbeitet werden.
-          <button onclick="dismissCompletedWarning()" aria-label="Hinweis ausblenden" style="float:right;background:none;border:none;cursor:pointer;color:#92400E;font-size:16px;padding:0;line-height:1;">×</button>
+          <button onclick="dismissCompletedWarning()" aria-label="Hinweis ausblenden" style="float:right;background:none;border:none;cursor:pointer;color:var(--vx-color-warning);font-size:16px;padding:0;line-height:1;">×</button>
         </div>
         <div id="followup-editable" class="followup-editable">
           <div class="vx-modal-grid followup-action-grid">
@@ -9159,6 +9167,26 @@ function vxIsQuotaExceededError(err) {
   var msg = String((err && err.message) || err || '');
   return err.name === 'QuotaExceededError' || err.code === 22 || /quota|kQuotaBytes/i.test(msg);
 }
+// Schluessel, die eine Entscheidung des Kunden festhalten ("gesehen",
+// "abgeschlossen") und nicht neu berechnet werden koennen. Sie duerfen beim
+// Aufraeumen nie mitgehen: ihr Verlust erzeugt keinen neuen Cache-Aufbau,
+// sondern zeigt dem Kunden einen Erstlauf-Dialog erneut, den er laengst
+// weggeklickt hat. Genau das war die Ursache der wiederkehrenden
+// Onboarding-Tour und des wiederkehrenden Einrichtungs-Assistenten: der
+// Aufraeumer loeschte pauschal alles mit Praefix vx_/voxera_ und traf damit
+// auch voxera_tour_v2_done, vx_onboarding_dismissed_<id> und
+// voxera_setup_finished*.
+//
+// Die Liste enthaelt Teilstuecke, keine vollen Schluessel: die Merker tragen
+// die Kundennummer im Namen (getSetupStorageKey(), vxOnboardingDismissedKey()).
+// Bewusst nicht geschuetzt: die Aktivierungs-Fehlerflags. Sie halten keine
+// Entscheidung fest, sondern transienten Fehlerzustand, und werden von
+// clearActivationRunErrorStorage() ohnehin gezielt geraeumt.
+function vxIsProtectedDecisionStorageKey(key) {
+  var k = String(key || '').toLowerCase();
+  return k.indexOf('onboarding') >= 0 || k.indexOf('setup_finished') >= 0;
+}
+
 function vxCleanupNonCriticalVoxeraStorage() {
   try {
     var prefixes = ['vx_', 'voxera_'];
@@ -9168,6 +9196,7 @@ function vxCleanupNonCriticalVoxeraStorage() {
       var key = localStorage.key(i);
       if (!key) continue;
       if (keep.some(function(k){ return key.indexOf(k) === 0 || key.indexOf(k) >= 0; })) continue;
+      if (vxIsProtectedDecisionStorageKey(key)) continue;
       if (prefixes.some(function(p){ return key.indexOf(p) === 0; })) remove.push(key);
     }
     remove.forEach(function(k){ try { localStorage.removeItem(k); } catch(_e) {} });
@@ -14504,7 +14533,7 @@ function vxShowLiveWarning(sectionId) {
   var fb = document.getElementById(fbId);
   if (!fb) return;
   var assistantName = (typeof customerMeta !== 'undefined' && customerMeta && customerMeta.assistantName) ? customerMeta.assistantName : 'Lara';
-  fb.innerHTML = '<div style="display:flex;align-items:center;gap:6px;padding:8px 10px;background:#FFFBEB;border:0.5px solid #FDE68A;border-radius:8px;font-size:12px;color:#92400E;"><i class="ph-bold ph-lightning" style="flex-shrink:0;" style="font-size:13px;" aria-hidden="true"></i>' + _esc(assistantName) + ' wird sofort aktualisiert.</div>';
+  fb.innerHTML = '<div style="display:flex;align-items:center;gap:6px;padding:8px 10px;background:var(--vx-color-warning-bg);border:0.5px solid var(--vx-color-warning-border);border-radius:8px;font-size:12px;color:var(--vx-color-warning);"><i class="ph-bold ph-lightning" style="flex-shrink:0;" style="font-size:13px;" aria-hidden="true"></i>' + _esc(assistantName) + ' wird sofort aktualisiert.</div>';
   if (typeof refreshLucideIcons === 'function') refreshLucideIcons();
   setTimeout(function(){ fb.innerHTML = ''; }, 4000);
 }
@@ -15060,7 +15089,7 @@ async function vxSubmitCancellationRequest() {
         + '<div style="font-size:16px;font-weight:700;color:var(--ink);margin-bottom:8px;">Kündigung bestätigen</div>'
         + '<div style="font-size:13px;color:var(--ink2);line-height:1.55;margin-bottom:8px;">Ausgewählter Grund: <strong>' + (reasonText || '–') + '</strong></div>'
         + '<div style="font-size:13px;color:var(--ink2);line-height:1.55;margin-bottom:8px;">Vertragsende: <strong>' + vxFmtDate(cancellationDate.toISOString()) + '</strong></div>'
-        + '<div style="font-size:12px;color:#B45309;background:#FFFBEB;border:0.5px solid #FDE68A;border-radius:10px;padding:9px 10px;">Nach Ablauf der Kündigungsfrist wird Ihr Zugang deaktiviert.</div>';
+        + '<div style="font-size:12px;color:var(--vx-color-warning);background:var(--vx-color-warning-bg);border:0.5px solid var(--vx-color-warning-border);border-radius:10px;padding:9px 10px;">Nach Ablauf der Kündigungsfrist wird Ihr Zugang deaktiviert.</div>';
     }
     refreshButtons();
   }
@@ -15535,14 +15564,98 @@ function vxOnboardingPersistDismissed() {
   try { window.localStorage.setItem(vxOnboardingDismissedKey(), '1'); } catch(e) {}
 }
 
+// Ein anderer Dialog darf nicht ueberdeckt werden. Frueher war das kein
+// Thema, weil das Onboarding als einziger Erstlauf-Dialog automatisch aufging
+// — bis die Spotlight-Tour 600ms spaeter obendrauf kam. Die Tour ist weg, der
+// Waechter bleibt: Aktivierungs-Flow, Bestaetigungen und die Detail-Vollansicht
+// koennen aus laufenden Vorgaengen heraus offen sein, wenn ein Poll das
+// Onboarding oeffnen wuerde.
+function vxOnboardingBlockingDialogOpen() {
+  var ids = ['activation-flow-overlay', 'confirm-overlay', 'vx-commercial-overlay',
+             'setup-help-overlay', 'vox-support-request-overlay', 'vx-detail-v2-fullscreen'];
+  for (var i = 0; i < ids.length; i++) {
+    var el = document.getElementById(ids[i]);
+    if (!el) continue;
+    try {
+      var cs = window.getComputedStyle(el);
+      if (cs.display !== 'none' && cs.visibility !== 'hidden') return true;
+    } catch(e) {}
+  }
+  return false;
+}
+
 function vxOnboardingInit() {
   // Nicht zeigen wenn bereits abgeschlossen (DB-Flag oder lokal gemerkt)
   if (vxOnboardingIsDismissed()) return;
   // Innerhalb dieser Session reicht ein Dismiss aus, egal wie oft
   // vxOnboardingInit() durch nachfolgende Polls erneut aufgerufen wird.
   if (window._vxOnboardingDismissedThisSession) return;
+  // Kein Automatik-Start ueber einem offenen Dialog. Der naechste Poll holt es
+  // nach, sobald der andere Vorgang beendet ist.
+  if (vxOnboardingBlockingDialogOpen()) return;
 
   vxOnboardingShow();
+}
+
+// Baut Ziel-Liste und Aktionen. Zur Laufzeit, weil drei Angaben erst dann
+// feststehen: der Assistentenname, die Beschriftungen der Navigation und ob
+// die Rufumleitung noch offen ist. Es wird bewusst nichts positioniert und auf
+// kein Element gezeigt — genau daran ist die alte Tour gescheitert.
+function vxOnboardingRenderBody() {
+  var list = document.getElementById('vx-onboarding-list');
+  var actions = document.getElementById('vx-onboarding-actions');
+  if (!list || !actions) return;
+
+  var assistantName = String((customerMeta && customerMeta.assistantName) || 'Ihr Assistent').trim() || 'Ihr Assistent';
+  var forwardingOpen = (typeof isForwardingSetupCompleted === 'function') ? !isForwardingSetupCompleted() : false;
+
+  // Anrede nur, wenn ein Vorname vorliegt — "Willkommen bei Voxera," mit
+  // leerem Namen dahinter waere schlechter als die Ueberschrift ohne Anrede.
+  var firstName = String((customerMeta && (customerMeta.contactFirstName
+    || (customerMeta.customerName ? String(customerMeta.customerName).split(' ')[0] : ''))) || '').trim();
+  var titleEl = document.getElementById('vx-onboarding-title');
+  if (titleEl) titleEl.textContent = firstName ? ('Willkommen bei Voxera, ' + firstName) : 'Willkommen bei Voxera';
+  var subEl = document.getElementById('vx-onboarding-sub');
+  if (subEl) subEl.textContent = assistantName + ' ist eingerichtet und einsatzbereit.';
+  var copyEl = document.getElementById('vx-onboarding-copy');
+  if (copyEl) copyEl.textContent = assistantName + ' nimmt Anrufe für Sie entgegen. Zwei Bereiche brauchen Sie dafür.';
+
+  // Die Beschriftungen kommen aus der Navigation selbst, nicht aus einer
+  // zweiten Textquelle: wird ein Bereich umbenannt, wandert der Name mit,
+  // statt hier still zu veralten.
+  function navLabel(id, fallback) {
+    var el = document.getElementById(id);
+    var text = el ? String(el.textContent || '').trim() : '';
+    return text || fallback;
+  }
+
+  var items = [
+    { icon: 'ph-tray', title: navLabel('nav-anrufe', 'Anfragen'),
+      text: 'Hier sehen Sie jeden Anruf, den ' + assistantName + ' für Sie entgegengenommen hat — mit Zusammenfassung und Rückrufnummer.' },
+    { icon: 'ph-robot', title: navLabel('nav-assistent', 'Assistent'),
+      text: 'Was ' + assistantName + ' sagt und über Ihr Unternehmen weiss, ändern Sie hier. Alles ist bereits eingerichtet.' }
+  ];
+  if (forwardingOpen) {
+    items.push({ icon: 'ph-phone-transfer', open: true, title: 'Noch offen: Rufumleitung',
+      text: 'Erst damit landen Ihre Anrufe bei ' + assistantName + '. Wir führen Sie Schritt für Schritt durch.' });
+  }
+
+  list.innerHTML = items.map(function(item) {
+    return '<li class="vx-onboarding-item' + (item.open ? ' vx-onboarding-item--open' : '') + '">'
+      + '<span class="vx-onboarding-item-icon"><i class="ph-bold ' + item.icon + '" aria-hidden="true"></i></span>'
+      + '<span><span class="vx-onboarding-item-title">' + _esc(item.title) + '</span>'
+      + '<span class="vx-onboarding-item-text">' + _esc(item.text) + '</span></span>'
+      + '</li>';
+  }).join('');
+
+  // Grundsatz 13: der einzige gezeigte Zustand ("Rufumleitung offen") hat
+  // seine Handlung direkt daneben. Ist nichts offen, bleibt genau ein Knopf.
+  actions.innerHTML = forwardingOpen
+    ? '<button type="button" class="btn btn--primary btn--full" onclick="vxOnboardingStartForwarding()">Rufumleitung jetzt einrichten</button>'
+      + '<button type="button" class="btn btn--secondary btn--full" onclick="vxOnboardingFinish()">Später</button>'
+    : '<button type="button" class="btn btn--primary btn--full" onclick="vxOnboardingFinish()">Verstanden</button>';
+
+  if (typeof refreshLucideIcons === 'function') refreshLucideIcons();
 }
 
 // Einziger Weg, das Onboarding zu oeffnen. Vorher setzte jeder Einstieg das
@@ -15553,10 +15666,27 @@ function vxOnboardingInit() {
 function vxOnboardingShow() {
   const overlay = document.getElementById('vx-onboarding-overlay');
   if (!overlay) return;
+  vxOnboardingRenderBody();
   rememberOverlayFocusReturn('vx-onboarding-overlay');
   overlay.style.display = 'flex';
   setOverlayAriaHidden('vx-onboarding-overlay', false);
   vxFocusDialog('vx-onboarding-overlay');
+}
+
+// Schliesst die Karte und fuehrt direkt in die Rufumleitung. Der Merker wird
+// dabei gesetzt: wer den Weg einmal genommen hat, soll die Karte beim
+// naechsten Login nicht erneut sehen — unabhaengig davon, ob er die
+// Einrichtung zu Ende gebracht hat. Der offene Zustand steht danach weiterhin
+// im Dashboard, nicht in einem wiederkehrenden Dialog.
+function vxOnboardingStartForwarding() {
+  const overlay = document.getElementById('vx-onboarding-overlay');
+  if (overlay) overlay.style.display = 'none';
+  setOverlayAriaHidden('vx-onboarding-overlay', true);
+  restoreOverlayFocus('vx-onboarding-overlay');
+  vxOnboardingDismissNow();
+  setTimeout(function() {
+    try { openSetupWizardFromCta(null, 's1'); } catch(e) { console.warn('[onboarding] Rufumleitung konnte nicht geoeffnet werden', e); }
+  }, 120);
 }
 
 function vxOnboardingSkip() {
@@ -20672,10 +20802,16 @@ function vxSyncAssistantNameCopy() {
   if (helpFaqLangQ) helpFaqLangQ.textContent = 'Kann ' + assistantName + ' mehrere Sprachen?';
   var settingsFaqLangQ = document.getElementById('vx-settings-faq-lang-q');
   if (settingsFaqLangQ) settingsFaqLangQ.textContent = 'Welche Sprachen erkennt ' + assistantName + '?';
-  var onboardingCopy = document.getElementById('vx-onboarding-copy');
-  if (onboardingCopy) {
-    onboardingCopy.innerHTML = _esc(assistantName) + ' nimmt Anrufe für Sie entgegen. Anfragen finden Sie unter <strong>Anfragen</strong>, '
-      + 'Einstellungen zu Rufumleitung und Benachrichtigungen unter <strong>Mehr</strong>.';
+  // Die Willkommens-Karte setzt ihre Texte nicht mehr hier, sondern in
+  // vxOnboardingRenderBody() — dort stehen ausser dem Namen auch der Zustand
+  // der Rufumleitung und die Beschriftungen der Navigation zur Verfuegung.
+  // Der frueher hier gesetzte Text nannte den Bereich "Mehr", der Eintrag
+  // heisst seit dem Navigations-Redesign "Einstellungen"; genau solche
+  // Zweitquellen sollen nicht wieder entstehen. Nur nachziehen, wenn die
+  // Karte gerade offen ist — sonst waere es Arbeit an unsichtbarem Markup.
+  if (typeof vxOnboardingRenderBody === 'function') {
+    var onboardingOverlay = document.getElementById('vx-onboarding-overlay');
+    if (onboardingOverlay && onboardingOverlay.style.display === 'flex') vxOnboardingRenderBody();
   }
 }
 
@@ -24897,7 +25033,6 @@ document.getElementById('notiz-input').addEventListener('keydown', e => {
     { id: 'vx-commercial-overlay', close: function(){ vxCommercialClose(); } },
     { id: 'setup-help-overlay', close: function(){ closeSetupHelpOverlay(); } },
     { id: 'activation-flow-overlay', close: function(){ closeActivationFlowModal(); } },
-    { id: 'tour-overlay', close: function(){ tourSkip(); } },
     { id: 'vx-onboarding-overlay', close: function(){ vxOnboardingSkip(); } }
   ];
 
@@ -25659,6 +25794,20 @@ function vxCloseTransientViewsForRootTab(nextTab) {
 
 function showTab(name, el, options) {
   if (!name) return;
+  // Hilfe hat keinen eigenen Screen mehr. Der zweite, nie erreichbare
+  // #tab-hilfe ist entfernt; die einzige lebende Hilfe-Seite ist
+  // #mehr-sub-hilfe innerhalb von #tab-mehr. Vorher lief showTab('hilfe')
+  // ins Leere (targetTab lag in einer nicht aktiven .tab-page), womit
+  // openHelpSection() und die versteckten Kompatibilitäts-Einträge
+  // wirkungslos waren.
+  if (name === 'hilfe') {
+    // Bewusst nicht das uebergebene el: die Hilfe-Aufrufer zeigen auf
+    // #nav-hilfe, das seit langem display:none traegt. Die Markierung
+    // gehoert an den Einstellungen-Eintrag, unter dem die Seite liegt.
+    showTab('mehr', document.getElementById('nav-mehr'), options);
+    if (typeof vxMehrShow === 'function') vxMehrShow('hilfe');
+    return;
+  }
   const opts = (options && typeof options === 'object') ? options : {};
   vxCloseTransientViewsForRootTab(name);
   
@@ -28499,9 +28648,9 @@ function _renderTestCallState(state, opts) {
   } else if (state === 'timeout') {
     btn.disabled = false;
     btn.textContent = 'Erneut testen';
-    result.innerHTML = '<div style="display:flex;gap:10px;align-items:flex-start;padding:14px;background:#FFFBEB;border:1px solid #FDE68A;border-radius:10px;">'
+    result.innerHTML = '<div style="display:flex;gap:10px;align-items:flex-start;padding:14px;background:var(--vx-color-warning-bg);border:1px solid var(--vx-color-warning-border);border-radius:10px;">'
       + '<div style="flex-shrink:0;width:24px;height:24px;border-radius:50%;background:#E8C547;color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;">!</div>'
-      + '<div style="flex:1;font-size:13px;color:#92400E;line-height:1.6;">'
+      + '<div style="flex:1;font-size:13px;color:var(--vx-color-warning);line-height:1.6;">'
       + '<strong style="display:block;margin-bottom:2px;">Kein eingehender Anruf erkannt</strong>'
       + 'Die Weiterleitung scheint nicht aktiv zu sein. Bitte überprüfen Sie den Code für Ihren Anbieter und versuchen Sie es erneut.'
       + '</div></div>';
@@ -29177,7 +29326,10 @@ function showApp(user) {
     setTimeout(function(){ if (typeof vxEnsureNoOrphanDetailView === 'function') vxEnsureNoOrphanDetailView('showApp:after-restoreTab'); }, 0);
     safeMountActivationV2({ reason: 'showApp', softGate: false });
     setTimeout(injectSortButtons, 100);
-    tourCheckFirstLogin();
+    // Der zweite Erstlauf-Einstieg (tourCheckFirstLogin) stand hier und lief
+    // 600ms nach vxOnboardingInit() los — zwei Willkommens-Ebenen uebereinander.
+    // Die Willkommens-Karte ist jetzt die einzige; sie wird aus dem
+    // customerMeta-Aufbau heraus geoeffnet, nicht von hier.
     setTimeout(function() {
       if (typeof vxPreloadAssistantVoices === 'function') {
         vxPreloadAssistantVoices().catch(function(){});
@@ -29526,32 +29678,27 @@ function toggleCallRow(event, row) {
 
 </script>
 <!-- ═══════════════════════════════════════
-     SPOTLIGHT TOUR
-═══════════════════════════════════════ -->
-<div id="tour-overlay" aria-hidden="true">
-  <canvas id="tour-canvas" aria-hidden="true"></canvas>
-  <!-- top/left setzt tourRender() zur Laufzeit; alles Uebrige kommt aus CSS. -->
-  <div id="tour-card" role="dialog" aria-modal="true" aria-labelledby="tour-title" tabindex="-1">
-    <div class="vx-tour-head">
-      <div id="tour-progress" class="vx-tour-progress">1 / 7</div>
-      <button type="button" class="vx-tour-skip" onclick="tourSkip()">Überspringen</button>
-    </div>
-    <div class="vx-tour-bar"><div id="tour-progress-bar" class="vx-tour-bar-fill"></div></div>
-    <div id="tour-icon" class="vx-tour-icon"></div>
-    <div id="tour-title" class="vx-tour-title"></div>
-    <div id="tour-text" class="vx-tour-text"></div>
-    <div class="vx-tour-actions">
-      <button type="button" id="tour-back-btn" class="btn btn--secondary vx-tour-back" onclick="tourBack()">Zurück</button>
-      <button type="button" id="tour-next-btn" class="btn btn--primary vx-tour-next" onclick="tourNext()">Weiter</button>
-    </div>
-  </div>
-</div>
-<style>
-@keyframes tourCardIn{from{opacity:0;transform:scale(.95)}to{opacity:1;transform:scale(1)}}
+     SPOTLIGHT TOUR — entfernt (09.08.2026)
+     ───────────────────────────────────────
+     Die 7-Schritt-Tour ("Willkommen bei Voxera", #tour-overlay samt Canvas,
+     Positionslogik und eigenem localStorage-Merker) ist ersatzlos entfallen.
+     Grund war nicht nur veralteter Inhalt: der Zeichencode fiel bei fehlendem
+     Ziel-Element auf eine deckende Vollflaeche zurueck, und auf Mobile fehlte
+     das Ziel bei jedem einzelnen Schritt, weil alle mobileTarget-Angaben auf
+     die Sidebar zeigten, die unter 768px display:none traegt. Eine Tour, die
+     sich an Element-IDs und -Positionen haengt, bricht bei jedem UI-Umbau
+     erneut — und zwar still.
 
-/* ── Onboarding und Tour: aus Inline-Stilen auf Klassen und Tokens ──────────
-   Beide Dialoge trugen ihre gesamte Gestaltung im style-Attribut und waren
-   damit die einzigen, die an keinem Token haengen: eigener Button-Radius,
+     Die Einfuehrung laeuft jetzt ueber eine einzige Ebene: die
+     Willkommens-Karte #vx-onboarding-overlay. Sie nennt die Bereiche im
+     Klartext statt mit dem Finger darauf zu zeigen, haengt an keiner
+     Position und wird ueber das DB-Feld customers.onboarding_completed
+     gesteuert (nicht ueber einen rein lokalen Merker).
+═══════════════════════════════════════ -->
+<style>
+/* ── Onboarding-Karte: aus Inline-Stilen auf Klassen und Tokens ────────────
+   Der Dialog trug seine gesamte Gestaltung im style-Attribut und war
+   damit der einzige, der an keinem Token haengt: eigener Button-Radius,
    eigene Hoehen, eigene Farbliterale. Die Werte bleiben, sie stehen nur
    nicht mehr im Markup.
 
@@ -29590,49 +29737,52 @@ function toggleCallRow(event, row) {
 #vx-onboarding-overlay .vx-onboarding-title{margin:0;font-size:18px;font-weight:800;color:#fff;letter-spacing:-.02em;}
 #vx-onboarding-overlay .vx-onboarding-sub{font-size:12px;color:var(--vx-color-text-on-dark-muted);margin-top:1px;}
 #vx-onboarding-overlay .vx-onboarding-body{padding:20px 24px 24px;}
-#vx-onboarding-overlay .vx-onboarding-text{margin:0 0 20px;font-size:14px;line-height:1.6;color:var(--slate2);}
-#vx-onboarding-overlay .btn--full{width:100%;justify-content:center;}
+#vx-onboarding-overlay .vx-onboarding-text{margin:0 0 16px;font-size:14px;line-height:1.6;color:var(--slate2);}
 
-#tour-overlay{display:none;position:fixed;inset:0;z-index:var(--z-tour);pointer-events:none;}
-#tour-overlay #tour-canvas{position:absolute;inset:0;width:100%;height:100%;}
-#tour-overlay #tour-card{
-  position:absolute;background:var(--surface);
-  border-radius:var(--vx-radius-xl,16px);
-  padding:28px 28px 22px;max-width:320px;width:calc(100vw - 40px);
-  box-shadow:var(--vx-shadow-modal);
-  pointer-events:all;
-  transition:top .35s var(--vx-ease),left .35s var(--vx-ease);
-  animation:tourCardIn .3s var(--vx-ease);
+/* Die drei Ziele: eine Liste aus Name + einem Satz, kein Zeigefinger auf ein
+   Element. Genau das macht die Karte unabhaengig von jedem Navigations-Umbau
+   — es gibt keine Position, die veralten koennte. */
+#vx-onboarding-overlay .vx-onboarding-list{
+  list-style:none;margin:0 0 20px;padding:0;
+  display:flex;flex-direction:column;gap:12px;
 }
-#tour-overlay .vx-tour-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;gap:10px;}
-#tour-overlay .vx-tour-progress{font-size:12px;font-weight:700;color:var(--vx-color-text-subtle);line-height:1.2;}
-/* Sieht aus wie ein Textlink, bleibt aber ein Button: die globale
-   44px-Untergrenze wird bewusst nicht ueberschrieben, sonst schrumpft das
-   Tippziel auf Texthoehe. */
-#tour-overlay .vx-tour-skip{
-  display:inline-flex;align-items:center;
-  background:none;border:0;padding:0 2px;
-  font-size:11px;color:var(--vx-color-text-subtle);cursor:pointer;font-family:inherit;
+#vx-onboarding-overlay .vx-onboarding-item{
+  display:flex;align-items:flex-start;gap:12px;
 }
-#tour-overlay .vx-tour-skip:hover{color:var(--vx-color-text-muted);}
-#tour-overlay .vx-tour-bar{height:3px;background:var(--surface-border,#E2E8F0);border-radius:var(--vx-radius-pill);margin-bottom:14px;overflow:hidden;}
-#tour-overlay .vx-tour-bar-fill{height:100%;width:14%;background:var(--vx-color-brand);border-radius:var(--vx-radius-pill);transition:width .25s ease;}
-#tour-overlay .vx-tour-icon{
-  width:48px;height:48px;border-radius:14px;background:var(--vx-color-info-bg);
-  display:flex;align-items:center;justify-content:center;margin-bottom:12px;
+/* Der Textblock ist ein <span> (gueltig innerhalb von <li>) und braucht
+   deshalb display:block — ohne das laufen Titel und Beschreibung in einer
+   Zeile ineinander. min-width:0 laesst lange Woerter umbrechen statt die
+   Karte zu verbreitern. */
+#vx-onboarding-overlay .vx-onboarding-item > span:last-child{
+  display:block;min-width:0;
 }
-#tour-overlay .vx-tour-title{font-size:17px;font-weight:800;color:var(--vx-color-text);letter-spacing:-.02em;margin-bottom:8px;}
-#tour-overlay .vx-tour-text{font-size:14px;color:var(--vx-color-text-subtle);line-height:1.65;margin-bottom:18px;}
-#tour-overlay .vx-tour-actions{display:flex;gap:8px;}
-#tour-overlay .vx-tour-back{flex:0 0 auto;display:none;}
-#tour-overlay .vx-tour-next{flex:1;justify-content:center;}
+#vx-onboarding-overlay .vx-onboarding-item-icon{
+  width:32px;height:32px;flex-shrink:0;border-radius:10px;
+  background:var(--vx-color-info-bg);color:var(--vx-color-brand);
+  display:flex;align-items:center;justify-content:center;font-size:15px;
+}
+/* Der offene Punkt traegt den Warnton der Gold-Familie, nicht Rot: Rot bleibt
+   laut Grundsatz 12/I7 der Notfallnummer vorbehalten. Eine fehlende
+   Rufumleitung ist eine offene Aufgabe, kein Alarm. Vordergrund ist
+   --vx-ui-badge-warning-text und nicht --vx-color-gold: das reine Gold traegt
+   auf dem hellen Warnhintergrund zu wenig Kontrast. */
+#vx-onboarding-overlay .vx-onboarding-item--open .vx-onboarding-item-icon{
+  background:var(--vx-color-warning-bg);color:var(--vx-ui-badge-warning-text,#B45309);
+}
+#vx-onboarding-overlay .vx-onboarding-item-title{
+  display:block;font-size:14px;font-weight:700;color:var(--vx-color-text);line-height:1.35;
+}
+#vx-onboarding-overlay .vx-onboarding-item-text{
+  display:block;font-size:13px;color:var(--slate2);line-height:1.55;margin-top:2px;
+}
+#vx-onboarding-overlay .vx-onboarding-actions{display:flex;flex-direction:column;gap:8px;}
+#vx-onboarding-overlay .btn--full{width:100%;justify-content:center;}
 
 /* Dialog-Container erhalten den Fokus nur programmatisch und sind kein
    Tab-Stopp — ein Fokusring um die ganze Flaeche waere Rauschen. Die
    Bedienelemente darin behalten ihren Ring. */
 .overlay [tabindex="-1"]:focus,
 #vx-onboarding-overlay [tabindex="-1"]:focus,
-#tour-overlay [tabindex="-1"]:focus,
 #vx-detail-v2-fullscreen:focus{outline:none;}
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -30143,7 +30293,7 @@ function toggleCallRow(event, row) {
      G4 — Status Chips & Badges
      G5 — Task Section Headers + Due Pills
      G6 — Followup-Sektion
-     G7 — Tour Tooltip (Inline-Styles via !important)
+     G7 — entfallen (Spotlight-Tour am 09.08.2026 entfernt)
      G8 — Einzelfälle (dash-kpi, btn-icon-done)
      G0 — Gray-Token-Remap (Wurzel-Fix)
    ═══════════════════════════════════════════ */
@@ -30186,7 +30336,7 @@ function toggleCallRow(event, row) {
 /* — G6: Followup-Sektion — */
 
 
-/* — G7: Tour Tooltip — alle Elemente nutzen Inline-Styles → !important nötig — */
+/* — G7: entfallen — das Tour-Tooltip existiert seit dem 09.08.2026 nicht mehr — */
 
 
 /* — G8: Einzelfälle — */
@@ -30243,8 +30393,8 @@ function toggleCallRow(event, row) {
         Inline-Style mit hardcoded #F0F7FF / #BFDBFE / #1E3A5F. Werte
         exklusiv für diese Stelle (verifiziert). Kein Klassen-/ID-Anchor →
         Attribut-Selektor mit !important.
-        Nicht verwechseln mit #tour-card in Stage 6 G7 — das ist das
-        Tooltip-Popup, nicht der Hilfe-Seiten-Banner.
+        Der frueher hier genannte Abgrenzungshinweis gegen #tour-card
+        (Stage 6 G7) ist mit der Spotlight-Tour am 09.08.2026 entfallen.
 
    W6 — dash-glass Container-Header + Card-Trennlinien
         W6.1 .dash-glass-hd background:#FAFCFF (Z.2110, kein !important).
@@ -30818,213 +30968,6 @@ function toggleCallRow(event, row) {
 }
 
 </style>
-<script>
-var TOUR_STORAGE_KEY = 'voxera_tour_v2_done';
-var _tourStep = 0;
-var _tourActive = false;
-
-var TOUR_STEPS = [];
-
-function tourBuildSteps() {
-  var assistantName = String(customerMeta?.assistantName || 'Lara').trim() || 'Lara';
-  var displayName = String(customerMeta?.displayName || customerMeta?.contactFirstName || customerMeta?.customerName || 'Willkommen').trim();
-  var greeting = String(customerMeta?.greeting || '').trim() || vxBuildAutoGreeting();
-  var quoteHtml = '<div style="background:#F8FAFC;border-left:3px solid #1A6FE8;padding:10px 14px;border-radius:0 8px 8px 0;font-style:italic;color:#13284D;margin-top:8px;">„' + greeting.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '“</div>';
-  return [
-    { target:null, position:'center', iconBg:'#0D1F3C', icon:'<i class="ph-bold ph-sparkle" style="color:#fff;"></i>', title:'Willkommen bei Voxera, ' + displayName + '.', text:'Ihr Assistent ' + assistantName + ' ist eingerichtet und bereit für Ihren ersten Anruf. Diese Tour dauert 60 Sekunden.' },
-    { tab:'assistent', target:'nav-assistent', mobileTarget:'nav-assistent', iconBg:'#EEF4FF', icon:'<i class="ph-bold ph-microphone" style="color:#1A6FE8;"></i>', title: assistantName + ' spricht in Ihrem Namen.', text:'Ton, Anrede und Stimme sind bereits konfiguriert. Sie können jederzeit anpassen.' },
-    { tab:'assistent', target:'assistent-greeting-visible', mobileTarget:'assistent-greeting-visible', iconBg:'#EEF4FF', icon:'<i class="ph-bold ph-chat-circle" style="color:#1A6FE8;"></i>', title:'So meldet sich ' + assistantName + ' bei Ihren Kunden.', text:'', htmlText: quoteHtml },
-    { tab:'assistent', target:'vxi-profil-desc', mobileTarget:'vxi-profil-desc', iconBg:'#EEF4FF', icon:'<i class="ph-bold ph-buildings" style="color:#1A6FE8;"></i>', title: assistantName + ' kennt Ihr Unternehmen.', text:'Geschäftsprofil und Leistungen sind hinterlegt. Je mehr Details, desto besser die Antworten.' },
-    { tab:'anrufe', target:'nav-anrufe', mobileTarget:'nav-anrufe', iconBg:'#EEF4FF', icon:'<i class="ph-bold ph-phone" style="color:#1A6FE8;"></i>', title:'Jeder Anruf — vollständig dokumentiert.', text:'KI-Zusammenfassung, Kategorie und Lead-Qualität für jeden eingehenden Anruf. Nachfassaktionen direkt setzen.' },
-    { tab:'heute', target:'nav-heute', mobileTarget:'nav-heute', iconBg:'#EEF4FF', icon:'<i class="ph-bold ph-monitor" style="color:#1A6FE8;"></i>', title:'Ihr Tages-Cockpit.', text:'Offene Anfragen, überfällige Rückrufe und die wichtigsten Anrufe — immer auf einen Blick.' },
-    { target:null, position:'center', iconBg:'#0D1F3C', icon:'<i class="ph-bold ph-check" style="color:#fff;"></i>', title:'Sie sind startklar.', text:'Letzte Aufgabe: Rufumleitung einrichten, damit Voxera Ihre Anrufe entgegennehmen kann.', isLast:true, ctaText:'Rufumleitung einrichten', action:'forwarding' }
-  ];
-}
-
-function tourGetTargetRect(targetId, mobileTargetId) {
-  var isMobile = window.innerWidth < 768;
-  var id = (isMobile && mobileTargetId) ? mobileTargetId : targetId;
-  if (!id) return null;
-  var el = document.getElementById(id);
-  if (!el) return null;
-  var r = el.getBoundingClientRect();
-  if (r.width === 0 && r.height === 0) return null;
-  return { x: r.left - 10, y: r.top - 8, w: r.width + 20, h: r.height + 16 };
-}
-
-function tourDrawOverlay(rect) {
-  var canvas = document.getElementById('tour-canvas');
-  var W = window.innerWidth, H = window.innerHeight;
-  canvas.width = W; canvas.height = H;
-  var ctx = canvas.getContext('2d');
-  ctx.clearRect(0,0,W,H);
-  ctx.fillStyle = 'rgba(13,31,60,0.72)';
-  if (!rect) {
-    ctx.fillRect(0,0,W,H);
-  } else {
-    var r = 10;
-    ctx.beginPath();
-    ctx.rect(0,0,W,H);
-    ctx.moveTo(rect.x + r, rect.y);
-    ctx.lineTo(rect.x + rect.w - r, rect.y);
-    ctx.quadraticCurveTo(rect.x + rect.w, rect.y, rect.x + rect.w, rect.y + r);
-    ctx.lineTo(rect.x + rect.w, rect.y + rect.h - r);
-    ctx.quadraticCurveTo(rect.x + rect.w, rect.y + rect.h, rect.x + rect.w - r, rect.y + rect.h);
-    ctx.lineTo(rect.x + r, rect.y + rect.h);
-    ctx.quadraticCurveTo(rect.x, rect.y + rect.h, rect.x, rect.y + rect.h - r);
-    ctx.lineTo(rect.x, rect.y + r);
-    ctx.quadraticCurveTo(rect.x, rect.y, rect.x + r, rect.y);
-    ctx.closePath();
-    ctx.fill('evenodd');
-    // Glow ring
-    ctx.strokeStyle = 'rgba(26,111,232,0.6)';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(rect.x, rect.y, rect.w, rect.h);
-  }
-}
-
-function tourPositionCard(rect, isMobile) {
-  var card = document.getElementById('tour-card');
-  if (!card) return;
-  var W = window.innerWidth, H = window.innerHeight;
-  isMobile = isMobile || W < 768;
-  var cardW = isMobile ? Math.min(W - 32, 320) : 300;
-  card.style.width = cardW + 'px';
-
-  if (!rect) {
-    card.style.left = Math.max(16, (W - cardW) / 2) + 'px';
-    card.style.top = Math.max(16, (H - 360) / 2) + 'px';
-    return;
-  }
-
-  var margin = 16;
-  var cardH = card.offsetHeight || 300;
-  var left, top;
-
-  if (isMobile) {
-    left = (W - cardW) / 2;
-    if (rect.y > H * 0.65) {
-      top = Math.max(80, rect.y - cardH - margin - 20);
-    } else {
-      top = Math.min(rect.y + rect.h + margin, H - cardH - 80);
-      if (top + cardH > H - 80) top = Math.max(80, rect.y - cardH - margin);
-    }
-  } else {
-    if (W - rect.x - rect.w >= cardW + margin) {
-      left = rect.x + rect.w + margin;
-      top = Math.max(20, Math.min(rect.y, H - cardH - 20));
-    } else if (rect.x >= cardW + margin) {
-      left = rect.x - cardW - margin;
-      top = Math.max(20, Math.min(rect.y, H - cardH - 20));
-    } else {
-      left = (W - cardW) / 2;
-      top = rect.y + rect.h + margin;
-      if (top + cardH > H - 20) top = Math.max(20, rect.y - cardH - margin);
-    }
-  }
-
-  card.style.left = Math.max(16, Math.min(left, W - cardW - 16)) + 'px';
-  card.style.top = Math.max(16, Math.min(top, H - cardH - 16)) + 'px';
-}
-
-function tourNavigate(step) {
-  if (!step.tab) return Promise.resolve();
-  return new Promise(function(resolve) {
-    var navEl = document.getElementById('nav-' + step.tab);
-    showTab(step.tab, navEl, { historyMode: 'none' });
-    setTimeout(resolve, 400);
-  });
-}
-
-function tourRender() {
-  var step = TOUR_STEPS[_tourStep];
-  var isMobile = window.innerWidth < 768;
-  var rect = tourGetTargetRect(step.target, step.mobileTarget);
-
-  tourDrawOverlay(rect);
-  tourPositionCard(rect, isMobile);
-
-  var iconEl = document.getElementById('tour-icon');
-  if (iconEl) { iconEl.innerHTML = step.icon; iconEl.style.background = step.iconBg || 'var(--vx-color-info-bg)'; }
-  if (typeof refreshLucideIcons === 'function') refreshLucideIcons();
-  document.getElementById('tour-title').textContent = step.title;
-  var textEl = document.getElementById('tour-text');
-  if (textEl) {
-    if (step.htmlText) textEl.innerHTML = step.htmlText;
-    else textEl.textContent = step.text || '';
-  }
-  var progressEl = document.getElementById('tour-progress');
-  if (progressEl) progressEl.textContent = (_tourStep + 1) + ' / ' + TOUR_STEPS.length;
-  var barEl = document.getElementById('tour-progress-bar');
-  if (barEl) barEl.style.width = Math.round(((_tourStep + 1) / TOUR_STEPS.length) * 100) + '%';
-  var backBtn = document.getElementById('tour-back-btn');
-  var nextBtn = document.getElementById('tour-next-btn');
-  if (backBtn) backBtn.style.display = _tourStep > 0 ? 'block' : 'none';
-  if (nextBtn) { nextBtn.textContent = step.ctaText || (step.isLast ? 'Fertig' : 'Weiter'); nextBtn.style.background = step.isLast ? '#1A6FE8' : '#0D1F3C'; }
-}
-
-function tourGoToStep(idx) {
-  _tourStep = idx;
-  var step = TOUR_STEPS[idx];
-  var card = document.getElementById('tour-card');
-  if (card) { card.style.animation = 'none'; requestAnimationFrame(function() { card.style.animation = 'tourCardIn .25s cubic-bezier(.16,1,.3,1)'; }); }
-  if (step.tab) {
-    tourNavigate(step).then(function() { tourRender(); });
-  } else {
-    tourRender();
-  }
-}
-
-function tourStart() {
-  TOUR_STEPS = tourBuildSteps();
-  _tourStep = 0;
-  _tourActive = true;
-  // Flag sofort beim Start setzen — Abbrechen = auch "gesehen", nie mehr auto-starten
-  try { vxSafeLocalStorageSet(TOUR_STORAGE_KEY, '1'); } catch(_e) {}
-  rememberOverlayFocusReturn('tour-overlay');
-  var overlay = document.getElementById('tour-overlay');
-  overlay.style.display = 'block';
-  overlay.style.pointerEvents = 'all';
-  setOverlayAriaHidden('tour-overlay', false);
-  tourGoToStep(0);
-  vxFocusDialog('tour-overlay', '#tour-card');
-}
-
-function tourNext() {
-  var step = TOUR_STEPS[_tourStep] || {};
-  if (step.action === 'forwarding') {
-    tourDone();
-    setTimeout(function(){ try { openSetupWizardFromCta(null, 's1'); } catch(_e) {} }, 120);
-    return;
-  }
-  if (_tourStep >= TOUR_STEPS.length - 1) { tourDone(); return; }
-  tourGoToStep(_tourStep + 1);
-}
-
-function tourBack() {
-  if (_tourStep <= 0) return;
-  tourGoToStep(_tourStep - 1);
-}
-
-function tourSkip() { tourDone(); }
-
-function tourDone() {
-  _tourActive = false;
-  var overlay = document.getElementById('tour-overlay');
-  if (overlay) overlay.style.display = 'none';
-  setOverlayAriaHidden('tour-overlay', true);
-  restoreOverlayFocus('tour-overlay');
-  try { vxSafeLocalStorageSet(TOUR_STORAGE_KEY, '1'); } catch(_e) {}
-  var navEl = document.querySelector('.nav-item');
-  showTab('dashboard', navEl, { historyMode: 'none' });
-}
-
-function tourCheckFirstLogin() {
-  try { if (!localStorage.getItem(TOUR_STORAGE_KEY)) setTimeout(tourStart, 1400); } catch(_e) {}
-}
-
-window.addEventListener('resize', function() { if (_tourActive) tourRender(); });
-</script>
 
 <!-- ═══════════════════════════════════════════
      THEME MANAGER (Stage 1)
@@ -36542,10 +36485,16 @@ body.vx-requests-focus-mode #call-detail-page.vx-detail-focus #call-detail-banne
 /* PR-FIX 2026-05-23 — Anfragen Inbox nach Mockup: Mail-like Split-View.
    Reiner UI-Layer. Keine Detail-V2-Änderung, keine DB-Änderung. */
 
+/* Fuellfarbe, Rundung und Rahmen sind hier bewusst weg (2026-08-09).
+   Der Aufraeumschritt vom selben Tag hat sie aus .vx-requests-layout
+   entfernt (siehe den langen Kommentar bei #anrufe-list.dpr-command-center),
+   aber diese Regel traegt eine ID und !important und hat sie deshalb
+   weiterhin gesetzt: eine umrandete, abgerundete Flaeche um die Liste, in
+   der wiederum weisse Zeilenkarten liegen — der "zwei Schichten"-Eindruck,
+   den Heute nicht hat. Der 0.5px-Rahmen kostete die Liste ausserdem 1px pro
+   Seite, wodurch die Anfragen-Seite gemessen 336px statt 338px breit war.
+   Die strukturellen Werte (gap, padding) bleiben. */
 #tab-anrufe .vx-split{
-  background:#F7F8FA !important;
-  border-radius:12px !important;
-  border:0.5px solid rgba(0,0,0,.07) !important;
   gap:10px !important;
   padding:0 !important;
 }
@@ -36634,6 +36583,20 @@ body.vx-requests-focus-mode #call-detail-page.vx-detail-focus #call-detail-banne
     border-radius:10px !important;
   }
 }
+
+/* Unter 769px gibt es keine zweite Spalte — #anrufe-split-right und der
+   Resizer stehen dort auf display:none. Die Naht zum Detailpanel
+   (border-right) und die Kartenrundung der Liste haben damit nichts mehr,
+   woran sie sitzen: sie zeichnen eine Linie und zwei Ecken ins Leere.
+   Sichtbar wurde das erst, als der aeussere Kartenrahmen des Splits fiel
+   (2026-08-09) — davor lagen beide innerhalb dieses Rahmens. */
+@media(max-width:768px){
+  #tab-anrufe .vx-split-left,
+  #anrufe-split-left{
+    border-right:0 !important;
+    border-radius:0 !important;
+  }
+}
 </style>
 
 
@@ -36683,60 +36646,17 @@ body.vx-requests-focus-mode #call-detail-page.vx-detail-focus #call-detail-banne
   flex:1 1 auto !important;
 }
 
-/* Der leere Streifen ueber Einstellungen, allen Einstellungen-Unterseiten
-   und der Benachrichtigungs-Vollseite (2026-08-08).
+/* Hier standen bis 2026-08-09 zwei Regeln, die beide dasselbe verirrte
+   </div> umgangen haben (leerer Streifen ueber den Einstellungen-Screens,
+   fehlende Seiteneinfassung derselben Screens): .content wuchs als leere
+   flex:1-Box, weil #tab-mehr, #tab-einstellungen und #tab-benachrichtigungen
+   daneben statt darin lagen, und dieselben Screens sahen die Polsterung von
+   .content nie.
 
-   Ursache: ein verirrtes </div> schliesst <div class="content"> schon nach
-   #tab-assistent. #tab-mehr, #tab-einstellungen und #tab-benachrichtigungen
-   liegen dadurch NEBEN .content statt darin, als Geschwister in der
-   Flex-Spalte <main class="main">. .content traegt flex:1 und waechst als
-   leere Box in die Resthoehe — gemessen 732px auf der Kalenderintegration,
-   308px auf Hilfe & Support, 48px (die eigene Polsterung) auf Profil und
-   Abonnement. Der Bericht liegt innerhalb von .content und war nie
-   betroffen.
-
-   Hier steht bewusst nur die Wirkung ab: sobald .content keinen aktiven Tab
-   mehr enthaelt, hoert sie auf zu wachsen und gibt ihre vertikale Polsterung
-   ab. Das verirrte </div> selbst zu verschieben haengt drei grosse Screens
-   um und wuerde nebenbei #tab-hilfe aus #tab-einstellungen loesen — das ist
-   eine Strukturaenderung und gehoert in einen eigenen Auftrag.
-
-   #incoming-banner bleibt sichtbar: er liegt zwar in .content, ist aber
-   position:fixed und damit nicht Teil des Flusses.
-
-   Das !important gilt nur der vertikalen Polsterung — die Mobile-Regeln
-   weiter oben setzen padding-bottom ihrerseits mit !important. div#app steht
-   im Selektor, weil eine dieser Regeln (`div#app .content, .content`) eine
-   ID traegt: ohne sie verliert diese Regel auf Mobil trotz !important und
-   der Streifen bliebe dort als 80px stehen. */
-body.vx-customer-design-foundation div#app .content:not(:has(> .tab-page.active)){
-  flex:0 0 auto;
-  padding-top:0 !important;
-  padding-bottom:0 !important;
-}
-
-/* Dieselbe Einfassung fuer die Screens neben .content (2026-08-08).
-
-   Gemessen bei 1280px: Heute, Anfragen und Bericht sitzen 28px von den
-   Seiten und 24px von oben eingerueckt — das ist die Polsterung von
-   .content. Einstellungen, die Einstellungen-Unterseiten und die
-   Benachrichtigungs-Vollseite hatten 0/0/0, weil sie durch das verirrte
-   </div> neben .content liegen und deren Polsterung nie sehen. Ihre Karten
-   mit 12-18px Radius standen damit buendig an der Fensterkante und an der
-   Sidebar.
-
-   Der Wert wird hier NICHT wiederholt, sondern aus derselben Quelle
-   gezogen wie .content, damit die beiden Familien nicht wieder
-   auseinanderlaufen. Die untere Polsterung bleibt, wie sie war: sie sorgt
-   fuer die Freihaltung ueber der Mobil-Navigation und ist an diesen
-   Screens bereits gesetzt. */
-body.vx-customer-design-foundation #tab-mehr,
-body.vx-customer-design-foundation #tab-einstellungen,
-body.vx-customer-design-foundation #tab-benachrichtigungen{
-  padding-top:var(--vx-screen-inset-y);
-  padding-right:var(--vx-screen-inset-x);
-  padding-left:var(--vx-screen-inset-x);
-}
+   Das </div> steht jetzt hinter dem letzten Screen (siehe Markup), damit
+   liegen alle .tab-page wieder in .content: die Box ist nie mehr leer, und
+   die Einfassung kommt fuer alle Screens aus derselben Quelle. Beide
+   Umgehungen sind damit gegenstandslos und entfernt. */
 
 /* Content-Wrapper: kein Overflow wenn Archiv aktiv */
 body:has(#tab-archiv.active) .content{
@@ -39345,7 +39265,7 @@ body.vx-dv2-fullscreen-open{overflow:hidden;}
 /* Box, mark and states owned by the choice control in shared/customer-ui-components.css */
 .vx-modal-check-row span {font-size:13px;color:var(--vx-text2);font-weight:500;}
 .vx-modal-alert {border-radius:var(--vx-r-lg);padding:10px 13px;font-size:13px;margin-bottom:14px;display:flex;align-items:flex-start;gap:8px;}
-.vx-modal-alert-warn {background:#FFFBEB;border:1.5px solid #FDE68A;color:#92400E;}
+.vx-modal-alert-warn {background:var(--vx-color-warning-bg);border:1.5px solid var(--vx-color-warning-border);color:var(--vx-color-warning);}
 .vx-modal-alert-info {background:var(--vx-blue-light);border:1.5px solid var(--vx-blue-bd);color:#1256b8;}
 .vx-modal-hint {font-size:11px;color:var(--vx-text3);margin-top:-10px;margin-bottom:12px;}
 .vx-confirm-icon-wrap {width:48px;height:48px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:22px;margin:0 auto 12px;}

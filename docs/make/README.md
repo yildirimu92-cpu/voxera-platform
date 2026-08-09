@@ -47,7 +47,8 @@ nur repariert.
 | Doppelversand | ungeschützt | `dedupe_key` = `<mail_type>:<calls.id>` + Vorabprüfung + Unique-Index |
 
 Zum Doppelversand: der Unique-Index `uq_outbox_events_type_dedupe_key` wurde am
-09.08.2026 angewendet (`supabase/sql/2026-08-09_outbox_dedupe_unique.sql`). Er
+09.08.2026 angewendet (`supabase/migrations/2026-08-09_outbox_dedupe_unique.sql`,
+über PR #892 nachdokumentiert). Er
 schliesst die Lücke nicht ganz — `deliverMail` wertet `outbox.duplicate` nicht
 aus und verschickt auch bei einer Kollision. Bei zwei exakt gleichzeitigen
 Läufen entsteht deshalb weiterhin eine zweite Mail, nur keine zweite
@@ -63,6 +64,28 @@ Abgelöst und damit ohne Aufgabe: Szenario 01, der Hook
 `01_call_intake_webhook`, die Netlify-Variable `MAKE_CALL_INTAKE_WEBHOOK`, die
 Function `call-intake-resolve-customer` und deren Secret
 `CALL_INTAKE_RESOLVER_SECRET`.
+
+### Stilllegung (Stand 09.08.2026)
+
+Erledigt im Repository: `call-intake-resolve-customer.js` und
+`call-intake-resolver-contract.test.cjs` sind gelöscht. Zwei Wächter halten das
+fest — `verify-call-intake.yml` und `verify-mail-engine-contracts.mjs` —, und
+beide listen die gelöschten Pfade weiterhin als Auslöser, damit ein
+Wiederanlegen den Lauf überhaupt startet.
+
+Offen und nur ausserhalb des Repositories erledigbar:
+
+| Schritt | wo | Wirkung |
+|---|---|---|
+| `CALL_INTAKE_RESOLVER_SECRET` löschen | Netlify, Dashboard-Site | der Wert ist offengelegt und darf nirgends wiederverwendet werden |
+| Szenario 01 löschen | Make | entfernt die letzte Klartext-Kopie des Secrets aus dem Blueprint |
+| Hook `01_call_intake_webhook` löschen | Make | mit dem Szenario |
+
+Reihenfolge ist unkritisch, sobald der Deploy dieses PRs durch ist: ohne die
+Function läuft der Endpunkt nicht mehr, das Secret authentifiziert also nichts
+mehr. Bis dahin ist er weiterhin erreichbar.
+
+`MAKE_CALL_INTAKE_WEBHOOK` bleibt **gesetzt** — siehe den Kasten oben.
 
 > `MAKE_CALL_INTAKE_WEBHOOK` sollte in Netlify **gesetzt bleiben**, obwohl sie
 > niemand mehr liest. `resolveMailWebhook()` in `_lib/mail-delivery.js` weist
@@ -96,11 +119,51 @@ raus darf.
 > `mail_type`, und beide Typen sind unverändert geblieben. Der Wechsel war
 > reine Code-Sache, ohne erneute Make-Änderung.
 
+> **Ein neuer `mail_type` braucht zwei Änderungen in Szenario 09, nicht eine.**
+> Beim Rauchtest am 09.08.2026 lieferten beide Läufe Status „Erfolg" mit **drei**
+> Operationen bei kleinem Transfer — eine korrekt geroutete Mail ohne Anhang
+> kostet zwei (Webhook + ein E-Mail-Modul). Der Testkunde bekam die richtige
+> Mail, info@voxera.ch zusätzlich die Alarmmail „unbekannter mail_type".
+>
+> Grund: der Make-Router schickt das Bundle durch *jede* Route, deren Filter
+> zutrifft. Die Fallback-Route ist nicht als echte Make-Fallback-Route
+> markiert, sondern über einen Filter gebaut, der die bekannten `mail_type`-Werte
+> aufzählt. Ein neuer Typ hat also seine eigene Route **und** gilt weiterhin als
+> unbekannt, bis er in der Fallback-Bedingung ausgenommen wird.
+>
+> Wer hier einen `mail_type` ergänzt: Route anlegen **und** den Typ in die
+> Ausnahmeliste der Fallback-Route eintragen. Sonst geht pro Vorgang eine
+> Alarmmail an info@voxera.ch — und ein Alarmkanal, der bei jedem normalen
+> Vorgang anschlägt, wird nach kurzer Zeit ignoriert.
+>
+> Für die zwei Anruf-Typen ist beides erledigt und am 09.08.2026 verifiziert:
+> nach dem gespeicherten Ausschluss fielen beide Läufe von drei auf **zwei**
+> Operationen, der Transfer um exakt 67 Bytes je Lauf, keine Alarmmail mehr.
+
+### Prüfen, ob eine Route greift — ohne Make-Oberfläche
+
+Makes API liefert zu einer Ausführung nur `{"status":"SUCCESS"}`, keine
+Modul-Details. Die Operationen-Zahl aus `executions_list` ersetzt sie:
+
+| Operationen | Bedeutung |
+|---|---|
+| 1 | nur der Webhook — keine Route hat gegriffen |
+| 2 | Webhook + ein E-Mail-Modul — **richtig** für Mails ohne Anhang |
+| 3, kleiner Transfer | Webhook + zwei E-Mail-Module — eine Route *und* der Fallback |
+| 3, Transfer ~54 KB | Webhook + PDF-Abruf + E-Mail — richtig für Rechnungen/Offerten |
+
+Ebenso nützlich: die `modify`-Einträge in derselben Liste. Fehlt zwischen zwei
+Testläufen ein `modify`, wurde die Änderung in Make nicht gespeichert — genau
+das war am 09.08.2026 die Ursache dafür, dass eine korrekt gebaute
+Fallback-Bedingung scheinbar wirkungslos blieb. Erst der Blick auf die
+Ereignisliste hat es gezeigt; aus der Operationen-Zahl allein sah es wie ein
+Filterproblem aus.
+
 Mapping der Routen:
 
 - Filter: `{{1.mail_type}}` gleich `call_notification_email` bzw.
   `callback_request_email`
-- `to`: `{{1.recipient_email}}` (vorher `{{2.data.customer_email}}`)
+- `to`: `{{1.recipient.email}}` (vorher `{{2.data.customer_email}}`) — verschachtelt wie bei allen anderen Mailtypen
 - `subject`: `Neuer Anruf – Voxera` bzw. `Rückruf angefordert – Voxera`
 - Verbindung: `Voxeraa SMTP V2`, `Reply-To: info@voxera.ch` — wie in Szenario 01
 - HTML: unverändert aus Szenario 01 übernommen
@@ -109,7 +172,8 @@ Die Vorlagen können unverändert bleiben, weil der Payload dieselben Feldnamen
 trägt wie das Webhook-Bundle von Szenario 01: `caller_name`, `caller_phone`,
 `call_summary`, `call_summary_short`, `category`, `lead_quality`, `next_action`,
 `priority`, `duration_seconds`, `callback_requested`. Ergänzt um
-`recipient_email`, `customer_id`, `customer_name`, `contact_name`,
+`recipient.email` / `recipient.name` (verschachtelt, Hausregel der Mail-Engine),
+`customer_id`, `customer_name`, `contact_name`,
 `called_number`, `call_id`, `elevenlabs_conversation_id`, `dashboard_url`.
 
 `scripts/verify-call-notification-migration.mjs` friert diese Feldnamen ein —

@@ -28,7 +28,10 @@ const paths = {
   profile: 'customer-dashboard/netlify/functions/customer-assistant-profile.js',
   runtime: 'customer-dashboard/shared/customer-runtime-assistant-profile.js',
   builder: 'admin-panel/netlify/functions/_lib/prompt-builder-v2.js',
-  trigger: 'admin-panel/netlify/functions/trigger-elevenlabs-sync.js',
+  // Seit S4 / Stufe 2 liegt der Sync-Kern in der Lib; der Handler ist nur noch
+  // Guard, Parsing und Antwortform. voice_id, das Sync-Log und diffPrevValues
+  // sind mit umgezogen.
+  trigger: 'admin-panel/netlify/functions/_lib/elevenlabs-sync.js',
   dashboard: 'customer-dashboard/index.html'
 };
 const src = Object.fromEntries(
@@ -179,7 +182,7 @@ check('Profil-Endpoint liefert die Rohwerte beider Weiterleitungsziele',
 // weg — also genau die Spalte, wegen der der S9-Fix gebaut wurde.
 check('Sync-Log faellt stufenweise zurueck, nicht alles-oder-nichts',
   /const logAttempts = \[/.test(src.trigger)
-  && /\{ \.\.\.bareRow, changed_fields: syncLogRow\.changed_fields \}/.test(src.trigger));
+  && /\{ \.\.\.bareRow, changed_fields: syncLogRow\.changed_fields[,}]/.test(src.trigger));
 check('Objekt-Spalten erzeugen kein Phantom-Diff',
   /typeof value === 'object'\) return JSON\.stringify\(value\)/.test(src.trigger));
 

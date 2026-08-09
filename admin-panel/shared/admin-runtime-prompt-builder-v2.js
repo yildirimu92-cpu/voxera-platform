@@ -57,7 +57,16 @@
       ? [...profile.functions]
       : (Array.isArray(data._promptFunctions) && data._promptFunctions.length ? data._promptFunctions : [legacyFunction || 'information']);
     data._promptFunctionInstructions = profile.functionInstructions || data._promptFunctionInstructions || '';
-    data._promptRequiredInformation = profile.requiredInformation || data._promptRequiredInformation || 'Name und Rückrufnummer\nKonkretes Anliegen\nGewünschter nächster Schritt';
+    // J8 / G6: Rangfolge der Aufnahme-Checkliste -- gespeichertes Profil, dann
+    // was im Wizard schon steht, dann die Branchenvorlage, dann der allgemeine
+    // Rueckfall. Vor J8 fehlte die dritte Stufe: die Checkliste der Branche
+    // stand nur im FAQ-Freitext und der Wizard bot deshalb fuer jede Branche
+    // dieselben drei allgemeinen Zeilen an.
+    const templateRequired = typeof w.getTemplateDefaults === 'function'
+      ? text(w.getTemplateDefaults(data.templateId || 'generic')?.requiredInformation)
+      : '';
+    data._promptRequiredInformation = profile.requiredInformation || data._promptRequiredInformation || templateRequired
+      || 'Name und Rückrufnummer\nKonkretes Anliegen\nGewünschter nächster Schritt';
     data._promptSuccessDefinition = profile.successDefinition || data._promptSuccessDefinition || 'Das Anliegen ist verstanden, alle nötigen Angaben sind erfasst und der nächste Schritt wurde eindeutig zusammengefasst.';
     data._promptAppointmentMode = profile.appointmentMode || data._promptAppointmentMode || 'request';
     data._promptUnknownHandling = profile.unknownHandling || data._promptUnknownHandling || 'callback';

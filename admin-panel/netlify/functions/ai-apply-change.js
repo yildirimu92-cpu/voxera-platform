@@ -14,10 +14,10 @@ const SUPABASE_ANON_KEY    = process.env.SUPABASE_ANON_KEY;
 // Vorher fehlten diese 3 Felder → Claude sah den aktuellen Ton/Anrede/Sprache nie
 // und konnte sie weder im Kontext berücksichtigen noch als Änderung zurückgeben
 const FIELD_LABELS = {
-  ai_business_description:  'Geschäftsprofil',
+  ai_business_description:  'Unternehmensbeschreibung',
   ai_services:              'Leistungen',
-  ai_location_hours:        'Standort & Erreichbarkeit',
-  ai_booking_faq:           'Terminlogik & FAQ',
+  ai_location_hours:        'Standort und Erreichbarkeit',
+  ai_booking_faq:           'Terminregeln und häufige Fragen',
   ai_instructions:          'Gesprächsregeln',
   ai_fallback_escalation:   'Eskalation & Fallback',
   ai_response_constraints:  'Antwortgrenzen',

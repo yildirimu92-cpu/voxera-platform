@@ -245,14 +245,26 @@ async function alreadyQueued(sbAdmin, mailType, dedupeKey) {
   return Array.isArray(data) && data.length > 0;
 }
 
-// Die Feldnamen entsprechen denen, die Szenario 01 im Webhook-Bundle hatte
-// ({{1.caller_name}}, {{1.call_summary}} ...). Damit uebernimmt Szenario 09 die
-// beiden HTML-Vorlagen unveraendert; nur der Empfaenger wandert von
-// {{2.data.customer_email}} auf {{1.recipient_email}}.
+// Der Payload ist bewusst ein Zwitter, und beide Haelften haben einen Grund.
+//
+// Flach bleiben die Gespraechsfelder ({{1.caller_name}}, {{1.call_summary}}
+// ...): genau so hiessen sie im Webhook-Bundle von Szenario 01, und nur
+// deshalb liessen sich dessen HTML-Vorlagen unveraendert nach Szenario 09
+// uebernehmen.
+//
+// Der Empfaenger dagegen folgt der Hausregel der Mail-Engine und ist
+// verschachtelt: recipient: { email, name }, wie in jedem anderen Mailtyp
+// (contract-countersign-service.js, lifecycle-runner.js, und so auch in
+// required_payloads des Manifests). Die Route in Szenario 09 liest
+// {{1.recipient.email}} - ein flaches recipient_email liefe dort ins Leere und
+// die Mail ginge mit leerem Empfaenger raus.
 function buildPayload({ customer, call, calledNumber, callbackRequested }) {
   const durationRaw = Number(call.duration_seconds);
   return {
-    recipient_email: toStr(customer.email),
+    recipient: {
+      email: toStr(customer.email),
+      name: toStr(customer.contact_name) || toStr(customer.customer_name) || 'Kunde'
+    },
     customer_id: toStr(customer.id),
     customer_name: toStr(customer.customer_name),
     contact_name: toStr(customer.contact_name),

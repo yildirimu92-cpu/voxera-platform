@@ -3,6 +3,7 @@
 const { createClient } = require('@supabase/supabase-js');
 const { requireCustomerCaller } = require('./_lib/require-customer');
 const { sanitizeOpeningHours } = require('./_lib/opening-hours');
+const { sanitizeServiceList, sanitizeFaqList } = require('./_lib/service-faq');
 const { normalizePhoneE164 } = require('./_lib/phone-normalize');
 const { FORWARDING_FIELDS, canEditForwarding, needsPromptSync } = require('./_lib/assistant-write-policy');
 
@@ -43,7 +44,15 @@ const BRANCH_TEXT_LIMIT = 400;
 // Schreibberechtigung auf plan_code, status oder elevenlabs_agent_id.
 // Dieselbe Liste steht in _lib/prompt-builder-v2.js und in
 // customer-assistant-profile.js; die drei gehoeren zusammen gepflegt.
-const CORE_FIELD_COLUMNS = new Set(['sprechstunden_modus', 'ai_appointment_mode', 'ai_online_booking_url', 'ai_opening_hours']);
+const CORE_FIELD_COLUMNS = new Set([
+  'sprechstunden_modus', 'ai_appointment_mode', 'ai_online_booking_url', 'ai_opening_hours',
+  // J6
+  'ai_short_description', 'ai_public_address', 'ai_target_groups', 'ai_service_area',
+  'ai_arrival_note', 'ai_visit_preparation',
+  'ai_pricing_mode', 'ai_pricing_amount', 'ai_pricing_unit', 'ai_pricing_validity',
+  // J7
+  'ai_service_list', 'ai_faq_list'
+]);
 const CORE_TEXT_LIMIT = 400;
 
 // Alle Spalten, die dieser Endpoint schreiben kann. Sie werden vor dem Patch
@@ -111,6 +120,21 @@ function sanitizeCoreFields(input, rules) {
         return;
       }
       patch[rule.column] = week;
+      return;
+    }
+    // J7: Zwei weitere Feldtypen mit eigener Pruefung in _lib/service-faq.js --
+    // eine Liste von Zeilen und eine Liste von Frage-Antwort-Paaren. Gleiche
+    // Regel wie beim Wochenraster: Ein Feld mit einem Fehler wird ganz
+    // abgewiesen, nicht zur Haelfte gespeichert. Eine Frage ohne Antwort waere
+    // am Telefon eine Frage ohne Antwort.
+    if (rule.type === 'list' || rule.type === 'faq') {
+      const check = rule.type === 'list' ? sanitizeServiceList : sanitizeFaqList;
+      const { value: list, errors } = check(value === '' ? null : value);
+      if (errors.length) {
+        rejected.push(key);
+        return;
+      }
+      patch[rule.column] = list;
       return;
     }
     const cleaned = String(value ?? '').replace(/[{}]/g, '').trim().slice(0, CORE_TEXT_LIMIT);

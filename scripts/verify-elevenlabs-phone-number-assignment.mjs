@@ -30,7 +30,8 @@ import vm from 'node:vm';
 const require = createRequire(import.meta.url);
 
 const HELPER_PATH = 'admin-panel/netlify/functions/_lib/elevenlabs-phone-number.js';
-const SYNC_PATH = 'admin-panel/netlify/functions/trigger-elevenlabs-sync.js';
+const SYNC_PATH = 'admin-panel/netlify/functions/_lib/elevenlabs-sync.js';
+const SYNC_HANDLER_PATH = 'admin-panel/netlify/functions/trigger-elevenlabs-sync.js';
 const API_BASE = 'https://api.elevenlabs.io/v1/convai/phone-numbers';
 
 const failures = [];
@@ -42,10 +43,16 @@ const check = (name, fn) => {
 // ── Quelltext einlesen und auf Parsierbarkeit pruefen ───────────────────────
 
 const source = {};
-for (const [key, path] of Object.entries({ helper: HELPER_PATH, sync: SYNC_PATH })) {
+for (const [key, path] of Object.entries({ helper: HELPER_PATH, sync: SYNC_PATH, syncHandler: SYNC_HANDLER_PATH })) {
   source[key] = fs.readFileSync(path, 'utf8');
   check(`${key} parst`, () => { new vm.Script(source[key], { filename: path }); });
 }
+
+// S4 / Stufe 2: Der Sync-Kern liegt in _lib/elevenlabs-sync.js, der Handler
+// haelt nur noch Guard, Parsing und Antwortform. Beide zusammen sind der
+// Sync-Pfad -- dieser Guard prueft ihn als Ganzes, damit die Verlagerung
+// keine Aussage verliert.
+source.sync += '\n' + source.syncHandler;
 
 const { ensureAgentPhoneNumber } = require(`../${HELPER_PATH}`);
 
@@ -258,10 +265,12 @@ async function run() {
   // ── Quelltext-Pruefungen, die sich nicht aufrufen lassen ──────────────────
 
   for (const token of [
-    "require('./_lib/elevenlabs-phone-number')",
+    "require('./elevenlabs-phone-number')",
     'ensureAgentPhoneNumber({',
-    'phone_number_status: phoneNumberStatus',
-    'phone_number_id: phoneNumberId'
+    'phoneNumberStatus = phoneAssignment.status',
+    'phone_number_status: result.phoneNumberStatus',
+    'phoneNumberId = phoneAssignment.phone_number_id',
+    'phone_number_id: result.phoneNumberId'
   ]) {
     check('Sync-Einbindung', () => assert.ok(source.sync.includes(token), `fehlt: ${token}`));
   }

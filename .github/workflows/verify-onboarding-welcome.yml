@@ -1,0 +1,29 @@
+name: Verify Onboarding Welcome Card
+
+on:
+  pull_request:
+    paths:
+      - 'customer-dashboard/index.html'
+      - 'customer-dashboard/shared/customer-settings-components.css'
+      - 'customer-dashboard/tests/onboarding-welcome-card.test.cjs'
+      - 'scripts/verify-onboarding-welcome.mjs'
+      - '.github/workflows/verify-onboarding-welcome.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'customer-dashboard/index.html'
+      - 'customer-dashboard/shared/customer-settings-components.css'
+      - 'customer-dashboard/tests/onboarding-welcome-card.test.cjs'
+      - 'scripts/verify-onboarding-welcome.mjs'
+      - '.github/workflows/verify-onboarding-welcome.yml'
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: node scripts/verify-onboarding-welcome.mjs
+      - run: node --test customer-dashboard/tests/onboarding-welcome-card.test.cjs

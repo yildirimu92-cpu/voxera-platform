@@ -1,0 +1,23 @@
+name: Verify prompt builder version bump
+
+on:
+  pull_request:
+    paths:
+      - 'admin-panel/netlify/functions/_lib/prompt-builder-v2.js'
+      - 'scripts/verify-prompt-builder-version-bump.mjs'
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Der Guard vergleicht gegen den Zielbranch. Ohne vollstaendige
+          # Historie gibt es keine gemeinsame Basis, und er meldet
+          # "nicht pruefbar" (Exit 2) statt gruen.
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: node scripts/verify-prompt-builder-version-bump.mjs

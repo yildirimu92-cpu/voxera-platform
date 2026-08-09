@@ -1,7 +1,7 @@
 # Geschäftswissen — die vier Freitextfelder: Diagnose und Zielbild
 
 **Datum:** 09.08.2026 · **Nachtrag 09.08.** nach Freigabe (Abschnitt 11)
-**Status:** Diagnose abgeschlossen. **J1, J2, J10 und J4 sind gemergt und auf Produktion** (PR #876, Migration `20260809145741`). **J5 ist im Code umgesetzt, seine Migration gegen Staging geprüft und noch nicht auf Produktion** (Abschnitt 11.12). J6–J9 stehen aus; J3 ist als eigener Auftrag nach J5 eingeplant.
+**Status:** Diagnose abgeschlossen. **J1, J2, J10, J4 und J5 sind gemergt und auf Produktion.** **J6 ist im Code umgesetzt und gegen Staging geprüft, seine Migration ist noch nicht auf Produktion** (Abschnitt 11.14). J7–J9 stehen aus; J3/F5 ist als eigener Auftrag nach J6 eingeplant, G9 danach.
 **Prüfstand:** `main` @ `f21187e`, Produktionsdatenbank `ulcofbgrovgcvowdjrge` (Live-Abfragen, nicht aus Dokumenten übernommen). Staging (`hzqiyyqfchvfcmmbemvd`) enthält aktuell 0 Kunden.
 **Grundlage:** Auftrag „Freitextfelder im Geschäftswissen — Diagnose zuerst" (09.08.), Live-Test-Fund #3 aus PR #859, `docs/ASSISTENT_TAB_IA_DIAGNOSE_2026-08-09.md` (Abschnitte 5 und 11).
 
@@ -631,3 +631,104 @@ Ausserdem gelöst: ein Komma trennt mal Segmente („Mo–Fr 08:00–12:00, Sa 0
 - **J4 ist nicht an einer laufenden Datenbank erprobt.** Die Migration ist geschrieben und ihr heikelster Teil — die Vorlagenbereinigung — als `SELECT` gegen die Produktionsdaten geprüft. Angewendet ist sie nicht. Dass Lese- und Schreibpfad gegen die neuen Spalten tatsächlich funktionieren, ist an Fixtures und Sandbox-Tests belegt, nicht an einem echten Request.
 - **Das Kunden-UI und der Admin-Wizard sind nicht im Browser geklickt.** Die neue Karte „Ihr Betrieb" und der neue Wizard-Schritt sind über Quelltextprüfungen und die Syntaxprüfung aller vier Inline-Skriptblöcke abgesichert. Wie sie aussehen, ist nicht gesehen worden.
 - **Der Regex-Zuschnitt ist an 31 Vorlagen-Markierungen kalibriert, nicht an Kundentexten.** Schreibt ein Kunde eckige Klammern regulär und kurz, werden sie ersetzt. Ich halte das für den richtigen Kompromiss, es ist aber eine Abwägung und keine bewiesene Nebenwirkungsfreiheit.
+
+### 11.14 J6 — die restlichen Schicht-A-Felder, das Preisfeld und ein Fehler aus J5
+
+**Was dazugekommen ist.** Neun neue Spalten und eine angeschlossene bestehende, alle über denselben Mechanismus wie J4/J5 (Schema in `system_config.core_field_steps`, Spalten-Allowlist im Code):
+
+| Schlüssel | Spalte | Form |
+|---|---|---|
+| `short_description` | `ai_short_description` (bestand bereits) | Textfeld |
+| `target_groups` | `ai_target_groups` | Textfeld |
+| `service_area` | `ai_service_area` | Zeile |
+| `public_address` | `ai_public_address` | Zeile mit Vorschlag |
+| `arrival_note` | `ai_arrival_note` | Textfeld |
+| `visit_preparation` | `ai_visit_preparation` | Textfeld |
+| `pricing_mode` | `ai_pricing_mode` | Auswahl, DB-Constraint |
+| `pricing_amount` / `pricing_unit` / `pricing_validity` | `ai_pricing_amount` / `_unit` / `_validity` | Zeilen, nur bei Preisart sichtbar |
+
+**Das Preisfeld (Entscheid F4).** Vier typisierte Teile statt eines Freitextfelds; der Builder formuliert den Satz („Richtwert: ab CHF 120 pro Stunde. (Stand 2026)") und hängt einen Baustein an, den kein Kundenfeld erreicht: „Preise sind Richtwerte und keine verbindliche Zusage." Dazu eine neue Zeile in den `VERBINDLICHE SICHERHEITSREGELN`. Der Abschnitt `## PREISAUSKUNFT` steht **immer** im Prompt, auch leer — dann mit der Anweisung, keine Beträge zu nennen und eine Offerte anzubieten. Vorher gab es zur Preisfrage gar keine Regel, das Modell entschied selbst.
+
+**Gegen den ursprünglichen Entwurf abgewichen:** Vier Spalten statt einem `jsonb`. Ein zusammengesetzter Feldtyp hätte in beiden Oberflächen einen neuen Renderer gebraucht, ohne die Angabe besser zu speichern.
+
+**Die Rechtsfrage bleibt offen und ist nicht durch diese Umsetzung beantwortet.** Das Feld ist technisch da und die Voreinstellung ist „keine Preise nennen". Ob eine so gesprochene Angabe unter OR als Antrag gilt, gehört zur juristischen Prüfung, an der auch der Launch-Blocker „Haftung/Versicherung" hängt.
+
+**Die Adresse (G7) wird vorgeschlagen, nicht übernommen.** `street`/`zip`/`city` sind bei allen vier Kunden gefüllt — sie stammen aber aus Offerte und Vertrag (`offer-street`, `ow-street`) und sind damit die Rechnungsadresse. Sie ungefragt als Betriebsadresse zu sprechen wäre derselbe Fehler wie der unbestätigte Default in `sprechstunden_modus`, den J4 zurücknehmen musste. Die Oberfläche bietet sie mit einem Knopf an; gespeichert wird nur, was der Kunde abschickt.
+
+**Eine Doppelung aufgelöst.** `ai_short_description` hatte zwei Schreiber: das eigene Wizard-Feld („Kurzbeschreibung" im Website-Schritt) und ab J6 Schicht A. Welcher gewinnt, hing an der Reihenfolge im Patch-Objekt. Das alte Feld ist entfallen. Ausserdem klebte `websiteBusinessDescription()` die Zielgruppen als Zeile „Zielgruppen: …" in die Unternehmensbeschreibung (Abschnitt 3.1) — sie gehen jetzt in ihr eigenes Feld.
+
+**Neuer Befund, im Zuge von J6 gefunden und behoben: J5 war in der Kundenoberfläche wirkungslos.** `buildBranchSections()` in `customer-assistant-profile.js` liess den Feldtyp `hours` nicht durch — die Typenliste kannte nur `radio`, `text` und `textarea`, alles andere wurde auf `text` heruntergestuft. Die Geschäftsprofil-Seite zeigte deshalb statt des Wochenrasters ein leeres Textfeld, dessen Inhalt der Schreibpfad anschliessend als ungültiges Raster abgewiesen hätte; ein gespeichertes Raster wäre als `[object Object]` erschienen. Sichtbar wurde das nicht, weil kein Kunde bestätigte Zeiten hat und die Prüfskripte den Endpoint nie mit einem Wochenraster-Feld aufgerufen haben. Der Test dazu ruft jetzt `buildBranchSections()` selbst auf statt den Quelltext zu lesen.
+
+**Bedingte Felder.** Der Buchungslink wird nur noch gefragt, wenn überhaupt Termine vergeben werden; Betrag und Einheit nur bei gewählter Preisart. Die Bedingung (`show_if`) ist bewusst schmal — ein Schlüssel und eine Werteliste, sonst nichts — und entscheidet ausschliesslich über die Darstellung. Ein ausgeblendetes Feld behält seinen gespeicherten Wert; der Builder unterdrückt den Buchungslink zusätzlich bei Terminbefugnis „none", damit eine alte Antwort nicht durch die Hintertür weiterwirkt.
+
+**Staging-Lauf (09.08.).** Staging trug die J4/J5-Änderungen nicht mehr (`ai_appointment_mode` und `ai_opening_hours` fehlten, `core_field_steps` war leer). Der Ausgangszustand wurde erst hergestellt, dann J6 angewendet: 4 Schritte, 14 Felder, kein Feld ausserhalb der Spalten-Allowlist, Struktur deckungsgleich mit der Migrationsdatei. Verhaltensprobe an einer Wegwerfzeile: gültige Preisangabe angenommen, `ai_pricing_mode = 'verhandelbar'` von der Constraint abgewiesen, die übrigen Spalten nehmen Text; die Probezeile wurde wieder gelöscht.
+
+### 11.15 Was nach J6 unbewiesen bleibt
+
+- Alles aus 11.13 gilt weiter, soweit es nicht ausdrücklich erledigt ist.
+- **Der Preisbaustein ist nicht juristisch geprüft.** Das ist keine technische Lücke, sondern eine bewusst offene Frage.
+- **Die neuen Felder sind nicht im Browser bedient.** Vier Unterabschnitte in einer Karte, drei davon neu — wie das auf einem Telefon wirkt, ist ungesehen.
+- **Der Adressvorschlag ist an keinem echten Klick geprüft.** Dass er das Feld füllt und nichts speichert, ist an der Verdrahtung belegt.
+- **`sprechstunden_zeiten` bleibt liegen.** Die Spalte existiert (jsonb, überall `null`, an genau einer Stelle im Admin gelesen) und ist damit ein viertes Zuhause für Öffnungszeiten neben `ai_opening_hours`, `ai_location_hours` und `calendar_settings.business_hours`. Gehört zu G9.
+- **`ai_business_description` und `ai_short_description` bleiben zwei Felder mit derselben Quelle.** Die Website-Analyse schreibt denselben Text in beide. Der Builder fängt das ab (er stellt den Absatz nicht zweimal untereinander), die Frage, ob es beide Felder braucht, gehört zu J7.
+
+### 11.16 J7 — Leistungen und häufige Fragen als Listen
+
+**Der Anlass, in Zahlen.** Die beiden Felder sahen aus wie Fliesstext und waren längst Struktur: über die 19 Vorlagen hinweg 137 Leistungszeilen, und **alle 19** FAQ-Texte tragen die Überschrift „Häufige Fragen:" mit 76 Frage-Antwort-Zeilen darunter. Der Agent bekam das als Block und musste selbst erkennen, wo eine Leistung aufhört.
+
+**Zwei neue Spalten**, gleiche Bauform wie J5: `ai_service_list` (Array von Zeilen) und `ai_faq_list` (Array aus `{q, a}`). Ein dritter Schlüssel im Paar — etwa ein Preis pro Frage — wird vom Schreibpfad abgewiesen.
+
+**Ein Unterschied zu den Öffnungszeiten, bewusst:** Die bestätigte Liste **ersetzt** den Freitext im Prompt, statt neben ihm zu stehen. Bei den Öffnungszeiten mussten beide bleiben, weil `ai_location_hours` neben den Zeiten auch Adresse und Anfahrt trägt. `ai_services` trägt nur Leistungen — zwei Fassungen desselben Inhalts wären reine Doppelung und bei abweichendem Wortlaut ein Widerspruch, den der Agent auflösen müsste. Das Formular sagt das auch: sobald eine Liste steht, trägt das zugehörige Textfeld den Hinweis, dass es nicht mehr verwendet wird.
+
+**Drei Funde beim Kalibrieren des Parsers:**
+
+1. **Die Vorlagen speichern den Zeilenumbruch als zwei Zeichen** — Backslash und `n`, nicht als Umbruch. Der Admin-Wizard rechnet das beim Anzeigen um (`_wNl`), die Datenbank sieht es nie. Ein Kundentext, der aus einer Vorlage stammt und nie durch das Formular lief, enthält deshalb beide Schreibweisen. Wer nur an `\n` splittet, bekommt eine einzige sehr lange Zeile.
+
+2. **Der Pfeil trennt nicht zuverlässig.** Die Vorlage `zahnarzt` benutzt in einer *Regelzeile* denselben Pfeil wie in ihren Fragen: „Notfall-Kriterien: … → als Notfall markieren, sofort weitergeben." Ohne Grenze wäre daraus eine Frage geworden, deren Antwort eine Anweisung an das Praxisteam ist. Die Grenze zieht jetzt die Überschrift, nicht das Trennzeichen — alles darüber ist Regel, unabhängig von der Schreibweise. Der Fall ist als eigener Test festgehalten.
+
+3. **Der Gedankenstrich ist mehrdeutig.** Der einzige Kunde mit eigenen Texten schreibt „Frage? – Antwort", die Vorlagen schreiben „Absagen: mindestens 24 Stunden vorher — sonst ggf. Ausfallgebühr." Deshalb gilt der Gedankenstrich nur, wenn der Teil davor auf ein Fragezeichen endet.
+
+**Unausgefüllte Markierungen werden gemeldet, nicht entfernt.** „Produktverkauf: [Marken eintragen]" würde als „Produktverkauf:" übrig bleiben — eine halbe Angabe, die vollständig aussieht. Sie steht stattdessen in der Liste der Zeilen, die der Kunde selbst nachtragen muss. Dasselbe für Preis-Markierungen in Antworten.
+
+**Vorarbeit für J8.** Der Parser meldet die Zeilen über der Überschrift getrennt als `rules`. Das sind genau die Zeilen, um die es in G6 geht — die Aufnahme-Checkliste, die doppelt existiert.
+
+**Staging-Lauf (09.08.).** 5 Schritte, 16 Felder, kein Feld ausserhalb der Spalten-Allowlist. Verhaltensprobe an einer Wegwerfzeile: gültige Listen angenommen, eine Zeichenkette statt Array abgewiesen, 41 Einträge abgewiesen; Probezeile gelöscht.
+
+**Was ungeprüft bleibt:** der Listeneditor ist nicht im Browser bedient. Hinzufügen, Entfernen und Übernehmen sind an der Verdrahtung belegt, nicht am Klick.
+
+### 11.17 J8 — die Aufnahme-Checkliste hat eine Quelle (G6)
+
+**Korrektur zur Diagnose: es sind 19 von 19, nicht 15 von 19.** Die ursprüngliche Zählung suchte wörtlich nach „… aufnehmen:" und übersah die vier Vorlagen, die dasselbe anders formulieren — `digitalmarketing` („Lead qualifizieren und Erstgespräch terminieren:"), `immobilien` („Kaufinteressenten: … aufnehmen"), `fitness` („Probetraining anmelden:") und `generic` („Terminanfragen: … aufnehmen"). Ausgezählt über die Zeilen oberhalb der Überschrift „Häufige Fragen:" trägt **jede** Vorlage eine Checkliste.
+
+**Die Lösung.** Neue Spalte `industry_templates.default_required_information`. Rangfolge im Code, nicht in den Daten: die Antwort des Kunden (`[PROMPT_V2].requiredInformation`) führt, die Branchenvorlage ist Rückfall, nie beides. Die 25 betroffenen Zeilen sind aus `default_booking_faq` entfernt.
+
+**Was bleibt:** echte Terminregeln. „Absagen: mindestens 24 Stunden vorher", „Gruppen ab 8 Personen: mindestens 1 Woche im Voraus", „Notfall-Kriterien: …" sind keine Aufnahme-Checkliste, sondern Auskünfte am Telefon.
+
+**Was zusätzlich entfernt wurde, und warum.** Drei Zeilen behaupten eine Terminbefugnis: `facharzt` „KEINE direkte Terminbestätigung — Rückruf durch Praxisteam.", `garage` „Bestätigung per SMS oder Anruf durch die Werkstatt.", `generic` „… Rückruf durch das Team zur Bestätigung." Seit J4 steht die Terminbefugnis als typisierte Kundenspalte und wird als eigener Abschnitt gerendert. Ein Vorlagensatz daneben ist nicht nur doppelt — er kann der Einstellung des Kunden **widersprechen**: wählt ein Facharzt „Direkt buchen", sagte der Vorlagentext weiterhin, es gebe keine direkte Bestätigung. Derselbe Befund wie G6, nur an einem anderen Feld.
+
+**Der Fingerprint bekommt eine fünfte Eingabe.** Ändert eine Vorlage ihre Checkliste, ändert sich der Prompt jedes Kunden dieser Branche, der keine eigene hinterlegt hat. Ohne diese Eingabe bliebe der Fingerprint gleich und der Fan-out-Planer hielte die Agenten für aktuell. Weil sich damit die *Zusammensetzung* ändert und nicht nur ein Wert, ist auch das Schema-Präfix angehoben (`v2` → `v3`) — genau der Fall, für den es gebaut ist. **Folge: jeder gespeicherte Fingerprint gilt ab dem Deploy als veraltet.** Das ist sachlich richtig, heisst aber, dass der nächste Fan-out alle Agenten anfasst.
+
+**Prüfung der Inhaltsarbeit.** Staging trägt keine Vorlagen (`industry_templates` ist dort leer), der Staging-Lauf beweist deshalb nur Syntax und DDL. Der Inhalt ist als **Leseprobe gegen Produktion** geprüft: alle 25 zu entfernenden Zeilen stehen dort wörtlich und **genau einmal**. Zusätzlich trägt die Migration eine Selbstkontrolle — findet `replace()` eine Zeile nicht, bricht sie ab, statt eine halbe Bereinigung zu hinterlassen.
+
+### 11.18 J9 — Beschriftung und Prompt-Überschrift sagen dasselbe (G5)
+
+Der Befund war nicht kosmetisch: das Feld hiess für den Kunden anders, als es beim Agenten wirkt. Wer „Häufige Fragen und Buchungshinweise" liest, schreibt keine Terminregeln hinein — im Prompt hiess derselbe Abschnitt aber `## TERMINLOGIK & FAQ`.
+
+| Feld | Beschriftung vorher | Prompt vorher | jetzt beide |
+|---|---|---|---|
+| `ai_business_description` | Unternehmensbeschreibung | `## GESCHÄFTSPROFIL` | Unternehmensbeschreibung |
+| `ai_services` | Leistungen und Angebote | `## LEISTUNGEN` | Leistungen |
+| `ai_location_hours` | Standort und reguläre Öffnungszeiten | `## STANDORT & ERREICHBARKEIT` | Standort und Erreichbarkeit |
+| `ai_booking_faq` | Häufige Fragen und Buchungshinweise | `## TERMINLOGIK & FAQ` | Terminregeln und häufige Fragen |
+
+Bei `ai_location_hours` ist die Umbenennung mehr als Angleichung: die Öffnungszeiten haben seit J5 ein eigenes Feld, die Adresse seit J6. Der Freitext ist nicht mehr der Ort für beides, und die Beschriftung sagt das jetzt.
+
+Mitgezogen: die Feldnamen-Karte in `ai-apply-change.js` und der Vorrangsatz im Abschnitt REGULÄRE ÖFFNUNGSZEITEN, der auf den umbenannten Abschnitt verweist.
+
+### 11.19 Was nach J8 und J9 unbewiesen bleibt
+
+- Alles aus 11.15, soweit nicht ausdrücklich erledigt.
+- **Kein Live-Anruf, in keiner der neun Etappen.** Der Prompt enthält die Angaben nachweislich; ob das Modell sie befolgt, ist damit nicht gezeigt.
+- **Die neuen Vorlagentexte sind nicht am Telefon gehört.** Die Aufnahme-Checkliste steht jetzt an einer anderen Stelle im Prompt (`## PFLICHTINFORMATIONEN` statt mitten im FAQ-Block). Dass das die Gesprächsführung nicht verschlechtert, ist eine begründete Annahme, keine Messung.
+- **Der Fan-out nach dem Schema-Wechsel ist nicht gelaufen.** Alle Agenten gelten ab dem Deploy als veraltet; ob der Durchlauf sauber durchgeht, zeigt sich erst dabei.
+- **`required_fields` ist ungeprüft geblieben.** Die Spalte trägt in zwei Vorlagen zwei verschiedene Namensschemata (`businessDescription` gegenüber `ai_business_description`) und ist in 17 leer. Sie hat mit der Aufnahme-Checkliste nichts zu tun, sieht aber wie ein weiterer halb benutzter Mechanismus aus. Gehört zu G9.

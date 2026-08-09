@@ -41,8 +41,8 @@
   }
 
   function inject() {
-    if (!ensurePage('mehr-sub-assistant-profile', 'vx-assistant-profile-body', 'Mein Assistent')) return false;
-    if (!ensurePage('mehr-sub-business-profile', 'vx-business-profile-body', 'Geschäftsprofil')) return false;
+    if (!ensurePage('vx-assistant-view-profile', 'vx-assistant-profile-body', 'Mein Assistent')) return false;
+    if (!ensurePage('vx-assistant-view-business', 'vx-business-profile-body', 'Geschäftsprofil')) return false;
     if (!document.getElementById('vx-assistant-voice-modal')) {
       const modal = document.createElement('div');
       modal.id = 'vx-assistant-voice-modal';
@@ -633,7 +633,23 @@
       + branchRow
       + '</div>'
       + industryLine()
-      + '<div class="vx-ap-actions"><button type="button" class="vx-ap-btn secondary" id="vx-open-business-profile">Geschäftsprofil bearbeiten</button></div>'
+      // Klick-Test 09.08.: Die Seite dahinter wirkte verwaist, obwohl sie
+      // absichtlich ein Drill-in ist und in ASSISTANT_VIEWS registriert steht.
+      // Gefehlt hat nicht ein zweiter Navigationsweg, sondern die Geste: ohne
+      // Chevron liest sich der Knopf als Aktion auf dieser Karte, nicht als
+      // Weg zu einer eigenen Seite.
+      //
+      // Bewusst NICHT die Drill-in-Zeile des Einstellungen-Tabs, obwohl sie
+      // optisch genau das waere: verify-customer-navigation-unified verbietet
+      // dem Assistent-Runtime jeden Baustein von dort, und zwar als
+      // Substring-Pruefung — dieser Kommentar darf den Klassennamen also nicht
+      // einmal nennen. Die
+      // Sperre stammt aus dem Rueckbau der alten Settings-Bridge und ist
+      // richtig — der Assistent-Tab soll nicht wieder an den Bausteinen eines
+      // anderen Tabs haengen. Der Chevron sitzt deshalb im eigenen Knopf,
+      // genau wie ph-play in der Stimmkarte.
+      + '<div class="vx-ap-actions"><button type="button" class="vx-ap-btn secondary" id="vx-open-business-profile">'
+      + 'Geschäftsprofil bearbeiten<i class="ph-light ph-caret-right" aria-hidden="true"></i></button></div>'
       + '</section>';
   }
 
@@ -679,10 +695,51 @@
     // vx-ui-brand-rule: der Gold-Streifen auf der fuehrenden Karte des
     // Screens. Genau eine pro Screen, zustandsunabhaengig — siehe
     // customer-ui-components.css, Abschnitt 9.
-    body.innerHTML = '<div id="vx-business-profile-status" class="vx-ap-status" role="status" aria-live="polite"></div><div class="vx-ap-card vx-ui-brand-rule"><div class="vx-ap-head"><div><div class="vx-ap-title">Dauerhaftes Geschäftswissen</div><div class="vx-ap-meta">Diese Informationen verwendet der Assistent im normalen Betrieb. Ferien und kurzfristige Änderungen gehören in „Aktuelle Infos“.</div></div></div><div class="vx-ap-grid"><div class="vx-ap-field"><label>Unternehmensbeschreibung</label><textarea id="vx-business-description" placeholder="Was macht Ihr Unternehmen und für wen?">' + esc(data.description || '') + '</textarea></div><div class="vx-ap-field"><label>Leistungen und Angebote</label><textarea id="vx-business-services" placeholder="Welche Leistungen darf der Assistent erklären?">' + esc(data.services || '') + '</textarea></div><div class="vx-ap-field"><label>Standort und reguläre Öffnungszeiten</label><textarea id="vx-business-location-hours" placeholder="Adresse, Einzugsgebiet und reguläre Öffnungszeiten">' + esc(data.location_hours || '') + '</textarea></div><div class="vx-ap-field"><label>Häufige Fragen und Buchungshinweise</label><textarea id="vx-business-booking-faq" placeholder="Wichtige Antworten, Voraussetzungen oder Hinweise">' + esc(data.booking_faq || '') + '</textarea></div></div><div class="vx-ap-actions"><button type="button" class="vx-ap-btn" id="vx-business-profile-save"' + (busy ? ' disabled' : '') + '>Geschäftsprofil speichern</button></div><div id="vx-business-save-status" class="vx-ap-status vx-ap-status--inline" role="status" aria-live="polite"></div></div>' + coreCard() + branchCard();
+    body.innerHTML = '<div id="vx-business-profile-status" class="vx-ap-status" role="status" aria-live="polite"></div><div class="vx-ap-stack"><div class="vx-ap-card vx-ui-brand-rule"><div class="vx-ap-head"><div><div class="vx-ap-title">Dauerhaftes Geschäftswissen</div><div class="vx-ap-meta">Diese Informationen verwendet der Assistent im normalen Betrieb. Ferien und kurzfristige Änderungen gehören in „Aktuelle Infos“.</div></div></div><div class="vx-ap-fieldlist"><div class="vx-ap-field"><label>Unternehmensbeschreibung</label><textarea id="vx-business-description" placeholder="Was macht Ihr Unternehmen und für wen?">' + esc(data.description || '') + '</textarea></div><div class="vx-ap-field"><label>Leistungen</label><textarea id="vx-business-services" placeholder="Welche Leistungen darf der Assistent erklären?">' + esc(data.services || '') + '</textarea>' + replacedByListNote('service_list') + '</div><div class="vx-ap-field"><label>Standort und Erreichbarkeit</label><textarea id="vx-business-location-hours" placeholder="Wie Ihr Betrieb erreichbar ist. Adresse und Öffnungszeiten haben eigene Felder weiter unten.">' + esc(data.location_hours || '') + '</textarea></div><div class="vx-ap-field"><label>Terminregeln und häufige Fragen</label><textarea id="vx-business-booking-faq" placeholder="Regeln rund um Termine und Antworten auf häufige Fragen">' + esc(data.booking_faq || '') + '</textarea>' + replacedByListNote('faq_list') + '</div></div><div class="vx-ap-actions"><button type="button" class="vx-ap-btn" id="vx-business-profile-save"' + (busy ? ' disabled' : '') + '>Geschäftsprofil speichern</button></div><div id="vx-business-save-status" class="vx-ap-status vx-ap-status--inline" role="status" aria-live="polite"></div></div>' + coreCard() + branchCard() + '</div>';
     document.getElementById('vx-business-profile-save')?.addEventListener('click', saveBusiness);
     document.getElementById('vx-core-save')?.addEventListener('click', saveCore);
     document.getElementById('vx-hours-apply')?.addEventListener('click', applyHoursSuggestion);
+    // J6: bedingte Felder folgen der Auswahl sofort, nicht erst nach dem
+    // Speichern. Ein Feld, das erst nach einem Neuladen verschwindet, wirkt wie
+    // ein Fehler und wird trotzdem ausgefüllt.
+    document.querySelectorAll('[data-vx-core-key], [data-vx-branch-key]').forEach((node) => {
+      node.addEventListener('change', applyFieldVisibility);
+    });
+    // J7: Zeile hinzufuegen, Zeile entfernen, Vorschlag uebernehmen. Alle drei
+    // aendern nur das Formular; gespeichert wird weiterhin nur ueber
+    // "Betriebsangaben speichern".
+    document.querySelectorAll('[data-vx-list-add]').forEach((node) => node.addEventListener('click', () => {
+      const container = document.querySelector('[data-vx-list="' + node.dataset.vxListAdd + '"]');
+      if (!container) return;
+      container.insertAdjacentHTML('beforeend', container.dataset.vxListKind === 'faq' ? faqRow(null) : listRow(''));
+      container.lastElementChild?.querySelector('input')?.focus();
+    }));
+    document.querySelectorAll('[data-vx-list-apply]').forEach((node) => node.addEventListener('click', () => {
+      const key = node.dataset.vxListApply;
+      const container = document.querySelector('[data-vx-list="' + key + '"]');
+      const suggestion = profile?.core_suggestions?.[key];
+      if (!container || !Array.isArray(suggestion) || !suggestion.length) return;
+      fillList(container, suggestion);
+    }));
+    document.getElementById('vx-business-profile-body')?.addEventListener('click', (event) => {
+      const remove = event.target.closest?.('[data-vx-list-remove]');
+      if (!remove) return;
+      const row = remove.closest('.vx-ap-list-row');
+      const container = row?.parentElement;
+      row?.remove();
+      // Die letzte Zeile wird nicht entfernt, sondern geleert: ein Behaelter
+      // ohne Zeile sieht kaputt aus und liesse sich nur ueber "Zeile
+      // hinzufuegen" wiederbeleben.
+      if (container && !container.querySelector('.vx-ap-list-row')) {
+        container.insertAdjacentHTML('beforeend', container.dataset.vxListKind === 'faq' ? faqRow(null) : listRow(''));
+      }
+    });
+    document.querySelectorAll('[data-vx-suggest]').forEach((node) => node.addEventListener('click', () => {
+      const field = document.querySelector('[data-vx-core-key="' + node.dataset.vxSuggest + '"]');
+      if (!field || !node.dataset.vxSuggestValue) return;
+      field.value = node.dataset.vxSuggestValue;
+      field.focus();
+    }));
     document.getElementById('vx-branch-save')?.addEventListener('click', saveBranch);
     restoreStatus('business');
   }
@@ -754,8 +811,152 @@
     return week;
   }
 
+  // J7: Leistungen als Zeilen, häufige Fragen als Paare. Beide Editoren sind
+  // dieselbe Bauform — Zeilen in einem Behälter, eine Zeile lässt sich
+  // entfernen, unten kommt eine dazu. Gespeichert wird erst beim Speichern;
+  // Hinzufügen und Entfernen berühren nur das Formular.
+  //
+  // Drei leere Zeilen zum Start: eine einzelne leere Zeile liest sich wie ein
+  // Fehler, und wer eine Liste anlegt, hat selten genau einen Eintrag.
+  const LIST_BLANK_ROWS = 3;
+
+  function listRow(value) {
+    return '<div class="vx-ap-list-row">'
+      + '<input data-vx-list-entry maxlength="200" value="' + esc(value || '') + '"'
+      + ' aria-label="Leistung"' + (busy ? ' disabled' : '') + '>'
+      + '<button type="button" class="vx-ap-list-remove" data-vx-list-remove aria-label="Zeile entfernen"'
+      + (busy ? ' disabled' : '') + '>&times;</button>'
+      + '</div>';
+  }
+
+  function faqRow(entry) {
+    return '<div class="vx-ap-list-row vx-ap-list-row--faq">'
+      + '<input data-vx-faq-question maxlength="200" value="' + esc(entry?.q || '') + '"'
+      + ' placeholder="Frage" aria-label="Frage"' + (busy ? ' disabled' : '') + '>'
+      + '<input data-vx-faq-answer maxlength="600" value="' + esc(entry?.a || '') + '"'
+      + ' placeholder="Antwort" aria-label="Antwort"' + (busy ? ' disabled' : '') + '>'
+      + '<button type="button" class="vx-ap-list-remove" data-vx-list-remove aria-label="Zeile entfernen"'
+      + (busy ? ' disabled' : '') + '>&times;</button>'
+      + '</div>';
+  }
+
+  function listField(field) {
+    const entries = Array.isArray(field.value) ? field.value : [];
+    const isFaq = field.type === 'faq';
+    const rows = entries.length ? entries : new Array(LIST_BLANK_ROWS).fill(null);
+    const hint = field.hint ? '<div class="vx-ap-meta">' + esc(field.hint) + '</div>' : '';
+    return '<div class="vx-ap-field vx-ap-field--list">'
+      + '<label>' + esc(field.label) + '</label>'
+      + hint
+      + '<div class="vx-ap-list" data-vx-list="' + esc(field.key) + '" data-vx-list-kind="' + (isFaq ? 'faq' : 'list') + '">'
+      + rows.map((entry) => (isFaq ? faqRow(entry) : listRow(entry))).join('')
+      + '</div>'
+      + '<button type="button" class="vx-ap-btn vx-ap-btn--ghost" data-vx-list-add="' + esc(field.key) + '"'
+      + (busy ? ' disabled' : '') + '>Zeile hinzufügen</button>'
+      + listSuggestionBanner(field)
+      + '</div>';
+  }
+
+  // Der Vorschlag füllt das Formular, er speichert nicht. Und er sagt daneben,
+  // was er aus dem Text NICHT lesen konnte — bei den häufigen Fragen zusätzlich
+  // getrennt, was gar keine Frage war: in den meisten Vorlagen steht über den
+  // Fragen die Aufnahme-Checkliste (Befund G6).
+  function listSuggestionBanner(field) {
+    const suggestion = profile?.core_suggestions?.[field.key];
+    const info = profile?.list_suggestions || {};
+    const unparsed = field.type === 'faq' ? info.faq_unparsed_lines : info.service_unparsed_lines;
+    const rules = field.type === 'faq' ? info.faq_rule_lines : [];
+    if (!Array.isArray(suggestion) || !suggestion.length) return '';
+    return '<div class="vx-ap-suggestion">'
+      + '<div class="vx-ap-suggestion-title">Vorschlag aus Ihrem Text im Geschäftsprofil</div>'
+      + '<div class="vx-ap-meta">Wir haben ' + suggestion.length + ' '
+      + (field.type === 'faq' ? 'Frage-Antwort-Paare' : 'Einträge') + ' gelesen. '
+      + 'Sie gelten erst, wenn Sie sie prüfen und speichern — bis dahin verwendet Ihr Assistent weiterhin den Text.</div>'
+      + (Array.isArray(rules) && rules.length
+        ? '<div class="vx-ap-meta">Diese Zeilen sind keine Fragen, sondern Regeln. Sie bleiben im Text stehen: '
+          + rules.map((line) => esc(line)).join(' · ') + '</div>'
+        : '')
+      + (Array.isArray(unparsed) && unparsed.length
+        ? '<div class="vx-ap-meta">Diese Zeilen konnten wir nicht zuordnen, bitte selbst eintragen: '
+          + unparsed.map((line) => esc(line)).join(' · ') + '</div>'
+        : '')
+      + '<button type="button" class="vx-ap-btn vx-ap-btn--ghost" data-vx-list-apply="' + esc(field.key) + '"'
+      + (busy ? ' disabled' : '') + '>Vorschlag übernehmen</button>'
+      + '</div>';
+  }
+
+  // Sobald eine Liste bestaetigt ist, benutzt der Assistent sie und nicht mehr
+  // diesen Text. Ohne diesen Hinweis bearbeitet der Kunde ein Feld, das keine
+  // Wirkung mehr hat -- und merkt es erst am Telefon.
+  function replacedByListNote(key) {
+    const value = storedValue(key, 'core');
+    if (!Array.isArray(value) || !value.length) return '';
+    return '<div class="vx-ap-meta">Dieser Text wird nicht mehr verwendet: weiter unten steht eine bestätigte Liste, '
+      + 'und die gilt. Der Text bleibt als Notiz erhalten.</div>';
+  }
+
+  function collectList(container) {
+    if (container.dataset.vxListKind === 'faq') {
+      return Array.from(container.querySelectorAll('.vx-ap-list-row')).map((row) => ({
+        q: String(row.querySelector('[data-vx-faq-question]')?.value || '').trim(),
+        a: String(row.querySelector('[data-vx-faq-answer]')?.value || '').trim()
+      })).filter((entry) => entry.q || entry.a);
+    }
+    return Array.from(container.querySelectorAll('[data-vx-list-entry]'))
+      .map((node) => String(node.value || '').trim())
+      .filter(Boolean);
+  }
+
+  function fillList(container, entries) {
+    const isFaq = container.dataset.vxListKind === 'faq';
+    container.innerHTML = entries.map((entry) => (isFaq ? faqRow(entry) : listRow(entry))).join('');
+  }
+
+  // J6: Ein Feld kann an der Antwort eines anderen haengen — der Buchungslink an
+  // der Terminbefugnis, Betrag und Einheit an der Preisart. Ausgewertet wird die
+  // Bedingung hier und nur fuer die Darstellung. Was gespeichert werden darf,
+  // entscheidet weiterhin allein der Schreibpfad; ein ausgeblendetes Feld
+  // behaelt seinen gespeicherten Wert, statt ihn stillschweigend zu verlieren.
+  // Beim Aufbau der Zeichenkette steht das steuernde Feld noch nicht im
+  // Dokument — hier zaehlt deshalb der gespeicherte Wert. Was der Kunde
+  // waehrend der Bearbeitung umstellt, faengt applyFieldVisibility() ab.
+  function fieldVisible(field, scope) {
+    if (!field.show_if) return true;
+    return field.show_if.in.indexOf(String(storedValue(field.show_if.key, scope) || '')) >= 0;
+  }
+
+  function storedValue(key, scope) {
+    const sections = (scope === 'core' ? profile?.core_sections : profile?.branch_sections) || [];
+    for (const section of sections) {
+      const match = (section.fields || []).find((item) => item.key === key);
+      if (match) return match.value;
+    }
+    return '';
+  }
+
+  function applyFieldVisibility() {
+    document.querySelectorAll('[data-vx-showif-key]').forEach((node) => {
+      const control = document.querySelector('[data-vx-' + node.dataset.vxShowifScope + '-key="' + node.dataset.vxShowifKey + '"]');
+      const current = control ? String(control.value || '') : '';
+      node.hidden = String(node.dataset.vxShowifIn || '').split('|').indexOf(current) < 0;
+    });
+  }
+
+  // Der Vorschlag fuellt das Feld, speichert aber nicht. Gleiche Regel wie beim
+  // Oeffnungszeiten-Vorschlag aus J5: uebernommen ist noch nicht bestaetigt.
+  function suggestionRow(field) {
+    const value = profile?.core_suggestions?.[field.suggestion];
+    if (!field.suggestion || !value || field.value) return '';
+    return '<div class="vx-ap-field-suggest">'
+      + '<span>Aus Ihren Stammdaten: ' + esc(value) + '</span>'
+      + '<button type="button" class="vx-ap-btn vx-ap-btn--ghost" data-vx-suggest="' + esc(field.key) + '"'
+      + ' data-vx-suggest-value="' + esc(value) + '"' + (busy ? ' disabled' : '') + '>Übernehmen</button>'
+      + '</div>';
+  }
+
   function schemaField(field, scope) {
     if (field.type === 'hours') return hoursField(field);
+    if (field.type === 'list' || field.type === 'faq') return listField(field);
     const id = 'vx-' + scope + '-' + field.key;
     const attr = scope === 'core' ? 'data-vx-core-key' : 'data-vx-branch-key';
     const hint = field.hint ? '<div class="vx-ap-meta">' + esc(field.hint) + '</div>' : '';
@@ -774,7 +975,12 @@
       control = '<input id="' + esc(id) + '" ' + attr + '="' + esc(field.key) + '" maxlength="400" value="' + esc(field.value) + '" placeholder="' + esc(field.placeholder) + '"'
         + (busy ? ' disabled' : '') + '>';
     }
-    return '<div class="vx-ap-field"><label for="' + esc(id) + '">' + esc(field.label) + '</label>' + control + hint + '</div>';
+    const gate = field.show_if
+      ? ' data-vx-showif-key="' + esc(field.show_if.key) + '" data-vx-showif-in="' + esc(field.show_if.in.join('|')) + '"'
+        + ' data-vx-showif-scope="' + esc(scope) + '"' + (fieldVisible(field, scope) ? '' : ' hidden')
+      : '';
+    return '<div class="vx-ap-field"' + gate + '><label for="' + esc(id) + '">' + esc(field.label) + '</label>'
+      + control + hint + suggestionRow(field) + '</div>';
   }
 
   function branchField(field) { return schemaField(field, 'branch'); }
@@ -792,7 +998,7 @@
     const unparsed = Array.isArray(info.unparsed_lines) ? info.unparsed_lines : [];
     return '<div class="vx-ap-suggestion">'
       + '<div class="vx-ap-suggestion-title">Vorschlag aus Ihrem Standort-Text</div>'
-      + '<div class="vx-ap-meta">Wir haben aus „Standort und reguläre Öffnungszeiten“ ein Wochenraster gelesen. '
+      + '<div class="vx-ap-meta">Wir haben aus „Standort und Erreichbarkeit“ ein Wochenraster gelesen. '
       + 'Es gilt erst, wenn Sie es prüfen und speichern — bis dahin verwendet Ihr Assistent weiterhin den Text.</div>'
       + (unparsed.length
         ? '<div class="vx-ap-meta">Diese Zeilen konnten wir nicht zuordnen, bitte selbst eintragen: '
@@ -817,7 +1023,7 @@
     const sections = profile?.core_sections || [];
     if (!sections.length) return '';
     return '<div class="vx-ap-card"><div class="vx-ap-head"><div><div class="vx-ap-title">Ihr Betrieb</div>'
-      + '<div class="vx-ap-meta">Grundangaben zur Erreichbarkeit und zu Terminen. '
+      + '<div class="vx-ap-meta">Erreichbarkeit, Termine, Anfahrt und Preisauskunft. '
       + 'Sie gelten unabhängig von Ihrer Branche; was leer bleibt, erwähnt Ihr Assistent nicht.</div></div></div>'
       + sections.map((section) => (
         '<div class="vx-ap-subsection">'
@@ -839,6 +1045,9 @@
       payload[node.dataset.vxCoreKey] = String(node.value || '').trim();
     });
     if (document.querySelector('[data-vx-hours]')) payload.opening_hours = collectHours();
+    document.querySelectorAll('[data-vx-list]').forEach((node) => {
+      payload[node.dataset.vxList] = collectList(node);
+    });
     if (!Object.keys(payload).length) return;
     await updateAssistant({ core_fields: payload }, 'business', document.getElementById('vx-core-save'));
   }

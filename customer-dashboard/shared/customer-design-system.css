@@ -36,7 +36,10 @@
   --vx-focus-ring-on-dark: #ffffff;
   --vx-overlay: rgba(15, 35, 71, 0.42);
   --vx-success: #178a55;
-  --vx-warning: #b76a00;
+  /* War #b76a00 — ein eigener Warnton neben --vx-color-warning aus
+     customer-design-tokens.css. Jetzt Alias auf den kanonischen Wert, damit
+     Warnbanner/-flächen im ganzen Dashboard denselben Ton tragen. */
+  --vx-warning: var(--vx-color-warning, #D97706);
   --vx-danger: #c83c4a;
   --vx-radius-card: 18px;
   --vx-radius-panel: 18px;
@@ -355,12 +358,18 @@ body.vx-customer-design-foundation [hidden][hidden][hidden] {
     font-size: var(--vx-font-size-body-mobile);
   }
 
+  /* Diese Liste ist die einzige Quelle der mobilen Seiteneinfassung. Jeder
+     Screen, der nicht darin steht, sitzt sichtbar weiter aussen als die
+     anderen — genau der Unterschied, den #tab-einstellungen zeigte, solange
+     es fehlte (2026-08-09). Die Benachrichtigungs-Vollseite steht bewusst
+     nicht hier: ihre Einfassung kommt aus .vx-notif-mobile-shell. */
   body.vx-customer-design-foundation :where(
     #tab-dashboard,
     #tab-anrufe,
     #tab-assistent,
     #tab-auswertung,
-    #tab-mehr
+    #tab-mehr,
+    #tab-einstellungen
   ) {
     width: 100%;
     min-height: 100svh;
@@ -382,7 +391,8 @@ body.vx-customer-design-foundation [hidden][hidden][hidden] {
     #tab-anrufe,
     #tab-assistent,
     #tab-auswertung,
-    #tab-mehr
+    #tab-mehr,
+    #tab-einstellungen
   ) {
     padding-right: 12px;
     padding-left: 12px;
