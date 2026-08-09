@@ -1,6 +1,16 @@
 'use strict';
 
-const PROMPT_BUILDER_VERSION = '2.2';
+// Anheben, sobald sich die AUSGABE dieses Builders aendert -- nicht nur bei
+// grossen Umbauten. Der S4-Fan-out haengt daran: die Version geht in den
+// Prompt-Fingerprint ein (_lib/prompt-fingerprint.js), und nur ueber sie
+// erkennt der Planer, dass ein Agent auf einem aelteren Codestand bespielt
+// wurde. Bleibt sie stehen, gilt jeder Agent weiter als aktuell, obwohl sein
+// Prompt inzwischen anders gebaut wuerde.
+//
+// 2.3: Oeffnungszeiten werden als Wochenraster gerendert (#882). Der Bump
+// wurde nachgezogen, als der Fan-out gebaut wurde; scripts/verify-prompt-builder-version-bump.mjs
+// verhindert kuenftig, dass eine Builder-Aenderung ohne ihn durchgeht.
+const PROMPT_BUILDER_VERSION = '2.3';
 const PROFILE_MARKER = 'PROMPT_V2';
 const WIZARD_MARKER = 'WIZARD';
 

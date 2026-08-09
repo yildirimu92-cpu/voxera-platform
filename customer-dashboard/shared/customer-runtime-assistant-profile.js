@@ -41,8 +41,8 @@
   }
 
   function inject() {
-    if (!ensurePage('mehr-sub-assistant-profile', 'vx-assistant-profile-body', 'Mein Assistent')) return false;
-    if (!ensurePage('mehr-sub-business-profile', 'vx-business-profile-body', 'Geschäftsprofil')) return false;
+    if (!ensurePage('vx-assistant-view-profile', 'vx-assistant-profile-body', 'Mein Assistent')) return false;
+    if (!ensurePage('vx-assistant-view-business', 'vx-business-profile-body', 'Geschäftsprofil')) return false;
     if (!document.getElementById('vx-assistant-voice-modal')) {
       const modal = document.createElement('div');
       modal.id = 'vx-assistant-voice-modal';
@@ -633,7 +633,23 @@
       + branchRow
       + '</div>'
       + industryLine()
-      + '<div class="vx-ap-actions"><button type="button" class="vx-ap-btn secondary" id="vx-open-business-profile">Geschäftsprofil bearbeiten</button></div>'
+      // Klick-Test 09.08.: Die Seite dahinter wirkte verwaist, obwohl sie
+      // absichtlich ein Drill-in ist und in ASSISTANT_VIEWS registriert steht.
+      // Gefehlt hat nicht ein zweiter Navigationsweg, sondern die Geste: ohne
+      // Chevron liest sich der Knopf als Aktion auf dieser Karte, nicht als
+      // Weg zu einer eigenen Seite.
+      //
+      // Bewusst NICHT die Drill-in-Zeile des Einstellungen-Tabs, obwohl sie
+      // optisch genau das waere: verify-customer-navigation-unified verbietet
+      // dem Assistent-Runtime jeden Baustein von dort, und zwar als
+      // Substring-Pruefung — dieser Kommentar darf den Klassennamen also nicht
+      // einmal nennen. Die
+      // Sperre stammt aus dem Rueckbau der alten Settings-Bridge und ist
+      // richtig — der Assistent-Tab soll nicht wieder an den Bausteinen eines
+      // anderen Tabs haengen. Der Chevron sitzt deshalb im eigenen Knopf,
+      // genau wie ph-play in der Stimmkarte.
+      + '<div class="vx-ap-actions"><button type="button" class="vx-ap-btn secondary" id="vx-open-business-profile">'
+      + 'Geschäftsprofil bearbeiten<i class="ph-light ph-caret-right" aria-hidden="true"></i></button></div>'
       + '</section>';
   }
 

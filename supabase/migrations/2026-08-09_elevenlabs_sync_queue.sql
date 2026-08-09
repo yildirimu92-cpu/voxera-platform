@@ -1,26 +1,21 @@
--- NACHDOKUMENTIERT am 2026-08-09. Am 2026-08-09 direkt auf der Produktions-DB
--- ausgefuehrt (Ledger-Version 20260809145738, von info@voxera.ch), ohne
--- Entsprechung im Repo -- vom Ledger-Check des 6-Stunden-Laufs als Waise
--- gemeldet.
+-- S4 / Stufe 2 — Warteschlange fuer den Fan-out.
 --
--- Herkunft des SQL: woertlich aus
--- supabase_migrations.schema_migrations.statements, also aus dem tatsaechlich
--- Ausgefuehrten. Gegen den Live-Katalog geprueft:
---   * Tabelle public.elevenlabs_sync_queue existiert, RLS aktiv, genau eine
---     Policy (elevenlabs_sync_queue_service)
---   * Grants: ausschliesslich service_role (und der Eigentuemer postgres).
---     anon und authenticated halten NICHTS -- die Tabelle ist damit auch nicht
---     Teil der eingefrorenen anon-Grant-Baseline.
---   * alle drei Indizes vorhanden, inkl. des partiellen Unique-Index auf
---     customer_id fuer status in ('pending','running')
+-- Warum eine Warteschlange und nicht eine Schleife im Endpunkt:
+-- Netlify-Funktionen laufen synchron maximal ~26 Sekunden
+-- (trigger-elevenlabs-sync-v2.js setzt selbst 24s an), ein Sync kostet 4-7
+-- ElevenLabs-Aufrufe. Ab etwa drei bis fuenf Kunden passt ein Durchlauf nicht
+-- mehr in eine Invocation. Der "einfachste Ansatz" braucht also ohnehin eine
+-- Warteschlange -- dann lieber gleich die, die auch Stufe 3 tragen kann.
 --
--- Sicherheitsseitig ist an dieser Migration nichts nachzuziehen: sie macht von
--- sich aus, was der P0-Nachzug fuer andere Tabellen erst nachholen musste --
--- RLS an, `revoke all` von public/anon/authenticated, Rechte nur fuer
--- service_role.
+-- Muster uebernommen von outbox_events/outbox-retry-worker.js: Claiming per
+-- bedingtem Status-Update, Backoff ueber attempts, Batch-Groesse per Env.
 --
--- Steht bereits im Ledger und wird nicht erneut ausgefuehrt; alle Anweisungen
--- sind idempotent.
+-- Canary (wave): Welle 1 enthaelt genau einen Kunden. Der Worker gibt Welle 2
+-- erst frei, wenn Welle 1 erfolgreich durch ist. Ein Deploy, der den Prompt
+-- kaputt macht, erreicht damit einen Agenten statt aller -- das war der
+-- schwerwiegendste Einwand gegen einen automatischen Fan-out.
+
+BEGIN;
 
 CREATE TABLE IF NOT EXISTS public.elevenlabs_sync_queue (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -40,6 +35,10 @@ CREATE TABLE IF NOT EXISTS public.elevenlabs_sync_queue (
     CHECK (status IN ('pending', 'running', 'done', 'failed', 'dead', 'cancelled'))
 );
 
+-- Ein Kunde steht nie zweimal gleichzeitig an. Ohne diesen Index wuerde ein
+-- zweiter Planungslauf, der vor dem Ende des ersten startet, denselben Kunden
+-- doppelt synchronisieren -- zwei PATCHes auf denselben Agenten, deren
+-- Reihenfolge niemand kontrolliert.
 CREATE UNIQUE INDEX IF NOT EXISTS elevenlabs_sync_queue_open_customer_idx
   ON public.elevenlabs_sync_queue (customer_id)
   WHERE status IN ('pending', 'running');
@@ -57,6 +56,13 @@ COMMENT ON COLUMN public.elevenlabs_sync_queue.wave IS
 COMMENT ON COLUMN public.elevenlabs_sync_queue.reason IS
   'Warum der Kunde eingeplant wurde: fingerprint_stale, fingerprint_unknown, operational_expired oder manual.';
 
+-- ── Zugriff ────────────────────────────────────────────────────────────────
+-- Die Tabelle enthaelt keine Mandantendaten, die ein Kunde sehen muesste, und
+-- wird von keinem Browser gelesen. anon und authenticated bekommen deshalb gar
+-- keine Rechte -- nicht "RLS haelt sie schon zurueck", sondern kein Grant.
+-- Beides zusammen, weil db_security_invariants Grants und Policies als
+-- unabhaengige Kontrollen fuehrt und eine neue Tabelle ohne RLS ausserdem den
+-- Baseline-Check bricht.
 ALTER TABLE public.elevenlabs_sync_queue ENABLE ROW LEVEL SECURITY;
 
 REVOKE ALL ON TABLE public.elevenlabs_sync_queue FROM public;
@@ -64,6 +70,11 @@ REVOKE ALL ON TABLE public.elevenlabs_sync_queue FROM anon;
 REVOKE ALL ON TABLE public.elevenlabs_sync_queue FROM authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.elevenlabs_sync_queue TO service_role;
 
+-- service_role hat rolbypassrls, die Policy wird heute also nicht konsultiert.
+-- Sie steht trotzdem da: faellt bypassrls jemals weg, arbeitet der Worker
+-- weiter und anon/authenticated kommen trotzdem nicht heran.
 DROP POLICY IF EXISTS elevenlabs_sync_queue_service ON public.elevenlabs_sync_queue;
 CREATE POLICY elevenlabs_sync_queue_service ON public.elevenlabs_sync_queue
   FOR ALL TO service_role USING (true) WITH CHECK (true);
+
+COMMIT;
