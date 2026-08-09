@@ -65,6 +65,28 @@ Abgelöst und damit ohne Aufgabe: Szenario 01, der Hook
 Function `call-intake-resolve-customer` und deren Secret
 `CALL_INTAKE_RESOLVER_SECRET`.
 
+### Stilllegung (Stand 09.08.2026)
+
+Erledigt im Repository: `call-intake-resolve-customer.js` und
+`call-intake-resolver-contract.test.cjs` sind gelöscht. Zwei Wächter halten das
+fest — `verify-call-intake.yml` und `verify-mail-engine-contracts.mjs` —, und
+beide listen die gelöschten Pfade weiterhin als Auslöser, damit ein
+Wiederanlegen den Lauf überhaupt startet.
+
+Offen und nur ausserhalb des Repositories erledigbar:
+
+| Schritt | wo | Wirkung |
+|---|---|---|
+| `CALL_INTAKE_RESOLVER_SECRET` löschen | Netlify, Dashboard-Site | der Wert ist offengelegt und darf nirgends wiederverwendet werden |
+| Szenario 01 löschen | Make | entfernt die letzte Klartext-Kopie des Secrets aus dem Blueprint |
+| Hook `01_call_intake_webhook` löschen | Make | mit dem Szenario |
+
+Reihenfolge ist unkritisch, sobald der Deploy dieses PRs durch ist: ohne die
+Function läuft der Endpunkt nicht mehr, das Secret authentifiziert also nichts
+mehr. Bis dahin ist er weiterhin erreichbar.
+
+`MAKE_CALL_INTAKE_WEBHOOK` bleibt **gesetzt** — siehe den Kasten oben.
+
 > `MAKE_CALL_INTAKE_WEBHOOK` sollte in Netlify **gesetzt bleiben**, obwohl sie
 > niemand mehr liest. `resolveMailWebhook()` in `_lib/mail-delivery.js` weist
 > den Versand ab, wenn `MAKE_MAIL_WEBHOOK` denselben Wert trägt — die Sperre
