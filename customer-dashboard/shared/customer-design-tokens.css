@@ -323,6 +323,69 @@
   --vx-ui-appbar-back-color: #0D1F3C;
   --vx-ui-appbar-back-hover-bg: rgba(13, 31, 60, .06);
 
+  /* ---- Icon-Kachel (die Chip-Geometrie als Leiter) ------------- */
+  /* Der Gold-Chip der Navigation ist der bekannteste Fall eines Musters, das
+     im Produkt an vielen Stellen vorkommt: ein Icon auf einer abgerundeten
+     quadratischen Fläche. Die Grössen dafür waren nie benannt, sondern pro
+     Ort gewählt — 28/9 in der Navigation, 32/10 bei den Bericht-Hinweisen,
+     40/12 in den Einstellungen, 44/13 bei den Hilfe-Kacheln, 46/14 bei den
+     Abo-Einträgen, 52/16 im leeren Zustand. Sechs Werte für drei
+     Verwendungen.
+
+     Hier stehen die Stufen. Radius folgt der Grösse (rund ein Drittel), damit
+     eine grössere Kachel nicht plötzlich eckiger wirkt.
+
+     Angeschlossen sind bisher: Navigation (sm), Bericht-Hinweise (md),
+     leerer Zustand (xl). NICHT angeschlossen und damit offener Rest:
+     .vx-settings-entry-icon (40/12), .vx-help-action > span (44/13) und
+     .vx-commercial-entry-icon (46/14) — drei Grössen für dieselbe Rolle
+     "Icon am Listeneintrag", die sich um sechs Pixel unterscheiden. Sie
+     zusammenzuziehen ändert das Bild von Einstellungen, Hilfe und Abo und
+     gehört deshalb in einen eigenen Schritt, nicht in diesen. */
+  --vx-ui-icon-tile-sm: 28px;
+  --vx-ui-icon-tile-sm-radius: 9px;
+  --vx-ui-icon-tile-md: 32px;
+  --vx-ui-icon-tile-md-radius: 10px;
+  --vx-ui-icon-tile-lg: 44px;
+  --vx-ui-icon-tile-lg-radius: 13px;
+  --vx-ui-icon-tile-xl: 52px;
+  --vx-ui-icon-tile-xl-radius: 16px;
+
+  /* ---- Root navigation (sidebar + bottom tab bar) ------------- */
+  /* Eine Navigation, zwei Erscheinungsformen. Die Seitenleiste am Desktop und
+     die Tab-Leiste auf dem Telefon sind derselbe Vertrag: Night-Fläche,
+     gedämpfte Einträge, und der aktive Eintrag trägt einen goldenen Chip um
+     sein Icon — sonst nichts. Kein Vollflächen-Fill, kein Randstreifen, keine
+     Gold-Tönung über den ganzen Eintrag.
+
+     Gold als Aktiv-Signal ist eine bewusste Erweiterung der Farbrollen: Gold
+     stand bisher für Lead-Qualität (Heiss/Warm/Kalt) und als ornamentales
+     Markenzeichen. Der Chip ist der zweite Fall — ein Zustand der Oberfläche,
+     nicht des Datensatzes, und er tritt nirgends neben einer Lead-Rampe auf.
+     Blau bleibt frei für "interaktiv" (F7), weshalb der Aktiv-Zustand hier
+     bewusst NICHT blau ist: die Navigation zeigt einen Ort an, kein Ziel.
+
+     Der gedämpfte Ton ist --vx-color-text-subtle (#94A3B8), das bestehende
+     Grau-Blau des Systems. Gemessen gegen die Night-Fläche #0D1F3C: 6.4:1,
+     also über der 4.5:1-Schwelle für die 13px-Labels. Der Richtwert #7C8AA3
+     aus dem Auftrag läge bei 4.7:1 — dieselbe Farbfamilie, nur knapper. */
+  --vx-ui-nav-surface: var(--vx-color-night);
+  --vx-ui-nav-item-color: var(--vx-color-text-subtle);
+  --vx-ui-nav-item-hover-color: #FFFFFF;
+  --vx-ui-nav-item-hover-bg: rgba(255, 255, 255, .07);
+  --vx-ui-nav-item-active-color: #FFFFFF;
+  --vx-ui-nav-chip-size: var(--vx-ui-icon-tile-sm);
+  --vx-ui-nav-chip-radius: var(--vx-ui-icon-tile-sm-radius);
+  --vx-ui-nav-chip-bg: var(--vx-color-gold);
+  --vx-ui-nav-chip-color: var(--vx-color-night);
+  --vx-ui-nav-chip-icon-size: 17px;
+  /* Die Tab-Leiste braucht eine breitere Kachel als die Seitenleiste, weil das
+     Label darunter steht statt daneben. */
+  --vx-ui-nav-chip-width-mobile: 34px;
+  --vx-ui-nav-chip-height-mobile: var(--vx-ui-icon-tile-sm);
+  --vx-ui-nav-chip-icon-size-mobile: 19px;
+  --vx-ui-nav-transition: background 160ms ease, color 160ms ease;
+
   /* ---- Choice controls (checkbox / radio) --------------------- */
   /* Checkboxes and radios keep their own contract instead of the text-field
      one — same accent, same focus ring, no native widget. */
@@ -649,10 +712,21 @@
   --vx-ui-spinner-gap: 8px;
 
   /* ---- Empty state ------------------------------------------- */
-  --vx-ui-empty-padding: 32px 20px;
+  /* Das Icon steht auf einer eigenen Kachel statt frei auf der weissen
+     Flaeche. Die Legacy-Variante (.empty-icon) hatte diese Kachel schon; die
+     kanonische hatte nur den nackten Glyphen — obwohl der Kommentar im
+     Komponentenmodul behauptet, beide seien optisch gleich. Jetzt sind sie es
+     wirklich, und der leere Zustand hat einen Ankerpunkt statt einer leeren
+     Flaeche. Die Kachel ist bewusst dieselbe zurueckgenommene Flaeche wie bei
+     Eingabefeldern — kein zweiter Farbtraeger, nur Struktur. */
+  --vx-ui-empty-padding: 36px 20px;
   --vx-ui-empty-gap: 10px;
-  --vx-ui-empty-icon-size: 28px;
+  --vx-ui-empty-icon-size: 26px;
   --vx-ui-empty-icon-color: #A7B4C8;
+  --vx-ui-empty-icon-tile-size: var(--vx-ui-icon-tile-xl);
+  --vx-ui-empty-icon-tile-bg: var(--vx-color-surface-soft);
+  --vx-ui-empty-icon-tile-radius: var(--vx-ui-icon-tile-xl-radius);
+  --vx-ui-empty-icon-tile-gap: 4px;
   --vx-ui-empty-title-size: 14px;
   --vx-ui-empty-text-size: 13px;
   --vx-ui-empty-text-color: #7A8599;
