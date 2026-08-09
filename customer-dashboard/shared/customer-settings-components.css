@@ -566,10 +566,10 @@ body.vx-customer-design-foundation .vx-abo-status.is-cancelled {
 body.vx-customer-design-foundation .vx-abo-contract-warning {
   grid-column: 1 / -1;
   padding: 10px 12px;
-  border: 1px solid #fde68a;
+  border: 1px solid var(--vx-color-warning-border);
   border-radius: 11px;
-  background: #fffbeb;
-  color: #92400e;
+  background: var(--vx-color-warning-bg);
+  color: var(--vx-color-warning);
   font-size: 13px;
   font-weight: 600;
   line-height: 1.45;

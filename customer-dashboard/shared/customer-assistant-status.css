@@ -125,8 +125,8 @@ body.vx-customer-design-foundation .vx-nav-status-summary {
 }
 
 body.vx-customer-design-foundation .vx-nav-status-summary.attention {
-  background: #fff7ed;
-  color: #9a3412;
+  background: var(--vx-color-warning-bg);
+  color: var(--vx-color-warning);
 }
 
 body.vx-customer-design-foundation .vx-nav-status-summary.error {
