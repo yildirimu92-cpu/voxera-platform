@@ -113,15 +113,26 @@ Bleibt die Liste leer, zeigt die Variable weiterhin auf den falschen Hook.
 | Preview, DevTools-Konsole | `[vx-runtime-config] Keine Supabase-Zugangsdaten fuer diesen Kontext.` |
 | Preview, `window.__VX_RUNTIME_CONFIG__` | `{ configured: false, supabaseUrl: null, … }` |
 
-> **Korrektur 09.08.** Bis heute war der Hinweis ein deckendes Vollbild
+> **Korrektur 09.08. — zwei Zustände, bewusst verschieden.**
+>
+> Bis heute war der Hinweis in *jedem* Kontext ein deckendes Vollbild
 > (`position:fixed; inset:0; background:#0d1b2a`, kein Schliessen) — die
 > Oberfläche dahinter war *nicht* sichtbar, obwohl dieser Abschnitt und der
-> Hinweistext selbst das versprachen. Aufgelöst zugunsten des Textes: Previews
-> ohne Zugangsdaten haben genau einen verbliebenen Zweck, nämlich Layout und
-> Design zu beurteilen, und ein Blocker macht ihn unmöglich.
-> `scripts/verify-runtime-config-isolation.mjs` prüft seither am erzeugten File,
-> dass das Vollbild nicht zurückkommt (Abschnitt 6 dort), inklusive
-> Schliessen-Knopf und Abstand über der mobilen Tab-Leiste.
+> Hinweistext selbst das versprachen.
+>
+> **In der Preview** ist das Fehlen der Zugangsdaten der gewünschte Zustand.
+> Dort ist der Hinweis jetzt eine schliessbare Karte neben der Oberfläche:
+> Previews haben genau einen verbliebenen Zweck, nämlich Layout und Design zu
+> beurteilen, und ein Blocker macht ihn unmöglich.
+>
+> **Überall sonst ist es ein Defekt.** Der Supabase-Client bleibt `null`, und
+> `admin-panel/login.html` ruft in `doLogin()` ungeprüft `sb.auth` auf — wer
+> den Hinweis wegklickt, stünde vor einem Formular, das beim ersten Klick
+> stirbt. Dort bleibt es beim Blocker. Welche Fassung erzeugt wird, entscheidet
+> `CONTEXT` zur Build-Zeit; es landet immer nur eine von beiden im File.
+>
+> `scripts/verify-runtime-config-isolation.mjs` hält **beide** Hälften fest
+> (Abschnitt 6a/6b dort) und wurde in beide Richtungen gegengeprüft.
 
 ---
 

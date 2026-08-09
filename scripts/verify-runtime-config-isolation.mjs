@@ -160,39 +160,82 @@ for (const [label, args] of [
 // Geprueft wird das erzeugte File, nicht der Generator-Quelltext: nur was im
 // Browser landet, kann etwas verdecken. Kommentare im Generator duerfen die
 // alten Werte deshalb weiterhin nennen.
-const previewNotice = renderRuntimeConfig({
-  supabaseUrl: null, supabaseAnonKey: null,
-  context: 'deploy-preview', branch: 'x', site: 'customer-dashboard'
-});
-
-const BLOCKING_PATTERNS = [
+// Es sind zwei Zustaende, und der Waechter muss beide halten. Ohne die zweite
+// Haelfte waere der Fix eine Verschlechterung fuer Produktion: dort bleibt der
+// Supabase-Client null, und admin-panel/login.html ruft in doLogin()
+// ungeprueft sb.auth auf — ein wegklickbarer Hinweis liesse ein totes
+// Formular zurueck. (Befund aus dem Codex-Review zu PR #865.)
+//
+// Der Kontext entscheidet zur Build-Zeit, welche Fassung ueberhaupt erzeugt
+// wird. Deshalb genuegen Zeichenketten-Pruefungen: die Merkmale der einen
+// Fassung duerfen im File der anderen gar nicht vorkommen.
+const BLOCKING_MARKERS = [
   { name: 'inset:0 (Vollbild-Flaeche)', re: /inset\s*:\s*0/ },
-  { name: 'deckender Vollbild-Hintergrund', re: /background\s*:\s*#0d1b2a/i },
-  { name: 'aufgespannte Kanten (top+left+right+bottom je 0)', re: /top\s*:\s*0[^}]*left\s*:\s*0[^}]*right\s*:\s*0[^}]*bottom\s*:\s*0/ }
+  { name: 'deckender Vollbild-Hintergrund', re: /background\s*:\s*#0d1b2a/i }
+];
+const NOTICE_MARKERS = [
+  { name: 'Schliessen-Knopf', re: /Hinweis schliessen/ },
+  { name: "role='status'", re: /setAttribute\('role', 'status'\)/ },
+  { name: 'Abstand ueber der mobilen Tab-Leiste', re: /@media \(max-width:768px\)/ }
 ];
 
-let noticeClean = true;
-for (const { name, re } of BLOCKING_PATTERNS) {
-  if (re.test(previewNotice)) {
-    noticeClean = false;
-    fail(
-      `vx-runtime-config.js: der Hinweis verdeckt die Oberflaeche wieder (${name})`,
-      'Er soll neben der Oberflaeche liegen, nicht darueber — sonst laesst sich auf einer ' +
-      'Preview ohne Zugangsdaten weder Layout noch Design beurteilen. Siehe scripts/runtime-config.mjs.'
-    );
-  }
+function generatedFor(context) {
+  return renderRuntimeConfig({
+    supabaseUrl: null, supabaseAnonKey: null,
+    context, branch: 'x', site: 'customer-dashboard'
+  });
 }
-if (noticeClean) ok('vx-runtime-config.js: Hinweis verdeckt die Oberflaeche nicht');
 
-// Schliessbar und nicht-unterbrechend: ohne beides waere er zwar kleiner,
-// aber immer noch im Weg.
-for (const [label, re, detail] of [
-  ['Schliessen-Knopf', /Hinweis schliessen/, 'Ohne ihn bleibt der Hinweis dauerhaft im Bild.'],
-  ["role='status' statt 'alert'", /setAttribute\('role', 'status'\)/, 'Der Hinweis unterbricht nichts mehr; alert waere fuer Screenreader eine falsche Dringlichkeit.'],
-  ['Abstand ueber der mobilen Tab-Leiste', /@media \(max-width:768px\)/, 'Ohne die Media Query verdeckt der Hinweis auf Mobile die Navigation.']
-]) {
-  if (re.test(previewNotice)) ok(`vx-runtime-config.js: ${label}`);
-  else fail(`vx-runtime-config.js: ${label} fehlt`, detail);
+// ── 6a. Preview: der Hinweis liegt neben der Oberflaeche ───────────────────
+for (const context of ['deploy-preview', 'branch-deploy']) {
+  const generated = generatedFor(context);
+  let clean = true;
+
+  for (const { name, re } of BLOCKING_MARKERS) {
+    if (re.test(generated)) {
+      clean = false;
+      fail(
+        `${context}: der Hinweis verdeckt die Oberflaeche wieder (${name})`,
+        'Er soll neben der Oberflaeche liegen, nicht darueber — sonst laesst sich auf einer ' +
+        'Preview ohne Zugangsdaten weder Layout noch Design beurteilen. Siehe scripts/runtime-config.mjs.'
+      );
+    }
+  }
+  for (const { name, re } of NOTICE_MARKERS) {
+    if (!re.test(generated)) {
+      clean = false;
+      fail(`${context}: ${name} fehlt`, 'Ohne ihn ist der Hinweis wieder im Weg statt daneben.');
+    }
+  }
+  if (clean) ok(`${context}: Hinweis liegt neben der Oberflaeche, schliessbar, mit Abstand zur Tab-Leiste`);
+}
+
+// ── 6b. Alles andere: fehlende Zugangsdaten bleiben ein Blocker ────────────
+for (const context of ['production', null]) {
+  const generated = generatedFor(context);
+  const label = context || 'ohne Kontext';
+  let clean = true;
+
+  for (const { name, re } of BLOCKING_MARKERS) {
+    if (!re.test(generated)) {
+      clean = false;
+      fail(
+        `${label}: der Blocker fehlt (${name})`,
+        'Ausserhalb einer Preview sind fehlende Zugangsdaten ein Defekt, kein erklaerter Zustand. ' +
+        'Der Supabase-Client bleibt null; admin-panel/login.html ruft in doLogin() ungeprueft sb.auth auf.'
+      );
+    }
+  }
+  for (const { name, re } of NOTICE_MARKERS) {
+    if (re.test(generated)) {
+      clean = false;
+      fail(
+        `${label}: der Hinweis ist wegklickbar (${name})`,
+        'Wer ihn wegklickt, steht vor einer Oberflaeche, die beim ersten Klick stirbt.'
+      );
+    }
+  }
+  if (clean) ok(`${label}: fehlende Zugangsdaten bleiben ein Blocker`);
 }
 
 // ── Bericht ────────────────────────────────────────────────────────────────
