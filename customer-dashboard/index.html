@@ -7241,12 +7241,12 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
   </div>
   <button class="user-menu-item" onclick="showTab('mehr',document.getElementById('nav-mehr'));closeMobileUserMenu();setTimeout(function(){vxMehrShow('profil');},100);"><i class="ph-light ph-user menu-icon" aria-hidden="true"></i>Profil</button>
   <button class="user-menu-item" onclick="showTab('mehr',document.getElementById('nav-mehr'));closeMobileUserMenu();setTimeout(function(){vxMehrShow('hilfe');},100);"><i class="ph-light ph-question menu-icon" aria-hidden="true"></i>Hilfe</button>
-  <div style="padding:6px 8px 4px;">
-    <button onclick="mobileLogoutAction()" style="width:100%;background:#0D1F3C;color:#fff;border:none;border-radius:10px;padding:11px 16px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;">
-      <i class="ph-bold ph-sign-out"  style="font-size:16px;" aria-hidden="true"></i>
-      Abmelden
-    </button>
-  </div>
+  <!-- Derselbe Menue-Eintrag wie Profil und Hilfe darueber. Vorher stand hier
+       ein eigens ausgestalteter Night-Knopf mit hartkodierter Farbe, eigener
+       Geometrie und eigener Schriftgroesse — er hat dem Abmelden im mobilen
+       Menue ein Gewicht gegeben, das es am Desktop nicht hatte, und er war
+       die letzte Stelle im Menue, die ihr Aussehen selbst bestimmt hat. -->
+  <button class="user-menu-item" data-vx-logout-button onclick="vxLogoutAction(this, closeMobileUserMenu)"><i class="ph-light ph-sign-out menu-icon" aria-hidden="true"></i>Abmelden</button>
 </div>
 
 <!-- ═══════════════════════════════════════
@@ -7326,7 +7326,7 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
         <div class="user-menu" id="sidebar-user-menu">
           <button class="user-menu-item" onclick="showTab('mehr',document.getElementById('nav-mehr'));closeUserMenu();setTimeout(function(){vxMehrShow('profil');},100);"><i class="ph-light ph-user menu-icon" aria-hidden="true"></i>Profil</button>
           <button class="user-menu-item" onclick="showTab('mehr',document.getElementById('nav-mehr'));closeUserMenu();setTimeout(function(){vxMehrShow('hilfe');},100);"><i class="ph-light ph-question menu-icon" aria-hidden="true"></i>Hilfe</button>
-          <button class="user-menu-item danger" onclick="handleLogout(this, closeUserMenu)"><i class="ph-light ph-sign-out menu-icon" aria-hidden="true"></i>Abmelden</button>
+          <button class="user-menu-item" data-vx-logout-button onclick="vxLogoutAction(this, closeUserMenu)"><i class="ph-light ph-sign-out menu-icon" aria-hidden="true"></i>Abmelden</button>
         </div>
       </div>
     </aside>
@@ -7906,6 +7906,22 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
                 <span class="vx-settings-entry-icon"><i class="ph-bold ph-question" aria-hidden="true"></i></span>
                 <span class="vx-settings-entry-copy"><span class="vx-settings-entry-title">Hilfe</span><span class="vx-settings-entry-subtitle">FAQ, Support kontaktieren</span></span>
                 <i class="ph-light ph-caret-right vx-settings-entry-caret" aria-hidden="true"></i>
+              </button>
+            </div>
+
+            <!-- Abmelden lag bisher nur hinter dem Benutzermenue: am Desktop
+                 hinter der Karte unten in der Seitenleiste, auf dem Telefon
+                 hinter dem Avatar oben rechts. Wer es in den Einstellungen
+                 suchte — der naheliegendste Ort — fand es nicht.
+
+                 Eigene Liste, abgesetzt: der Eintrag traegt keinen Chevron,
+                 weil er nirgendwohin fuehrt, sondern eine Handlung ausloest.
+                 Der Chevron ist auf diesem Screen das Versprechen "hier geht
+                 es weiter", und ein Abmelden-Dialog ist keine Unterseite. -->
+            <div class="vx-settings-list vx-settings-list--actions" aria-label="Sitzung">
+              <button type="button" class="vx-settings-entry vx-settings-entry--action" onclick="vxLogoutAction(this)">
+                <span class="vx-settings-entry-icon"><i class="ph-bold ph-sign-out" aria-hidden="true"></i></span>
+                <span class="vx-settings-entry-copy"><span class="vx-settings-entry-title">Abmelden</span><span id="mehr-logout-sub" class="vx-settings-entry-subtitle">Aus dem Voxera Portal abmelden</span></span>
               </button>
             </div>
           </div>
@@ -25190,19 +25206,42 @@ function closeMobileUserMenu() {
   if (menu) menu.classList.remove('open');
 }
 
-function mobileLogoutAction() {
-  closeMobileUserMenu();
+// Der einzige Einstieg zum Abmelden — Seitenleiste, mobiles Menü und
+// Einstellungen laufen alle hierher.
+//
+// Vorher gab es zwei Wege mit unterschiedlichem Verhalten: das mobile Menü
+// fragte nach ("Wirklich abmelden?"), die Seitenleiste am Desktop meldete
+// ohne Rueckfrage sofort ab. Dieselbe Aktion, zwei Zusagen — und die
+// verlierbare Variante stand ausgerechnet dort, wo man sie mit der Maus
+// streift.
+//
+// Der mobile Weg rief ausserdem doLogout() roh auf und ging damit an
+// handleLogout vorbei: an dessen try/catch, dem Toast bei Fehlschlag und der
+// Rueckstellung der Knoepfe. Ein fehlgeschlagenes Abmelden waere auf dem
+// Telefon stumm geblieben. Beides ist mit der Zusammenfuehrung erledigt.
+function vxLogoutAction(triggerEl, beforeConfirm) {
+  if (typeof beforeConfirm === 'function') beforeConfirm();
   openConfirmModal({
     title: 'Wirklich abmelden?',
     text: 'Sie werden aus dem Voxera Portal abgemeldet.',
     confirmLabel: 'Abmelden',
     loadingLabel: 'Melde ab...',
-    tone: 'danger',
+    // Night, nicht Rot. Rot ist in der Vier-Familien-Regel Dringlichkeit und
+    // Ungelesenes, nicht "diese Handlung ist destruktiv" — Abmelden ist eine
+    // gewoehnliche bestaetigende Aktion, und deren Farbe ist Night. Derselbe
+    // Fall wurde bei F7 schon einmal entschieden: "Zurueckziehen" war
+    // faelschlich als danger markiert und ist jetzt neutral.
+    tone: 'primary',
     onConfirm: function() {
-      doLogout();
+      handleLogout(triggerEl || null);
       return true;
     }
   });
+}
+
+// Alter Name, damit vorhandene Aufrufer nicht ins Leere laufen.
+function mobileLogoutAction() {
+  vxLogoutAction(null, closeMobileUserMenu);
 }
 
 document.addEventListener('click', function(event) {
@@ -28952,9 +28991,20 @@ async function doLogout() {
   isAuthTransition = false;
 }
 
+// Gesucht wird ueber ein Datenattribut, nicht mehr ueber den Inhalt des
+// onclick-Attributs. Der frueher benutzte Selektor button[onclick*="handleLogout"]
+// haette nach der Zusammenfuehrung der Abmelde-Wege (die Menues rufen jetzt
+// vxLogoutAction) kein Element mehr getroffen und waere stumm wirkungslos
+// geworden.
+//
+// Das Attribut tragen ausschliesslich die beiden Menue-Eintraege, deren
+// Beschriftung aus reinem Text besteht. Der Eintrag in den Einstellungen hat
+// es bewusst nicht: seine Zeile besteht aus Icon-Kachel, Titel und Untertitel,
+// und ein innerHTML-Austausch wuerde diese Struktur zerstoeren. Seine
+// Rueckmeldung ist der Bestaetigungsdialog, der ohnehin davor steht.
 function setLogoutButtonsLoading(isLoading) {
   var shouldLoad = !!isLoading;
-  var buttons = Array.prototype.slice.call(document.querySelectorAll('button[onclick*="handleLogout"]'));
+  var buttons = Array.prototype.slice.call(document.querySelectorAll('[data-vx-logout-button]'));
   buttons.forEach(function(btn) {
     if (!btn) return;
     if (!btn.dataset.logoutDefaultHtml) btn.dataset.logoutDefaultHtml = btn.innerHTML || 'Abmelden';

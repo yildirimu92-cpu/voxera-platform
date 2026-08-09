@@ -88,7 +88,7 @@ for (const token of [
   '/shared/customer-design-system.css?v=20260809-2',
   '/shared/customer-assistant-components.css?v=20260809-3',
   '/shared/customer-assistant-status.css?v=20260803-1',
-  '/shared/customer-settings-components.css?v=20260809-2',
+  '/shared/customer-settings-components.css?v=20260809-3',
   '/shared/customer-support-components.css?v=20260802-2',
   '/shared/customer-navigation-components.css?v=20260809-2',
   '/shared/customer-ui-components.css?v=20260809-2',
@@ -949,5 +949,5 @@ assert.ok(!dashboard.includes('<script src="/shared/offer-brand.js"></script>'),
 assert.ok(loader.includes('/shared/customer-runtime-design-foundation.js?v=20260809-1'), 'offer-brand missing current design loader version');
 assert.ok(!loader.includes('/shared/customer-runtime-design-foundation.js?v=20260803-4'), 'offer-brand still references stale design loader version');
 for (const stale of ['/shared/customer-settings-components.css?v=20260807-3','/shared/customer-design-system.css?v=20260804-1','/shared/customer-assistant-components.css?v=20260803-1','/shared/customer-assistant-components.css?v=20260808-2','/shared/customer-assistant-components.css?v=20260808-3','/shared/customer-assistant-components.css?v=20260809-1','/shared/customer-assistant-components.css?v=20260809-2','/shared/customer-navigation-components.css?v=20260803-1','/shared/customer-navigation-components.css?v=20260809-1','/shared/customer-design-system.css?v=20260809-1','/shared/customer-ui-components.css?v=20260809-1']) assert.ok(!runtime.includes(stale), `design loader still contains stale CSS URL: ${stale}`);
-const cssOrder=['/shared/customer-design-system.css?v=20260809-2','/shared/customer-assistant-components.css?v=20260809-3','/shared/customer-assistant-status.css?v=20260803-1','/shared/customer-navigation-components.css?v=20260809-2','/shared/customer-settings-components.css?v=20260809-2','/shared/customer-support-components.css?v=20260802-2','/shared/customer-ui-components.css?v=20260809-2'];
+const cssOrder=['/shared/customer-design-system.css?v=20260809-2','/shared/customer-assistant-components.css?v=20260809-3','/shared/customer-assistant-status.css?v=20260803-1','/shared/customer-navigation-components.css?v=20260809-2','/shared/customer-settings-components.css?v=20260809-3','/shared/customer-support-components.css?v=20260802-2','/shared/customer-ui-components.css?v=20260809-2'];
 for(let i=1;i<cssOrder.length;i+=1) assert.ok(runtime.indexOf(cssOrder[i-1])<runtime.indexOf(cssOrder[i]),`design CSS module order changed: ${cssOrder[i-1]} before ${cssOrder[i]}`);

@@ -817,3 +817,19 @@ body.vx-customer-design-foundation .vx-help-action {
     border-color: var(--vx-ui-field-border-hover);
   }
 }
+
+/* ------------------------------------------------------------
+   Handlungs-Eintrag in der Einstellungsliste
+   ------------------------------------------------------------
+   Dieselbe Zeile wie die Bereichs-Einträge darüber, aber ohne Chevron:
+   sie führt nicht weiter, sie tut etwas. Der Chevron ist auf diesem
+   Screen das Versprechen "hier geht es tiefer" — ein Eintrag, der
+   stattdessen einen Dialog öffnet, darf es nicht geben.
+
+   Die Liste steht abgesetzt unter den Bereichen. Kein eigener Ton,
+   keine rote Warnfarbe: Abmelden ist eine gewöhnliche Handlung, und
+   Rot ist in den Farbfamilien für Dringlichkeit reserviert.
+   ------------------------------------------------------------ */
+body.vx-customer-design-foundation .vx-settings-list--actions {
+  margin-top: var(--vx-space-4);
+}
