@@ -485,10 +485,12 @@ async function handleToolCall(body, event) {
     matchStrategy = 'insert';
   }
 
-  // ── Notification in Supabase + Benachrichtigungsmail ──────────────────────
+  // ── Glocke im Dashboard + Benachrichtigungsmail ───────────────────────────
+  // Bewusst getrennte try-Bloecke: die Mail darf nicht ausfallen, weil das
+  // Anlegen des Glocken-Eintrags gescheitert ist. Beide haengen an derselben
+  // customer_id, also wird die einmal aufgeloest.
+  let notifCustomerId = null;
   try {
-    // customer_id aus gematchtem Record oder via calledNumber
-    let notifCustomerId = null;
     if (matchedId) {
       const { data: matchedRec } = await sbAdmin.from('calls').select('customer_id').eq('id', matchedId).maybeSingle();
       notifCustomerId = matchedRec?.customer_id || null;
@@ -509,32 +511,33 @@ async function handleToolCall(body, event) {
         : (updatePayload.category || ''),
       callId: matchedId || null
     });
-
-    // Die Mail haengt bewusst an notifCustomerId und nicht an calledNumber:
-    // im Tool-Call-Pfad kommt called_number aus den Argumenten des Agenten und
-    // ist dort praktisch immer leer. Genau daran scheiterte Szenario 01 mit
-    // HTTP 400 im Resolver.
-    await sendCallNotification(sbAdmin, {
-      callRowId: matchedId,
-      customerId: notifCustomerId,
-      calledNumber,
-      call: {
-        caller_name: updatePayload.caller_name,
-        caller_phone: callerPhone,
-        call_summary: updatePayload.call_summary,
-        call_summary_short: updatePayload.call_summary_short,
-        callback_requested: updatePayload.callback_requested === true,
-        category: updatePayload.category,
-        lead_quality: updatePayload.lead_quality,
-        next_action: updatePayload.next_action,
-        priority: updatePayload.priority,
-        duration_seconds: updatePayload.duration_seconds,
-        elevenlabs_conversation_id: elevenLabsConvId
-      }
-    });
   } catch (e) {
     console.warn('[elevenlabs-post-call] tool-call notification error', e.message);
   }
+
+  // Die Mail haengt an der Datenbankzeile, nicht an calledNumber: im
+  // Tool-Call-Pfad kommt called_number aus den Argumenten des Agenten und ist
+  // dort praktisch immer leer. Genau daran scheiterte Szenario 01 mit HTTP 400
+  // im Resolver. Ist notifCustomerId oben ausgefallen, liest
+  // sendCallNotification den Kunden selbst aus der calls-Zeile nach.
+  await sendCallNotification(sbAdmin, {
+    callRowId: matchedId,
+    customerId: notifCustomerId,
+    calledNumber,
+    call: {
+      caller_name: updatePayload.caller_name,
+      caller_phone: callerPhone,
+      call_summary: updatePayload.call_summary,
+      call_summary_short: updatePayload.call_summary_short,
+      callback_requested: updatePayload.callback_requested === true,
+      category: updatePayload.category,
+      lead_quality: updatePayload.lead_quality,
+      next_action: updatePayload.next_action,
+      priority: updatePayload.priority,
+      duration_seconds: updatePayload.duration_seconds,
+      elevenlabs_conversation_id: elevenLabsConvId
+    }
+  });
 
   return response(200, { success: true, message: 'Das Anliegen wurde erfolgreich aufgenommen.' });
 }

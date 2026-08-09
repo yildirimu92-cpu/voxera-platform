@@ -95,8 +95,29 @@ async function resolveCustomerByNumber(sbAdmin, rawNumber) {
   return { customer: matches[0] || null, strategy: matches[0] ? 'voxera_number_normalized' : null };
 }
 
-async function loadCustomer(sbAdmin, { customerId, calledNumber }) {
-  const id = toStr(customerId);
+// Aufloesungsreihenfolge, absteigend nach Verlaesslichkeit:
+//   1. die mitgegebene customer_id (kommt aus der gematchten calls-Zeile),
+//   2. die calls-Zeile selbst, falls der Aufrufer die id nicht ermitteln konnte,
+//   3. die Voxera-Nummer aus dem Webhook-Payload.
+//
+// Schritt 3 stand in Szenario 01 an erster Stelle und war der einzige Weg -
+// deshalb genuegte dort ein leeres Feld im Payload, um die Benachrichtigung
+// ausfallen zu lassen. Jetzt ist er der letzte Rueckfall.
+async function loadCustomer(sbAdmin, { customerId, callRowId, calledNumber }) {
+  let id = toStr(customerId);
+  let strategy = 'call_row_customer_id';
+
+  if (!id && toStr(callRowId)) {
+    const { data, error } = await sbAdmin
+      .from('calls')
+      .select('customer_id')
+      .eq('id', toStr(callRowId))
+      .maybeSingle();
+    if (error) throw error;
+    id = toStr(data?.customer_id);
+    strategy = 'call_row_lookup';
+  }
+
   if (id) {
     const { data, error } = await sbAdmin
       .from('customers')
@@ -104,8 +125,9 @@ async function loadCustomer(sbAdmin, { customerId, calledNumber }) {
       .eq('id', id)
       .maybeSingle();
     if (error) throw error;
-    if (data) return { customer: data, strategy: 'call_row_customer_id' };
+    if (data) return { customer: data, strategy };
   }
+
   return resolveCustomerByNumber(sbAdmin, calledNumber);
 }
 
@@ -209,7 +231,7 @@ async function sendCallNotification(sbAdmin, {
 } = {}) {
   try {
     const callbackRequested = call.callback_requested === true;
-    const { customer, strategy } = await loadCustomer(sbAdmin, { customerId, calledNumber });
+    const { customer, strategy } = await loadCustomer(sbAdmin, { customerId, callRowId, calledNumber });
     const { mailType, reason } = decideMail(customer, callbackRequested);
 
     if (!mailType) {

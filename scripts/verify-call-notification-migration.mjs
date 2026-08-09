@@ -59,7 +59,7 @@ async function checkAsync(name, fn) {
 // ─── Supabase-Double ────────────────────────────────────────────────────────
 // Nur so viel Query-Builder, wie call-notification.js und webhook-outbox.js
 // tatsaechlich benutzen: select/eq/not/limit/maybeSingle/single und insert.
-function makeSupabaseDouble({ customers = [], outboxRows = [] } = {}) {
+function makeSupabaseDouble({ customers = [], outboxRows = [], calls = [] } = {}) {
   const log = { inserts: [], selects: [] };
 
   function builder(table) {
@@ -88,7 +88,10 @@ function makeSupabaseDouble({ customers = [], outboxRows = [] } = {}) {
       if (state.inserted) return { data: state.inserted, error: null };
       log.selects.push({ table, filters: { ...state.filters } });
 
-      const source = table === 'customers' ? customers : table === 'outbox_events' ? outboxRows : [];
+      const source = table === 'customers' ? customers
+        : table === 'outbox_events' ? outboxRows
+        : table === 'calls' ? calls
+        : [];
       const matched = source.filter(row =>
         Object.entries(state.filters).every(([column, value]) => row[column] === value)
       );
@@ -212,6 +215,24 @@ await checkAsync('Leerer called_number verhindert die Mail nicht mehr', async ()
   assert.ok(outboxInsert, 'Keine Outbox-Zeile geschrieben');
   assert.equal(outboxInsert.row.event_type, CALL_MAIL_TYPE);
   assert.equal(outboxInsert.row.dedupe_key, `${CALL_MAIL_TYPE}:call_row_1`);
+});
+
+await checkAsync('Ohne customer_id wird der Kunde aus der calls-Zeile nachgelesen', async () => {
+  // Der schlimmste realistische Fall im Tool-Call-Pfad: called_number leer UND
+  // die customer_id des Aufrufers nicht ermittelt. Die Zeile kennt den Kunden
+  // trotzdem, weil der Twilio-Stub ihn beim Anruf gesetzt hat.
+  const sb = makeSupabaseDouble({
+    customers: [ACTIVE_CUSTOMER],
+    calls: [{ id: 'call_row_5', customer_id: ACTIVE_CUSTOMER.id }]
+  });
+  const result = await sendCallNotification(sb, {
+    callRowId: 'call_row_5',
+    customerId: null,
+    calledNumber: '',
+    call: { callback_requested: false }
+  });
+  assert.equal(result.skipped, false, 'Die Mail wurde uebersprungen');
+  assert.equal(result.mail_type, CALL_MAIL_TYPE);
 });
 
 await checkAsync('Ohne customer_id greift der Rueckfall ueber die Voxera-Nummer', async () => {
