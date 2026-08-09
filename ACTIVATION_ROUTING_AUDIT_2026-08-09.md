@@ -190,7 +190,7 @@ gezogen, den es nicht trägt.
 
 ---
 
-## 6. Offene Entscheidung (kein Code geändert)
+## 6. Entscheidung: Option A (vom User freigegeben, 09.08.)
 
 Zwei Implementierungen derselben Aktion nebeneinander sind der Zustand, den
 AGENTS.md ausschliesst. Eine muss weg. Das ist eine Produktentscheidung, keine
@@ -226,9 +226,13 @@ verspricht.
 
 ## 7. Risiken und Unverifiziertes
 
-- **Unverifiziert:** Wert von `ACTIVATE_URL` in Netlify. Alles in Abschnitt 3
-  hängt daran. Prüfen, bevor irgendetwas umgestellt wird.
-- **Unverifiziert:** Redirect-Reihenfolge `netlify.toml` vs. `_redirects` live.
+- **Unverifiziert und wichtigster Restposten:** Wert von `ACTIVATE_URL` in
+  Netlify. Ein dort verbliebener Wurzelwert überstimmt den neuen Default
+  weiterhin — dann ändert die Umsetzung aus Abschnitt 8 nichts am Fehlweg. Die
+  neue Warnung im Log macht es sichtbar, verhindert es aber nicht.
+- **Unverifiziert:** dass die neue `/activate`-Regel live greift. Die
+  Reihenfolgeannahme (`netlify.toml` vor `_redirects`, erste passende Regel
+  gewinnt) ist dokumentiertes Netlify-Verhalten, hier aber nicht live getestet.
 - **Unverifiziert:** Einlösen eines echten Supabase-Recovery-Tokens durch
   `activate.html`. Der Browser-Durchlauf deckt die Logik ab, nicht den Server.
 - **Nebenfund, nicht verfolgt (Briefing: dokumentieren, nicht mitfixen):**
@@ -243,8 +247,60 @@ verspricht.
 
 ---
 
-## 8. Was in diesem Fenster verändert wurde
+## 8. Umsetzung von Option A
 
-Am Produktionscode: **nichts**. Dieses Dokument ist die Lieferung. Die
-Entscheidung aus Abschnitt 6 liegt beim User; erst danach wird Code angefasst
-(AGENTS.md, Punkt 6/7 des Required Workflow).
+Nach der Freigabe umgesetzt. Vier Änderungen, alle am *Weg zur Seite* —
+`activate.html` selbst wurde nicht angefasst.
+
+**1. Ein Ziel statt zwei Fallbacks.**
+Neu: `admin-panel/netlify/functions/_lib/activation-url.js`. Beide Aufrufer
+(`send-customer-access.js`, `outbox-retry-worker.js`) hatten je einen eigenen
+Fallback, beide zeigten an der Aktivierungsseite vorbei. Jetzt entscheidet eine
+Stelle.
+
+Der Default wird aus `DASHBOARD_URL` + `/activate` gebildet und ist damit von
+sich aus richtig — er hängt nicht daran, dass jemand in Netlify eine zweite
+Variable pflegt. `ACTIVATE_URL` bleibt als ausdrücklicher Vorrang bestehen
+(Staging). Zeigt der aufgelöste Wert nicht auf die Aktivierungsseite, wird das
+pro Versand als `level: warn` protokolliert statt still hingenommen.
+
+| Umgebung | Ziel | zeigt auf die Seite |
+|---|---|---|
+| nichts gesetzt | `https://dashboard.voxera.ch/activate` | ja |
+| nur `DASHBOARD_URL` | `<DASHBOARD_URL>/activate` | ja |
+| `ACTIVATE_URL` korrekt | wie gesetzt | ja |
+| `ACTIVATE_URL` = alter Wurzelwert | `https://dashboard.voxera.ch` | **nein → Warnung** |
+
+**2. Passwort-vergessen bleibt getrennt.**
+Der Reset-Weg zeigt weiter auf die Dashboard-Wurzel, wo das Recovery-Formular
+in `index.html` hingehört. Die beiden Fälle trennen sich damit am Link, nicht
+durch Verzweigungen in der Seite — deshalb war an `index.html` nichts zu
+ändern. Nebenbei behoben: `outbox-retry-worker.js` gab beiden Mailtypen
+dasselbe Ziel; ein gesetztes `ACTIVATE_URL` hätte auch nachgereichte
+Reset-Mails auf die Aktivierungsseite geschickt.
+
+**3. Routing entdoppelt.**
+`customer-dashboard/netlify.toml` bekommt eine `/activate` → `/activate.html`
+Regel **vor** der Catch-all-Regel. `customer-dashboard/_redirects` ist entfernt:
+seine beiden Regeln stehen jetzt vollständig in `netlify.toml`, und da Netlify
+diese Datei zuerst auswertet, kam `_redirects` ohnehin nie zum Zug — es täuschte
+eine Regel vor, die nicht griff. Genau diese Doppelquelle hat den Fehlweg
+verdeckt.
+
+**4. Der Wächter deckt jetzt auch den Weg ab.**
+`scripts/verify-activation-page-integrity.mjs` prüft zusätzlich: das Default-Ziel
+zeigt auf die Aktivierungsseite, beide Aufrufer nutzen den gemeinsamen Resolver
+(kein eigenes `process.env.ACTIVATE_URL` mehr), die `/activate`-Regel steht vor
+der Catch-all-Regel, und `_redirects` ist nicht wieder da. **18 Prüfungen, alle
+grün.** Die Trigger-Pfade des Workflows sind auf alle geprüften Dateien
+erweitert.
+
+### Was der User noch tun muss
+
+- **`ACTIVATE_URL` in Netlify nachsehen.** Steht dort noch der alte Wurzelwert
+  `https://dashboard.voxera.ch`, überstimmt er den neuen Default und der Fehlweg
+  bleibt bestehen. Entweder löschen (dann greift der Default) oder auf
+  `https://dashboard.voxera.ch/activate` setzen.
+- **Auf Staging durchspielen**, bevor das auf Produktion geht: echte Einladung
+  auslösen, Mail klicken, Passwort setzen, Login prüfen. Das ist der Teil, den
+  weder der Wächter noch der Browser-Durchlauf ersetzen können.

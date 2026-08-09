@@ -13,7 +13,8 @@
 // sie ist in der Historie dieser Datei dreimal belegt und hinterlaesst im
 // Browser keine Spur.
 
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 
@@ -124,6 +125,62 @@ const referenced = [...html.matchAll(/showView\('([^']+)'\)/g)].map(x => x[1]);
 const missing = [...new Set(referenced)].filter(id => !html.includes(`id="${id}"`));
 if (missing.length === 0) ok(`alle ${new Set(referenced).size} angesteuerten Ansichten existieren`);
 else fail(`Ansicht(en) ohne Markup: ${missing.join(', ')}`, 'showView() wuerde ins Leere greifen.');
+
+// ── 9. Der Aktivierungslink zeigt ueberhaupt auf diese Seite ───────────────
+// Der teuerste Teil des Fundes vom 09.08. war nicht die abgeschnittene Datei,
+// sondern dass niemand es merkte: der Link aus der Willkommensmail zeigte auf
+// die Dashboard-Wurzel, wo index.html den Recovery-Token mit einem eigenen
+// Formular abfing. Die Seite konnte kaputt sein, ohne dass ein Kunde je
+// darueber stolperte. Diese Pruefungen halten den Weg zur Seite offen.
+const sendAccess = readFileSync(resolve(repoRoot, 'admin-panel/netlify/functions/send-customer-access.js'), 'utf8');
+const outboxWorker = readFileSync(resolve(repoRoot, 'admin-panel/netlify/functions/outbox-retry-worker.js'), 'utf8');
+
+const require_ = createRequire(import.meta.url);
+const savedEnv = { ACTIVATE_URL: process.env.ACTIVATE_URL, DASHBOARD_URL: process.env.DASHBOARD_URL };
+delete process.env.ACTIVATE_URL;
+delete process.env.DASHBOARD_URL;
+const { resolveActivationUrl } = require_(resolve(repoRoot, 'admin-panel/netlify/functions/_lib/activation-url.js'));
+const defaultTarget = resolveActivationUrl();
+for (const [k, v] of Object.entries(savedEnv)) { if (v === undefined) delete process.env[k]; else process.env[k] = v; }
+
+if (defaultTarget.pointsAtActivationPage) ok(`Default-Ziel des Links zeigt auf die Aktivierungsseite (${defaultTarget.url})`);
+else fail(`Default-Ziel des Links zeigt woanders hin: ${defaultTarget.url}`, 'Ohne gesetztes ACTIVATE_URL landet der eingeladene Kunde nicht auf activate.html.');
+
+// Keine eigenen Fallbacks mehr neben dem gemeinsamen Resolver.
+for (const [label, src] of [['send-customer-access.js', sendAccess], ['outbox-retry-worker.js', outboxWorker]]) {
+  if (/process\.env\.ACTIVATE_URL/.test(src)) {
+    fail(`${label} liest ACTIVATE_URL selbst`, 'Das Ziel gehoert in _lib/activation-url.js, sonst driften die beiden Aufrufer wieder auseinander.');
+  } else if (/require\(['"]\.\/_lib\/activation-url['"]\)/.test(src)) {
+    ok(`${label} nutzt den gemeinsamen Resolver`);
+  } else {
+    fail(`${label} bindet _lib/activation-url.js nicht ein`, 'Der Aktivierungslink haette dort kein definiertes Ziel.');
+  }
+}
+
+// ── 10. Netlify leitet /activate auch wirklich auf die Seite ───────────────
+// Regeln aus netlify.toml gehen denen aus _redirects vor und werden der Reihe
+// nach ausgewertet: steht die Catch-all-Regel zuerst, ist /activate tot.
+const netlifyToml = readFileSync(resolve(repoRoot, 'customer-dashboard/netlify.toml'), 'utf8');
+const activateRuleAt = netlifyToml.search(/from\s*=\s*"\/activate"/);
+const catchAllAt = netlifyToml.search(/from\s*=\s*"\/\*"/);
+
+if (activateRuleAt === -1) {
+  fail('netlify.toml hat keine Regel fuer /activate', 'Die Catch-all-Regel wuerde den Pfad auf index.html umbiegen.');
+} else if (catchAllAt !== -1 && activateRuleAt > catchAllAt) {
+  fail('netlify.toml: /activate steht hinter der Catch-all-Regel', 'Erste passende Regel gewinnt — /activate erreicht die Seite nie.');
+} else if (!/from\s*=\s*"\/activate"\s*\n\s*to\s*=\s*"\/activate\.html"/.test(netlifyToml)) {
+  fail('netlify.toml: /activate zeigt nicht auf /activate.html', 'Ziel der Regel pruefen.');
+} else {
+  ok('netlify.toml leitet /activate vor der Catch-all-Regel auf /activate.html');
+}
+
+// Zwei Dateien, die dieselben Pfade beschreiben, sind genau die Doppelquelle,
+// an der sich der Fehler versteckt hat.
+if (existsSync(resolve(repoRoot, 'customer-dashboard/_redirects'))) {
+  fail('customer-dashboard/_redirects existiert wieder', 'Routing gehoert in netlify.toml; _redirects kommt dahinter nie zum Zug und taeuscht eine Regel vor.');
+} else {
+  ok('kein konkurrierendes _redirects neben netlify.toml');
+}
 
 console.log('\nAktivierungsseite — Integritaet\n');
 for (const l of checks) console.log(`  PASS  ${l}`);

@@ -25,6 +25,16 @@
   to = "/.netlify/functions/twilio-status-callback"
   status = 200
 
+# Muss vor der Catch-all-Regel stehen. Netlify wertet die Regeln aus dieser
+# Datei der Reihe nach und vor denen aus _redirects aus — eine gleichlautende
+# Regel in _redirects kam deshalb nie zum Zug, und /activate landete auf
+# index.html statt auf der Aktivierungsseite. Siehe
+# ACTIVATION_ROUTING_AUDIT_2026-08-09.md.
+[[redirects]]
+  from = "/activate"
+  to = "/activate.html"
+  status = 200
+
 [[redirects]]
   from = "/*"
   to = "/index.html"
