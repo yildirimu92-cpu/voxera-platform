@@ -38692,7 +38692,11 @@ body:has(#tab-archiv.active) .content{
   function isAnfragenDesktopSplit(){
     var tab = document.getElementById('tab-anrufe');
     var splitRight = document.getElementById('anrufe-split-right');
-    return !!(tab && tab.classList.contains('active') && splitRight && window.innerWidth >= 1100);
+    // 769px, nicht 1100px: muss mit der CSS-Grid-Split-Regel
+    // (@media(min-width:769px) body.vx-customer-design-foundation
+    // #anrufe-split.vx-requests-layout) uebereinstimmen, sonst bekommt
+    // #anrufe-split-right nie Inhalt, obwohl es sichtbar ist (PR #862 Review).
+    return !!(tab && tab.classList.contains('active') && splitRight && window.innerWidth >= 769);
   }
   // ── Rahmen ──────────────────────────────────────────────────────────────
   // Panel-Flächen und Vollbildfläche unterscheiden sich nur in der Rahmung.
@@ -39820,7 +39824,8 @@ body.vx-dv2-fullscreen-open{overflow:hidden;}
   }
 
   function isDesktopSplit(){
-    return !isLoginVisible() && isAnfragenTabActive() && window.innerWidth >= 1100;
+    // 769px: siehe isAnfragenDesktopSplit() weiter oben, dieselbe Begruendung.
+    return !isLoginVisible() && isAnfragenTabActive() && window.innerWidth >= 769;
   }
 
   function getRecordIdFromRow(row){
