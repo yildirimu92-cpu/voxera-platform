@@ -166,7 +166,7 @@ for (const forbidden of [
   if (source.statusRuntime.includes(forbidden)) failures.push(`status runtime exposes protected field: ${forbidden}`);
 }
 
-assert.match(source.loader, /customer-runtime-assistant-profile\.js\?v=20260809-4/);
+assert.match(source.loader, /customer-runtime-assistant-profile\.js\?v=20260809-5/);
 assert.match(source.loader, /customer-runtime-assistant-status\.js\?v=20260809-1/);
 assert.doesNotMatch(source.loader, /customer-runtime-assistant-business-menu\.js/);
 assert.doesNotMatch(source.loader, /customer-runtime-voice-preview-fallback\.js/);
@@ -334,6 +334,13 @@ try {
 } catch (error) {
   failures.push(`core field write path: ${error.message}`);
 }
+
+// Klick-Test 09.08.: Die Geschäftsprofil-Seite benutzte das zweispaltige
+// KPI-Raster (vx-ap-grid) statt der einspaltigen Feldliste und hatte keinen
+// vx-ap-stack-Rahmen — die drei Karten standen dadurch ohne vertikalen
+// Abstand aufeinander. Beides ist reine Klassenwahl, kein neues CSS.
+assert.doesNotMatch(source.runtime, /class="vx-ap-grid"/);
+assert.match(source.runtime, /vx-business-profile-status[\s\S]{0,80}vx-ap-stack/);
 
 // J5: Öffnungszeiten
 assert.match(source.profile, /opening_hours/);
