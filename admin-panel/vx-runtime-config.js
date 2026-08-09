@@ -14,11 +14,8 @@
 
   if (config.configured) return;
 
-  var isPreview = config.context === 'deploy-preview' || config.context === 'branch-deploy';
-  var title = isPreview ? 'Vorschau ohne Datenverbindung' : 'Keine Datenverbindung';
-  var body = isPreview
-    ? 'Diese Vorschau hat bewusst keinen Zugriff auf die Datenbank. Sichtbar sind Oberflaeche, Navigation und Design \u2014 alles, was Daten braucht, bleibt leer. Funktionale Tests laufen auf der Staging-Umgebung.'
-    : 'Die Laufzeit-Konfiguration fehlt. Der Build hat keine Supabase-Zugangsdaten erhalten \u2014 in Netlify pruefen, ob SUPABASE_URL und SUPABASE_ANON_KEY fuer diesen Kontext gesetzt sind.';
+  var title = 'Keine Datenverbindung';
+  var body = 'Die Laufzeit-Konfiguration fehlt. Der Build hat keine Supabase-Zugangsdaten erhalten \u2014 in Netlify pr\u00fcfen, ob SUPABASE_URL und SUPABASE_ANON_KEY f\u00fcr diesen Kontext gesetzt sind.';
   var detail = [config.site, config.context, config.branch].filter(Boolean).join(' \u00b7 ');
 
   console.warn('[vx-runtime-config] Keine Supabase-Zugangsdaten fuer diesen Kontext.', config);

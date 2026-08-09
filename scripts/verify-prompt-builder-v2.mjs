@@ -58,6 +58,19 @@ const result = buildPromptV2({
 
 check('compiler version is explicit', () => assert.equal(result.version, PROMPT_BUILDER_VERSION));
 check('meta documentation is stripped', () => assert.ok(!result.prompt.includes('Dokumentation')));
+// Der produktive Wert in system_config.prompt_master_l1 hat CRLF-Zeilenenden.
+// Die LF-Probe darueber lief deshalb gruen, waehrend in Produktion nichts
+// abgeschnitten wurde (Befund S13, 09.08.). Beide Schreibweisen gehoeren geprueft.
+check('meta documentation is stripped with CRLF line endings', () => {
+  const crlf = buildPromptV2({
+    customer,
+    masterPrompt:'Dokumentation\r\n> {{ASSISTANT_NAME}} — Name der Assistenz\r\n---\r\n# IDENTITÄT\r\nDu bist {{ASSISTANT_NAME}}.\r\n\r\n{{CUSTOMER_LAYER}}',
+    industryPrompt:''
+  });
+  assert.ok(!crlf.prompt.includes('Dokumentation'), 'Meta-Kopf blieb stehen');
+  assert.ok(!crlf.prompt.includes('Name der Assistenz'), 'Variablenliste blieb stehen');
+  assert.match(crlf.prompt, /Du bist Lara\./);
+});
 check('identity variables are resolved', () => assert.match(result.prompt, /Du bist Lara von Voxera Test AG/));
 check('combined functions reach the productive prompt', () => {
   assert.match(result.prompt, /AUFGABEN & ERFOLGSKRITERIUM/);

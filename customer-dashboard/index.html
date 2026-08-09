@@ -36510,6 +36510,22 @@ body:has(#tab-archiv.active) .content{
   body:has(#tab-archiv.active) .content{overflow:auto !important;}
 }
 
+/* Bugfix 2026-08-09 (Mobile-Querformat-Briefing): dieser Block stammt aus
+   der Zeit vor der 769px-Grid-Umstellung (siehe @media(min-width:769px)
+   body.vx-customer-design-foundation #anrufe-split.vx-requests-layout weiter
+   oben) und hat sie hier nie mitbekommen. #tab-anrufe #anrufe-split-right
+   hatte mit zwei IDs mehr Spezifität als die dortige
+   body.vx-customer-design-foundation #anrufe-split-right-Regel und gewann
+   im Bereich 769–1099px — das Detail-Panel bekam display:none, obwohl der
+   Grid-Container daneben schon zweispaltig war. Ergebnis: leere zweite
+   Spalte plus ein #call-detail-page-Overlay, das sich seinen Platz
+   ausserhalb des (unsichtbaren) Grid-Feldes suchte und quer über die Liste
+   legte (der "schwarze Balken" aus den Screenshots). #anrufe-split /
+   .vx-split unten bleibt harmlos (unterliegt ohnehin der spezifischeren
+   Grid-Regel); nur die display:none-Deklaration für #anrufe-split-right
+   ist entfernt, damit ab 769px durchgehend der Grid-Split gilt und erst ab
+   768px abwärts (siehe die dortigen @media(max-width:768px)-Regeln) auf
+   Einspaltig gestapelt wird. */
 @media(max-width:1099px){
   #tab-anrufe .vx-split,
   #anrufe-split{
@@ -36517,14 +36533,6 @@ body:has(#tab-archiv.active) .content{
     width:100% !important;
     max-width:100% !important;
     grid-template-columns:1fr !important;
-  }
-  #tab-anrufe #anrufe-split-right,
-  #anrufe-split-right{
-    display:none !important;
-    width:0 !important;
-    min-width:0 !important;
-    max-width:0 !important;
-    flex:0 0 auto !important;
   }
   #anrufe-split-resizer{display:none !important;}
 }
@@ -38655,7 +38663,11 @@ body:has(#tab-archiv.active) .content{
   function isAnfragenDesktopSplit(){
     var tab = document.getElementById('tab-anrufe');
     var splitRight = document.getElementById('anrufe-split-right');
-    return !!(tab && tab.classList.contains('active') && splitRight && window.innerWidth >= 1100);
+    // 769px, nicht 1100px: muss mit der CSS-Grid-Split-Regel
+    // (@media(min-width:769px) body.vx-customer-design-foundation
+    // #anrufe-split.vx-requests-layout) uebereinstimmen, sonst bekommt
+    // #anrufe-split-right nie Inhalt, obwohl es sichtbar ist (PR #862 Review).
+    return !!(tab && tab.classList.contains('active') && splitRight && window.innerWidth >= 769);
   }
   // ── Rahmen ──────────────────────────────────────────────────────────────
   // Panel-Flächen und Vollbildfläche unterscheiden sich nur in der Rahmung.
@@ -39783,7 +39795,8 @@ body.vx-dv2-fullscreen-open{overflow:hidden;}
   }
 
   function isDesktopSplit(){
-    return !isLoginVisible() && isAnfragenTabActive() && window.innerWidth >= 1100;
+    // 769px: siehe isAnfragenDesktopSplit() weiter oben, dieselbe Begruendung.
+    return !isLoginVisible() && isAnfragenTabActive() && window.innerWidth >= 769;
   }
 
   function getRecordIdFromRow(row){

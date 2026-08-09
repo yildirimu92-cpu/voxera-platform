@@ -150,6 +150,94 @@ for (const [label, args] of [
   }
 }
 
+// ── 6. Der Hinweis blockiert die Oberflaeche nicht ─────────────────────────
+// Entstanden aus einem Fund am 09.08.: Der Hinweis war ein deckendes Vollbild
+// (position:fixed, inset:0, background:#0d1b2a, kein Schliessen). Von der
+// Oberflaeche war nichts zu sehen — waehrend sein eigener Text und die Doku
+// versprachen, sie bleibe sichtbar. Damit war der einzige verbliebene Zweck
+// einer Preview ohne Zugangsdaten (Layout und Design beurteilen) unmoeglich.
+//
+// Geprueft wird das erzeugte File, nicht der Generator-Quelltext: nur was im
+// Browser landet, kann etwas verdecken. Kommentare im Generator duerfen die
+// alten Werte deshalb weiterhin nennen.
+// Es sind zwei Zustaende, und der Waechter muss beide halten. Ohne die zweite
+// Haelfte waere der Fix eine Verschlechterung fuer Produktion: dort bleibt der
+// Supabase-Client null, und admin-panel/login.html ruft in doLogin()
+// ungeprueft sb.auth auf — ein wegklickbarer Hinweis liesse ein totes
+// Formular zurueck. (Befund aus dem Codex-Review zu PR #865.)
+//
+// Der Kontext entscheidet zur Build-Zeit, welche Fassung ueberhaupt erzeugt
+// wird. Deshalb genuegen Zeichenketten-Pruefungen: die Merkmale der einen
+// Fassung duerfen im File der anderen gar nicht vorkommen.
+const BLOCKING_MARKERS = [
+  { name: 'inset:0 (Vollbild-Flaeche)', re: /inset\s*:\s*0/ },
+  { name: 'deckender Vollbild-Hintergrund', re: /background\s*:\s*#0d1b2a/i }
+];
+const NOTICE_MARKERS = [
+  { name: 'Schliessen-Knopf', re: /Hinweis schliessen/ },
+  { name: "role='status'", re: /setAttribute\('role', 'status'\)/ },
+  { name: 'Abstand ueber der mobilen Tab-Leiste', re: /@media \(max-width:768px\)/ }
+];
+
+function generatedFor(context) {
+  return renderRuntimeConfig({
+    supabaseUrl: null, supabaseAnonKey: null,
+    context, branch: 'x', site: 'customer-dashboard'
+  });
+}
+
+// ── 6a. Preview: der Hinweis liegt neben der Oberflaeche ───────────────────
+for (const context of ['deploy-preview', 'branch-deploy']) {
+  const generated = generatedFor(context);
+  let clean = true;
+
+  for (const { name, re } of BLOCKING_MARKERS) {
+    if (re.test(generated)) {
+      clean = false;
+      fail(
+        `${context}: der Hinweis verdeckt die Oberflaeche wieder (${name})`,
+        'Er soll neben der Oberflaeche liegen, nicht darueber — sonst laesst sich auf einer ' +
+        'Preview ohne Zugangsdaten weder Layout noch Design beurteilen. Siehe scripts/runtime-config.mjs.'
+      );
+    }
+  }
+  for (const { name, re } of NOTICE_MARKERS) {
+    if (!re.test(generated)) {
+      clean = false;
+      fail(`${context}: ${name} fehlt`, 'Ohne ihn ist der Hinweis wieder im Weg statt daneben.');
+    }
+  }
+  if (clean) ok(`${context}: Hinweis liegt neben der Oberflaeche, schliessbar, mit Abstand zur Tab-Leiste`);
+}
+
+// ── 6b. Alles andere: fehlende Zugangsdaten bleiben ein Blocker ────────────
+for (const context of ['production', null]) {
+  const generated = generatedFor(context);
+  const label = context || 'ohne Kontext';
+  let clean = true;
+
+  for (const { name, re } of BLOCKING_MARKERS) {
+    if (!re.test(generated)) {
+      clean = false;
+      fail(
+        `${label}: der Blocker fehlt (${name})`,
+        'Ausserhalb einer Preview sind fehlende Zugangsdaten ein Defekt, kein erklaerter Zustand. ' +
+        'Der Supabase-Client bleibt null; admin-panel/login.html ruft in doLogin() ungeprueft sb.auth auf.'
+      );
+    }
+  }
+  for (const { name, re } of NOTICE_MARKERS) {
+    if (re.test(generated)) {
+      clean = false;
+      fail(
+        `${label}: der Hinweis ist wegklickbar (${name})`,
+        'Wer ihn wegklickt, steht vor einer Oberflaeche, die beim ersten Klick stirbt.'
+      );
+    }
+  }
+  if (clean) ok(`${label}: fehlende Zugangsdaten bleiben ein Blocker`);
+}
+
 // ── Bericht ────────────────────────────────────────────────────────────────
 console.log(`\nLaufzeit-Konfiguration — Isolation der Zugangsdaten\n`);
 for (const label of checks) console.log(`  PASS  ${label}`);
