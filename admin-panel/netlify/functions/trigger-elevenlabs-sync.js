@@ -93,7 +93,13 @@ async function trimSyncLogs(sb, customerId) {
 // bleibt changed_fields leer statt geraten zu werden.
 function diffPrevValues(prevValues, customer) {
   if (!prevValues || typeof prevValues !== 'object' || Array.isArray(prevValues)) return {};
-  const normalize = (value) => (value === null || value === undefined ? '' : value);
+  // jsonb-Spalten (ai_branch_extra) kaemen als Objekte an und waeren mit `!==`
+  // immer verschieden — ein Phantom-Diff bei jedem Sync.
+  const normalize = (value) => {
+    if (value === null || value === undefined) return '';
+    if (typeof value === 'object') return JSON.stringify(value);
+    return value;
+  };
   const changed = {};
   for (const key of Object.keys(prevValues)) {
     const before = normalize(prevValues[key]);
@@ -236,17 +242,25 @@ exports.handler = async (event) => {
     prev_values: Object.keys(prev_values || {}).length ? prev_values : null,
     created_at: new Date().toISOString()
   };
-  const { error: syncLogError } = await sb.from('elevenlabs_sync_log').insert(syncLogRow);
-  if (syncLogError) {
-    // Falls `prev_values` in dieser Umgebung (noch) keine Spalte ist, darf das
-    // Log selbst nicht verloren gehen -- ein zweiter Versuch ohne die neuen
-    // Felder haelt zumindest status/triggered_by/prompt_snapshot fest.
-    console.warn('[trigger-elevenlabs-sync] sync_log_insert_failed', syncLogError.message);
-    const { changed_fields: _cf, prev_values: _pv, ...fallbackRow } = syncLogRow;
-    const { error: fallbackError } = await sb.from('elevenlabs_sync_log').insert(fallbackRow);
-    if (fallbackError) {
-      console.warn('[trigger-elevenlabs-sync] sync_log_fallback_insert_failed', fallbackError.message);
-    }
+  // Stufenweise, nicht alles-oder-nichts. Die erste Fassung dieses Fallbacks
+  // warf bei einem beliebigen Insert-Fehler `prev_values` UND `changed_fields`
+  // zusammen weg — also auch die Spalte, wegen der der S9-Fix ueberhaupt
+  // gebaut wurde. Am 09.08. war das keine Theorie: `prev_values` existierte in
+  // Produktion zeitweise nicht (nachgemessen, spaeter nachgezogen; DDL in
+  // supabase/sql/2026-08-09_elevenlabs_sync_log_prev_values.sql), und der
+  // Fallback haette den Diagnosewert des Logs stillschweigend mit entsorgt.
+  // Jeder Schritt gibt nur auf, was der vorige nachweislich nicht aufnehmen
+  // konnte.
+  const { prev_values: _prevColumn, changed_fields: _changedColumn, ...bareRow } = syncLogRow;
+  const logAttempts = [
+    syncLogRow,
+    { ...bareRow, changed_fields: syncLogRow.changed_fields },
+    bareRow
+  ];
+  for (let attempt = 0; attempt < logAttempts.length; attempt += 1) {
+    const { error: syncLogError } = await sb.from('elevenlabs_sync_log').insert(logAttempts[attempt]);
+    if (!syncLogError) break;
+    console.warn(`[trigger-elevenlabs-sync] sync_log_insert_failed (Stufe ${attempt + 1})`, syncLogError.message);
   }
   await trimSyncLogs(sb, customer_id);
 
