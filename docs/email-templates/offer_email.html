@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="color-scheme" content="light">
+<meta name="supported-color-schemes" content="light">
+<title>Ihre Voxera Offerte</title>
+<!--
+  Voxera E-Mail-Vorlage · mail_type: offer_email
+  Make-Szenario 09 (5239089) · Route 0 · Modul 10 · Feld "html"
+
+  Der <style>-Block unten traegt AUSSCHLIESSLICH mobile Polsterung. Faellt er
+  weg (Gmail entfernt <head>-Styles in einem Teil der Ansichten), bleibt das
+  Layout vollstaendig korrekt. Alles, was traegt, steht inline.
+-->
+<style type="text/css">
+  @media only screen and (max-width:620px){
+    .vx-pad{padding-left:20px!important;padding-right:20px!important;}
+    .vx-title{font-size:22px!important;}
+    .vx-col{display:block!important;width:100%!important;padding-right:0!important;padding-bottom:14px!important;}
+  }
+</style>
+</head>
+<body style="margin:0;padding:0;background-color:#F7F8FA;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;">
+
+<!-- Preheader: erscheint in der Client-Vorschau, nicht in der Mail -->
+<div style="display:none;max-height:0;overflow:hidden;mso-hide:all;font-size:1px;line-height:1px;color:#F7F8FA;">Ihre persoenliche Voxera Offerte, gueltig bis {{formatDate(1.offer.valid_until; "DD.MM.YYYY"; "Europe/Zurich")}}.</div>
+
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" bgcolor="#F7F8FA" style="background-color:#F7F8FA;">
+  <tr>
+    <td align="center" style="padding:24px 12px 40px;">
+
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" style="width:100%;max-width:600px;background-color:#FFFFFF;border:1px solid #E4E6EA;border-radius:14px;">
+
+        <!-- ============ MARKENLINIE (Gold, in jeder Mail gleich) ============ -->
+        <tr>
+          <td bgcolor="#E8C547" height="3" style="background-color:#E8C547;height:3px;line-height:3px;font-size:0;border-radius:13px 13px 0 0;">&nbsp;</td>
+        </tr>
+
+        <!-- ============ KOPF ============ -->
+        <tr>
+          <td class="vx-pad" bgcolor="#0D1F3C" style="background-color:#0D1F3C;padding:26px 32px 26px;">
+
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:20px;">
+              <tr>
+                <td align="left" style="vertical-align:middle;">
+                  <img src="https://ulcofbgrovgcvowdjrge.supabase.co/storage/v1/object/public/Public/voxera-logo.png" alt="Voxera" width="30" height="30" style="display:inline-block;vertical-align:middle;margin-right:10px;border:0;border-radius:8px;">
+                  <span style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;font-size:17px;font-weight:700;letter-spacing:-0.02em;color:#FFFFFF;vertical-align:middle;">VOXERA</span>
+                </td>
+                <td align="right" style="vertical-align:middle;">
+                  <!-- Eyebrow = die einzige Akzentfarbe der Vorlage. Gold = Marke/Premium. -->
+                  <span style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:0.16em;text-transform:uppercase;color:#E8C547;">Offerte</span>
+                </td>
+              </tr>
+            </table>
+
+            <p class="vx-title" style="margin:0 0 7px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;font-size:26px;font-weight:700;line-height:1.2;letter-spacing:-0.02em;color:#FFFFFF;">Ihre persönliche Offerte<br>ist bereit.</p>
+            <p style="margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;font-size:15px;font-weight:400;line-height:1.55;color:#A9B6CC;">Vielen Dank für Ihr Interesse an Voxera.</p>
+
+          </td>
+        </tr>
+
+        <!-- ============ INHALT ============ -->
+        <tr>
+          <td class="vx-pad" bgcolor="#FFFFFF" style="background-color:#FFFFFF;padding:28px 32px 4px;">
+
+            <p style="margin:0 0 8px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;font-size:20px;font-weight:700;letter-spacing:-0.02em;color:#0D1F3C;">Guten Tag, {{1.recipient.name}}</p>
+            <p style="margin:0 0 24px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;font-size:16px;font-weight:400;line-height:1.7;color:#3D4A60;">{{if(1.offer.introduction; 1.offer.introduction; "Nachfolgend finden Sie Ihre persönliche Offerte. Bei Fragen stehen wir Ihnen jederzeit zur Verfügung.")}}</p>
+
+            <!-- ---- B1 Detail-Karte ---- -->
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" bgcolor="#F1F4F9" style="background-color:#F1F4F9;border:1px solid #E4E6EA;border-radius:12px;margin-bottom:20px;">
+              <tr>
+                <td style="padding:20px 22px 6px;">
+
+                  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+                    <tr>
+                      <td class="vx-col" width="50%" style="width:50%;vertical-align:top;padding:0 12px 16px 0;">
+                        <p style="margin:0 0 4px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:0.10em;text-transform:uppercase;color:#5B6472;">Firma</p>
+                        <p style="margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;font-size:16px;font-weight:600;line-height:1.4;color:#0D1F3C;">{{1.customer.company_name}}</p>
+                      </td>
+                      <td class="vx-col" width="50%" style="width:50%;vertical-align:top;padding:0 0 16px 0;">
+                        <p style="margin:0 0 4px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:0.10em;text-transform:uppercase;color:#5B6472;">Paket</p>
+                        <p style="margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;font-size:16px;font-weight:600;line-height:1.4;color:#0D1F3C;">{{capitalize(1.offer.plan)}}</p>
+                      </td>
+                    </tr>
+                  </table>
+
+                  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+                    <tr>
+                      <td class="vx-col" width="50%" style="width:50%;vertical-align:top;padding:0 12px 16px 0;">
+                        <p style="margin:0 0 4px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:0.10em;text-transform:uppercase;color:#5B6472;">Abrechnung</p>
+                        <p style="margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;font-size:16px;font-weight:600;line-height:1.4;color:#0D1F3C;">{{if(1.offer.billing_cycle = "yearly"; "Jährlich"; "Monatlich")}}</p>
+                      </td>
+                      <td class="vx-col" width="50%" style="width:50%;vertical-align:top;padding:0 0 16px 0;">
+                        <p style="margin:0 0 4px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:0.10em;text-transform:uppercase;color:#5B6472;">Laufzeit</p>
+                        <p style="margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;font-size:16px;font-weight:600;line-height:1.4;color:#0D1F3C;">{{1.offer.duration_months}} Monate</p>
+                      </td>
+                    </tr>
+                  </table>
+
+                  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+                    <tr>
+                      <td style="vertical-align:top;padding:0 0 16px 0;">
+                        <p style="margin:0 0 4px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:0.10em;text-transform:uppercase;color:#5B6472;">Gültig bis</p>
+                        <p style="margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;font-size:16px;font-weight:600;line-height:1.4;color:#0D1F3C;">{{formatDate(1.offer.valid_until; "DD.MM.YYYY"; "Europe/Zurich")}}</p>
+                      </td>
+                    </tr>
+                  </table>
+
+                </td>
+              </tr>
+            </table>
+
+            <!-- ---- B5 Betrags-Tabelle ---- -->
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" bgcolor="#FFFFFF" style="background-color:#FFFFFF;border:1px solid #E4E6EA;border-radius:12px;margin-bottom:24px;">
+              <tr>
+                <td style="padding:14px 20px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;font-size:16px;font-weight:400;color:#3D4A60;">Einmalige Einrichtung</td>
+                <td align="right" style="padding:14px 20px;white-space:nowrap;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;font-size:16px;font-weight:600;color:#0D1F3C;">{{if(1.offer.setup_fee > 0; "CHF " + formatNumber(1.offer.setup_fee; 2; "."; "'"); "Inbegriffen")}}</td>
+              </tr>
+              <tr>
+                <td style="padding:14px 20px;border-top:1px solid #EEF1F6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;font-size:16px;font-weight:400;color:#3D4A60;">{{if(1.offer.billing_cycle = "yearly"; "Jährlich"; "Monatlich")}}</td>
+                <td align="right" style="padding:14px 20px;border-top:1px solid #EEF1F6;white-space:nowrap;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;font-size:16px;font-weight:600;color:#0D1F3C;">CHF {{formatNumber(if(1.offer.billing_cycle = "yearly"; 1.offer.yearly_price; 1.offer.monthly_price); 2; "."; "'")}}</td>
+              </tr>
+              <!-- Rabattzeile erscheint nur, wenn ein Rabatt vorliegt. Einziger Ausdruck
+                   der Vorlage, der Markup zurueckgibt; Attribute deshalb in Hochkommas. -->
+              {{if(1.offer.discount_amount > 0; "<tr><td style='padding:14px 20px;border-top:1px solid #EEF1F6;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif;font-size:16px;font-weight:400;color:#047857;'>Rabatt</td><td align='right' style='padding:14px 20px;border-top:1px solid #EEF1F6;white-space:nowrap;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif;font-size:16px;font-weight:600;color:#047857;'>− CHF " + formatNumber(1.offer.discount_amount; 2; "."; "'") + "</td></tr>"; "")}}
+              <tr>
+                <td bgcolor="#0D1F3C" style="background-color:#0D1F3C;padding:16px 20px;border-radius:0 0 0 11px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;font-size:16px;font-weight:700;color:#FFFFFF;">Gesamt</td>
+                <td bgcolor="#0D1F3C" align="right" style="background-color:#0D1F3C;padding:16px 20px;border-radius:0 0 11px 0;white-space:nowrap;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;font-size:20px;font-weight:700;color:#FFFFFF;">CHF {{formatNumber(1.offer.setup_fee + if(1.offer.billing_cycle = "yearly"; 1.offer.yearly_price; 1.offer.monthly_price) - if(1.offer.discount_amount > 0; 1.offer.discount_amount; 0); 2; "."; "'")}}</td>
+              </tr>
+            </table>
+
+            <!-- ---- B3 Aktions-Knopf + Klartext-Link ---- -->
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+              <tr>
+                <td align="center" style="padding:0 0 10px;">
+                  <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                    <tr>
+                      <td align="center" bgcolor="#0D1F3C" style="background-color:#0D1F3C;border-radius:10px;">
+                        <a href="{{1.offer.acceptance_url}}" style="display:inline-block;padding:15px 34px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;font-size:16px;font-weight:700;line-height:1.2;color:#FFFFFF;text-decoration:none;border-radius:10px;">Offerte einsehen &amp; unterzeichnen</a>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+              <tr>
+                <td align="center" style="padding:0 0 22px;">
+                  <p style="margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;font-size:14px;font-weight:400;line-height:1.6;color:#5B6472;">Falls der Knopf nicht funktioniert:<br><a href="{{1.offer.acceptance_url}}" style="color:#1A6FE8;text-decoration:underline;word-break:break-all;">{{1.offer.acceptance_url}}</a></p>
+                </td>
+              </tr>
+            </table>
+
+            <!-- ---- B2 Hinweisbox, Tonalitaet "Hinweis" ---- -->
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" bgcolor="#EEF4FF" style="background-color:#EEF4FF;border:1px solid #BFDBFE;border-radius:10px;margin-bottom:8px;">
+              <tr>
+                <td bgcolor="#1A6FE8" width="4" style="width:4px;background-color:#1A6FE8;font-size:0;line-height:0;border-radius:10px 0 0 10px;">&nbsp;</td>
+                <td style="padding:14px 18px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;font-size:15px;font-weight:400;line-height:1.6;color:#1558BF;">Diese Offerte ist bis <strong>{{formatDate(1.offer.valid_until; "DD.MM.YYYY"; "Europe/Zurich")}}</strong> gültig. Bei Annahme erhalten Sie umgehend eine Bestätigung.</td>
+              </tr>
+            </table>
+
+          </td>
+        </tr>
+
+        <!-- ---- Trennlinie + Fussnote ---- -->
+        <tr>
+          <td class="vx-pad" bgcolor="#FFFFFF" style="background-color:#FFFFFF;padding:20px 32px 24px;">
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+              <tr><td height="1" bgcolor="#E4E6EA" style="height:1px;line-height:1px;font-size:0;background-color:#E4E6EA;">&nbsp;</td></tr>
+            </table>
+            <p style="margin:18px 0 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;font-size:14px;font-weight:400;line-height:1.6;color:#5B6472;">Fragen zur Offerte? Schreiben Sie an <a href="mailto:info@voxera.ch" style="color:#1A6FE8;text-decoration:underline;">info@voxera.ch</a> — wir antworten gerne.</p>
+          </td>
+        </tr>
+
+        <!-- ============ FUSS ============ -->
+        <tr>
+          <td class="vx-pad" align="center" bgcolor="#F7F8FA" style="background-color:#F7F8FA;border-top:1px solid #E4E6EA;padding:18px 32px 20px;border-radius:0 0 13px 13px;">
+            <p style="margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;font-size:12px;font-weight:400;line-height:1.8;color:#5B6472;">
+              © 2026 Voxera · Swiss Trust Tech<br>
+              <a href="https://voxera.ch" style="color:#5B6472;text-decoration:underline;">voxera.ch</a> ·
+              <a href="mailto:info@voxera.ch" style="color:#5B6472;text-decoration:underline;">info@voxera.ch</a><br>
+              <a href="https://voxera.ch/datenschutz" style="color:#5B6472;text-decoration:underline;">Datenschutz</a> ·
+              <a href="https://voxera.ch/agb" style="color:#5B6472;text-decoration:underline;">AGB</a> ·
+              <a href="https://voxera.ch/impressum" style="color:#5B6472;text-decoration:underline;">Impressum</a>
+            </p>
+          </td>
+        </tr>
+
+      </table>
+
+    </td>
+  </tr>
+</table>
+
+</body>
+</html>
