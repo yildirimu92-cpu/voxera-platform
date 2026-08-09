@@ -384,6 +384,41 @@ Der Unterschalter wird gesperrt statt still ignoriert, und die Zeile sagt warum 
 
 - **Kein Live-Anruf, kein echter Mailversand ausgelöst.** Die Wirkkette ist an Fixtures und Quellcode verifiziert, nicht an einer zugestellten Mail.
 - **Die Oberflächen wurden nicht im Browser geklickt.** Die Logik läuft im Test gegen einen DOM-Stub; Layout und Bedienung sind unbelegt.
-- **Beide Migrationen stehen auf Produktion noch aus.** Solange sie nicht laufen, tragen die drei `callback_only`-Kunden weiter `new_log_email_active = true` — folgenlos, solange der migrierte Versandweg nicht live ist, aber die Reihenfolge zählt: **erst Migration, dann Deploy des Szenario-01-Pfads.**
-- **`admin_notification_settings` ist auf Produktion leer**, bis die Migration läuft. Der Seed legt für den einen aktiven Admin fünf Zeilen an; bis dahin liefert `resolveAdminRecipients()` `no_recipients_enabled` und `ai_change_request` versendet nicht. Das ist der sichtbare, gewollte Zustand — kein stiller Ausfall —, aber es heisst: **Migration vor Deploy**, sonst hört eine Benachrichtigung auf, die heute funktioniert.
+- **Beide Migrationen sind auf Produktion angewendet** (09.08., nach Freigabe — Admin-Migration zuerst, dann die Gating-Migration). Belege unten.
+- **Kein Live-Anruf und keine echte Mail** haben die Kette bestätigt — die Migrationen sind an den Daten verifiziert, nicht an einer Zustellung.
 - **Stufe 2** (Emitter für Events 2–5 plus vier Routen in Make-Szenario 09) ist wie freigegeben nicht Teil dieses Auftrags, sondern Phase 4 in PR #857.
+
+
+---
+
+# Nachtrag 2: Produktionsstand (09.08., nach Freigabe)
+
+## Admin-Migration — angewendet
+
+Fünf Zeilen für den einen aktiven Admin, Werksstandard exakt wie in E7 freigegeben (`contract_start_confirmed` aus, die übrigen vier an). RLS aktiv, **null Policies und null Grants** für `anon`/`authenticated` — die Tabelle ist ausschliesslich über die Service-Role erreichbar. Die Abfrage, die `resolveAdminRecipients()` ausführt, liefert **einen Empfänger mit gültiger Mailadresse**.
+
+Kein Risikofenster: die zum Zeitpunkt der Migration deployte Version kennt die Tabelle nicht. Das Verhalten ändert sich erst mit dem Deploy — und dann findet der Code die Zeilen bereits vor.
+
+## Gating-Migration — angewendet
+
+Sicherung vorab angelegt (`customers_notification_backup_20260809`, 4 Zeilen). **`notification_mode` wurde bei keinem einzigen Kunden verändert** — die Wahl der Kunden ist unangetastet, nachgewiesen durch Abgleich gegen die Sicherung.
+
+Der Effekt auf die abgeleiteten Legacy-Booleans:
+
+| `notification_mode` | Kunden | Versand vorher (altes Gating) | Versand nachher | |
+|---|---|---|---|---|
+| `callback_only` | **3** | Mail nach **jedem** Anruf | nur Rückruf-Mail | ✅ korrigiert |
+| `all_calls` | 1 | Mail nach jedem Anruf | Rückruf-Mail + Zusammenfassung | unverändert richtig |
+
+**Das eigentliche Ergebnis:** altes und neues Gating liefern jetzt für **alle vier Kunden dasselbe**. Damit ist das Fenster zwischen dem Szenario-01-Deploy und dem Deploy dieses Branches harmlos — in diesem Zeitraum gatet der Produktionscode noch auf die Legacy-Booleans, und die stimmen ab sofort mit `notification_mode` überein.
+
+Nebeneffekt, bewusst und folgenlos: `missed_call_email_active` ging bei den drei `callback_only`-Kunden von `false` auf `true`. Die Spalte hat keinen Leser — weder im Repo noch in den beiden Router-Filtern von Szenario 01 (die lesen `notification_active` und `new_log_email_active`). Sie spiegelt jetzt korrekt den gewählten Modus, statt widersprüchlich dazu zu stehen.
+
+Defaults korrigiert: `notification_mode` bleibt `callback_only`, `new_log_email_active` von `true` auf `false` — ein Neukunde startet nicht mehr im Widerspruch zu seinem eigenen `notification_mode`. Drei Spalten sind in der Datenbank als tot markiert.
+
+## Was jetzt noch aussteht
+
+1. **Szenario-01-Branch mergen** — wartet auf Make-Handarbeit und Live-Testanruf.
+2. **Diesen Branch mergen und deployen** — danach.
+
+Ein Fund am Rande: PR #857 ist auf `main` (`deliverMail` in `ai-change-request-create.js`), trotzdem steht `outbox_events` bei null `ai_change_request`-Zeilen. Entweder ist seit dem Merge keine Änderungsanfrage eingegangen, oder der Pfad kommt noch nicht durch. Beim nächsten Testlauf mitprüfen.
