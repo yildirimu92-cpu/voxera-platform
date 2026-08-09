@@ -148,8 +148,64 @@ const postCallPath = path.join(
   'elevenlabs-post-call.js'
 );
 const postCallSource = fs.readFileSync(postCallPath, 'utf8');
-if (!postCallSource.includes('process.env.MAKE_CALL_INTAKE_WEBHOOK')) {
-  failures.push('elevenlabs-post-call.js must post call-intake payloads to MAKE_CALL_INTAKE_WEBHOOK.');
+
+// Bis zur Migration am 09.08.2026 stand hier die umgekehrte Forderung: die
+// Function MUSSTE MAKE_CALL_INTAKE_WEBHOOK lesen. Das war richtig, solange
+// Make-Szenario 01 die Anruf-Benachrichtigung verschickte - die Regel hielt
+// Gespraechsdaten und Mailversand auf getrennten Variablen.
+//
+// Szenario 01 ist abgeloest: die Benachrichtigung geht ueber
+// _lib/call-notification.js in dieselbe Mail-Engine wie jeder andere Mailtyp.
+// Ein direkter Webhook-Post aus dieser Function waere jetzt ein Rueckfall in
+// den Versandweg ohne Outbox und ohne Retry, deshalb dreht sich die Pruefung um.
+if (postCallSource.includes('process.env.MAKE_CALL_INTAKE_WEBHOOK')) {
+  failures.push(
+    'elevenlabs-post-call.js reads MAKE_CALL_INTAKE_WEBHOOK again. Make scenario 01 is retired; '
+    + 'call notifications go through _lib/call-notification.js and the central mail engine.'
+  );
+}
+if (!postCallSource.includes("require('./_lib/call-notification')")) {
+  failures.push('elevenlabs-post-call.js must send call notifications through _lib/call-notification.js.');
+}
+
+// Der Waechter haengt am lebenden Pfad, nicht nur am Import: beide
+// Ausloeser - Tool-Call von Lara und Post-Call-Webhook - muessen die
+// Benachrichtigung tatsaechlich abschicken. Frueher feuerten beide je einen
+// eigenen Webhook-Post; faellt einer davon beim Umbau weg, bekommt der Kunde
+// fuer diesen Gespraechstyp stillschweigend keine Mail mehr.
+const callNotificationCalls = [...postCallSource.matchAll(/sendCallNotification\s*\(/g)].length;
+if (callNotificationCalls < 2) {
+  failures.push(
+    `elevenlabs-post-call.js calls sendCallNotification ${callNotificationCalls}x; both the tool-call `
+    + 'and the post-call path must notify.'
+  );
+}
+
+const callNotificationPath = path.join(
+  root,
+  'customer-dashboard',
+  'netlify',
+  'functions',
+  '_lib',
+  'call-notification.js'
+);
+if (!fs.existsSync(callNotificationPath)) {
+  failures.push('customer-dashboard/netlify/functions/_lib/call-notification.js is missing.');
+} else {
+  const callNotificationSource = fs.readFileSync(callNotificationPath, 'utf8');
+  for (const type of ['call_notification_email', 'callback_request_email']) {
+    if (!callNotificationSource.includes(`'${type}'`)) {
+      failures.push(`_lib/call-notification.js must emit ${type}.`);
+    }
+    if (!knownTypes.has(type)) {
+      failures.push(`${type} is missing from config/mail-engine-contracts.json.`);
+    }
+  }
+  // Der Versand muss durch die gemeinsame Bibliothek laufen. Ein nackter fetch
+  // hier waere genau der Zustand vor der Migration, nur an neuer Stelle.
+  if (!callNotificationSource.includes("require('./mail-delivery')")) {
+    failures.push('_lib/call-notification.js must send through _lib/mail-delivery.js.');
+  }
 }
 
 const accessPath = path.join(
