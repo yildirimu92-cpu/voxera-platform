@@ -220,10 +220,19 @@ async function run() {
   assert.equal(auditFailureDb.tables.commercial_lifecycle_audit.length, 0);
 
   // 9) verify UI and server command routing are centralized.
+  // admin-panel/index.html wird nicht editiert, sondern als Ganzdatei ersetzt
+  // ("Delete admin-panel/index.html" / "Add files via upload" / "Rename
+  // index - 2026-05-01T135434.390.html to index.html"). Bei jedem Durchlauf
+  // aendert sich die Formatierung. Genau daran ist diese Pruefung am
+  // 2026-05-01 gestorben: aus action:'contracts.cancel' wurde
+  // action: 'contracts.cancel', und der Check war seither rot, obwohl das
+  // Routing unveraendert zentral lief. Leerzeichen sind keine Zusage.
   const indexHtml = readFileSync(new URL('../admin-panel/index.html', import.meta.url), 'utf8');
-  assert.ok(indexHtml.includes("action:'contracts.create'"));
-  assert.ok(indexHtml.includes("callAdminFunction('contract-start-confirm'"));
-  assert.ok(indexHtml.includes("action:'contracts.cancel'"));
+  const routesAction = (name) => new RegExp(`action\\s*:\\s*'${name.replace('.', '\\.')}'`).test(indexHtml);
+  assert.ok(routesAction('contracts.create'), 'admin-panel/index.html routet contracts.create nicht');
+  assert.ok(/callAdminFunction\(\s*'contract-start-confirm'/.test(indexHtml),
+    'admin-panel/index.html ruft contract-start-confirm nicht auf');
+  assert.ok(routesAction('contracts.cancel'), 'admin-panel/index.html routet contracts.cancel nicht');
 
   const mutateSource = readFileSync(new URL('../admin-panel/netlify/functions/admin-mutate.js', import.meta.url), 'utf8');
   assert.match(mutateSource, /executeCommercialCommand\(/);
