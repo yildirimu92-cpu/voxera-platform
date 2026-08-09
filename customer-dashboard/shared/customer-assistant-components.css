@@ -963,6 +963,21 @@ body.vx-customer-design-foundation .vx-ap-suggestion-title { font-size: 13px; fo
    eine Zeile unter dem Eingabefeld statt eines zweiten Kastens: der Bezug zum
    Feld darüber muss ohne Überschrift erkennbar bleiben. */
 body.vx-customer-design-foundation .vx-ap-field-suggest { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--vx-space-2, 8px); margin-top: 6px; font-size: 12px; opacity: .85; }
+/* J7 — Leistungen als Zeilen, häufige Fragen als Paare. Die Entfernen-Taste
+   steht in einer eigenen Spalte statt am Zeilenende zu schweben: sonst
+   verschiebt sie sich, sobald ein Feld umbricht. Unter 560px steht die Antwort
+   unter der Frage — zwei Eingabefelder nebeneinander sind auf 390px nicht mehr
+   sinnvoll breit. */
+body.vx-customer-design-foundation .vx-ap-list { display: grid; gap: var(--vx-space-2, 8px); margin-top: var(--vx-space-2, 8px); }
+body.vx-customer-design-foundation .vx-ap-list-row { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: var(--vx-space-2, 8px); }
+body.vx-customer-design-foundation .vx-ap-list-row--faq { grid-template-columns: minmax(0, 2fr) minmax(0, 3fr) auto; }
+body.vx-customer-design-foundation .vx-ap-list-remove { background: none; border: 0; cursor: pointer; color: inherit; opacity: .6; font-size: 18px; line-height: 1; padding: 4px 8px; border-radius: var(--vx-radius-sm, 6px); }
+body.vx-customer-design-foundation .vx-ap-list-remove:hover { opacity: 1; }
+body.vx-customer-design-foundation .vx-ap-field--list > .vx-ap-btn { margin-top: var(--vx-space-2, 8px); justify-self: start; }
+@media (max-width: 560px) {
+  body.vx-customer-design-foundation .vx-ap-list-row--faq { grid-template-columns: 1fr auto; }
+  body.vx-customer-design-foundation .vx-ap-list-row--faq [data-vx-faq-answer] { grid-column: 1 / -1; }
+}
 @media (max-width: 560px) {
   body.vx-customer-design-foundation .vx-ap-hours-row { grid-template-columns: 1fr auto; }
   body.vx-customer-design-foundation .vx-ap-hours-slots { grid-column: 1 / -1; }

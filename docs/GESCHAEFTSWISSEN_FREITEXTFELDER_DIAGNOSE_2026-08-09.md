@@ -671,3 +671,27 @@ Ausserdem gelöst: ein Komma trennt mal Segmente („Mo–Fr 08:00–12:00, Sa 0
 - **Der Adressvorschlag ist an keinem echten Klick geprüft.** Dass er das Feld füllt und nichts speichert, ist an der Verdrahtung belegt.
 - **`sprechstunden_zeiten` bleibt liegen.** Die Spalte existiert (jsonb, überall `null`, an genau einer Stelle im Admin gelesen) und ist damit ein viertes Zuhause für Öffnungszeiten neben `ai_opening_hours`, `ai_location_hours` und `calendar_settings.business_hours`. Gehört zu G9.
 - **`ai_business_description` und `ai_short_description` bleiben zwei Felder mit derselben Quelle.** Die Website-Analyse schreibt denselben Text in beide. Der Builder fängt das ab (er stellt den Absatz nicht zweimal untereinander), die Frage, ob es beide Felder braucht, gehört zu J7.
+
+### 11.16 J7 — Leistungen und häufige Fragen als Listen
+
+**Der Anlass, in Zahlen.** Die beiden Felder sahen aus wie Fliesstext und waren längst Struktur: über die 19 Vorlagen hinweg 137 Leistungszeilen, und **alle 19** FAQ-Texte tragen die Überschrift „Häufige Fragen:" mit 76 Frage-Antwort-Zeilen darunter. Der Agent bekam das als Block und musste selbst erkennen, wo eine Leistung aufhört.
+
+**Zwei neue Spalten**, gleiche Bauform wie J5: `ai_service_list` (Array von Zeilen) und `ai_faq_list` (Array aus `{q, a}`). Ein dritter Schlüssel im Paar — etwa ein Preis pro Frage — wird vom Schreibpfad abgewiesen.
+
+**Ein Unterschied zu den Öffnungszeiten, bewusst:** Die bestätigte Liste **ersetzt** den Freitext im Prompt, statt neben ihm zu stehen. Bei den Öffnungszeiten mussten beide bleiben, weil `ai_location_hours` neben den Zeiten auch Adresse und Anfahrt trägt. `ai_services` trägt nur Leistungen — zwei Fassungen desselben Inhalts wären reine Doppelung und bei abweichendem Wortlaut ein Widerspruch, den der Agent auflösen müsste. Das Formular sagt das auch: sobald eine Liste steht, trägt das zugehörige Textfeld den Hinweis, dass es nicht mehr verwendet wird.
+
+**Drei Funde beim Kalibrieren des Parsers:**
+
+1. **Die Vorlagen speichern den Zeilenumbruch als zwei Zeichen** — Backslash und `n`, nicht als Umbruch. Der Admin-Wizard rechnet das beim Anzeigen um (`_wNl`), die Datenbank sieht es nie. Ein Kundentext, der aus einer Vorlage stammt und nie durch das Formular lief, enthält deshalb beide Schreibweisen. Wer nur an `\n` splittet, bekommt eine einzige sehr lange Zeile.
+
+2. **Der Pfeil trennt nicht zuverlässig.** Die Vorlage `zahnarzt` benutzt in einer *Regelzeile* denselben Pfeil wie in ihren Fragen: „Notfall-Kriterien: … → als Notfall markieren, sofort weitergeben." Ohne Grenze wäre daraus eine Frage geworden, deren Antwort eine Anweisung an das Praxisteam ist. Die Grenze zieht jetzt die Überschrift, nicht das Trennzeichen — alles darüber ist Regel, unabhängig von der Schreibweise. Der Fall ist als eigener Test festgehalten.
+
+3. **Der Gedankenstrich ist mehrdeutig.** Der einzige Kunde mit eigenen Texten schreibt „Frage? – Antwort", die Vorlagen schreiben „Absagen: mindestens 24 Stunden vorher — sonst ggf. Ausfallgebühr." Deshalb gilt der Gedankenstrich nur, wenn der Teil davor auf ein Fragezeichen endet.
+
+**Unausgefüllte Markierungen werden gemeldet, nicht entfernt.** „Produktverkauf: [Marken eintragen]" würde als „Produktverkauf:" übrig bleiben — eine halbe Angabe, die vollständig aussieht. Sie steht stattdessen in der Liste der Zeilen, die der Kunde selbst nachtragen muss. Dasselbe für Preis-Markierungen in Antworten.
+
+**Vorarbeit für J8.** Der Parser meldet die Zeilen über der Überschrift getrennt als `rules`. Das sind genau die Zeilen, um die es in G6 geht — die Aufnahme-Checkliste, die doppelt existiert.
+
+**Staging-Lauf (09.08.).** 5 Schritte, 16 Felder, kein Feld ausserhalb der Spalten-Allowlist. Verhaltensprobe an einer Wegwerfzeile: gültige Listen angenommen, eine Zeichenkette statt Array abgewiesen, 41 Einträge abgewiesen; Probezeile gelöscht.
+
+**Was ungeprüft bleibt:** der Listeneditor ist nicht im Browser bedient. Hinzufügen, Entfernen und Übernehmen sind an der Verdrahtung belegt, nicht am Klick.

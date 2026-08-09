@@ -16,7 +16,11 @@
 // GESCHÄFTSPROFIL, die bestaetigte Adresse mit Vorrang vor dem Freitext und
 // die uebrigen Schicht-A-Zeilen. Die Ausgabe aendert sich damit fuer jeden
 // Agenten, nicht nur fuer die mit neuen Antworten.
-const PROMPT_BUILDER_VERSION = '2.4';
+// 2.5 (J7): Bestaetigte Leistungs- und Fragenlisten ersetzen den Freitext in
+// LEISTUNGEN und TERMINLOGIK & FAQ. Betrifft nur Kunden mit bestaetigter
+// Liste -- der Bump gehoert trotzdem dazu, weil der Fan-out sonst genau bei
+// diesen Kunden nichts nachzieht.
+const PROMPT_BUILDER_VERSION = '2.5';
 const PROFILE_MARKER = 'PROMPT_V2';
 const WIZARD_MARKER = 'WIZARD';
 
@@ -106,7 +110,10 @@ const CORE_FIELD_COLUMNS = Object.freeze([
   'ai_pricing_mode',
   'ai_pricing_amount',
   'ai_pricing_unit',
-  'ai_pricing_validity'
+  'ai_pricing_validity',
+  // J7. Bestaetigte Listen; sie fuehren vor den Freitextspalten.
+  'ai_service_list',
+  'ai_faq_list'
 ]);
 
 const CORE_KEY_OPENING_HOURS = 'opening_hours';
@@ -116,6 +123,30 @@ const CORE_KEY_PRICING_MODE = 'pricing_mode';
 const CORE_KEY_PRICING_AMOUNT = 'pricing_amount';
 const CORE_KEY_PRICING_UNIT = 'pricing_unit';
 const CORE_KEY_PRICING_VALIDITY = 'pricing_validity';
+const CORE_KEY_SERVICE_LIST = 'service_list';
+const CORE_KEY_FAQ_LIST = 'faq_list';
+
+// J7. Die Darstellung steht hier ein zweites Mal (Original in
+// customer-dashboard/netlify/functions/_lib/service-faq.js) -- die beiden
+// Netlify-Sites teilen keinen Modulpfad. Wie bei formatOpeningHours: nur die
+// Darstellung, Parser und Pruefung leben dort, wo geschrieben wird.
+function formatServiceList(items) {
+  if (!Array.isArray(items)) return '';
+  return items
+    .map((entry) => text(entry))
+    .filter(Boolean)
+    .map((entry) => `- ${entry}`)
+    .join('\n');
+}
+
+function formatFaqList(items) {
+  if (!Array.isArray(items)) return '';
+  return items
+    .map((entry) => ({ q: text(entry?.q), a: text(entry?.a) }))
+    .filter((entry) => entry.q && entry.a)
+    .map((entry) => `- Frage: ${entry.q}\n  Antwort: ${entry.a}`)
+    .join('\n');
+}
 
 // Entscheid F4 (Abschnitt 11.4 der Diagnose): Der Preis wird nicht woertlich
 // aus einem Kundenfeld vorgelesen, sondern aus typisierten Teilen formuliert.
@@ -447,10 +478,11 @@ function coreAnswers(customer, steps, wizard, profile) {
   const values = {};
   coreFieldColumns(steps).forEach((column, key) => {
     const raw = customer[column];
-    // Ein jsonb-Wert (Oeffnungszeiten) darf nicht durch text() -- daraus wuerde
-    // "[object Object]".
-    if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
-      if (Object.keys(raw).length) values[key] = raw;
+    // Ein jsonb-Wert darf nicht durch text() -- daraus wuerde "[object Object]"
+    // beziehungsweise eine kommagetrennte Zeile. Das gilt fuer das Wochenraster
+    // (Objekt, J5) ebenso wie fuer die Leistungs- und Fragenliste (Array, J7).
+    if (raw && typeof raw === 'object') {
+      if (Array.isArray(raw) ? raw.length : Object.keys(raw).length) values[key] = raw;
       return;
     }
     const value = text(raw);
@@ -622,7 +654,14 @@ function buildPromptV2({ customer = {}, masterPrompt = '', industryPrompt = '', 
   add('GESCHÄFTSPROFIL', shortDescription && shortDescription !== businessDescription
     ? [shortDescription, businessDescription].filter(Boolean).join('\n\n')
     : businessDescription || shortDescription);
-  add('LEISTUNGEN', customer.ai_services);
+  // J7: Die bestaetigte Liste ERSETZT den Freitext, sie steht nicht daneben.
+  // Anders als bei den Oeffnungszeiten, wo beide bleiben mussten: dort traegt
+  // der Freitext (ai_location_hours) neben den Zeiten auch Adresse und
+  // Anfahrt, hier traegt er nur Leistungen. Zwei Fassungen desselben Inhalts
+  // waeren reine Doppelung -- und bei abweichendem Wortlaut ein Widerspruch,
+  // den der Agent aufloesen muesste.
+  const serviceList = formatServiceList(core[CORE_KEY_SERVICE_LIST]);
+  add('LEISTUNGEN', serviceList || customer.ai_services);
   // Die Adresse steht vor dem Freitext und mit demselben Vorrang wie das
   // Wochenraster: sie ist bestaetigt, der Text ist gewachsen. Ohne bestaetigte
   // Adresse steht hier nichts — street/zip/city stammen aus Offerte und
@@ -653,7 +692,8 @@ function buildPromptV2({ customer = {}, masterPrompt = '', industryPrompt = '', 
       + '\nNenne ausserhalb dieser Zeiten keine Verfügbarkeit, die hier nicht steht.'
     );
   }
-  add('TERMINLOGIK & FAQ', customer.ai_booking_faq);
+  const faqList = formatFaqList(core[CORE_KEY_FAQ_LIST]);
+  add('TERMINLOGIK & FAQ', faqList || customer.ai_booking_faq);
   // Entscheid F4: Der Abschnitt steht immer da, auch wenn nichts hinterlegt ist.
   // Ein Prompt ohne Preisregel ueberliess die Preisfrage bisher dem Modell; die
   // Voreinstellung ist ausdruecklich "keine Betraege nennen, Offerte anbieten"
@@ -680,7 +720,8 @@ function buildPromptV2({ customer = {}, masterPrompt = '', industryPrompt = '', 
       branchFieldSchema(coreSteps),
       new Set([
         CORE_KEY_APPOINTMENT, CORE_KEY_BOOKING_URL, CORE_KEY_SHORT_DESCRIPTION, CORE_KEY_PUBLIC_ADDRESS,
-        CORE_KEY_PRICING_MODE, CORE_KEY_PRICING_AMOUNT, CORE_KEY_PRICING_UNIT, CORE_KEY_PRICING_VALIDITY
+        CORE_KEY_PRICING_MODE, CORE_KEY_PRICING_AMOUNT, CORE_KEY_PRICING_UNIT, CORE_KEY_PRICING_VALIDITY,
+        CORE_KEY_SERVICE_LIST, CORE_KEY_FAQ_LIST
       ]),
       assistantName
     ),

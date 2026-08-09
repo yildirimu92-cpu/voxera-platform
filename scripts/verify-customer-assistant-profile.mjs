@@ -166,7 +166,7 @@ for (const forbidden of [
   if (source.statusRuntime.includes(forbidden)) failures.push(`status runtime exposes protected field: ${forbidden}`);
 }
 
-assert.match(source.loader, /customer-runtime-assistant-profile\.js\?v=20260809-7/);
+assert.match(source.loader, /customer-runtime-assistant-profile\.js\?v=20260809-8/);
 assert.match(source.loader, /customer-runtime-assistant-status\.js\?v=20260809-1/);
 assert.doesNotMatch(source.loader, /customer-runtime-assistant-business-menu\.js/);
 assert.doesNotMatch(source.loader, /customer-runtime-voice-preview-fallback\.js/);
@@ -268,6 +268,9 @@ function loadFunctionModule(path) {
     // Oeffnungszeiten. Gestubbt wuerde der Test genau die Stelle auslassen,
     // die er absichern soll.
     './_lib/opening-hours': require('../customer-dashboard/netlify/functions/_lib/opening-hours.js'),
+    // J7: gleiche Begruendung wie darueber -- gestubbt wuerde der Test genau
+    // die Pruefung auslassen, die er absichern soll.
+    './_lib/service-faq': require('../customer-dashboard/netlify/functions/_lib/service-faq.js'),
     // N6: diese beiden sind echte Repo-Module ohne externe Abhaengigkeiten und
     // werden deshalb echt geladen statt gestubbt — die Sync-Klassifikation und
     // die Nummernpruefung sollen im Test dieselben sein wie in Produktion.
@@ -406,6 +409,53 @@ try {
 } catch (error) {
   failures.push(`core field read path: ${error.message}`);
 }
+
+// ── J7: Leistungen und haeufige Fragen als Listen ──────────────────────────
+try {
+  const updateModule = loadFunctionModule(files.update);
+  const { coreFieldRules, sanitizeCoreFields } = updateModule._test;
+  const rules = coreFieldRules([{ id: 'angebot', fields: [
+    { key: 'service_list', column: 'ai_service_list', type: 'list' },
+    { key: 'faq_list', column: 'ai_faq_list', type: 'faq' }
+  ] }]);
+
+  const ok = sanitizeCoreFields({
+    service_list: ['Schnitt', '', 'Färbung'],
+    faq_list: [{ q: 'Brauche ich einen Termin?', a: 'Ja.' }]
+  }, rules);
+  assert.equal(ok.rejected.length, 0, `abgewiesen: ${ok.rejected.join()}`);
+  assert.equal(JSON.stringify(ok.patch.ai_service_list), JSON.stringify(['Schnitt', 'Färbung']));
+  assert.equal(ok.patch.ai_faq_list[0].q, 'Brauche ich einen Termin?');
+
+  // Zuruecknehmbar, wie jedes Schicht-A-Feld.
+  assert.equal(sanitizeCoreFields({ service_list: [] }, rules).patch.ai_service_list, null);
+  assert.equal(sanitizeCoreFields({ service_list: '' }, rules).patch.ai_service_list, null);
+
+  // Eine halbe Angabe wird abgewiesen, nicht zur Haelfte gespeichert.
+  const half = sanitizeCoreFields({ faq_list: [{ q: 'Kostet das?', a: '' }] }, rules);
+  assert.equal(half.rejected.join(), 'faq_list');
+  assert.equal(Object.prototype.hasOwnProperty.call(half.patch, 'ai_faq_list'), false);
+
+  // Ein zusaetzlicher Schluessel im Paar ist kein stiller Zusatzinhalt.
+  assert.equal(sanitizeCoreFields({ faq_list: [{ q: 'a?', a: 'b', preis: '10' }] }, rules).rejected.join(), 'faq_list');
+  // Die falsche Form wird abgewiesen statt zu einer Zeile zusammengezogen.
+  assert.equal(sanitizeCoreFields({ service_list: 'Schnitt, Färbung' }, rules).rejected.join(), 'service_list');
+} catch (error) {
+  failures.push(`list write path: ${error.message}`);
+}
+
+// Der Vorschlag reist mit, er wird nicht gespeichert -- gleiche Regel wie bei
+// den Oeffnungszeiten (Entscheid F3).
+assert.match(source.profile, /list_suggestions/);
+assert.match(source.profile, /faq_rule_lines/);
+assert.doesNotMatch(source.profile, /ai_service_list:\s*serviceSuggestion/);
+assert.doesNotMatch(source.profile, /ai_faq_list:\s*faqSuggestion/);
+assert.match(source.runtime, /data-vx-list-apply/);
+assert.match(source.runtime, /function collectList/);
+assert.match(source.runtime, /function replacedByListNote/);
+// Ein ersetzter Freitext muss als solcher erkennbar sein, sonst bearbeitet der
+// Kunde ein Feld ohne Wirkung.
+assert.match(source.runtime, /Dieser Text wird nicht mehr verwendet/);
 
 // Der Adressvorschlag ist ein Vorschlag und keine Auskunft: street/zip/city
 // stammen aus Offerte und Vertrag. Er darf nur mitreisen, nie gespeichert
