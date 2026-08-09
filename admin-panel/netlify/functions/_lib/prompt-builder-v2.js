@@ -44,6 +44,28 @@ const BRACKET_PLACEHOLDER = /\[[^\][\n]{1,80}\]/g;
 // waere ein Schluessel mit Sonderzeichen eine Injektionsstelle.
 const SAFE_VARIABLE_KEY = /^[A-Za-z0-9_]+$/;
 
+// J5: Oeffnungszeiten. Die Formatierung steht hier ein zweites Mal (das
+// Original in customer-dashboard/netlify/functions/_lib/opening-hours.js) --
+// die beiden Netlify-Sites teilen keinen Modulpfad. Bewusst nur die
+// Darstellung: Parser und Pruefung leben ausschliesslich dort, wo geschrieben
+// wird. Diese Seite liest nur.
+const OPENING_HOURS_DAYS = Object.freeze([
+  ['mon', 'Montag'], ['tue', 'Dienstag'], ['wed', 'Mittwoch'], ['thu', 'Donnerstag'],
+  ['fri', 'Freitag'], ['sat', 'Samstag'], ['sun', 'Sonntag']
+]);
+
+function formatOpeningHours(week) {
+  if (!week || typeof week !== 'object' || Array.isArray(week)) return '';
+  return OPENING_HOURS_DAYS.map(([key, label]) => {
+    const intervals = Array.isArray(week[key]) ? week[key] : [];
+    const usable = intervals.filter((entry) => Array.isArray(entry) && entry.length === 2);
+    const times = usable.length
+      ? usable.map(([from, to]) => `${text(from)}–${text(to)}`).join(' und ')
+      : 'geschlossen';
+    return `- ${label}: ${times}`;
+  }).join('\n');
+}
+
 // J4 / Schicht A: Die generischen Betriebsfelder liegen in typisierten Spalten
 // (Entscheid F1), ihr Schema in system_config.core_field_steps. Diese Liste ist
 // die Code-Seite der Trennung: das Schema in der Datenbank bestimmt, WELCHE
@@ -55,8 +77,11 @@ const CORE_FIELD_COLUMNS = Object.freeze([
   // durch ein neues ai_coverage_mode gedoppelt (Entscheid A, 09.08.).
   'sprechstunden_modus',
   'ai_appointment_mode',
-  'ai_online_booking_url'
+  'ai_online_booking_url',
+  'ai_opening_hours'
 ]);
+
+const CORE_KEY_OPENING_HOURS = 'opening_hours';
 
 function wizardVariables(wizard, emergencyNumber, reserved) {
   const result = {};
@@ -285,7 +310,11 @@ function branchFieldSchema(steps) {
       // Agenten. `facharzt.sprechstunden_modus` traegt ueberhaupt kein Label —
       // dann steht die Optionsbezeichnung fuer sich, statt einen aus dem
       // Schluessel gebastelten Kunstbegriff zu erfinden.
-      schema.set(key, { label: text(field?.label).replace(/\s*\(optional\)\s*$/i, ''), options });
+      schema.set(key, {
+        label: text(field?.label).replace(/\s*\(optional\)\s*$/i, ''),
+        type: text(field?.type) || 'text',
+        options
+      });
     });
   });
   return schema;
@@ -355,7 +384,14 @@ function coreFieldColumns(steps) {
 function coreAnswers(customer, steps, wizard, profile) {
   const values = {};
   coreFieldColumns(steps).forEach((column, key) => {
-    const value = text(customer[column]);
+    const raw = customer[column];
+    // Ein jsonb-Wert (Oeffnungszeiten) darf nicht durch text() -- daraus wuerde
+    // "[object Object]".
+    if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+      if (Object.keys(raw).length) values[key] = raw;
+      return;
+    }
+    const value = text(raw);
     if (value) values[key] = value;
   });
   if (!values[CORE_KEY_APPOINTMENT] && profile.appointmentMode) {
@@ -374,7 +410,12 @@ function branchSchemaLines(wizard, schema, skipKeys, assistantName) {
   const lines = [];
   schema.forEach((field, key) => {
     if (skipKeys.has(key)) return;
-    const answer = text(wizard[key]);
+    const raw = wizard[key];
+    // Feldtyp `hours` traegt ein Wochenraster statt eines Wertes. Er wird hier
+    // nicht als Zeile gerendert -- die Oeffnungszeiten stehen als eigener
+    // Abschnitt, weil an ihnen eine Vorrangregel haengt.
+    if (field.type === 'hours' || (raw && typeof raw === 'object')) return;
+    const answer = text(raw);
     if (!answer) return;
     const option = field.options.get(answer);
     // Gespeichert wird der Optionswert (`ausserhalb_sprechstunde`), sprechend
@@ -507,6 +548,22 @@ function buildPromptV2({ customer = {}, masterPrompt = '', industryPrompt = '', 
   add('GESCHÄFTSPROFIL', customer.ai_business_description);
   add('LEISTUNGEN', customer.ai_services);
   add('STANDORT & ERREICHBARKEIT', customer.ai_location_hours);
+  // J5 / Entscheid F3: Solange keine bestaetigten Oeffnungszeiten vorliegen,
+  // fuehrt der Freitext -- dann steht hier nichts und der Abschnitt darueber
+  // bleibt die einzige Auskunft. Sobald der Kunde das Wochenraster bestaetigt
+  // hat, fuehrt es. Der Vorrang wird ausdruecklich gesagt, weil der Freitext
+  // seine alten Zeiten weiter enthaelt: sie dort automatisch zu entfernen
+  // hiesse, den Text eines Kunden ungefragt umzuschreiben.
+  const openingHours = formatOpeningHours(core[CORE_KEY_OPENING_HOURS]);
+  if (openingHours) {
+    customerParts.push(
+      '## REGULÄRE ÖFFNUNGSZEITEN\n'
+      + 'Diese Zeiten sind die verbindliche Auskunft. Weichen Zeitangaben im Abschnitt '
+      + 'STANDORT & ERREICHBARKEIT davon ab, gelten die Zeiten hier.\n'
+      + openingHours
+      + '\nNenne ausserhalb dieser Zeiten keine Verfügbarkeit, die hier nicht steht.'
+    );
+  }
   add('TERMINLOGIK & FAQ', customer.ai_booking_faq);
   const currentOperations = formatOperationalUpdates(operationalUpdates);
   if (currentOperations) customerParts.push(`## AKTUELLE BETRIEBSINFORMATIONEN\n${currentOperations}`);
