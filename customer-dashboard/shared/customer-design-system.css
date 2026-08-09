@@ -363,6 +363,40 @@ body.vx-customer-design-foundation [hidden][hidden][hidden] {
 
 }
 
+/* ------------------------------------------------------------
+   Übergänge statt Sprünge
+   ------------------------------------------------------------
+   Ein Tab-Wechsel war ein harter Austausch: .tab-page.active schaltet
+   display von none auf block, der neue Screen steht sofort und ohne
+   Zusammenhang da. Dieselbe Kante beim Aufklappen einer Karte.
+
+   Beide bekommen ein kurzes Einblenden. Bewusst nur opacity und kein
+   transform: ein transform auf einem Screen-Container macht ihn zum
+   Bezugsrahmen für position:fixed und würde Overlays und die
+   Tab-Leiste an die Seite heften statt ans Fenster — genau der
+   Fehlerklasse, wegen der das Containment-Skript der Tab-Leiste
+   überhaupt existiert.
+
+   Das Zuklappen bleibt hart: die Karten werden per inline
+   display:none geschlossen, ein Ausblenden bräuchte eine Änderung an
+   der Aufklapp-Logik selbst (dprToggle) und damit an Verhalten statt
+   an Optik. Nicht Teil dieses Schritts.
+
+   Die reduced-motion-Regel unten deckt beides ab.
+   ------------------------------------------------------------ */
+@keyframes vx-enter-fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+body.vx-customer-design-foundation .tab-page.active {
+  animation: vx-enter-fade 180ms ease-out both;
+}
+
+body.vx-customer-design-foundation :where(.dpr-exp, .va-exp-panel) {
+  animation: vx-enter-fade 150ms ease-out both;
+}
+
 @media (prefers-reduced-motion: reduce) {
   body.vx-customer-design-foundation *,
   body.vx-customer-design-foundation *::before,

@@ -227,6 +227,26 @@ body.vx-customer-design-foundation .vx-abo-btn {
   background: var(--vx-brand-dark);
   color: #ffffff;
   cursor: pointer;
+  transition: background-color 150ms ease;
+}
+
+/* Gefüllte Knöpfe quittieren den Zeiger über die Fülle, nicht über eine
+   Tönung darüber — sonst hätte derselbe Zustand zwei Sprachen. */
+@media (hover: hover) {
+  body.vx-customer-design-foundation .vx-cal-btn:hover,
+  body.vx-customer-design-foundation .vx-abo-btn:hover {
+    background: color-mix(in srgb, var(--vx-brand-dark) 88%, #000);
+  }
+
+  body.vx-customer-design-foundation .vx-cal-btn.secondary:hover,
+  body.vx-customer-design-foundation .vx-abo-btn.secondary:hover {
+    background: color-mix(in srgb, var(--vx-brand) 16%, white);
+  }
+
+  body.vx-customer-design-foundation .vx-cal-btn.danger:hover,
+  body.vx-customer-design-foundation .vx-abo-btn.danger:hover {
+    background: color-mix(in srgb, var(--vx-danger) 14%, white);
+  }
 }
 
 body.vx-customer-design-foundation .vx-cal-btn.secondary,
@@ -759,3 +779,41 @@ body.vx-customer-design-foundation .vx-help-cta small{display:block;margin-top:3
 body.vx-customer-design-foundation .vx-help-cta a{display:inline-block;margin-top:var(--vx-space-4);padding:9px 20px;border-radius:10px;background:rgba(255,255,255,.12);color:#ffffff;font-size:13px;font-weight:650;text-decoration:none;}
 body.vx-customer-design-foundation .vx-help-cta a:hover{background:rgba(255,255,255,.18);}
 body.vx-customer-design-foundation .vx-help-faq{display:grid;} body.vx-customer-design-foundation .vx-help-faq details{padding:16px 20px;border-bottom:1px solid var(--vx-line);} body.vx-customer-design-foundation .vx-help-faq details:last-child{border-bottom:0;} body.vx-customer-design-foundation .vx-help-faq summary{color:var(--vx-ink);font-weight:700;cursor:pointer;} body.vx-customer-design-foundation .vx-help-faq p{margin:9px 0 0;color:var(--vx-muted);font-size:13px;line-height:1.55;} @media(max-width:600px){body.vx-customer-design-foundation .vx-help-action-grid{grid-template-columns:1fr;padding:16px;}body.vx-customer-design-foundation .vx-help-action{grid-template-columns:44px minmax(0,1fr);justify-items:start;text-align:left;}body.vx-customer-design-foundation .vx-help-action small{grid-column:2;}body.vx-customer-design-foundation .vx-commercial-entry{grid-template-columns:42px minmax(0,1fr) auto;padding:16px;}body.vx-customer-design-foundation .vx-commercial-entry-icon{width:42px;height:42px;}}
+
+/* ------------------------------------------------------------
+   Hover auf klickbaren Flächen, nicht nur auf Knöpfen
+   ------------------------------------------------------------
+   Die Einträge im Abo-Bereich, die Plan-Auswahl und die Hilfe-Kacheln
+   sind Knöpfe mit cursor:pointer, quittierten den Zeiger aber mit
+   nichts. Der Unterschied zwischen "das ist ein Knopf" und "das ist
+   auch klickbar, sieht aber tot aus" war einer der Gründe für den
+   billigen Eindruck.
+
+   Die Regeln stehen bewusst hier, im Modul der Komponenten selbst, und
+   nicht als eine Sammelregel im Fundament: das Fundament wird als
+   erstes Stylesheet geladen und verlöre gegen die Grundfarbe jeder
+   Komponente. Eine Sammelregel hätte entweder gar nicht gegriffen oder
+   sie hätte, hoch genug geschrieben, auch die Hover der Komponenten
+   überfahren, die schon einen haben.
+
+   Der ausgewählte Zustand (.is-selected) behält seinen eigenen Ton —
+   Hover darf eine Auswahl nicht überschreiben.
+   ------------------------------------------------------------ */
+body.vx-customer-design-foundation .vx-commercial-entry,
+body.vx-customer-design-foundation .vx-commercial-choice,
+body.vx-customer-design-foundation .vx-help-action {
+  transition: background-color 150ms ease, border-color 150ms ease;
+}
+
+@media (hover: hover) {
+  body.vx-customer-design-foundation .vx-commercial-entry:hover,
+  body.vx-customer-design-foundation .vx-commercial-choice:not(.is-selected):hover,
+  body.vx-customer-design-foundation .vx-help-action:hover {
+    background: var(--vx-ui-tab-hover-bg);
+  }
+
+  body.vx-customer-design-foundation .vx-commercial-choice:not(.is-selected):hover,
+  body.vx-customer-design-foundation .vx-help-action:hover {
+    border-color: var(--vx-ui-field-border-hover);
+  }
+}

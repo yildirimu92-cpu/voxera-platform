@@ -684,10 +684,21 @@
   --vx-ui-spinner-gap: 8px;
 
   /* ---- Empty state ------------------------------------------- */
-  --vx-ui-empty-padding: 32px 20px;
+  /* Das Icon steht auf einer eigenen Kachel statt frei auf der weissen
+     Flaeche. Die Legacy-Variante (.empty-icon) hatte diese Kachel schon; die
+     kanonische hatte nur den nackten Glyphen — obwohl der Kommentar im
+     Komponentenmodul behauptet, beide seien optisch gleich. Jetzt sind sie es
+     wirklich, und der leere Zustand hat einen Ankerpunkt statt einer leeren
+     Flaeche. Die Kachel ist bewusst dieselbe zurueckgenommene Flaeche wie bei
+     Eingabefeldern — kein zweiter Farbtraeger, nur Struktur. */
+  --vx-ui-empty-padding: 36px 20px;
   --vx-ui-empty-gap: 10px;
-  --vx-ui-empty-icon-size: 28px;
+  --vx-ui-empty-icon-size: 26px;
   --vx-ui-empty-icon-color: #A7B4C8;
+  --vx-ui-empty-icon-tile-size: 52px;
+  --vx-ui-empty-icon-tile-bg: var(--vx-color-surface-soft);
+  --vx-ui-empty-icon-tile-radius: 16px;
+  --vx-ui-empty-icon-tile-gap: 4px;
   --vx-ui-empty-title-size: 14px;
   --vx-ui-empty-text-size: 13px;
   --vx-ui-empty-text-color: #7A8599;
