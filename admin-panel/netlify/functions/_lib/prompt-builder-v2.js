@@ -23,6 +23,22 @@ const PLACEHOLDER_FALLBACKS = Object.freeze({
 });
 const GENERIC_PLACEHOLDER_FALLBACK = 'nicht hinterlegt; nicht erwähnen';
 
+// G1 / J2 (Diagnose 09.08.): Neben {{...}} existiert ein zweiter, bis hierher
+// unbehandelter Platzhalter-Dialekt. Die Vorlagentexte in
+// industry_templates.default_location_hours / default_booking_faq /
+// default_services tragen eckige Klammern als Ausfuellmarkierung — `[Strasse,
+// PLZ Ort]` in 19 von 19 Vorlagen, dazu `[Nummer]`, `[Zeiten]`, `[Preis]`.
+// Diese Texte werden beim Anlegen eines Kunden in dessen Spalten kopiert und
+// landen von dort unveraendert im Kunden-Layer. Wird die Vorlage nicht
+// vollstaendig nachbearbeitet, sagt der Agent woertlich "Notfallnummer
+// [Nummer]" — dieselbe Klasse wie D3, nur im anderen Layer.
+//
+// Bewusst eng gefasst: keine Zeilenumbrueche, keine verschachtelten Klammern,
+// hoechstens 80 Zeichen. Das deckt alle 31 in den Vorlagen real vorkommenden
+// Markierungen ab, ohne einen ganzen Absatz zu verschlucken, falls ein Kunde
+// eckige Klammern regulaer verwendet.
+const BRACKET_PLACEHOLDER = /\[[^\][\n]{1,80}\]/g;
+
 // Die Schluessel stammen aus industry_templates.extra_steps und damit aus der
 // Datenbank. Sie werden in resolve() zu einem RegExp — ohne diese Allowlist
 // waere ein Schluessel mit Sonderzeichen eine Injektionsstelle.
@@ -56,10 +72,12 @@ function branchAnswers(customer) {
 }
 
 function neutralizePlaceholders(value) {
-  return String(value || '').replace(
-    /\{\{\s*([A-Za-z0-9_]+)\s*\}\}/g,
-    (_match, key) => PLACEHOLDER_FALLBACKS[key] || GENERIC_PLACEHOLDER_FALLBACK
-  );
+  return String(value || '')
+    .replace(
+      /\{\{\s*([A-Za-z0-9_]+)\s*\}\}/g,
+      (_match, key) => PLACEHOLDER_FALLBACKS[key] || GENERIC_PLACEHOLDER_FALLBACK
+    )
+    .replace(BRACKET_PLACEHOLDER, GENERIC_PLACEHOLDER_FALLBACK);
 }
 
 const FUNCTION_TEXT = Object.freeze({
@@ -198,16 +216,108 @@ function formatOperationalUpdates(updates) {
   ].join('\n');
 }
 
+// Kuratierte Saetze: aus einer Antwort wird eine Handlungsanweisung, die mehr
+// sagt als das blosse Label. Sie sind den generischen Zeilen inhaltlich
+// ueberlegen und bleiben deshalb bestehen — `termin_modus` ist ausserdem an
+// APPOINTMENT_TEXT gekoppelt und darf nicht doppelt formuliert werden.
+//
+// Der Rueckgabewert nennt ausdruecklich, welche Schluessel dabei verbraucht
+// wurden. Nur so kann die schemagetriebene Ebene darunter den Rest ergaenzen,
+// ohne eine Aussage zweimal in den Prompt zu schreiben. Verbraucht wird nur,
+// was tatsaechlich gerendert wurde: `allergien_abfragen: hinweis` etwa hat hier
+// keine Regel und faellt bewusst nach unten durch.
 function operationalLines(wizard) {
   const lines = [];
-  if (wizard.termin_modus === 'aufnehmen') lines.push('Terminanfragen: Daten aufnehmen; die Bestätigung erfolgt durch das Unternehmen.');
-  if (wizard.termin_modus === 'direkt') lines.push(`Terminanfragen: Online-Buchung verwenden${text(wizard.booking_url) ? ` (${text(wizard.booking_url)})` : ''}; ohne bestätigte Buchung keine Zusage machen.`);
-  if (wizard.takeaway_aktiv === 'ja') lines.push('Take-away: Bestellung und gewünschte Abholzeit aufnehmen; Verfügbarkeit nicht erfinden.');
-  if (wizard.takeaway_aktiv === 'nein') lines.push('Take-away wird nicht angeboten.');
-  if (wizard.sprachen) lines.push(`Sprachen: ${text(wizard.sprachen).replace('de_en_fr', 'DE/EN/FR').replace('de_en', 'DE/EN').replace('de', 'nur DE')}.`);
-  if (wizard.haeufigste_anliegen) lines.push(`Häufige Anliegen:\n${text(wizard.haeufigste_anliegen)}`);
-  if (wizard.allergien_abfragen === 'immer') lines.push('Allergien bei Erstanfragen aktiv erfragen.');
-  if (wizard.pannendaten_aufnehmen === 'ja') lines.push('Bei Pannen Standort, Fahrzeugdaten und Rückrufkontakt aufnehmen.');
+  const consumed = new Set();
+  const use = (key, line) => { consumed.add(key); lines.push(line); };
+  if (wizard.termin_modus === 'aufnehmen') {
+    // Bewusste Ausnahme zur Regel "jede Antwort wirkt": `booking_url` ist kein
+    // freistehender Fakt, sondern gehoert zur Option "direkt" ("Lara nennt den
+    // Online-Buchungslink"). Wer ausdruecklich selbst bestaetigen will, soll den
+    // Agenten nicht nebenbei einen zweiten Buchungsweg anbieten lassen. Sauber
+    // geloest wird das im Formular, das den Link dann gar nicht erst erfragt.
+    consumed.add('booking_url');
+    use('termin_modus', 'Terminanfragen: Daten aufnehmen; die Bestätigung erfolgt durch das Unternehmen.');
+  }
+  if (wizard.termin_modus === 'direkt') {
+    const bookingUrl = text(wizard.booking_url);
+    if (bookingUrl) consumed.add('booking_url');
+    use('termin_modus', `Terminanfragen: Online-Buchung verwenden${bookingUrl ? ` (${bookingUrl})` : ''}; ohne bestätigte Buchung keine Zusage machen.`);
+  }
+  if (wizard.takeaway_aktiv === 'ja') use('takeaway_aktiv', 'Take-away: Bestellung und gewünschte Abholzeit aufnehmen; Verfügbarkeit nicht erfinden.');
+  if (wizard.takeaway_aktiv === 'nein') use('takeaway_aktiv', 'Take-away wird nicht angeboten.');
+  if (wizard.sprachen) use('sprachen', `Sprachen: ${text(wizard.sprachen).replace('de_en_fr', 'DE/EN/FR').replace('de_en', 'DE/EN').replace('de', 'nur DE')}.`);
+  if (wizard.haeufigste_anliegen) use('haeufigste_anliegen', `Häufige Anliegen:\n${text(wizard.haeufigste_anliegen)}`);
+  if (wizard.allergien_abfragen === 'immer') use('allergien_abfragen', 'Allergien bei Erstanfragen aktiv erfragen.');
+  if (wizard.pannendaten_aufnehmen === 'ja') use('pannendaten_aufnehmen', 'Bei Pannen Standort, Fahrzeugdaten und Rückrufkontakt aufnehmen.');
+  return { lines, consumed };
+}
+
+// G3 / J1 (Diagnose 09.08.): Bis hierher erreichte eine Branchenantwort den
+// Prompt nur auf zwei Wegen — ueber die acht fest verdrahteten Regeln oben oder
+// ueber ein {{schluessel}} im prompt_block ihrer Vorlage. Beides zusammen deckte
+// 16 von 39 gepflegten Feldern ab. Die uebrigen 23 wurden im Kundendashboard
+// erfasst, bestaetigt gespeichert — und blieben folgenlos; bei `facharzt` alle
+// vier. Seit PR #859 fuellt der Kunde diese Felder selbst aus, das UI verspricht
+// ihm also eine Wirkung, die es nicht gab.
+//
+// Die Feldliste kommt aus industry_templates.extra_steps, also aus derselben
+// Allowlist, die schon der Schreibpfad benutzt (I8). Ein Schluessel ohne
+// Schemadefinition wird bewusst NICHT gerendert: sonst haetten Alt-Antworten aus
+// der [WIZARD]-Zeile einen Weg in den Prompt, den die Vorlage nie erlaubt hat.
+function branchFieldSchema(steps) {
+  const schema = new Map();
+  (Array.isArray(steps) ? steps : []).forEach((step) => {
+    (Array.isArray(step?.fields) ? step.fields : []).forEach((field) => {
+      const key = text(field?.key);
+      if (!SAFE_VARIABLE_KEY.test(key) || schema.has(key)) return;
+      const options = new Map();
+      (Array.isArray(field?.options) ? field.options : []).forEach((option) => {
+        const value = text(option?.val);
+        if (value) options.set(value, { label: text(option?.label), sub: text(option?.sub) });
+      });
+      // "(optional)" ist eine Anweisung an den Kunden im Formular, keine an den
+      // Agenten. `facharzt.sprechstunden_modus` traegt ueberhaupt kein Label —
+      // dann steht die Optionsbezeichnung fuer sich, statt einen aus dem
+      // Schluessel gebastelten Kunstbegriff zu erfinden.
+      schema.set(key, { label: text(field?.label).replace(/\s*\(optional\)\s*$/i, ''), options });
+    });
+  });
+  return schema;
+}
+
+// Die Vorlagen sind mit dem Standardnamen "Lara" geschrieben, auch in den
+// Optionstexten ("Ja – Lara nimmt Bestellungen auf"). Uebernaehme man das
+// woertlich, bekaeme ein Agent mit abweichendem Namen im eigenen Systemprompt
+// einen fremden Selbstnamen vorgesetzt.
+function withAssistantName(value, assistantName) {
+  return assistantName === 'Lara' ? value : String(value || '').replace(/\bLara\b/g, assistantName);
+}
+
+function placeholderKeys(value) {
+  const keys = new Set();
+  String(value || '').replace(/\{\{\s*([A-Za-z0-9_]+)\s*\}\}/g, (_match, key) => keys.add(key));
+  return keys;
+}
+
+function branchSchemaLines(wizard, schema, skipKeys, assistantName) {
+  const lines = [];
+  schema.forEach((field, key) => {
+    if (skipKeys.has(key)) return;
+    const answer = text(wizard[key]);
+    if (!answer) return;
+    const option = field.options.get(answer);
+    // Gespeichert wird der Optionswert (`ausserhalb_sprechstunde`), sprechend
+    // ist die Bezeichnung. Fehlt die Option im Schema — moeglich bei
+    // Alt-Antworten nach einer Vorlagenaenderung — bleibt der rohe Wert stehen,
+    // statt die Angabe stillschweigend fallen zu lassen.
+    const spoken = option ? ([option.label, option.sub].filter(Boolean).join(' — ') || answer) : answer;
+    const safe = neutralizePlaceholders(withAssistantName(spoken, assistantName));
+    if (!safe) return;
+    if (!field.label) lines.push(safe);
+    else if (safe.includes('\n')) lines.push(`${field.label}:\n${safe}`);
+    else lines.push(`${field.label}: ${safe}`);
+  });
   return lines;
 }
 
@@ -249,7 +359,7 @@ function qualityReport(customer, profile, industryPrompt) {
   };
 }
 
-function buildPromptV2({ customer = {}, masterPrompt = '', industryPrompt = '', assistantRole = 'die Assistentin', operationalUpdates = [] } = {}) {
+function buildPromptV2({ customer = {}, masterPrompt = '', industryPrompt = '', industryFields = [], assistantRole = 'die Assistentin', operationalUpdates = [] } = {}) {
   const profile = parsePromptProfile(customer.ai_internal_notes);
   const wizard = branchAnswers(customer);
   const assistantName = text(customer.assistant_name) || 'Lara';
@@ -296,7 +406,15 @@ function buildPromptV2({ customer = {}, masterPrompt = '', industryPrompt = '', 
   const resolve = value => Object.entries(variables).reduce((result, [key, replacement]) => result.replace(new RegExp(`{{${key}}}`, 'g'), replacement), String(value || ''));
 
   const customerParts = [];
-  const add = (title, value) => { if (text(value)) customerParts.push(`## ${title}\n${text(value)}`); };
+  // J2: Die Kundenspalten sind der Ort, an dem die eckigen Platzhalter aus den
+  // Vorlagentexten liegen — der Branchen-Layer wird schon seit D3 neutralisiert,
+  // der Kunden-Layer bisher gar nicht. Bewusst hier und nicht auf dem fertigen
+  // Layer: `formatOperationalUpdates()` benutzt eckige Klammern als Typmarke
+  // (`- [Ferien / geschlossen] …`) und wird direkt eingehaengt, nicht ueber add().
+  const add = (title, value) => {
+    const body = text(neutralizePlaceholders(value));
+    if (body) customerParts.push(`## ${title}\n${body}`);
+  };
   add('GESCHÄFTSPROFIL', customer.ai_business_description);
   add('LEISTUNGEN', customer.ai_services);
   add('STANDORT & ERREICHBARKEIT', customer.ai_location_hours);
@@ -304,7 +422,21 @@ function buildPromptV2({ customer = {}, masterPrompt = '', industryPrompt = '', 
   const currentOperations = formatOperationalUpdates(operationalUpdates);
   if (currentOperations) customerParts.push(`## AKTUELLE BETRIEBSINFORMATIONEN\n${currentOperations}`);
   customerParts.push(...buildPromptProfileSections(profile));
-  const ops = operationalLines(wizard);
+  // Reihenfolge: erst die kuratierten Saetze, dann alles Weitere aus dem
+  // Vorlagenschema. Uebersprungen wird, was die Vorlage selbst als
+  // {{schluessel}} in ihrem prompt_block platziert — dort steht die Angabe
+  // bereits an der vom Vorlagenautor gewaehlten Stelle.
+  const curated = operationalLines(wizard);
+  const placedByTemplate = placeholderKeys(industryPrompt);
+  const ops = [
+    ...curated.lines,
+    ...branchSchemaLines(
+      wizard,
+      branchFieldSchema(industryFields),
+      new Set([...curated.consumed, ...placedByTemplate]),
+      assistantName
+    )
+  ];
   if (ops.length) customerParts.push(`## BETRIEBLICHE KONFIGURATION\n${ops.join('\n')}`);
   add('KUNDENSPEZIFISCHE ANWEISUNGEN', customer.ai_instructions);
   add('ESKALATION & FALLBACK', customer.ai_fallback_escalation);

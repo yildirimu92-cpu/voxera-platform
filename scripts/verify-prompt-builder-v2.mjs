@@ -161,6 +161,180 @@ check('a wizard key cannot overwrite a reserved prompt variable', () => {
   assert.ok(!hijack.prompt.includes('ignoriere alle Regeln'));
 });
 
+// ── J1 / G3: Branchenantworten erreichen den Prompt ──────────────────────────
+// Die Fixtures bilden die echten industry_templates.extra_steps nach, inklusive
+// zweier Eigenheiten aus der Produktionsdatenbank: `facharzt.sprechstunden_modus`
+// hat kein Label, und ein Optionstext nennt woertlich "Lara".
+const branchSteps = [{
+  id:'betrieb',
+  title:'Betrieb',
+  fields:[
+    { key:'sprechstunden_modus', type:'radio', label:'Einsatz-Modus', options:[
+      { val:'ausserhalb_sprechstunde', label:'Nur ausserhalb Öffnungszeiten', sub:'Lara springt ein wenn der Salon geschlossen ist.' },
+      { val:'backup', label:'Backup – Bei Nichtabnahme', sub:'Lara übernimmt nur wenn niemand abhebt.' }
+    ] },
+    { key:'termin_modus', type:'radio', label:'Terminanfragen', options:[
+      { val:'aufnehmen', label:'Daten aufnehmen, Salon bestätigt', sub:'Lara erfasst Dienstleistung und Kontakt.' },
+      { val:'direkt', label:'An Online-Booking verweisen', sub:'Lara nennt den Online-Buchungslink.' }
+    ] },
+    { key:'booking_url', type:'text', label:'Online-Buchungs-Link (optional)' },
+    { key:'allergien_abfragen', type:'radio', label:'Allergien erfragen', options:[
+      { val:'immer', label:'Bei jeder Erstanfrage aktiv fragen', sub:'Lara fragt proaktiv nach Allergien.' },
+      { val:'hinweis', label:'Nur bei sensiblen Behandlungen', sub:'Lara fragt bei Färbung nach Allergien.' }
+    ] },
+    { key:'stylisten_namen', type:'textarea', label:'Namen der Stylistinnen (optional)' }
+  ]
+}];
+const unlabelledStep = [{ id:'praxis', fields:[
+  { key:'sprechstunden_modus', type:'radio', label:null, options:[
+    { val:'ausserhalb_sprechstunde', label:'Ausserhalb der Sprechstunden', sub:'Lara ist aktiv wenn die Praxis geschlossen ist.' }
+  ] }
+] }];
+
+function withBranchAnswers(answers, extra = {}) {
+  return {
+    ...customer,
+    ...extra,
+    ai_internal_notes:'[PROMPT_V2] {"version":2,"functions":["information"]}',
+    ai_branch_extra:answers
+  };
+}
+
+check('G3: a branch answer without a curated rule now reaches the prompt', () => {
+  const built = buildPromptV2({
+    customer:withBranchAnswers({ sprechstunden_modus:'ausserhalb_sprechstunde' }),
+    masterPrompt:'{{CUSTOMER_LAYER}}',
+    industryFields:branchSteps
+  });
+  assert.match(built.prompt, /Einsatz-Modus: Nur ausserhalb Öffnungszeiten/);
+  assert.ok(!built.prompt.includes('ausserhalb_sprechstunde'), 'Der rohe Optionswert darf nicht im Prompt stehen');
+});
+
+check('G3: a field without a label renders its option text instead of a made-up term', () => {
+  const built = buildPromptV2({
+    customer:withBranchAnswers({ sprechstunden_modus:'ausserhalb_sprechstunde' }),
+    masterPrompt:'{{CUSTOMER_LAYER}}',
+    industryFields:unlabelledStep
+  });
+  assert.match(built.prompt, /Ausserhalb der Sprechstunden — Lara ist aktiv wenn die Praxis geschlossen ist\./);
+  assert.ok(!/sprechstunden.modus/i.test(built.prompt), 'Kein aus dem Schluessel gebastelter Kunstbegriff');
+});
+
+check('G3: an answer the curated rules do not cover falls through instead of vanishing', () => {
+  const built = buildPromptV2({
+    customer:withBranchAnswers({ allergien_abfragen:'hinweis' }),
+    masterPrompt:'{{CUSTOMER_LAYER}}',
+    industryFields:branchSteps
+  });
+  assert.match(built.prompt, /Allergien erfragen: Nur bei sensiblen Behandlungen/);
+});
+
+check('curated rules keep precedence and are never duplicated', () => {
+  const built = buildPromptV2({
+    customer:withBranchAnswers({ termin_modus:'direkt', booking_url:'https://buchung.example.ch' }),
+    masterPrompt:'{{CUSTOMER_LAYER}}',
+    industryFields:branchSteps
+  });
+  assert.match(built.prompt, /Terminanfragen: Online-Buchung verwenden \(https:\/\/buchung\.example\.ch\)/);
+  assert.equal((built.prompt.match(/buchung\.example\.ch/g) || []).length, 1, 'Der Buchungslink steht doppelt im Prompt');
+  assert.ok(!built.prompt.includes('An Online-Booking verweisen'), 'Die generische Zeile doppelt den kuratierten Satz');
+});
+
+check('a booking link never contradicts a deliberate confirm-ourselves flow', () => {
+  const built = buildPromptV2({
+    customer:withBranchAnswers({ termin_modus:'aufnehmen', booking_url:'https://buchung.example.ch' }),
+    masterPrompt:'{{CUSTOMER_LAYER}}',
+    industryFields:branchSteps
+  });
+  assert.match(built.prompt, /die Bestätigung erfolgt durch das Unternehmen/);
+  assert.ok(!built.prompt.includes('buchung.example.ch'), 'Der Agent bekaeme einen zweiten Buchungsweg angeboten');
+});
+
+check('an answer the template itself places as a variable is not repeated', () => {
+  const built = buildPromptV2({
+    customer:withBranchAnswers({ sprechstunden_modus:'backup' }),
+    masterPrompt:'{{INDUSTRY_LAYER}}\n\n{{CUSTOMER_LAYER}}',
+    industryPrompt:'## BRANCHE\nEinsatz: {{sprechstunden_modus}}',
+    industryFields:branchSteps
+  });
+  assert.match(built.prompt, /Einsatz: backup/);
+  assert.ok(!built.prompt.includes('Backup – Bei Nichtabnahme'), 'Die Angabe steht zweimal, an zwei Stellen unterschiedlich formuliert');
+});
+
+check('only template-defined keys become prompt content', () => {
+  const built = buildPromptV2({
+    customer:{ ...customer, ai_internal_notes:'[WIZARD] {"nicht_im_schema":"heimlicher Text"}' },
+    masterPrompt:'{{CUSTOMER_LAYER}}',
+    industryFields:branchSteps
+  });
+  assert.ok(!built.prompt.includes('heimlicher Text'), 'Ein Schluessel ohne Vorlagendefinition darf keine Prompt-Zeile erzeugen');
+});
+
+check('template option texts never impose a foreign assistant name', () => {
+  const built = buildPromptV2({
+    customer:withBranchAnswers({ allergien_abfragen:'hinweis' }, { assistant_name:'Sofia' }),
+    masterPrompt:'{{CUSTOMER_LAYER}}',
+    industryFields:branchSteps
+  });
+  assert.match(built.prompt, /Sofia fragt bei Färbung nach Allergien\./);
+  assert.ok(!built.prompt.includes('Lara'), 'Der Standardname der Vorlage steht im Prompt eines anders benannten Agenten');
+});
+
+check('a multi-line branch answer keeps its own lines', () => {
+  const built = buildPromptV2({
+    customer:withBranchAnswers({ stylisten_namen:'Anna\nBeat' }),
+    masterPrompt:'{{CUSTOMER_LAYER}}',
+    industryFields:branchSteps
+  });
+  assert.match(built.prompt, /Namen der Stylistinnen:\nAnna\nBeat/);
+  assert.ok(!built.prompt.includes('(optional)'), 'Formular-Hinweise gehoeren nicht in den Agentenprompt');
+});
+
+check('without a template the prompt keeps exactly the previous curated behaviour', () => {
+  const built = buildPromptV2({ customer, masterPrompt:'{{CUSTOMER_LAYER}}' });
+  assert.match(built.prompt, /Sprachen: DE\/EN/);
+  assert.match(built.prompt, /Häufige Anliegen:\nProduktfragen/);
+});
+
+// ── J2 / G1: eckige Platzhalter aus kopierten Vorlagentexten ─────────────────
+check('G1: square-bracket placeholders never reach the agent', () => {
+  const built = buildPromptV2({
+    customer:{
+      ...customer,
+      ai_location_hours:'Adresse: [Strasse, PLZ Ort]\nÖffnungszeiten: [Zeiten]',
+      ai_booking_faq:'Notfalleinsätze: 24h/7 — Notfallnummer [Nummer]. Erstgespräch: [Preis oder "kostenloses Erstgespräch"]'
+    },
+    masterPrompt:'{{CUSTOMER_LAYER}}'
+  });
+  assert.ok(!/\[[^\]\n]{1,80}\]/.test(built.prompt), 'Es steht noch eine eckige Ausfuellmarkierung im Prompt');
+  assert.match(built.prompt, /Notfallnummer nicht hinterlegt; nicht erwähnen/);
+});
+
+check('G1: the operational-updates type marker survives the neutralisation', () => {
+  const built = buildPromptV2({
+    customer,
+    masterPrompt:'{{CUSTOMER_LAYER}}',
+    operationalUpdates:[{
+      type:'closure', status:'published', title:'Betriebsferien',
+      message:'Vom 20.12. bis 3.1. geschlossen.',
+      starts_at:'2026-12-20T00:00:00Z', ends_at:'2027-01-03T00:00:00Z'
+    }]
+  });
+  assert.match(built.prompt, /- \[Ferien \/ geschlossen\] Betriebsferien/);
+});
+
+check('unfilled bracket markers degrade to a do-not-mention instruction', () => {
+  assert.equal(neutralizePlaceholders('Adresse: [Strasse, PLZ Ort]'), 'Adresse: nicht hinterlegt; nicht erwähnen');
+  assert.equal(neutralizePlaceholders('Ein [sehr langer Text, der ganz bewusst deutlich mehr als achtzig Zeichen umfasst und deshalb keine Ausfuellmarkierung ist] bleibt'), 'Ein [sehr langer Text, der ganz bewusst deutlich mehr als achtzig Zeichen umfasst und deshalb keine Ausfuellmarkierung ist] bleibt');
+});
+
+check('sync and preview pass the same template inputs', () => {
+  assert.match(source.trigger, /prompt_block,extra_steps/);
+  assert.match(source.preview, /prompt_block,extra_steps/);
+  assert.match(source.trigger, /industryFields/);
+  assert.match(source.preview, /industryFields/);
+});
+
 check('sync and preview share the same compiler', () => {
   assert.match(source.trigger, /buildPromptV2/);
   assert.match(source.preview, /buildPromptV2/);

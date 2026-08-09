@@ -1,7 +1,7 @@
 # Geschäftswissen — die vier Freitextfelder: Diagnose und Zielbild
 
-**Datum:** 09.08.2026
-**Status:** **Diagnose und Zielbild. Keine Umsetzung.** Abschnitt 8 listet die Schnitte, Abschnitt 9 die Entscheidungen, die ich vom User brauche.
+**Datum:** 09.08.2026 · **Nachtrag 09.08.** nach Freigabe (Abschnitt 11)
+**Status:** Diagnose und Zielbild abgeschlossen. **J1 und J2 sind freigegeben und umgesetzt** (Abschnitt 11). Alles ab J4 wartet weiterhin auf Freigabe.
 **Prüfstand:** `main` @ `f21187e`, Produktionsdatenbank `ulcofbgrovgcvowdjrge` (Live-Abfragen, nicht aus Dokumenten übernommen). Staging (`hzqiyyqfchvfcmmbemvd`) enthält aktuell 0 Kunden.
 **Grundlage:** Auftrag „Freitextfelder im Geschäftswissen — Diagnose zuerst" (09.08.), Live-Test-Fund #3 aus PR #859, `docs/ASSISTENT_TAB_IA_DIAGNOSE_2026-08-09.md` (Abschnitte 5 und 11).
 
@@ -328,7 +328,7 @@ Aus vier gleich aussehenden Textareas wird ein Formular mit drei erkennbaren Tei
 
 ## 8. Vorgeschlagene Schnittfolge — nach Freigabe
 
-**Nichts davon startet ohne Rückmeldung.** So geschnitten, dass jeder Schnitt einzeln lieferbar ist und J1–J2 auch dann Wert haben, wenn der Rest verschoben wird.
+**Stand nach dem Nachtrag (Abschnitt 11): J1 und J2 sind freigegeben und umgesetzt. J3 und alles ab J4 warten weiterhin auf Freigabe.** So geschnitten, dass jeder Schnitt einzeln lieferbar ist und J1–J2 auch dann Wert haben, wenn der Rest verschoben wird.
 
 | Schnitt | Inhalt | Abhängigkeit | Modell/Effort |
 |---|---|---|---|
@@ -349,6 +349,8 @@ Aus vier gleich aussehenden Textareas wird ein Formular mit drei erkennbaren Tei
 ---
 
 ## 9. Was ich für die Umsetzung entschieden brauche
+
+**F1, F2 und F4 sind inzwischen entschieden — siehe Abschnitt 11.1. F4 wurde dabei gegenüber der Empfehlung unten verschärft. F3, F5 und F6 sind weiterhin offen.**
 
 | # | Frage | Meine Empfehlung |
 |---|---|---|
@@ -371,3 +373,71 @@ Aus vier gleich aussehenden Textareas wird ein Formular mit drei erkennbaren Tei
 - **Kein echtes Kundenverhalten.** Wie KMU diese vier Boxen tatsächlich ausfüllen, ist mit einem einzigen, maschinell befüllten Datensatz nicht belegbar (1.1). Das Zielbild stützt sich auf die 19 Vorlagentexte — eine gute, aber indirekte Quelle. **Der stärkste nächste Erkenntnisschritt wäre ein echter Kunde**, nicht mehr Analyse.
 - **G1 ist latent, nicht beobachtet.** Kein heutiger Kunde trägt Vorlagen-Defaults mit `[…]` in seinen Spalten. Der Weg dorthin ist im Code belegt (`index.html:7505–7508` → `:7699`), aber nicht an einem Datensatz beobachtet.
 - **Aufwandsschätzungen** in Abschnitt 8 sind Einschätzungen, keine Messungen.
+
+---
+
+## 11. Nachtrag 09.08. — Entscheide und Umsetzung von J1/J2
+
+### 11.1 Getroffene Entscheide
+
+| # | Entscheid | Folge |
+|---|---|---|
+| **F1** | **Getrennter Speicher, wie empfohlen.** Generische Felder bekommen typisierte Spalten, nicht `ai_branch_extra`. | Bindend für J4–J6. Der Renderer und die Allowlist bleiben geteilt (Abschnitt 7). |
+| **F2** | **J1 und J2 vorgezogen.** | Umgesetzt, siehe 11.2. |
+| **F4** | **Preisfeld ja — aber nicht als blanker Text.** Der User hat die Frage als Rechtsfrage zurückgegeben, mit dem Hinweis, dass eine vom Agenten vorgelesene Preisangabe je nach Formulierung als verbindlicher Antrag (OR) gelten kann und damit den offenen Launch-Blocker „Haftung/Versicherung" berührt. | Siehe 11.4 — **entschieden mit Vorbehalt**, nicht abschliessend. |
+| F3, F5, F6 | noch offen | Blockieren J5/J6, nicht J1–J4. |
+
+### 11.2 Was umgesetzt ist
+
+**J1 — G3 behoben.** Eine Branchenantwort erreicht den Prompt nicht mehr nur über die acht fest verdrahteten Regeln oder ein `{{platzhalter}}` in der Vorlage, sondern über das Vorlagenschema selbst: `branchFieldSchema()` liest `extra_steps`, `branchSchemaLines()` rendert jede beantwortete Frage mit ihrem Label und der **Bezeichnung** der gewählten Option statt des rohen Schlüsselwerts. Beide Aufrufer (`trigger-elevenlabs-sync.js`, `prompt-preview.js`) laden dafür jetzt `prompt_block,extra_steps` statt nur `prompt_block`.
+
+Die kuratierten Sätze bleiben und haben Vorrang — sie machen aus einer Antwort eine Handlungsanweisung, was eine generische `Label: Wert`-Zeile nicht leistet. `operationalLines()` meldet neu, welche Schlüssel sie dabei verbraucht hat; nur so kann die schemagetriebene Ebene ergänzen, ohne zu doppeln. Ebenfalls übersprungen wird, was die Vorlage selbst als `{{schlüssel}}` platziert hat.
+
+Zwei Eigenheiten der Produktionsdaten sind abgefangen:
+- **`facharzt.sprechstunden_modus` hat kein `label`.** Dann steht die Optionsbezeichnung für sich, statt aus dem Schlüssel einen Kunstbegriff zu bauen.
+- **Vorlagen-Optionstexte nennen wörtlich „Lara"** (z.B. „Ja – Lara nimmt Bestellungen auf"). Bei einem anders benannten Assistenten stünde damit ein fremder Selbstname in seinem eigenen Systemprompt. `withAssistantName()` setzt den tatsächlichen Namen ein.
+
+**J2 — G1 behoben.** `neutralizePlaceholders()` kennt jetzt beide Dialekte; unausgefüllte `[…]`-Markierungen werden zur ausdrücklichen Nicht-Anweisung, genau wie `{{…}}` seit D3. Neu wird die Funktion auch auf den **Kunden-Layer** angewendet — dort liegen die aus Vorlagen kopierten Texte, und dort wurde bisher gar nicht neutralisiert. Bewusst pro Feld in `add()` und nicht auf dem fertigen Layer: `formatOperationalUpdates()` benutzt eckige Klammern als Typmarke (`- [Ferien / geschlossen] …`), die erhalten bleiben muss. Ein Test sichert genau das ab.
+
+Der Ausdruck ist eng gefasst (keine Zeilenumbrüche, keine verschachtelten Klammern, höchstens 80 Zeichen). Er deckt alle **31** real in den Vorlagen vorkommenden Markierungen ab, ohne einen Absatz zu verschlucken, falls ein Kunde eckige Klammern regulär verwendet. **Geprüft:** kein einziger `prompt_block` der 19 Vorlagen enthält eckige Klammern — der Branchen-Layer ist von der Änderung faktisch nicht betroffen.
+
+**Abnahme:** 14 neue Prüfungen in `scripts/verify-prompt-builder-v2.mjs`, alle 24 bestehenden weiterhin grün. Zusätzlich grün: `verify-elevenlabs-sync-changed-fields`, `verify-customer-assistant-profile`, `verify-ai-setup-identity-preservation`, `verify-admin-customer-write-integrity`, `verify-elevenlabs-calendar-tool-provisioning`.
+
+### 11.3 Zwei bewusste Abweichungen vom Plan
+
+1. **`allergene_info`/`allergien_abfragen` wurden *nicht* auf einen Schlüssel gebracht**, obwohl J1 das so ankündigte. Grund: die beiden Felder haben **verschiedene Optionsvokabulare** (`notieren|hinweisen` gegenüber `immer|hinweis`). Ein Alias im Code müsste raten, welcher Wert welchem entspricht — das ist eine inhaltliche Entscheidung am Vorlagentext, keine Umbenennung. Der generische Pfad rendert `allergene_info` jetzt ohnehin korrekt mit seiner eigenen Bezeichnung, der Befund ist damit entschärft. Die Vereinheitlichung gehört zu J4 („Vorlagen bereinigen").
+
+2. **`booking_url` wird bei `termin_modus: aufnehmen` bewusst unterdrückt.** Es ist die einzige Stelle, an der ich eine beantwortete Frage absichtlich nicht in den Prompt lasse. Grund: Das Feld ist kein freistehender Fakt, sondern gehört zur Option „direkt" („Lara nennt den Online-Buchungslink"). Ein Betrieb, der ausdrücklich selbst bestätigen will, soll den Agenten nicht nebenbei einen zweiten Buchungsweg anbieten lassen. Sauber gelöst wird das im Formular, das den Link bei dieser Wahl gar nicht erst erfragt — J6.
+
+### 11.4 F4 — Preisfeld: Entscheid mit Vorbehalt
+
+Der User hat mir diese Frage zum Entscheid zurückgegeben. Ich trenne sie in zwei Teile, weil nur einer davon meiner ist.
+
+**Was ich entscheide (Produktform):** `ai_pricing_note` kommt, aber nicht als freies Textfeld. Konkret für J6:
+- **Voreinstellung ist „auf Anfrage"** — ein leeres Preisfeld führt dazu, dass der Agent auf Preisfragen die Rückfrage anbietet, nicht dass er schweigt oder ableitet.
+- **Typisiert statt Fliesstext:** Preisart (`ab_preis` / `fixpreis` / `auf_anfrage`), Betrag, Einheit, Gültigkeitshinweis. Damit lässt sich die Aussage im Prompt kontrolliert formulieren, statt einen Kundensatz wörtlich zu übernehmen.
+- **Der Unverbindlichkeitsbaustein ist nicht abwählbar.** Sobald eine Preisangabe hinterlegt ist, hängt der Builder eine feste Formulierung an („Preise sind Richtwerte, keine verbindliche Zusage; zur Bestätigung an das Unternehmen verweisen"). Kein Kundenfeld kann sie überschreiben — dieselbe Bauform wie die `VERBINDLICHE SICHERHEITSREGELN`.
+- **Keine Ableitung:** die bestehende Regel „Erfinde keine Preise" bleibt und bekommt den Zusatz, dass nur wörtlich Hinterlegtes genannt werden darf.
+
+**Was ich nicht entscheide (Rechtsfrage):** Ob eine so formulierte, vom Agenten gesprochene Preisangabe unter Schweizer Recht als Antrag oder als blosse Einladung zur Offertstellung gilt — und ob der Disclaimer-Baustein dafür genügt — ist eine Frage an eine juristische Prüfung, nicht an mich. Ich kann die Formulierung liefern, nicht ihre Wirksamkeit beurteilen. **Empfehlung: J6 setzt das Feld technisch um, die Freischaltung im Kunden-UI hängt an derselben Prüfung wie der offene Launch-Blocker „Haftung/Versicherung".** Bis dahin ist das Feld admin-seitig pflegbar, aber nicht kundenseitig beworben.
+
+Der Hinweis des Users hat den Entwurf verändert: mein ursprünglicher Vorschlag in Abschnitt 9 war ein kurzes Freitextfeld mit einer Prompt-Formulierung. Das hätte den Preis wörtlich aus Kundenhand in den Agentenmund gelegt. Die typisierte Form mit erzwungenem Baustein ist die Antwort auf das genannte Haftungsrisiko.
+
+### 11.5 Neuer Befund G8 — die Rückfall-Vorschau im Admin zeigt einen Prompt ohne Sicherheitsregeln
+
+Beim Nachziehen der Aufrufer gefunden, **nicht angefasst**, weil nicht freigegeben:
+
+`admin-panel/index.html:16034–16087` enthält einen **zweiten, vollständigen Prompt-Bauer im Browser** (`buildCustomerLayer()`/`buildAiPrompt()`) mit eigener, abweichender Formulierung der Wizard-Zeilen. Er ist nicht der Normalfall: `admin-runtime-prompt-builder-v2.js:325–350` überschreibt `openAiPreview()` und holt den Prompt vom Server. Der Client-Bauer greift nur, wenn dieser Aufruf fehlschlägt — dann mit dem Toast „Server-Vorschau nicht verfügbar – lokale Vorschau angezeigt."
+
+**Warum es trotzdem zählt:** Diesem Rückfall fehlen `## AUFGABEN & ERFOLGSKRITERIUM`, `## PFLICHTINFORMATIONEN`, `## TERMINBEFUGNIS`, die aktuellen Betriebsinformationen — und `## VERBINDLICHE SICHERHEITSREGELN`. Der Kommentar an der Stelle, die die Vorschau automatisch öffnet (`index.html:7793`), lautet „Auto-open prompt preview so admin can copy immediately for ElevenLabs". Ein Admin, der im Fehlerfall kopiert, überträgt einen Prompt **ohne Sicherheitsregeln** in den Agenten. Der Toast warnt, dass die Vorschau lokal ist — nicht, dass sie unvollständig ist.
+
+**Bewertung:** eigenständiger Befund derselben Familie wie G3 (die Oberfläche zeigt etwas anderes, als produktiv gilt), aber im Rückfallpfad und mit Warnhinweis, also nicht dringlich. **Vorschlag J10:** den Client-Bauer entfernen und im Fehlerfall ehrlich „Vorschau nicht verfügbar" anzeigen, statt eine unvollständige Fassung. Nicht Teil von J1/J2.
+
+**Anmerkung zu J1:** Der Client-Bauer kennt die neuen schemagetriebenen Zeilen nicht. Die Abweichung zwischen ihm und dem Server wächst damit — sie war aber schon vorher deutlich grösser (ganze Abschnitte fehlen), und der produktive Prompt für den Agenten kommt ausschliesslich aus `trigger-elevenlabs-sync.js`.
+
+### 11.6 Was auch nach J1/J2 unbewiesen bleibt
+
+- **Kein Live-Anruf.** Dass die 23 Felder jetzt *wirken*, ist am gebauten Prompt geprüft, nicht am Telefon. Der Prompt enthält die Angaben nachweislich — ob das Modell sie befolgt, ist damit nicht gezeigt.
+- **Kein Kunde hat heute Branchenantworten.** `ai_branch_extra` ist bei allen 4 Kunden `null`. J1 ist also an Fixtures geprüft, die den Vorlagen nachgebaut sind, nicht an echten Antworten. Der erste Kunde mit ausgefüllten Branchenfeldern ist der eigentliche Test.
+- **G1 bleibt latent.** Kein heutiger Kunde trägt Vorlagen-Defaults mit `[…]`. J2 ist damit eine Vorsorge, die im Moment nichts sichtbar repariert — ihr Wert entsteht mit A3.
+- **Der Regex-Zuschnitt ist an 31 Vorlagen-Markierungen kalibriert, nicht an Kundentexten.** Schreibt ein Kunde eckige Klammern regulär und kurz, werden sie ersetzt. Ich halte das für den richtigen Kompromiss, es ist aber eine Abwägung und keine bewiesene Nebenwirkungsfreiheit.

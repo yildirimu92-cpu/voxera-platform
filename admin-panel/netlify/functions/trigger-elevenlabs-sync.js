@@ -49,13 +49,18 @@ async function loadPromptInputs(sb, customerId, customer) {
   if (calendarResult.error) throw calendarResult.error;
 
   let industryPrompt = '';
+  // J1: extra_steps liefert Label und Optionstexte zu den Branchenantworten.
+  // Ohne sie kann der Builder eine Antwort nur als rohen Schluesselwert
+  // wiedergeben — und tat es deshalb bisher gar nicht.
+  let industryFields = [];
   if (customer.industry_template_id) {
     const { data, error } = await sb.from('industry_templates')
-      .select('prompt_block')
+      .select('prompt_block,extra_steps')
       .eq('id', customer.industry_template_id)
       .maybeSingle();
     if (error) throw error;
     industryPrompt = data?.prompt_block || '';
+    industryFields = Array.isArray(data?.extra_steps) ? data.extra_steps : [];
   }
 
   let assistantRole = 'die Assistentin';
@@ -73,6 +78,7 @@ async function loadPromptInputs(sb, customerId, customer) {
     operationalUpdates: operationalResult.data || [],
     calendarSettings: calendarResult.data || null,
     industryPrompt,
+    industryFields,
     assistantRole
   };
 }
@@ -162,6 +168,7 @@ exports.handler = async (event) => {
       customer,
       masterPrompt: inputs.masterPrompt,
       industryPrompt: inputs.industryPrompt,
+      industryFields: inputs.industryFields,
       assistantRole: inputs.assistantRole,
       operationalUpdates: inputs.operationalUpdates
     });
