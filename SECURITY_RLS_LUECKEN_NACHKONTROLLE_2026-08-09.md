@@ -339,3 +339,50 @@ Das ist der ganze Unterschied zwischen den beiden Behandlungen.
   Absatz) — sie bleiben ein eigenes, grösseres Aufräumthema.
 * Nebenfunde 3, 4 und 5 aus Abschnitt 5 (wirkungslose Policy, drei Alt-Policies
   auf `calls`, `DELETE` auf `calls`) — unverändert offen.
+
+---
+
+## 9. Nachtrag (freigegeben): offene Backup-Tabelle geschlossen
+
+Kein eigener Befund, sondern einer, den der in Abschnitt 7 erweiterte
+6-Stunden-Lauf unmittelbar nach dem Merge von PR #892 gemeldet hat:
+
+```
+[FAIL] keine neue Tabelle ohne RLS
+       ohne RLS: customers_notification_backup_20260809
+[FAIL] anon hat neue Rechte auf customers_notification_backup_20260809
+       neu hinzugekommen: DELETE,INSERT,MAINTAIN,REFERENCES,SELECT,TRIGGER,UPDATE
+```
+
+Von Hand nachgemessen statt geglaubt: eine echte `anon`-Session las **4 Zeilen**.
+RLS aus, 0 Policies, `anon` mit SELECT.
+
+**Andere Kategorie als der TRUNCATE-Befund.** TRUNCATE war über PostgREST nicht
+erreichbar; ein SELECT ist es. Mit dem anon-Key — der im Browser jedes Besuchers
+steht — waren `notification_mode`, die E-Mail-Schalter und
+`in_app_notification_settings` aller Mandanten lesbar.
+
+Herkunft: einmaliges Sicherungsnetz einer parallel laufenden Umstellung (Ledger
+`admin_notification_settings_20260809` / `notification_mode_gating_20260809`).
+Genau der Fall, der die Default-Privilegien so gefährlich macht — `create table`
+genügt, und die Browser-Rollen haben Vollzugriff, ohne dass jemand eine
+Entscheidung getroffen hätte.
+
+Vor dem Schliessen belegt: **keine** Fundstelle im Repo liest oder schreibt die
+Tabelle. Sie gehört ausschliesslich dem Server.
+
+`2026-08-09_notification_backup_lockdown.sql`: RLS an, `revoke all` von
+`public`/`anon`/`authenticated`, voller Zugriff nur für `service_role` — die
+Tabelle muss lesbar bleiben, falls die Umstellung zurückgenommen werden muss,
+das ist ihr Zweck.
+
+Gegenprobe nach dem Anwenden: `anon` → `42501`, `authenticated`/Admin → `42501`,
+4 Zeilen unverändert vorhanden, RLS aktiv, keine Rechte mehr für die
+Browser-Rollen.
+
+**Bemerkenswert am selben CI-Befund:** die Tabelle hatte *alles* aus den
+Default-Privilegien geerbt — `DELETE, INSERT, MAINTAIN, REFERENCES, SELECT,
+TRIGGER, UPDATE` — **ausser TRUNCATE**. Genau die eine Berechtigung, die
+Abschnitt 7 aus den Defaults entfernt hat, kam nicht mit. Der Wurzel-Fix ist
+damit nicht nur behauptet, sondern an einer fremden, nach dem Sweep entstandenen
+Tabelle nachgewiesen.
