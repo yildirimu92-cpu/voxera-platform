@@ -166,7 +166,7 @@ for (const forbidden of [
   if (source.statusRuntime.includes(forbidden)) failures.push(`status runtime exposes protected field: ${forbidden}`);
 }
 
-assert.match(source.loader, /customer-runtime-assistant-profile\.js\?v=20260809-5/);
+assert.match(source.loader, /customer-runtime-assistant-profile\.js\?v=20260809-6/);
 assert.match(source.loader, /customer-runtime-assistant-status\.js\?v=20260809-1/);
 assert.doesNotMatch(source.loader, /customer-runtime-assistant-business-menu\.js/);
 assert.doesNotMatch(source.loader, /customer-runtime-voice-preview-fallback\.js/);
@@ -340,6 +340,15 @@ try {
 // vx-ap-stack-Rahmen — die drei Karten standen dadurch ohne vertikalen
 // Abstand aufeinander. Beides ist reine Klassenwahl, kein neues CSS.
 assert.doesNotMatch(source.runtime, /class="vx-ap-grid"/);
+// Der Einstieg ins Geschäftsprofil trägt einen Chevron: er führt auf eine
+// eigene Seite und ist keine Aktion auf dieser Karte. Bewusst im eigenen
+// Knopf statt in der Einstellungen-Zeile — die verbietet der
+// Settings-Bridge-Wächter in verify-customer-navigation-unified.
+assert.match(source.runtime, /id="vx-open-business-profile"[\s\S]{0,160}ph-caret-right/);
+assert.doesNotMatch(source.runtime, /vx-settings-entry/);
+// Der mehr-sub-Präfix gehört zum Einstellungen-Tab und darf auf den
+// Assistent-Seiten nicht zurückkehren.
+assert.doesNotMatch(source.runtime, /mehr-sub-(assistant|business)-profile/);
 assert.match(source.runtime, /vx-business-profile-status[\s\S]{0,80}vx-ap-stack/);
 
 // J5: Öffnungszeiten

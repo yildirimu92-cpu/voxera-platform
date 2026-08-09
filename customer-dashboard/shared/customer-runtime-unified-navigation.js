@@ -17,9 +17,21 @@
   // was hinter einem Drill-in besser aufgehoben ist als hinter einem Reiter, der
   // auf 390px dauerhaft eine Zeile kostet. `root: true` markiert die Seite, die
   // ohne Zurück-Pfeil auskommt.
+  // Die beiden Formularseiten hiessen bis 09.08. `mehr-sub-assistant-profile`
+  // und `mehr-sub-business-profile`. Das Praefix gehoert aber zum
+  // Einstellungen-Tab: `vxMehrShow`, `vxMehrBack`, `restoreSettingsRoot` und
+  // zwei weitere Stellen verwalten ausschliesslich `#tab-mehr
+  // [id^="mehr-sub-"]`. Beide Seiten liegen in `#tab-assistent` und wurden von
+  // keiner dieser Stellen je erfasst -- der Name behauptete eine Zugehoerigkeit,
+  // die es nicht gab, und liess die Seiten beim Lesen des Codes wie verwaiste
+  // Einstellungs-Unterseiten aussehen.
+  //
+  // `mehr-sub-betriebsinfos` behaelt seinen Namen bewusst: diese Seite wird
+  // tatsaechlich in `#tab-mehr` erzeugt (customer-runtime-operational-updates.js)
+  // und von den gescopten Selektoren zu Recht mitverwaltet.
   const ASSISTANT_VIEWS = [
-    { key: 'profile', pageId: 'mehr-sub-assistant-profile', label: 'Assistent', root: true },
-    { key: 'business', pageId: 'mehr-sub-business-profile', label: 'Geschäftsprofil' },
+    { key: 'profile', pageId: 'vx-assistant-view-profile', label: 'Assistent', root: true },
+    { key: 'business', pageId: 'vx-assistant-view-business', label: 'Geschäftsprofil' },
     { key: 'updates', pageId: 'mehr-sub-betriebsinfos', label: 'Aktuelle Infos' }
   ];
 
