@@ -14621,34 +14621,13 @@ function vxParseLocationHours(raw) {
 
 
 
-function vxBuildAssistantSaveFeedback(result, options) {
-  const opts = options || {};
-  const errors = Array.isArray(result?.errors) ? result.errors : [];
-  const blocked = Array.isArray(result?.blocked_fields) ? result.blocked_fields : [];
-  const syncStatus = String(result?.sync_status || 'skipped_no_sync_fields');
-  const syncError = result?.sync_error ? String(result.sync_error) : '';
-  const hasPartial = blocked.length > 0 || errors.length > 0;
-  if (hasPartial) {
-    return {
-      color: '#B45309',
-      text: 'Teilweise gespeichert. Einige Felder können nur durch Voxera angepasst werden.'
-    };
-  }
-  if (opts.forwardingOnly || syncStatus === 'skipped_forwarding_only') {
-    return { color: '#059669', text: 'Weiterleitungsdaten gespeichert.' };
-  }
-  if (syncStatus === 'success') {
-    return { color: '#059669', text: 'Gespeichert und mit dem Assistenten synchronisiert.' };
-  }
-  if (syncStatus === 'failed') {
-    const suffix = syncError ? (' (' + syncError + ')') : '';
-    return { color: '#B45309', text: 'Gespeichert, aber Synchronisierung fehlgeschlagen. Voxera prüft dies.' + suffix };
-  }
-  if (syncStatus === 'skipped_no_agent') {
-    return { color: '#B45309', text: 'Gespeichert. Der Assistent ist noch nicht vollständig eingerichtet.' };
-  }
-  return { color: '#059669', text: 'Gespeichert.' };
-}
+// vxBuildAssistantSaveFeedback() stand hier bis N6 (09.08.). Die Funktion war
+// seit dem Loeschen des Alt-Screens (S1) unerreichbar und trug den Kern des
+// Workarounds: sie quittierte `skipped_forwarding_only` gruen als
+// "Weiterleitungsdaten gespeichert." — eine Erfolgsmeldung fuer eine Aenderung,
+// die den Agenten nie erreicht hat. Der Status existiert nicht mehr; die
+// Rueckmeldung des Assistent-Screens lebt in
+// customer-runtime-assistant-profile.js (updateAssistant).
 
 
 // Accordion Status-Anzeigen aktualisieren (nach Datenladen)

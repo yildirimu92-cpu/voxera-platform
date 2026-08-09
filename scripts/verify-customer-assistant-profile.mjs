@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
+import { createRequire } from 'node:module';
+
+const require = createRequire(import.meta.url);
 
 const files = {
   runtime: 'customer-dashboard/shared/customer-runtime-assistant-profile.js',
@@ -260,7 +263,12 @@ function loadFunctionModule(path) {
   const stubs = {
     '@supabase/supabase-js': { createClient: () => ({}) },
     './_lib/require-customer': { requireCustomerCaller: async () => ({ ok: false, statusCode: 401, body: {} }) },
-    './_lib/assistant-greeting': { buildGreetingView: () => ({}) }
+    './_lib/assistant-greeting': { buildGreetingView: () => ({}) },
+    // N6: diese beiden sind echte Repo-Module ohne externe Abhaengigkeiten und
+    // werden deshalb echt geladen statt gestubbt — die Sync-Klassifikation und
+    // die Nummernpruefung sollen im Test dieselben sein wie in Produktion.
+    './_lib/phone-normalize': require('../customer-dashboard/netlify/functions/_lib/phone-normalize.js'),
+    './_lib/assistant-write-policy': require('../customer-dashboard/netlify/functions/_lib/assistant-write-policy.js')
   };
   const module = { exports: {} };
   const context = vm.createContext({

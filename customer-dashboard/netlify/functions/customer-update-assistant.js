@@ -2,11 +2,12 @@
 
 const { createClient } = require('@supabase/supabase-js');
 const { requireCustomerCaller } = require('./_lib/require-customer');
+const { normalizePhoneE164 } = require('./_lib/phone-normalize');
+const { FORWARDING_FIELDS, canEditForwarding, needsPromptSync } = require('./_lib/assistant-write-policy');
 
 const headers = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'Content-Type, Authorization', 'Access-Control-Allow-Methods': 'POST, OPTIONS', 'Content-Type': 'application/json' };
 const response = (statusCode, payload) => ({ statusCode, headers, body: JSON.stringify(payload) });
 
-const FORWARDING_FIELDS = ['ai_forwarding_1_name','ai_forwarding_1_number','ai_forwarding_1_trigger','ai_forwarding_2_name','ai_forwarding_2_number','ai_forwarding_2_trigger','ai_emergency_number'];
 const BLOCKED_CUSTOMER_FIELDS = ['ai_instructions', 'ai_fallback_escalation', 'ai_response_constraints'];
 const PLAN_TIERS = { starter: 1, business: 2, professional: 3 };
 
@@ -43,6 +44,21 @@ const BRANCH_TEXT_LIMIT = 400;
 // customer-assistant-profile.js; die drei gehoeren zusammen gepflegt.
 const CORE_FIELD_COLUMNS = new Set(['sprechstunden_modus', 'ai_appointment_mode', 'ai_online_booking_url']);
 const CORE_TEXT_LIMIT = 400;
+
+// Alle Spalten, die dieser Endpoint schreiben kann. Sie werden vor dem Patch
+// gelesen, damit der Sync `prev_values` mitbekommt und `changed_fields` im
+// elevenlabs_sync_log sagen kann, welches Feld ihn ausgeloest hat (S9). Ohne
+// das ist aus den Daten nur ablesbar, *dass* ein Sync lief. Schicht A gehoert
+// dazu, obwohl sie ueber Object.assign(patch, corePatch) schreibt — sonst
+// stuende dort null statt des tatsaechlichen Vorzustands.
+const WRITABLE_FIELDS = [
+  'assistant_name', 'voice_id', 'ai_business_description', 'ai_services',
+  'ai_location_hours', 'ai_booking_faq', 'ai_greeting', 'ai_tone', 'ai_address_form',
+  'ai_branch_extra', 'notification_mode', 'sms_notify_enabled', 'sms_notify_trigger',
+  'sms_notify_number', 'sms_caller_enabled', 'sms_caller_trigger', 'sms_caller_template',
+  ...FORWARDING_FIELDS,
+  ...CORE_FIELD_COLUMNS
+];
 
 function parseCoreSteps(value) {
   if (Array.isArray(value)) return value;
@@ -155,7 +171,7 @@ exports.handler = async (event) => {
 
   const { data: customer, error: customerError } = await sbAdmin
     .from('customers')
-    .select('plan,plan_code,elevenlabs_agent_id,industry_template_id,ai_branch_extra')
+    .select(['plan', 'plan_code', 'elevenlabs_agent_id', 'industry_template_id', ...WRITABLE_FIELDS].join(','))
     .eq('id', caller.customerId)
     .maybeSingle();
   if (customerError || !customer) return response(500, buildContractPayload({ error: 'customer_load_failed' }));
@@ -173,7 +189,7 @@ exports.handler = async (event) => {
   const canEditName = planCfg?.allow_custom_assistant_name === true;
   const canEditVoice = planCfg?.voice_selection_enabled === true;
   const canEditTone = planCfg?.allow_custom_tone === true;
-  const canEditForwarding = planCode === 'professional';
+  const canEditForwardingOnPlan = canEditForwarding(planCode);
 
   const {
     voice_id,
@@ -276,19 +292,51 @@ exports.handler = async (event) => {
   if (sms_caller_trigger !== undefined) patch.sms_caller_trigger = text(sms_caller_trigger, 80) || 'callback_only';
   if (sms_caller_template !== undefined) patch.sms_caller_template = text(sms_caller_template, 1000);
 
-  if (ai_forwarding_1_name !== undefined || ai_forwarding_1_number !== undefined || ai_forwarding_1_trigger !== undefined ||
-      ai_forwarding_2_name !== undefined || ai_forwarding_2_number !== undefined || ai_forwarding_2_trigger !== undefined ||
-      ai_emergency_number !== undefined) {
-    if (!canEditForwarding) {
-      errors.push('forwarding_not_allowed_on_plan');
-    } else {
-      if (ai_forwarding_1_name !== undefined) patch.ai_forwarding_1_name = text(ai_forwarding_1_name, 120);
-      if (ai_forwarding_1_number !== undefined) patch.ai_forwarding_1_number = text(ai_forwarding_1_number, 40);
-      if (ai_forwarding_1_trigger !== undefined) patch.ai_forwarding_1_trigger = text(ai_forwarding_1_trigger, 500);
-      if (ai_forwarding_2_name !== undefined) patch.ai_forwarding_2_name = text(ai_forwarding_2_name, 120);
-      if (ai_forwarding_2_number !== undefined) patch.ai_forwarding_2_number = text(ai_forwarding_2_number, 40);
-      if (ai_forwarding_2_trigger !== undefined) patch.ai_forwarding_2_trigger = text(ai_forwarding_2_trigger, 500);
-      if (ai_emergency_number !== undefined) patch.ai_emergency_number = text(ai_emergency_number, 40) || '144';
+  const forwardingInput = {
+    ai_forwarding_1_name, ai_forwarding_1_number, ai_forwarding_1_trigger,
+    ai_forwarding_2_name, ai_forwarding_2_number, ai_forwarding_2_trigger,
+    ai_emergency_number
+  };
+  if (FORWARDING_FIELDS.some((key) => forwardingInput[key] !== undefined)) {
+    // Vorher lief die Plan-Sperre hier als weicher `errors`-Eintrag mit HTTP 200
+    // durch, waehrend Ton, Name und Stimme mit 403 abweisen. Ein abgewiesenes
+    // Feld, das als Erfolg quittiert wird, ist derselbe stille Fehlschlag, den
+    // dieser Auftrag beseitigt.
+    if (!canEditForwardingOnPlan) {
+      return response(403, buildContractPayload({ error: 'forwarding_not_allowed_on_plan', errors: ['forwarding_not_allowed_on_plan'] }));
+    }
+
+    // Die Nummer landet als Wahlanweisung im Prompt. Ein Assistent, der eine
+    // unwaehlbare Nummer ansagt, ist schlimmer als einer ohne Weiterleitung —
+    // deshalb wird hier normalisiert (079 … -> +4179…) und im Zweifel
+    // abgewiesen, statt Unbrauchbares in den Prompt zu schreiben.
+    const invalidNumbers = [];
+    const normalizedNumber = (raw, field) => {
+      const trimmed = text(raw, 40);
+      if (!trimmed) return null;
+      const result = normalizePhoneE164(trimmed);
+      if (!result.valid) { invalidNumbers.push(field); return trimmed; }
+      return result.normalized;
+    };
+
+    if (ai_forwarding_1_name !== undefined) patch.ai_forwarding_1_name = text(ai_forwarding_1_name, 120);
+    if (ai_forwarding_1_number !== undefined) patch.ai_forwarding_1_number = normalizedNumber(ai_forwarding_1_number, 'ai_forwarding_1_number');
+    if (ai_forwarding_1_trigger !== undefined) patch.ai_forwarding_1_trigger = text(ai_forwarding_1_trigger, 500);
+    if (ai_forwarding_2_name !== undefined) patch.ai_forwarding_2_name = text(ai_forwarding_2_name, 120);
+    if (ai_forwarding_2_number !== undefined) patch.ai_forwarding_2_number = normalizedNumber(ai_forwarding_2_number, 'ai_forwarding_2_number');
+    if (ai_forwarding_2_trigger !== undefined) patch.ai_forwarding_2_trigger = text(ai_forwarding_2_trigger, 500);
+    // Die Notfallnummer bleibt bewusst ungepruefte Kurzwahl-Zone: 144 und 112
+    // sind gueltige Notrufnummern und faellen durch jede E.164-Pruefung. Leeren
+    // setzt auf den Schweizer Standard zurueck, statt den Abschnitt
+    // NOTFALLNUMMER ersatzlos aus dem Prompt zu nehmen.
+    if (ai_emergency_number !== undefined) patch.ai_emergency_number = text(ai_emergency_number, 40) || '144';
+
+    if (invalidNumbers.length) {
+      return response(400, buildContractPayload({
+        error: 'forwarding_number_invalid',
+        errors: ['forwarding_number_invalid'],
+        blocked_fields: invalidNumbers
+      }));
     }
   }
 
@@ -358,15 +406,23 @@ exports.handler = async (event) => {
     }));
   }
 
+  // Vor dem Schreiben festhalten, damit der Sync sagen kann, welches Feld ihn
+  // ausgeloest hat. `customer` ist der Stand VOR dem Patch.
+  const prevValues = {};
+  patchKeys.forEach((key) => { prevValues[key] = customer[key] ?? null; });
+
   const { error: dbErr } = await sbAdmin.from('customers').update(patch).eq('id', caller.customerId);
   if (dbErr) return response(500, buildContractPayload({ error: 'update_failed', detail: dbErr.message, errors, blocked_fields: blockedFields }));
 
-  const hasForwardingChange = patchKeys.some((key) => FORWARDING_FIELDS.includes(key));
-  const hasNonForwardingChange = patchKeys.some((key) => !FORWARDING_FIELDS.includes(key));
+  // N6: Der Sync haengt an der Prompt-Wirkung der geschriebenen Spalten, nicht
+  // an ihrem Namen. Eine reine Weiterleitungsaenderung ist damit ein
+  // vollwertiger Ausloeser (frueher `skipped_forwarding_only`), eine reine
+  // SMS-Einstellung keiner mehr (frueher ein voller Prompt-Rebuild).
+  const requiresSync = needsPromptSync(patchKeys);
   let syncStatus = 'skipped_no_sync_fields';
   let syncError = null;
 
-  if (hasNonForwardingChange && customer.elevenlabs_agent_id) {
+  if (requiresSync && customer.elevenlabs_agent_id) {
     try {
       const adminUrl = process.env.ADMIN_URL || 'https://admin.voxera.ch';
       const authorization = event.headers?.authorization || event.headers?.Authorization || '';
@@ -376,7 +432,8 @@ exports.handler = async (event) => {
         body: JSON.stringify({
           customer_id: caller.customerId,
           agent_id: customer.elevenlabs_agent_id,
-          triggered_by: 'customer_self_edit'
+          triggered_by: 'customer_self_edit',
+          prev_values: prevValues
         })
       });
       if (!syncRes.ok) {
@@ -389,10 +446,8 @@ exports.handler = async (event) => {
       syncStatus = 'failed';
       syncError = error.message || 'sync_failed';
     }
-  } else if (hasNonForwardingChange && !customer.elevenlabs_agent_id) {
+  } else if (requiresSync && !customer.elevenlabs_agent_id) {
     syncStatus = 'skipped_no_agent';
-  } else if (hasForwardingChange) {
-    syncStatus = 'skipped_forwarding_only';
   }
 
   return response(200, buildContractPayload({

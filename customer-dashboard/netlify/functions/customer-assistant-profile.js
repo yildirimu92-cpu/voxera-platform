@@ -3,6 +3,7 @@
 const { createClient } = require('@supabase/supabase-js');
 const { requireCustomerCaller } = require('./_lib/require-customer');
 const { buildGreetingView } = require('./_lib/assistant-greeting');
+const { canEditForwarding } = require('./_lib/assistant-write-policy');
 
 const headers = {
   'Access-Control-Allow-Origin': '*',
@@ -238,7 +239,15 @@ function buildUrgent(customer) {
   }
   return {
     emergency_number: text(customer.ai_emergency_number) || '144',
-    forwarding
+    forwarding,
+    // Ungefiltert, fuer den Editor. `forwarding` oben zeigt nur, was der Agent
+    // tatsaechlich nutzt — ein halb ausgefuelltes Ziel faellt dort heraus und
+    // waere sonst im Formular unsichtbar und damit nicht reparierbar.
+    slots: [1, 2].map((index) => ({
+      name: text(customer[`ai_forwarding_${index}_name`]),
+      number: text(customer[`ai_forwarding_${index}_number`]),
+      trigger: text(customer[`ai_forwarding_${index}_trigger`])
+    }))
   };
 }
 
@@ -536,7 +545,11 @@ exports.handler = async (event) => {
       // Etappe 6 / S3: einzige Schaltstelle fuer die Ton-Sperre. Das Frontend
       // kennt keinen Plan-Namen — Freischalten ist ein Update auf
       // plan_config.allow_custom_tone, kein Deploy.
-      can_change_tone: planConfig?.allow_custom_tone === true
+      can_change_tone: planConfig?.allow_custom_tone === true,
+      // N6: dieselbe Aufteilung fuer die Weiterleitung. Die Regel steht in
+      // _lib/assistant-write-policy.js und wird von customer-update-assistant
+      // serverseitig durchgesetzt — das Frontend liest nur das Ergebnis.
+      can_change_forwarding: canEditForwarding(planCode)
     },
     capabilities: buildCapabilities(customer, parsedProfile, calendarReady, calendarAttention),
     technical_status: buildTechnicalStatus(customer, calendarReady, calendarAttention, activeProvider),
