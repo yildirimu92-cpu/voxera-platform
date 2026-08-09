@@ -58,6 +58,29 @@ body.vx-customer-design-foundation .vx-as-cap-detail {
   line-height: 1.5;
 }
 
+/* Verweis auf die Einstellungsseite, die diese Fähigkeit steuert. Bewusst als
+   textlicher Link und nicht als Button gestaltet: die Karte bleibt eine
+   Statusanzeige, geändert wird auf der Einstellungsseite. */
+body.vx-customer-design-foundation .vx-as-cap-link {
+  display: block;
+  margin-top: 7px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--vx-brand);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.35;
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+body.vx-customer-design-foundation .vx-as-cap-link:hover {
+  color: var(--vx-brand-dark);
+}
+
 body.vx-customer-design-foundation .vx-as-state {
   display: inline-flex;
   align-items: center;

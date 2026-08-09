@@ -125,7 +125,33 @@ test('der Kanal-Text bleibt in der Aktiv-Fassung erhalten', () => {
     { lastSentAt: '2026-08-09T17:55:30.731Z', lastDeadAt: null },
     CONFIGURED_CUSTOMER
   );
-  assert.match(card.detail, /E-Mail für alle Anrufe/);
+  // Wortlaut nachgezogen: notificationDetail() leitet den Kanal seit dem
+  // 09.08. aus notification_mode ab statt aus new_log_email_active /
+  // missed_call_email_active (Befund B5). Die alte Fassung "E-Mail für alle
+  // Anrufe" entstand aus dem Backfill von 2026-04-07 und verschwand fuer jeden
+  // Kunden, der seine Einstellung seither einmal geaendert hatte - der
+  // Zustellbeleg haette dann auf einem leeren Kanaltext gesessen.
+  assert.match(card.detail, /E-Mail bei Rückrufwunsch und nach jedem Anruf/);
+});
+
+test('der Kanal-Text haengt an notification_mode, nicht an den toten Spalten', () => {
+  // Gegenprobe zur Zeile darueber: derselbe Modus, aber alle Legacy-Booleans
+  // aus - genau der Zustand, den die Migration vom 09.08. bei drei von vier
+  // Produktionskunden herstellt. Unter der alten Ableitung waere hier "E-Mail"
+  // ganz verschwunden.
+  const card = notificationCard(
+    true,
+    { lastSentAt: '2026-08-09T17:55:30.731Z', lastDeadAt: null },
+    {
+      ...CONFIGURED_CUSTOMER,
+      notification_mode: 'callback_only',
+      notification_active: false,
+      new_log_email_active: false,
+      missed_call_email_active: false
+    }
+  );
+  assert.match(card.detail, /E-Mail bei Rückrufwunsch/);
+  assert.doesNotMatch(card.detail, /Telefon\/SMS/);
 });
 
 test('ein aufgegebener Versand meldet sich, statt still zu bleiben', () => {

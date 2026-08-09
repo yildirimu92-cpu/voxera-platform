@@ -62,12 +62,46 @@
     return ['active', 'attention', 'error'].includes(tone) ? tone : 'inactive';
   }
 
+  // Verweis auf die Einstellungsseite, die diese Faehigkeit steuert. Nur die
+  // Unterseiten des Mehr-Tabs sind erlaubt: der Wert kommt aus einer
+  // API-Antwort und darf nicht als beliebiges Ziel in den onclick wandern.
+  const SETTINGS_ROUTES = { benachrichtigungen: 'Einstellungen öffnen' };
+
+  function settingsLinkHtml(route) {
+    const key = String(route || '').trim();
+    if (!Object.prototype.hasOwnProperty.call(SETTINGS_ROUTES, key)) return '';
+    return `<button type="button" class="vx-as-cap-link" onclick="vxOpenSettingsSubpage('${key}')">${esc(SETTINGS_ROUTES[key])}</button>`;
+  }
+
+  // Die Karte steht im Assistent-Tab, die Einstellung im Mehr-Tab -
+  // vxMehrShow() allein wuerde die Unterseite in einem Tab aufdecken, der gar
+  // nicht sichtbar ist. Deshalb erst der Tabwechsel, dann die Unterseite.
+  if (typeof window.vxOpenSettingsSubpage !== 'function') {
+    window.vxOpenSettingsSubpage = function vxOpenSettingsSubpage(sub) {
+      if (!Object.prototype.hasOwnProperty.call(SETTINGS_ROUTES, String(sub || ''))) return;
+      try {
+        if (typeof window.showTab === 'function') {
+          window.showTab('mehr', document.getElementById('nav-mehr') || undefined);
+        }
+        // Verzoegerung wie bei den bestehenden Menue-Eintraegen in index.html:
+        // showTab() raeumt die Tab-Sichtbarkeit erst auf, ein sofortiges
+        // vxMehrShow() wuerde dabei wieder zugedeckt.
+        setTimeout(function () {
+          if (typeof window.vxMehrShow === 'function') window.vxMehrShow(sub);
+          if (typeof window.scrollTo === 'function') window.scrollTo({ top: 0, behavior: 'auto' });
+        }, 100);
+      } catch (error) {
+        console.error('[assistant-status] Einstellungsseite konnte nicht geoeffnet werden', error);
+      }
+    };
+  }
+
   function capabilityHtml(item, index) {
     const tone = safeTone(item.status);
     const extraClass = index >= 4 ? ' vx-as-extra-capability' : '';
     return `<div class="vx-as-cap${extraClass}">
       <div class="vx-as-icon ${tone}"><i class="ph-bold ${iconFor(item.id)}" aria-hidden="true"></i></div>
-      <div><div class="vx-as-cap-title">${esc(item.title)}</div><div class="vx-as-cap-detail">${esc(item.detail)}</div><div class="vx-as-state ${tone}">${esc(item.label)}</div></div>
+      <div><div class="vx-as-cap-title">${esc(item.title)}</div><div class="vx-as-cap-detail">${esc(item.detail)}</div><div class="vx-as-state ${tone}">${esc(item.label)}</div>${settingsLinkHtml(item.settingsRoute)}</div>
     </div>`;
   }
 

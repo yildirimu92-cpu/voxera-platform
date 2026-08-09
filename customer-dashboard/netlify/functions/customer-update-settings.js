@@ -14,6 +14,7 @@ function response(statusCode, payload) {
 
 const CANONICAL_ALLOWED_FIELDS = new Set([
   'notification_mode',
+  'in_app_notification_settings',
   'forwarding_setup_completed',
   'setup_device_type',
   'forwarding_status',
@@ -81,7 +82,37 @@ exports.handler = async (event) => {
     }
     // Canonical single source of truth: persist only notification_mode.
     // Legacy boolean mirrors were removed from runtime writes to avoid schema-drift 500s.
+    //
+    // Seit 2026-08-09 ist das nicht nur eine Aufraeum-Entscheidung, sondern die
+    // Wirkkette: _lib/call-notification.js decideMail() gatet auf genau diesem
+    // Wert. Vorher las der Versand die Legacy-Booleans, die hier bewusst nicht
+    // mehr geschrieben werden - die Einstellung quittierte Erfolg und blieb
+    // wirkungslos (Befund B1).
     allowed.notification_mode = mode;
+  }
+
+  // Die Glocken-Kategorien liefen bisher als direkter PostgREST-Update aus dem
+  // Browser an dieser Function vorbei (index.html), obwohl dieselbe
+  // Speichern-Aktion den E-Mail-Teil hierher schickte: zwei Schreibwege, einer
+  // davon ohne serverseitige Pruefung (Befund B4). Jetzt beide hier.
+  //
+  // Normalisiert statt nur validiert: der Client darf Teilmengen schicken, und
+  // fremde Schluessel fallen raus, damit ueber dieses Feld nichts Beliebiges in
+  // die jsonb-Spalte wandert.
+  if (body.in_app_notification_settings != null) {
+    const raw = body.in_app_notification_settings;
+    if (typeof raw !== 'object' || Array.isArray(raw)) {
+      return response(400, { error: 'in_app_notification_settings ungueltig. Erwartet: Objekt' });
+    }
+    const asBool = (value, fallback) => (typeof value === 'boolean' ? value : fallback);
+    allowed.in_app_notification_settings = {
+      important_requests: asBool(raw.important_requests, true),
+      callbacks_and_tasks: asBool(raw.callbacks_and_tasks, true),
+      // Systemhinweise bleiben serverseitig an. Sie tragen Meldungen zu
+      // Erreichbarkeit und Einrichtung - ein Kunde, der sie abschaltet, merkt
+      // als Letztes, dass seine Rufumleitung nicht mehr steht.
+      system: true
+    };
   }
 
   if (body.forwarding_setup_completed != null) {

@@ -7,19 +7,45 @@
   let previousPageId = 'tab-dashboard';
   let lastActivationAt = 0;
   const ACTIVATION_DEDUPE_MS = 500;
+  // Nur ausdruecklich gekennzeichnete Elemente gelten als Glocke.
+  //
+  // Bis 2026-08-09 stand hier zusaetzlich eine Glyphen- und Textheuristik:
+  // jedes Element mit einer Glocken-Klasse (ph-bell, lucide bell, svg/i mit
+  // "bell") oder mit "Benachrichtigung"/"notification" in aria-label bzw. title
+  // galt als Ausloeser -- unabhaengig davon, wo im Dokument es stand. Da die
+  // Listener in der Capture-Phase auf document haengen und mit
+  // preventDefault() + stopImmediatePropagation() abschliessen, hat das jeden
+  // korrekten Handler darunter ueberstimmt.
+  //
+  // Konkret getroffen hat es die Zeile "Benachrichtigungen" in der
+  // Einstellungsliste (index.html): ihr Icon ist ein ph-bell, also oeffnete ein
+  // Klick auf das Icon den globalen Feed, ein Klick auf den Titeltext daneben
+  // dagegen korrekt die Einstellungsseite. Zwei Ergebnisse fuer dieselbe Zeile,
+  // je nach Trefferpunkt.
+  //
+  // Ein erweiterter Schutz-Selektor haette nur die heute bekannten Stellen
+  // abgedeckt und die naechste versehentlich eingebaute Glocke wieder
+  // hineinlaufen lassen. Deshalb umgekehrt: die zwei echten Glocken tragen
+  // data-notifications-trigger, alles andere ist keine.
+  //
+  // Die Heuristik war zusaetzlich selbstverstaerkend: bindTrigger() setzt
+  // aria-label="Benachrichtigungen oeffnen" auf das, was es einmal erkannt hat
+  // -- danach passte das Element auch ohne Glocken-Glyphe dauerhaft auf den
+  // aria-label-Zweig.
   const EXPLICIT_SELECTOR = [
-    '[data-notifications-trigger]','[data-notification-trigger]','#notification-button','#notifications-button',
-    '#notification-bell','#notifications-bell','[aria-label*="Benachrichtigung" i]',
-    '[title*="Benachrichtigung" i]','[aria-label*="notification" i]','[title*="notification" i]'
+    '[data-notifications-trigger]', '[data-notification-trigger]',
+    '#notification-button', '#notifications-button', '#notification-bell', '#notifications-bell'
   ].join(',');
-  const BELL_ICON_SELECTOR = '[class*="ph-bell" i],[data-lucide*="bell" i],svg[class*="bell" i],i[class*="bell" i]';
   const BACK_ICON_SELECTOR = '[class*="ph-arrow-left" i],[data-lucide*="arrow-left" i],svg[class*="arrow-left" i],i[class*="arrow-left" i]';
-  // The notifications UI itself (anchored popover + its backdrop + the mobile
-  // full-page fallback) contains a bell icon and "Benachrichtigungen"
-  // aria-labels, so it matches EXPLICIT_SELECTOR/BELL_ICON_SELECTOR too.
-  // Without this guard, prepareTriggers()/bindTrigger() "hardens" the panel
-  // itself — forcing position:relative!important over its position:fixed —
-  // which tears it out of its viewport-anchored spot into the document flow.
+  // Die Notifications-UI selbst (Popover, Backdrop, mobile Vollseite) enthaelt
+  // Glocken-Icons und "Benachrichtigungen"-Beschriftungen. Ohne diesen Schutz
+  // haerten prepareTriggers()/bindTrigger() das Panel gegen sich selbst --
+  // position:relative!important ueber sein position:fixed -- und reissen es aus
+  // seiner am Viewport verankerten Position in den Dokumentfluss.
+  //
+  // Der Schutz bleibt, obwohl die Glyphen-Erkennung weg ist: er kostet nichts
+  // und deckt den Fall ab, dass jemand innerhalb des Panels versehentlich ein
+  // data-notifications-trigger setzt.
   const NOTIFICATIONS_UI_SELECTOR = '#vx-notif-panel,#vx-notif-backdrop,#tab-benachrichtigungen';
 
   function getPath(event) {
@@ -34,10 +60,13 @@
     if (!node || node.nodeType !== 1) return null;
     if (node.closest && node.closest(NOTIFICATIONS_UI_SELECTOR)) return null;
     const explicit = node.closest && node.closest(EXPLICIT_SELECTOR);
-    if (explicit) return explicit.closest('button,a,[role="button"],[tabindex]') || explicit;
-    const icon = node.matches && node.matches(BELL_ICON_SELECTOR) ? node : (node.closest && node.closest(BELL_ICON_SELECTOR));
-    if (!icon) return null;
-    return icon.closest('button,a,[role="button"],[tabindex],div,span') || icon;
+    if (!explicit) return null;
+    // Das gekennzeichnete Element IST der Ausloeser. Frueher wurde von hier aus
+    // noch nach oben zum naechsten button/a/[role]/[tabindex] gesucht -- das
+    // ergab nur Sinn, solange die Kennzeichnung ein Icon tief im Markup treffen
+    // konnte. Bei einer ausdruecklichen Auszeichnung waere es ein Weg, den
+    // Ausloeser nachtraeglich wieder zu verschieben.
+    return explicit;
   }
 
   function resolveTrigger(event) {
@@ -115,8 +144,35 @@
     return /zurück|back/i.test(label) || (control.matches && control.matches(BACK_ICON_SELECTOR)) || !!(control.querySelector && control.querySelector(BACK_ICON_SELECTOR));
   }
 
+  // Ein Element, das bereits in einem Bedienelement liegt, darf nicht selbst zu
+  // einem gemacht werden.
+  //
+  // Nebenfund derselben Ursache: das Icon-<span> der Einstellungszeile liegt in
+  // einem <button> und bekam von bindTrigger() role="button", tabindex="0" und
+  // aria-label="Benachrichtigungen oeffnen". Ergebnis: eine verschachtelte
+  // interaktive Rolle (nach ARIA ungueltig), ein zusaetzlicher Tab-Stopp mitten
+  // in der Liste, und eine Screenreader-Ansage, die das Gegenteil dessen sagt,
+  // was die Zeile tut.
+  //
+  // Die Pruefung bleibt, obwohl die Glyphen-Erkennung weg ist: sie kostet
+  // nichts und faengt den Fall ab, dass jemand data-notifications-trigger auf
+  // ein Kind statt auf das Bedienelement setzt.
+  const INTERACTIVE_SELECTOR = 'button,a[href],input,select,textarea,[role="button"],[role="link"],[role="menuitem"]';
+
+  function isInsideInteractiveControl(element) {
+    if (!element || !element.parentElement || !element.parentElement.closest) return false;
+    return Boolean(element.parentElement.closest(INTERACTIVE_SELECTOR));
+  }
+
   function bindTrigger(trigger) {
     if (!trigger || trigger.dataset.vxNotificationsBound === 'native-v5') return;
+    if (isInsideInteractiveControl(trigger)) {
+      console.warn(
+        '[customer-notifications] Ausloeser liegt in einem Bedienelement und wird nicht gehaertet:',
+        trigger
+      );
+      return;
+    }
     trigger.dataset.vxNotificationsBound = 'native-v5';
     trigger.setAttribute('role', trigger.getAttribute('role') || 'button');
     trigger.setAttribute('tabindex', trigger.getAttribute('tabindex') || '0');
@@ -129,10 +185,9 @@
 
   function prepareTriggers() {
     const candidates = new Set();
-    doc.querySelectorAll(EXPLICIT_SELECTOR + ',' + BELL_ICON_SELECTOR).forEach(function (node) {
+    doc.querySelectorAll(EXPLICIT_SELECTOR).forEach(function (node) {
       if (node.closest && node.closest(NOTIFICATIONS_UI_SELECTOR)) return;
-      const trigger = resolveTriggerFromNode(node) || node;
-      if (trigger) candidates.add(trigger);
+      candidates.add(node);
     });
     candidates.forEach(bindTrigger);
   }

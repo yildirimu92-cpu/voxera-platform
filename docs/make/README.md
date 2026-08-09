@@ -120,27 +120,27 @@ mehr. Bis dahin ist er weiterhin erreichbar.
 
 Zwei `mail_type`-Werte, passend zu den zwei Vorlagen aus Szenario 01:
 
-| `mail_type` | Vorlage aus Szenario 01 | Kundenschalter (Zwischenstand) |
+| `mail_type` | Vorlage aus Szenario 01 | Wann sie rausgeht |
 |---|---|---|
-| `callback_request_email` | Modul 6, „Rückruf angefordert" (rot, `#DC2626`) | `notification_active` |
-| `call_notification_email` | Modul 14, „Neuer Anruf" (blau, `#1A6FE8`) | `new_log_email_active` |
+| `callback_request_email` | Modul 6, „Rückruf angefordert" (rot, `#DC2626`) | `notification_mode` ist `callback_only` oder `all_calls` |
+| `call_notification_email` | Modul 14, „Neuer Anruf" (blau, `#1A6FE8`) | `notification_mode` ist `all_calls` |
 
 Das Gating sitzt jetzt im Code (`decideMail()` in `_lib/call-notification.js`),
 nicht mehr im Router-Filter. Die Make-Routen filtern nur noch auf den
 `mail_type` — erreicht eine Mail Szenario 09, ist bereits entschieden, dass sie
 raus darf.
 
-> **Die Spalte „Kundenschalter" ist ein Zwischenstand.** Die beiden
-> Legacy-Booleans stehen hier nur, damit die Migration das Verhalten nicht
-> nebenbei mitändert — sie sind keine Aussage darüber, dass sie das richtige
-> Gating wären. Der Auftrag „Benachrichtigungseinstellungen" stellt
-> `decideMail()` nach dem Merge dieser Migration auf `notification_mode` um,
-> als eigener benannter Verhaltenswechsel. Die Reihenfolge ist abgestimmt:
-> erst diese Migration, dann der Wechsel.
+> **Der Zwischenstand ist abgelöst.** Während der Migration gatete
+> `decideMail()` bewusst auf die Legacy-Booleans `notification_active` /
+> `new_log_email_active`, damit der Umzug das Verhalten nicht nebenbei
+> mitändert. Der Auftrag „Benachrichtigungseinstellungen" hat die Funktion
+> anschliessend wie abgestimmt auf `notification_mode` umgestellt — die
+> einzige Spalte, die die Einstellungsseite des Kunden schreibt. Die
+> Legacy-Booleans liest hier niemand mehr.
 >
-> Die Make-Routen sind davon **nicht** betroffen. Sie filtern nur auf den
-> `mail_type`; wer welche Mail bekommt, entscheidet ausschliesslich der Code.
-> Der Schalterwechsel braucht später also keine erneute Make-Änderung.
+> Die Make-Routen waren davon **nicht** betroffen: sie filtern nur auf den
+> `mail_type`, und beide Typen sind unverändert geblieben. Der Wechsel war
+> reine Code-Sache, ohne erneute Make-Änderung.
 
 > **Ein neuer `mail_type` braucht zwei Änderungen in Szenario 09, nicht eine.**
 > Beim Rauchtest am 09.08.2026 lieferten beide Läufe Status „Erfolg" mit **drei**
