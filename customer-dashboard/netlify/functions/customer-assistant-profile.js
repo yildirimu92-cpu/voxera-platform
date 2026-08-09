@@ -130,12 +130,24 @@ function buildCapabilities(customer, profile, calendarReady, calendarAttention) 
     || Boolean(text(customer.phone_notification_to));
   const faqConfigured = Boolean(text(customer.ai_booking_faq));
 
+  // Nennt den fehlenden Baustein statt einer pauschalen Formel — sonst liest
+  // sich "Einrichtung prüfen" wie ein technischer Mangel, auch wenn (wie bei
+  // einem verbundenen Kalender) der eigentliche fehlende Baustein an anderer
+  // Stelle liegt und mit dem Kalender nichts zu tun hat.
+  const missingCallParts = [];
+  if (!hasAgent) missingCallParts.push('Technischer Assistent');
+  if (!hasNumber) missingCallParts.push('Rufnummer');
+  if (!forwardingActive) missingCallParts.push('Rufweiterleitung');
+  const callSetupComplete = missingCallParts.length === 0;
+
   let calls;
   if (lifecycle === 'paused') calls = status('attention', 'Pausiert', 'Der Assistent ist vorübergehend pausiert.');
-  else if (hasAgent && hasNumber && forwardingActive && ['activated', 'live'].includes(lifecycle)) {
+  else if (callSetupComplete && ['activated', 'live'].includes(lifecycle)) {
     calls = status('active', 'Aktiv', 'Rufnummer, Weiterleitung und Assistent sind eingerichtet.');
+  } else if (callSetupComplete) {
+    calls = status('attention', 'Einrichtung prüfen', 'Technisch eingerichtet — der Kundenbetrieb ist aber noch nicht live geschaltet.');
   } else if (hasAgent || hasNumber || forwardingActive) {
-    calls = status('attention', 'Einrichtung prüfen', 'Mindestens ein technischer Bestandteil ist noch nicht vollständig aktiv.');
+    calls = status('attention', 'Einrichtung prüfen', `Noch nicht vollständig aktiv: ${missingCallParts.join(', ')}.`);
   } else calls = status('inactive', 'Nicht eingerichtet', 'Die technische Anrufannahme ist noch nicht bereit.');
 
   let appointments;
@@ -152,6 +164,12 @@ function buildCapabilities(customer, profile, calendarReady, calendarAttention) 
     existingAppointments = status('active', 'Aktiv', 'Bestehende Voxera-Termine können verschoben oder abgesagt werden.');
   } else if (profile.appointmentMode === 'direct' && calendarAttention) {
     existingAppointments = status('attention', 'Kalender prüfen', 'Die Bearbeitung bestehender Termine benötigt eine aktive Kalenderverbindung.');
+  } else if (calendarReady) {
+    // Der Kalender selbst ist fertig verbunden — der fehlende Baustein ist der
+    // Terminmodus (Direktbuchung), nicht die Kalenderverbindung. Ohne diesen
+    // Zweig liest sich "Nicht eingerichtet" so, als muesste der Kunde an der
+    // Kalenderverbindung noch etwas nachbessern, obwohl die bereits steht.
+    existingAppointments = status('inactive', 'Nicht aktiviert', 'Ihr Kalender ist verbunden — die Bearbeitung ist aber nur bei aktivierter Direktbuchung möglich.');
   } else existingAppointments = status('inactive', 'Nicht eingerichtet', 'Nur bei direkter Kalenderbuchung verfügbar.');
 
   return [
