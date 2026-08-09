@@ -8,7 +8,10 @@ const files = {
   migration: 'supabase/migrations/2026-08-01_customer_operational_updates.sql',
   api: 'customer-dashboard/netlify/functions/customer-operational-updates.js',
   runtime: 'customer-dashboard/shared/customer-runtime-operational-updates.js',
-  components: 'customer-dashboard/shared/customer-assistant-components.css',
+  // Die .vx-ops-*-Regeln lagen bis 2026-08-09 in customer-assistant-components.css
+  // und sind von dort in eine eigene Datei herausgeloest worden. Sie teilten mit
+  // den .vx-ap-*-Regeln keine Kaskade, nur die Datei.
+  components: 'customer-dashboard/shared/customer-operational-components.css',
   loader: 'customer-dashboard/shared/offer-brand.js',
   prompt: 'admin-panel/netlify/functions/_lib/prompt-builder-v2.js',
   trigger: 'admin-panel/netlify/functions/trigger-elevenlabs-sync.js',

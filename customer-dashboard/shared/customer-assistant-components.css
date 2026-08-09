@@ -327,6 +327,7 @@ body.vx-customer-design-foundation .vx-ap-hero-status.error {
   }
 }
 
+
 body.vx-customer-design-foundation .vx-ap-head {
   display: flex;
   align-items: flex-start;
@@ -827,6 +828,7 @@ body.vx-customer-design-foundation .vx-ap-urgent-feedback {
   }
 }
 
+
 @media (max-width: 390px) {
   body.vx-customer-design-foundation .vx-ap-actions > .vx-ap-btn {
     flex: 1 1 100%;
@@ -838,318 +840,6 @@ body.vx-customer-design-foundation .vx-ap-urgent-feedback {
   }
 }
 
-
-body.vx-customer-design-foundation #vx-operational-page-body {
-  min-width: 0;
-}
-
-body.vx-customer-design-foundation .vx-ops-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(320px, 0.86fr);
-  align-items: start;
-  gap: 16px;
-}
-
-/* Card shell (surface, border, radius, padding) is owned by the canonical
-   card component in customer-ui-components.css. */
-body.vx-customer-design-foundation .vx-ops-card {
-  min-width: 0;
-}
-
-body.vx-customer-design-foundation .vx-ops-title {
-  color: var(--vx-ink);
-  font-family: var(--vx-font-ui);
-  font-size: 18px;
-  font-weight: 730;
-  line-height: 1.3;
-  letter-spacing: -0.015em;
-}
-
-body.vx-customer-design-foundation .vx-ops-sub {
-  margin-top: 4px;
-  color: var(--vx-muted);
-  font-size: 14px;
-  line-height: 1.55;
-}
-
-body.vx-customer-design-foundation .vx-ops-list {
-  display: grid;
-  gap: 12px;
-  margin-top: 16px;
-}
-
-body.vx-customer-design-foundation .vx-ops-item {
-  padding: 16px;
-  border: 1px solid var(--vx-line);
-  border-radius: 14px;
-  background: var(--vx-surface);
-}
-
-body.vx-customer-design-foundation .vx-ops-item.cancelled {
-  opacity: 0.58;
-}
-
-body.vx-customer-design-foundation .vx-ops-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 10px;
-}
-
-/* Status pills are owned by the canonical badge component
-   (customer-ui-components.css), including the .active / .expired /
-   .cancelled tones. */
-
-body.vx-customer-design-foundation .vx-ops-message {
-  margin-top: 9px;
-  color: var(--vx-ink);
-  font-size: 15px;
-  line-height: 1.55;
-}
-
-body.vx-customer-design-foundation .vx-ops-meta {
-  margin-top: 9px;
-  color: var(--vx-muted);
-  font-size: 13px;
-  line-height: 1.45;
-}
-
-body.vx-customer-design-foundation .vx-ops-rules {
-  display: grid;
-  gap: 7px;
-  margin-top: 12px;
-  padding: 12px;
-  border-radius: 12px;
-  background: var(--vx-color-canvas);
-}
-
-body.vx-customer-design-foundation .vx-ops-rule {
-  display: grid;
-  grid-template-columns: minmax(112px, 0.38fr) minmax(0, 1fr);
-  gap: 10px;
-  font-size: 13px;
-  line-height: 1.45;
-}
-
-body.vx-customer-design-foundation .vx-ops-rule b {
-  color: var(--vx-muted);
-  font-weight: 700;
-}
-
-body.vx-customer-design-foundation .vx-ops-rule span {
-  min-width: 0;
-  color: var(--vx-ink);
-}
-
-body.vx-customer-design-foundation .vx-ops-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 14px;
-}
-
-body.vx-customer-design-foundation .vx-ops-btn {
-  border: 0;
-  background: var(--vx-brand-dark);
-  color: #ffffff;
-  cursor: pointer;
-}
-
-body.vx-customer-design-foundation .vx-ops-btn.secondary {
-  background: var(--vx-ui-badge-info-bg);
-  color: var(--vx-brand);
-}
-
-/* „Zurückziehen" war rot (#fef2f2/#b91c1c, beides hartkodiert). Rot ist auf
-   diesem Screen der Notfallnummer vorbehalten (F7, Entscheidung 09.08.), und
-   Zurückziehen ist ohnehin keine gefährliche Aktion — die Änderung lässt sich
-   jederzeit neu erfassen. Dieselbe stille Fläche wie .vx-ap-btn.ghost. */
-body.vx-customer-design-foundation .vx-ops-btn.quiet {
-  background: var(--vx-surface-soft);
-  color: var(--vx-muted);
-}
-
-body.vx-customer-design-foundation .vx-ops-form {
-  display: grid;
-  gap: 16px;
-  margin-top: 18px;
-}
-
-body.vx-customer-design-foundation .vx-ops-field {
-  display: grid;
-  min-width: 0;
-  gap: 7px;
-}
-
-/* Wie im Kalender: diese Beschriftungen trugen keine eigene Regel und
-   liefen als Fliesstext mit. */
-body.vx-customer-design-foundation .vx-ops-field > label {
-  color: var(--vx-ui-meta-color);
-  font-size: var(--vx-ui-section-label-size);
-  font-weight: var(--vx-ui-section-label-weight);
-  line-height: 1.35;
-}
-
-body.vx-customer-design-foundation .vx-ops-field :where(input, select, textarea) {
-  width: 100%;
-}
-
-body.vx-customer-design-foundation .vx-ops-field textarea {
-  min-height: 112px;
-}
-
-body.vx-customer-design-foundation .vx-ops-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-}
-
-/* Die Boxen dieses Screens trugen neun Farbliterale und keine einzige
-   Rolle — das war der Grund fuer den Eindruck "reine graue Boxen".
-   #fbfcfe war ein eigener, sonst nirgends benutzter Grauton knapp neben
-   Canvas. */
-body.vx-customer-design-foundation .vx-ops-section {
-  padding: 16px;
-  border: 1px solid var(--vx-line);
-  border-radius: 14px;
-  background: var(--vx-color-canvas);
-}
-
-body.vx-customer-design-foundation .vx-ops-section-title {
-  margin-bottom: 8px;
-  color: var(--vx-ui-row-title-color);
-  font-size: 15px;
-  font-weight: 730;
-  line-height: 1.35;
-}
-
-body.vx-customer-design-foundation .vx-ops-summary {
-  color: var(--vx-ink);
-  font-size: 14px;
-  line-height: 1.55;
-}
-
-/* Die Vorschau ist die einzige Flaeche des Screens, die zeigt, was
-   Anrufende tatsaechlich hoeren — sie behaelt ihren Informations-Ton, zieht
-   ihn aber aus der benannten Info-Rolle statt aus drei eigenen Blauwerten
-   (#f1f7ff / #dbeafe / #1d4ed8). #1d4ed8 war zudem ein drittes Blau neben
-   dem kanonischen --vx-color-brand. */
-body.vx-customer-design-foundation .vx-ops-preview {
-  padding: 14px;
-  border: 1px solid var(--vx-ui-badge-info-bg);
-  border-radius: 14px;
-  background: var(--vx-ui-badge-info-bg);
-}
-
-body.vx-customer-design-foundation .vx-ops-preview strong {
-  display: block;
-  margin-bottom: 6px;
-  color: var(--vx-ui-badge-info-text);
-  font-size: var(--vx-ui-section-label-size);
-  font-weight: var(--vx-ui-section-label-weight);
-}
-
-body.vx-customer-design-foundation .vx-ops-preview p {
-  margin: 0;
-  color: var(--vx-ink);
-  font-size: 14px;
-  line-height: 1.55;
-}
-
-body.vx-customer-design-foundation .vx-ops-details summary {
-  color: var(--vx-color-brand);
-  font-size: 14px;
-  font-weight: 700;
-  line-height: 1.4;
-  cursor: pointer;
-}
-
-body.vx-customer-design-foundation .vx-ops-details-body {
-  display: grid;
-  gap: 12px;
-  margin-top: 12px;
-}
-
-body.vx-customer-design-foundation .vx-ops-fixed {
-  display: grid;
-  gap: 8px;
-  margin-top: 12px;
-}
-
-body.vx-customer-design-foundation .vx-ops-fixed-line {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  color: var(--vx-ui-text-secondary);
-  font-size: 13px;
-  line-height: 1.5;
-}
-
-body.vx-customer-design-foundation .vx-ops-fixed-line i {
-  margin-top: 2px;
-  color: var(--vx-color-success);
-}
-
-body.vx-customer-design-foundation .vx-ops-status {
-  display: none;
-  max-width: max-content;
-  margin: 0 0 12px;
-  padding: 10px 12px;
-  border-radius: 10px;
-  font-size: 13px;
-  line-height: 1.4;
-}
-
-body.vx-customer-design-foundation .vx-ops-status.loading,
-body.vx-customer-design-foundation .vx-ops-status.success,
-body.vx-customer-design-foundation .vx-ops-status.warning,
-body.vx-customer-design-foundation .vx-ops-status.error {
-  display: block;
-}
-
-body.vx-customer-design-foundation .vx-ops-status.loading {
-  background: #eff6ff;
-  color: #1d4ed8;
-}
-
-body.vx-customer-design-foundation .vx-ops-status.success {
-  background: #ecfdf5;
-  color: #047857;
-}
-
-body.vx-customer-design-foundation .vx-ops-status.warning {
-  background: var(--vx-color-warning-bg);
-  color: var(--vx-color-warning);
-}
-
-body.vx-customer-design-foundation .vx-ops-status.error {
-  background: #fef2f2;
-  color: #b91c1c;
-}
-
-/* Empty-state presentation is owned by the canonical empty-state component. */
-
-body.vx-customer-design-foundation .vx-ops-note {
-  margin-top: 14px;
-  padding: 12px 14px;
-  border-radius: 12px;
-  background: var(--vx-color-canvas);
-  color: var(--vx-ui-meta-color);
-  font-size: 13px;
-  line-height: 1.5;
-}
-
-@media (max-width: 820px) {
-  body.vx-customer-design-foundation .vx-ops-layout,
-  body.vx-customer-design-foundation .vx-ops-grid {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  body.vx-customer-design-foundation .vx-ops-rule {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 3px;
-  }
-}
 
 @media (max-width: 720px) {
   body.vx-customer-design-foundation .vx-ap-voices,
@@ -1175,33 +865,9 @@ body.vx-customer-design-foundation .vx-ops-note {
     padding: 12px 13px;
     font-size: 16px;
   }
-
-  body.vx-customer-design-foundation .vx-ops-card {
-    padding: 18px;
-    border-radius: 16px;
-  }
-
-  body.vx-customer-design-foundation .vx-ops-item,
-  body.vx-customer-design-foundation .vx-ops-section {
-    padding: 16px;
-  }
-
-  body.vx-customer-design-foundation .vx-ops-field textarea {
-    min-height: 124px;
-  }
-
-  body.vx-customer-design-foundation .vx-ops-status {
-    max-width: none;
-  }
 }
 
-@media (max-width: 390px) {
-  body.vx-customer-design-foundation .vx-ap-actions > .vx-ap-btn,
-  body.vx-customer-design-foundation .vx-ops-actions > .vx-ops-btn {
-    flex: 1 1 100%;
-    width: 100%;
-  }
-}
+
 
 /* Die Ausblendregel fuer den Alt-Screen ist mit Etappe 6 / S1 entfallen: der
    Alt-Block ist geloescht, #tab-assistent hat nur noch die drei verwalteten
@@ -1278,8 +944,8 @@ body.vx-customer-design-foundation .vx-nav-voice-details[open] > summary::after 
   body.vx-customer-design-foundation #tab-assistent.vx-unified-assistant-root {
     padding-bottom: calc(110px + env(safe-area-inset-bottom));
   }
-
 }
+
 
 /* J5 — Wochenraster der Öffnungszeiten. Unter 560px rutschen die Zeitspannen
    unter den Tag statt zu schrumpfen: zwei Zeitfelder nebeneinander sind auf

@@ -6,6 +6,7 @@ const paths = {
   runtime: 'customer-dashboard/shared/customer-runtime-design-foundation.js',
   foundationCss: 'customer-dashboard/shared/customer-design-system.css',
   assistantCss: 'customer-dashboard/shared/customer-assistant-components.css',
+  operationalCss: 'customer-dashboard/shared/customer-operational-components.css',
   statusCss: 'customer-dashboard/shared/customer-assistant-status.css',
   settingsCss: 'customer-dashboard/shared/customer-settings-components.css',
   supportCss: 'customer-dashboard/shared/customer-support-components.css',
@@ -22,6 +23,7 @@ const paths = {
 const runtime = fs.readFileSync(paths.runtime, 'utf8');
 const foundationCss = fs.readFileSync(paths.foundationCss, 'utf8');
 const assistantCss = fs.readFileSync(paths.assistantCss, 'utf8');
+const operationalCss = fs.readFileSync(paths.operationalCss, 'utf8');
 const statusCss = fs.readFileSync(paths.statusCss, 'utf8');
 const settingsCss = fs.readFileSync(paths.settingsCss, 'utf8');
 const supportCss = fs.readFileSync(paths.supportCss, 'utf8');
@@ -57,7 +59,13 @@ assert.ok(lineCount(foundationCss) <= 500, 'foundation CSS exceeded the initial 
 // Alles neue Komponenten, kein Wildwuchs. Budget behaelt denselben Spielraum
 // wie zuvor (~15 Zeilen), damit der Waechter weiterhin anschlaegt, bevor die
 // Datei unbemerkt waechst.
-assert.ok(lineCount(assistantCss) <= 1300, 'assistant component CSS exceeded its consolidated size budget');
+// 09.08.: Die Datei stand bei exakt 1300 und blockierte damit jede weitere
+// UI-Ergaenzung. Herausgeloest wurde die Betriebsinformations-Oberflaeche
+// (.vx-ops-*) -- eigene Feature-Flaeche, eigenes Runtime-Modul, keine
+// Kaskadenbeziehung zu .vx-ap-*. Die Budgets sind bewusst knapp ueber dem
+// Ist-Stand gesetzt: sie sollen weiter bremsen, nur nicht mehr blockieren.
+assert.ok(lineCount(assistantCss) <= 1050, 'assistant component CSS exceeded its consolidated size budget');
+assert.ok(lineCount(operationalCss) <= 420, 'operational component CSS exceeded its size budget');
 assert.ok(lineCount(statusCss) <= 300, 'assistant status CSS exceeded its consolidated size budget');
 // Design-Nachzug 4 (2026-08-08): +46 Zeilen. Der groessere Teil davon ist
 // EIN Block — die Zuruecknahme der geerbten Feldbeschriftungs-Typografie auf
@@ -86,7 +94,8 @@ assert.ok(lineCount(navigationCss) <= 390, 'navigation component CSS exceeded it
 for (const token of [
   'Styling lives exclusively in explicit CSS modules.',
   '/shared/customer-design-system.css?v=20260809-3',
-  '/shared/customer-assistant-components.css?v=20260809-3',
+  '/shared/customer-assistant-components.css?v=20260809-4',
+  '/shared/customer-operational-components.css?v=20260809-1',
   '/shared/customer-assistant-status.css?v=20260803-1',
   '/shared/customer-settings-components.css?v=20260809-3',
   '/shared/customer-support-components.css?v=20260802-2',
@@ -139,6 +148,7 @@ for (const token of [
 for (const [name, css] of [
   ['foundation', foundationCss],
   ['assistant', assistantCss],
+  ['operational', operationalCss],
   ['settings', settingsCss],
   ['support', supportCss]
 ]) {
@@ -234,7 +244,14 @@ for (const token of [
   '.vx-nav-voice-details',
   '#vx-assistant-profile-body .vx-ap-card:first-child',
   'min-height: 138px',
-  'min-height: 124px',
+  'min-height: 124px'
+]) {
+  assert.ok(assistantCss.includes(token), `assistant CSS missing: ${token}`);
+}
+
+// Dieselben Zusicherungen fuer die herausgeloeste Datei — sonst waere die
+// Aufteilung eine Luecke statt einer Ordnung.
+for (const token of [
   '#vx-operational-page-body',
   '.vx-ops-layout',
   '.vx-ops-card',
@@ -245,8 +262,12 @@ for (const token of [
   '.vx-ops-actions > .vx-ops-btn',
   '@media (max-width: 820px)'
 ]) {
-  assert.ok(assistantCss.includes(token), `assistant CSS missing: ${token}`);
+  assert.ok(operationalCss.includes(token), `operational CSS missing: ${token}`);
 }
+
+// Die Trennung muss halten: keine Familie darf in die andere Datei wandern.
+assert.ok(!/\.vx-ops-[a-z-]*\s*[,{]/.test(assistantCss), 'assistant CSS took operational rules back');
+assert.ok(!/\.vx-ap-[a-z-]*\s*[,{]/.test(operationalCss), 'operational CSS took assistant rules');
 
 for (const forbidden of [
   '.vx-settings-entry',
@@ -580,6 +601,7 @@ for (const forbidden of [
 for (const [name, css] of [
   ['foundation', foundationCss],
   ['assistant', assistantCss],
+  ['operational', operationalCss],
   ['status', statusCss],
   ['settings', settingsCss],
   ['support', supportCss],
@@ -938,8 +960,8 @@ for (const forbidden of ["createElement('style')", 'style.textContent', 'documen
 // declarations must stay deleted, not be re-added next to the canonical ones.
 assert.ok(!navigationCss.includes('grid-template-columns: repeat(3, minmax(0, 1fr))'), 'assistant switch must not return to a segmented control');
 assert.ok(!foundationCss.includes('.vx-assistant-root-switch button.active'), 'assistant tab active state must stay owned by the tab component');
-assert.ok(!assistantCss.includes('.vx-ops-pill {'), 'status pills must stay owned by the badge component');
-assert.ok(!assistantCss.includes('.vx-ops-empty {'), 'empty states must stay owned by the empty-state component');
+assert.ok(!operationalCss.includes('.vx-ops-pill {'), 'status pills must stay owned by the badge component');
+assert.ok(!operationalCss.includes('.vx-ops-empty {'), 'empty states must stay owned by the empty-state component');
 assert.ok(dashboard.includes('/shared/customer-ui-components.js?v=20260807-2'), 'dashboard must load the VoxeraUI markup factory');
 assert.ok(!/wird geladen|werden geladen/i.test(calendarRuntime), 'calendar runtime must use the skeleton component, not loading text');
 assert.ok(!/wird geladen …/i.test(assistantRuntime), 'assistant runtime must use the skeleton component, not loading text');
@@ -953,8 +975,8 @@ assert.ok(dashboard.includes('<script src="/shared/offer-brand.js?v=20260807-4">
 assert.ok(!dashboard.includes('<script src="/shared/offer-brand.js"></script>'), 'dashboard still loads unversioned offer-brand');
 assert.ok(loader.includes('/shared/customer-runtime-design-foundation.js?v=20260809-1'), 'offer-brand missing current design loader version');
 assert.ok(!loader.includes('/shared/customer-runtime-design-foundation.js?v=20260803-4'), 'offer-brand still references stale design loader version');
-for (const stale of ['/shared/customer-settings-components.css?v=20260807-3','/shared/customer-design-system.css?v=20260804-1','/shared/customer-assistant-components.css?v=20260803-1','/shared/customer-assistant-components.css?v=20260808-2','/shared/customer-assistant-components.css?v=20260808-3','/shared/customer-assistant-components.css?v=20260809-1','/shared/customer-assistant-components.css?v=20260809-2','/shared/customer-navigation-components.css?v=20260803-1','/shared/customer-navigation-components.css?v=20260809-1','/shared/customer-design-system.css?v=20260809-1','/shared/customer-ui-components.css?v=20260809-1','/shared/customer-design-system.css?v=20260809-2']) assert.ok(!runtime.includes(stale), `design loader still contains stale CSS URL: ${stale}`);
-const cssOrder=['/shared/customer-design-system.css?v=20260809-3','/shared/customer-assistant-components.css?v=20260809-3','/shared/customer-assistant-status.css?v=20260803-1','/shared/customer-navigation-components.css?v=20260809-2','/shared/customer-settings-components.css?v=20260809-3','/shared/customer-support-components.css?v=20260802-2','/shared/customer-ui-components.css?v=20260809-2'];
+for (const stale of ['/shared/customer-settings-components.css?v=20260807-3','/shared/customer-design-system.css?v=20260804-1','/shared/customer-assistant-components.css?v=20260803-1','/shared/customer-assistant-components.css?v=20260808-2','/shared/customer-assistant-components.css?v=20260808-3','/shared/customer-assistant-components.css?v=20260809-1','/shared/customer-assistant-components.css?v=20260809-2','/shared/customer-assistant-components.css?v=20260809-3','/shared/customer-navigation-components.css?v=20260803-1','/shared/customer-navigation-components.css?v=20260809-1','/shared/customer-design-system.css?v=20260809-1','/shared/customer-ui-components.css?v=20260809-1','/shared/customer-design-system.css?v=20260809-2']) assert.ok(!runtime.includes(stale), `design loader still contains stale CSS URL: ${stale}`);
+const cssOrder=['/shared/customer-design-system.css?v=20260809-3','/shared/customer-assistant-components.css?v=20260809-4','/shared/customer-operational-components.css?v=20260809-1','/shared/customer-assistant-status.css?v=20260803-1','/shared/customer-navigation-components.css?v=20260809-2','/shared/customer-settings-components.css?v=20260809-3','/shared/customer-support-components.css?v=20260802-2','/shared/customer-ui-components.css?v=20260809-2'];
 for(let i=1;i<cssOrder.length;i+=1) assert.ok(runtime.indexOf(cssOrder[i-1])<runtime.indexOf(cssOrder[i]),`design CSS module order changed: ${cssOrder[i-1]} before ${cssOrder[i]}`);
 
 // Alle Screens liegen in .content — der Waechter gegen das verirrte </div>.
