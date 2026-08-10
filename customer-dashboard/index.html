@@ -8173,7 +8173,7 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
               <div class="vx-help-qa">
                 <div><strong>Wie schnell sind Änderungen aktiv?</strong><p>Nach "Live schalten" sofort — innerhalb von Sekunden.</p></div>
                 <div><strong id="vx-help-faq-lang-q">Kann Lara mehrere Sprachen?</strong><p>Ja — Deutsch, Französisch, Italienisch und Englisch automatisch erkannt.</p></div>
-                <div><strong>Was passiert bei Ferien?</strong><p>Feiertage &amp; Ferien-Modus kommt bald — kontaktieren Sie uns für eine manuelle Anpassung.</p></div>
+                <div><strong>Was passiert bei Ferien?</strong><p>Tragen Sie den Zeitraum unter Assistent → Aktuelle Infos ein. Ihr Assistent weist Anrufende darauf hin und hält sich für diese Zeit an die dort gewählten Regeln.</p></div>
               </div>
             </section>
 
@@ -14271,6 +14271,14 @@ function vxGetEntryCounts(records) {
 }
 function vxInquiryFilterEmptyText(filter) {
   var assistantName = (typeof customerMeta !== 'undefined' && customerMeta && customerMeta.assistantName) ? customerMeta.assistantName : 'Lara';
+  // Klick-Test 10.08.: „Nur ungelesene" ist ein zweiter, unabhaengiger Filter
+  // neben den vier Zustands-Chips. Er wurde hier nicht beruecksichtigt, deshalb
+  // stand bei zwoelf offenen, aber gelesenen Anfragen „Keine offenen Anfragen."
+  // — direkt neben dem Chip „Offen (12)". Der Leertext nennt jetzt den Filter,
+  // der tatsaechlich leer laeuft.
+  if (typeof _anrufeInboxSubfilter !== 'undefined' && _anrufeInboxSubfilter === 'unread') {
+    return 'Keine ungelesenen Anfragen.';
+  }
   if (filter === 'offen') return 'Keine offenen Anfragen.';
   if (filter === 'geplant') return 'Keine geplanten Anfragen.';
   if (filter === 'neu') return 'Keine offenen Anfragen — ' + assistantName + ' legt neue Kontakte hier ab.';
@@ -18063,7 +18071,19 @@ function _auCategories2(records, total) {
   var sorted = Object.keys(counts).sort(function(a,b) { return counts[b] - counts[a]; }).slice(0,5);
   var max = sorted.length ? counts[sorted[0]] : 1;
   if (!sorted.length) { el.innerHTML = vxUiEmptyState({ icon: 'ph-chart-bar', title: 'Noch keine Auswertung', text: 'Sobald die ersten Anrufe eingehen, sehen Sie hier Ihre Zahlen.' }); return; }
-  el.innerHTML = sorted.map(function(category, index) { var count = counts[category], pct = Math.round(count / max * 100); var tone = index === 0 ? 'blue' : 'soft'; return '<div class="vx-report-bar-row"><div class="vx-report-bar-label">' + category + '</div><progress class="vx-report-progress tone-' + tone + '" max="100" value="' + pct + '" aria-label="' + category + ': ' + count + '"></progress><div class="vx-report-bar-count">' + count + '</div></div>'; }).join('');
+  // Klick-Test 10.08.: Hier standen die Rohwerte aus der Datenbank
+  // („inbound", „rueckrufanfrage", „sonstiges"), waehrend zwei Karten weiter
+  // oben dieselbe Information ueber getCallCategoryDisplayLabel() bereits als
+  // „Eingehender Anruf" beschriftet war. Die Funktion gab es also schon, sie
+  // war hier nur nicht angewendet.
+  var categoryLabel = function(raw) {
+    if (typeof getCallCategoryDisplayLabel === 'function') {
+      var label = getCallCategoryDisplayLabel({ fields: { category: raw } });
+      if (label) return label;
+    }
+    return raw;
+  };
+  el.innerHTML = sorted.map(function(category, index) { var count = counts[category], pct = Math.round(count / max * 100); var tone = index === 0 ? 'blue' : 'soft'; var label = categoryLabel(category); return '<div class="vx-report-bar-row"><div class="vx-report-bar-label">' + _esc(label) + '</div><progress class="vx-report-progress tone-' + tone + '" max="100" value="' + pct + '" aria-label="' + _esc(label + ': ' + count) + '"></progress><div class="vx-report-bar-count">' + count + '</div></div>'; }).join('');
 }
 
 function _auCallTimes2(records, total) {
@@ -21432,9 +21452,16 @@ function renderDashboard(records, manualTasks) {
   // eine zweite Wahrheit fuer dieselbe Zahl.
   var greetingEl = document.getElementById('dash-personal-greeting');
   if (greetingEl) {
-    var now2 = new Date();
-    var hour = now2.getHours();
-    var greeting = hour < 12 ? 'Guten Morgen' : hour < 18 ? 'Guten Nachmittag' : 'Guten Abend';
+    // Klick-Test 10.08.: Hier stand eine zweite, eigene Tageszeit-Regel
+    // (hour < 12 ? Morgen : hour < 18 ? Nachmittag : Abend). Sie kannte die
+    // Nacht nicht und begruesste um 01:39 Uhr mit „Guten Morgen", waehrend
+    // getTimeBasedGreeting() korrekt „Guten Abend" lieferte — dieselbe Frage,
+    // zwei Antworten, und die falsche war die sichtbare. Es gibt jetzt nur noch
+    // eine Regel; „Guten Mittag" erreicht damit ueberhaupt zum ersten Mal die
+    // Oberflaeche.
+    var greeting = (typeof getTimeBasedGreeting === 'function')
+      ? getTimeBasedGreeting()
+      : 'Guten Tag';
     var customerName = (customerMeta && customerMeta.displayName) ? customerMeta.displayName
       : (customerMeta && customerMeta.customerName) ? customerMeta.customerName
       : (customerContext && customerContext.displayName) ? customerContext.displayName : '';
@@ -22790,7 +22817,11 @@ function renderAnrufeInbox(containerId, records, activeFilter) {
 
   function renderEmpty() {
     var emptyLabel = vxInquiryFilterEmptyText(filter);
-    el.innerHTML = vxUiEmptyState({ icon: 'ph-tray', title: emptyLabel, text: 'Neue Anfragen erscheinen hier automatisch, sobald ein Anruf eingeht.', className: 'vx-requests-empty' });
+    var unreadOnly = (typeof _anrufeInboxSubfilter !== 'undefined' && _anrufeInboxSubfilter === 'unread');
+    var emptyText = unreadOnly
+      ? 'Alles gelesen. Neue Anfragen erscheinen hier, sobald ein Anruf eingeht.'
+      : 'Neue Anfragen erscheinen hier automatisch, sobald ein Anruf eingeht.';
+    el.innerHTML = vxUiEmptyState({ icon: 'ph-tray', title: emptyLabel, text: emptyText, className: 'vx-requests-empty' });
     vxRenderInboxSelectionToolbar();
     vxUpdateAnfragenCount();
   }
@@ -38582,10 +38613,23 @@ body:has(#tab-archiv.active) .content{
       : (leadKey === 'cold' || leadKey === 'kalt') ? 'leadCold'
       : 'status';
 
-    var chips = [chipHtml(statusLabelOf(record), done ? 'green' : 'status')];
-    if (category) chips.push(chipHtml(label(category), 'blue'));
-    if (leadQual) chips.push(chipHtml(label(leadQual), leadKind));
-    if (truthy(f.callback_requested)) chips.push(chipHtml('Rückruf', 'blue'));
+    // Klick-Test 10.08.: Kategorie und Rueckruf-Flag koennen dieselbe
+    // Beschriftung ergeben — bei category = „rueckrufanfrage" plus
+    // callback_requested standen zwei Chips „Rückruf" nebeneinander. Beide
+    // Herleitungen bleiben (sie sind unterschiedliche Signale), die Zeile zeigt
+    // aber jede Beschriftung nur einmal.
+    var chipTexts = Object.create(null);
+    var chips = [];
+    var pushChip = function(text, tone) {
+      var key = String(text == null ? '' : text).trim().toLowerCase();
+      if (!key || chipTexts[key]) return;
+      chipTexts[key] = true;
+      chips.push(chipHtml(text, tone));
+    };
+    pushChip(statusLabelOf(record), done ? 'green' : 'status');
+    if (category) pushChip(label(category), 'blue');
+    if (leadQual) pushChip(label(leadQual), leadKind);
+    if (truthy(f.callback_requested)) pushChip('Rückruf', 'blue');
 
     var html = '<div class="vx-dv2-header">';
     html +=   '<div class="vx-dv2-avatar">'+esc(initialsFor(name, phone))+'</div>';

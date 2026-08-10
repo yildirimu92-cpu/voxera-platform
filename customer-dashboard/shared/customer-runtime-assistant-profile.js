@@ -629,7 +629,12 @@
     const topics = Array.isArray(business.topics) ? business.topics : [];
     return '<section class="vx-ap-card">'
       + '<div class="vx-ap-head"><div><div class="vx-ap-title">Was Ihr Assistent weiss</div>'
-      + '<div class="vx-ap-meta">Dauerhaftes Geschäftswissen. Ferien und kurzfristige Änderungen gehören ins Band oben.</div></div>'
+      // Der Verweis nannte bis zum Klick-Test 10.08. „das Band oben“. Das Band
+      // (bandCard) erscheint aber nur, wenn bereits eine Abweichung eingetragen
+      // ist — im Normalfall zeigte der Satz also auf etwas, das gar nicht da
+      // war. Er nennt jetzt die Seite, und der Weg dorthin steht als eigener
+      // Knopf in der Aktionsleiste dieser Karte.
+      + '<div class="vx-ap-meta">Dauerhaftes Geschäftswissen. Ferien und kurzfristige Änderungen gehören in „Aktuelle Infos“.</div></div>'
       + '<span class="vx-ap-pill' + (completed === total ? ' selected' : '') + '">' + completed + ' von ' + total + ' Bereichen</span></div>'
       + '<div class="vx-ap-summary">'
       + identityRow('Unternehmen', esc(business.company_name || 'Nicht angegeben'))
@@ -652,8 +657,21 @@
       // richtig — der Assistent-Tab soll nicht wieder an den Bausteinen eines
       // anderen Tabs haengen. Der Chevron sitzt deshalb im eigenen Knopf,
       // genau wie ph-play in der Stimmkarte.
+      //
+      // Klick-Test 10.08.: „Aktuelle Infos“ war ueber die Oberflaeche nicht
+      // erreichbar. Der Weg dorthin existierte — aber nur im Band (bandCard),
+      // und das Band erscheint ausschliesslich, wenn bereits eine Abweichung
+      // eingetragen ist. Wer noch nie eine Ferienregel angelegt hat, kam also
+      // nie hin: man erreichte die Seite nur, wenn man sie schon benutzt hatte.
+      // Der Einstieg gehoert deshalb an einen zustandsfreien Ort — hier, neben
+      // das dauerhafte Geschaeftswissen, von dem er das Temporaere abgrenzt.
+      // Das Band bleibt zustandsabhaengig: es meldet eine Abweichung, es ist
+      // keine Navigation. Eigene ID, weil beide Knoepfe gleichzeitig im DOM
+      // stehen koennen und getElementById sonst nur den ersten faende.
       + '<div class="vx-ap-actions"><button type="button" class="vx-ap-btn secondary" id="vx-open-business-profile">'
-      + 'Geschäftsprofil bearbeiten<i class="ph-light ph-caret-right" aria-hidden="true"></i></button></div>'
+      + 'Geschäftsprofil bearbeiten<i class="ph-light ph-caret-right" aria-hidden="true"></i></button>'
+      + '<button type="button" class="vx-ap-btn secondary" id="vx-open-operational-knowledge">'
+      + 'Aktuelle Infos<i class="ph-light ph-caret-right" aria-hidden="true"></i></button></div>'
       + '</section>';
   }
 
@@ -799,19 +817,32 @@
     const group = Array.isArray(options?.group) && options.group.length
       ? ' data-vx-hours-group="' + esc(options.group.join(' ')) + '"'
       : '';
+    // Klick-Test 10.08.: Die vier Zeitfelder einer Zeile standen in gleichem
+    // Abstand nebeneinander — dass es zwei Zeitspannen sind (vormittags,
+    // nachmittags) und nicht vier zusammenhaengende Felder, sagte weder ein
+    // Abstand noch ein Wort. Jede Spanne ist jetzt eine eigene Gruppe, dazwischen
+    // steht „und". Fuer Screenreader aendert sich nichts: die aria-labels
+    // benennen Spanne und Kante schon vorher einzeln, das Bindewort ist
+    // ausschliesslich optisch.
     const slot = (index) => {
       const pair = intervals[index] || ['', ''];
-      return '<input type="time" data-vx-hours="' + day + '"' + group + ' data-vx-slot="' + index + '" data-vx-edge="from"'
+      return '<span class="vx-ap-hours-slot">'
+        + '<input type="time" data-vx-hours="' + day + '"' + group + ' data-vx-slot="' + index + '" data-vx-edge="from"'
         + ' value="' + esc(pair[0] || '') + '" aria-label="' + esc(label) + ', Zeitspanne ' + (index + 1) + ', von"'
         + (busy ? ' disabled' : '') + '>'
         + '<span class="vx-ap-hours-dash">–</span>'
         + '<input type="time" data-vx-hours="' + day + '"' + group + ' data-vx-slot="' + index + '" data-vx-edge="to"'
         + ' value="' + esc(pair[1] || '') + '" aria-label="' + esc(label) + ', Zeitspanne ' + (index + 1) + ', bis"'
-        + (busy ? ' disabled' : '') + '>';
+        + (busy ? ' disabled' : '') + '>'
+        + '</span>';
     };
     return '<div class="vx-ap-hours-row">'
       + '<div class="vx-ap-hours-day">' + esc(label) + '</div>'
-      + '<div class="vx-ap-hours-slots">' + slot(0) + slot(1) + '</div>'
+      + '<div class="vx-ap-hours-slots">'
+      + slot(0)
+      + '<span class="vx-ap-hours-join" aria-hidden="true">und</span>'
+      + slot(1)
+      + '</div>'
       + '<div class="vx-ap-hours-state">' + (intervals.length ? '' : 'geschlossen') + '</div>'
       + '</div>';
   }
@@ -1381,6 +1412,7 @@
       }
     });
     document.getElementById('vx-open-operational')?.addEventListener('click', () => root.vxShowAssistantView?.('updates', true));
+    document.getElementById('vx-open-operational-knowledge')?.addEventListener('click', () => root.vxShowAssistantView?.('updates', true));
     document.querySelector('[data-vx-tone-edit]')?.addEventListener('click', () => { toneEditorOpen = true; renderAssistant(); });
     // Zweiter Riegel neben dem disabled-Attribut: ein Klick, der waehrend des
     // Speicherns doch durchkommt, darf den Editor nicht schliessen.
@@ -1459,7 +1491,8 @@
     // vx-hero-tune-cancel gehoert dazu: sonst laesst sich der Editor waehrend
     // eines laufenden Speicherns wegklicken und der Zustand ist weg, obwohl der
     // Request noch fehlschlagen kann.
-    ['vx-business-save', 'vx-open-business-profile', 'vx-hero-tune-cancel', 'vx-greeting-reset',
+    ['vx-business-save', 'vx-open-business-profile', 'vx-open-operational-knowledge',
+      'vx-hero-tune-cancel', 'vx-greeting-reset',
       'vx-forwarding-edit', 'vx-forwarding-cancel', 'vx-forwarding-add'].forEach((id) => {
       const node = document.getElementById(id);
       if (node) node.disabled = disabled;

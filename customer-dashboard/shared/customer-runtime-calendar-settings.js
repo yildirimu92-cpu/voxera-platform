@@ -100,9 +100,61 @@
     return presets.map(([minutes, label]) => '<option value="' + minutes + '"' + (minutes === selected ? ' selected' : '') + '>' + label + '</option>').join('');
   }
 
+  // Klick-Test 10.08.: Beim geprueften Kunden standen in
+  // `calendar_settings.business_hours` Mo–Fr 08:00–17:00, waehrend das
+  // Geschaeftsprofil fuer dieselben Tage „geschlossen" anzeigte — zwei
+  // Wahrheiten ueber dieselbe Sache, von denen der Kunde nur eine sehen konnte.
+  //
+  // Beim Nachpruefen zeigte sich, dass die zweite gar keine Wirkung hat:
+  // `business_hours` hat heute keinen Leser. calendar-tool.js verwendet aus
+  // calendar_settings nur active_provider, timezone, Termindauer, Puffer,
+  // Mindestvorlauf und Horizont — die Terminbuchung prueft ueberhaupt keine
+  // Oeffnungszeiten. Die Migration 2026-08-09_opening_hours.sql haelt das
+  // ausdruecklich fest ("ist definiert, hat denselben Zuschnitt und keinen
+  // Leser") und verweist auf F5/J3 als eigenen Auftrag.
+  //
+  // Die Zeile sagt deshalb genau das: ein hinterlegter Wert, der derzeit nichts
+  // bewirkt. Sie darf keine Wirkung behaupten, die es nicht gibt — und sie nimmt
+  // der offenen Entscheidung nichts vorweg, welche Quelle kuenftig fuehrt.
+  const HOURS_DAY_LABELS = [
+    ['mon', 'Mo'], ['tue', 'Di'], ['wed', 'Mi'], ['thu', 'Do'],
+    ['fri', 'Fr'], ['sat', 'Sa'], ['sun', 'So']
+  ];
+
+  function bookingWindowRow(settings) {
+    const week = settings && typeof settings.business_hours === 'object' && settings.business_hours
+      ? settings.business_hours
+      : null;
+    if (!week) return '';
+    const parts = HOURS_DAY_LABELS.map(([key, label]) => {
+      const ranges = Array.isArray(week[key]) ? week[key] : [];
+      const text = ranges.length
+        ? ranges.map((pair) => (Array.isArray(pair) ? pair.filter(Boolean).join('–') : '')).filter(Boolean).join(', ')
+        : '';
+      return text ? label + ' ' + text : '';
+    }).filter(Boolean);
+    const summary = parts.length ? parts.join(' · ') : 'Kein Zeitfenster hinterlegt.';
+    return '<div class="vx-cal-field vx-cal-field--wide"><label>Hinterlegtes Zeitfenster</label>'
+      + '<div class="vx-cal-readout">' + esc(summary) + '</div>'
+      + '<div class="vx-cal-meta">Dieser Wert ist gespeichert, wird bei der Terminbuchung aber noch nicht ausgewertet: '
+      + 'der Assistent prüft derzeit keine Öffnungszeiten, sondern nur Mindestvorlauf, Puffer und Buchungshorizont. '
+      + 'Was er am Telefon zu Öffnungszeiten sagt, steht separat im Geschäftsprofil.</div></div>';
+  }
+
   // lead: die fuehrende Karte des Screens traegt den Marken-Streifen
   // (--vx-ui-brand-rule ueber .vx-ui-brand-rule). Genau eine pro Screen und
   // zustandsunabhaengig — siehe customer-ui-components.css, Abschnitt 9.
+  //
+  // „Trennen" haengt an der *Existenz* der Verbindung, nicht an ihrem Status.
+  // Eine bestehende, aber nicht verbundene Verbindung (typisch
+  // `reauthorization_required`) muss abschaltbar bleiben: in genau diesem
+  // Zustand ist das Speichern gesperrt und die Anbieterauswahl deaktiviert
+  // (siehe render()), es gaebe sonst keinen Weg mehr aus der Integration
+  // heraus — `feature_enabled` bliebe gesetzt, waehrend calendar-tool.js jede
+  // Buchung mangels verbundenem Anbieter abweist. Serverseitig raeumt
+  // `disconnect` den Zustand vollstaendig auf (Verbindung geloescht,
+  // active_provider auf null, feature_enabled auf false) und verlangt dafuer
+  // keinen `connected`-Status.
   function providerCard(provider, lead) {
     const item = connection(provider);
     const configured = state?.provider_configured?.[provider] === true;
@@ -114,7 +166,8 @@
       '<div class="vx-cal-actions">' +
       (connected
         ? '<button type="button" class="btn vx-cal-btn secondary" data-calendar-test="' + provider + '"' + (busy ? ' disabled' : '') + '>Verbindung prüfen</button><button type="button" class="btn vx-cal-btn danger" data-calendar-disconnect="' + provider + '"' + (busy ? ' disabled' : '') + '>Trennen</button>'
-        : '<button type="button" class="btn vx-cal-btn" data-calendar-connect="' + provider + '"' + (disabled ? ' disabled' : '') + '>Verbinden</button>') +
+        : '<button type="button" class="btn vx-cal-btn" data-calendar-connect="' + provider + '"' + (disabled ? ' disabled' : '') + '>Verbinden</button>'
+          + (item ? '<button type="button" class="btn vx-cal-btn danger" data-calendar-disconnect="' + provider + '"' + (busy ? ' disabled' : '') + '>Trennen</button>' : '')) +
       '</div></div>';
   }
 
@@ -133,7 +186,32 @@
     if (entry) entry.hidden = false;
     const settings = state.settings || {};
     const connectedProviders = (state.connections || []).filter((item) => item.status === 'connected');
-    const activeOptions = connectedProviders.map((item) => '<option value="' + item.provider + '"' + (settings.active_provider === item.provider ? ' selected' : '') + '>' + providerLabels[item.provider] + '</option>').join('');
+    let activeOptions = connectedProviders.map((item) => '<option value="' + item.provider + '"' + (settings.active_provider === item.provider ? ' selected' : '') + '>' + providerLabels[item.provider] + '</option>').join('');
+
+    // Klick-Test 10.08.: Der gespeicherte Anbieter verschwand spurlos aus der
+    // Liste, sobald seine Verbindung nicht mehr `connected` war (typisch:
+    // abgelaufenes Refresh-Token -> `reauthorization_required`). Die Auswahl
+    // stand dann auf „Nicht aktiv", obwohl in der Datenbank weiterhin ein
+    // Anbieter hinterlegt war — und `save()` schrieb genau dieses „Nicht aktiv"
+    // zurueck. Wer nur die Termindauer aendern wollte, schaltete damit
+    // unbemerkt die Kalenderbuchung ab.
+    //
+    // Bewusst NICHT im Speicherpfad geloest: `save_settings` ist serverseitig
+    // eine Vollzustands-Speicherung mit Querpruefungen (feature_enabled
+    // verlangt einen aktiven Anbieter; ein aktiver Anbieter verlangt eine
+    // verbundene Verbindung mit gewaehltem Kalender). Nur geaenderte Felder zu
+    // schicken wuerde diese Pruefungen unterlaufen, den gespeicherten Wert
+    // mitzuschicken wuerde am 409 scheitern. Richtig ist, den Zustand ehrlich
+    // zu zeigen und in ihm nicht zu speichern.
+    const storedProvider = String(settings.active_provider || '');
+    const storedIsConnected = connectedProviders.some((item) => item.provider === storedProvider);
+    const storedConnection = (state.connections || []).find((item) => item.provider === storedProvider);
+    const storedNeedsAttention = !!storedProvider && !storedIsConnected;
+    if (storedNeedsAttention) {
+      const reason = storedConnection ? 'Neuanmeldung nötig' : 'Verbindung fehlt';
+      activeOptions += '<option value="' + esc(storedProvider) + '" selected>'
+        + esc(providerLabels[storedProvider] || storedProvider) + ' — ' + reason + '</option>';
+    }
     const providerCards = providers.length
       ? providers.map((provider, index) => providerCard(provider, index === 0)).join('')
       : '<div class="vx-cal-card vx-ui-brand-rule"><div class="vx-cal-provider">Kein Kalenderanbieter verfügbar</div><div class="vx-cal-meta">Die OAuth-Konfiguration ist noch nicht vollständig.</div></div>';
@@ -145,7 +223,13 @@
       availabilityBanner + '<div id="vx-calendar-status" class="vx-cal-status" role="status" aria-live="polite"></div>' +
       '<div class="vx-cal-grid' + (providers.length === 1 ? ' single' : '') + '">' + providerCards + '</div>' +
       '<div class="vx-cal-card vx-cal-rules-card"><div class="vx-cal-provider">Buchungsregeln</div><div class="vx-cal-meta">Diese Regeln gelten unabhängig vom verbundenen Anbieter.</div><div class="vx-cal-form vx-cal-form--spaced">' +
-      '<div class="vx-cal-field"><label>Aktiver Anbieter</label><select id="vx-cal-active-provider"><option value="">Nicht aktiv</option>' + activeOptions + '</select></div>' +
+      '<div class="vx-cal-field"><label>Aktiver Anbieter</label><select id="vx-cal-active-provider"'
+        + (storedNeedsAttention ? ' disabled' : '') + '><option value="">Nicht aktiv</option>' + activeOptions + '</select>'
+        + (storedNeedsAttention
+          ? '<div class="vx-cal-meta">' + esc(providerLabels[storedProvider] || storedProvider)
+            + ' ist weiterhin als aktiver Anbieter gespeichert. Solange die Verbindung nicht erneuert ist, bleiben die Buchungsregeln unverändert und können nicht gespeichert werden. Zum Erneuern „Verbinden" in der Anbieterkarte, zum Abschalten „Trennen" — das setzt den aktiven Anbieter zurück und deaktiviert die Buchungen.</div>'
+          : '')
+        + '</div>' +
       '<div class="vx-cal-field"><label>Zeitzone</label><select id="vx-cal-timezone"><option value="Europe/Zurich"' + (settings.timezone === 'Europe/Zurich' ? ' selected' : '') + '>Europe/Zurich</option><option value="UTC"' + (settings.timezone === 'UTC' ? ' selected' : '') + '>UTC</option></select></div>' +
       '<div class="vx-cal-field"><label>Termindauer (Min.)</label><input id="vx-cal-duration" type="number" min="10" max="240" value="' + esc(settings.appointment_duration_minutes || 30) + '"></div>' +
       '<div class="vx-cal-field"><label>Mindestvorlauf</label><select id="vx-cal-notice">' + noticeOptions(settings.minimum_notice_minutes || 120) + '</select></div>' +
@@ -153,7 +237,9 @@
       '<div class="vx-cal-field"><label>Puffer nachher (Min.)</label><input id="vx-cal-buffer-after" type="number" min="0" max="180" value="' + esc(settings.buffer_after_minutes || 10) + '"></div>' +
       '<div class="vx-cal-field"><label>Buchungshorizont (Tage)</label><input id="vx-cal-horizon" type="number" min="1" max="365" value="' + esc(settings.booking_horizon_days || 60) + '"></div>' +
       '<div class="vx-cal-field vx-cal-field--checkbox"><label class="vx-cal-checkbox"><input id="vx-cal-customer-enabled" type="checkbox"' + (settings.feature_enabled ? ' checked' : '') + '><span>Buchungen durch Assistent erlauben</span></label></div>' +
-      '</div><div class="vx-cal-actions"><button type="button" class="btn vx-cal-btn" id="vx-calendar-save"' + (!state.enabled || busy ? ' disabled' : '') + '>Einstellungen speichern</button></div></div>';
+      bookingWindowRow(settings) +
+      '</div><div class="vx-cal-actions"><button type="button" class="btn vx-cal-btn" id="vx-calendar-save"'
+        + (!state.enabled || busy || storedNeedsAttention ? ' disabled' : '') + '>Einstellungen speichern</button></div></div>';
 
     bind();
     const entrySub = document.getElementById('vx-calendar-entry-sub');
