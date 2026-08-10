@@ -817,14 +817,13 @@ check('wizard chrome is compact, sticky and free of duplicate controls', () => {
 check('admin preview requests the productive server prompt', () => assert.match(source.runtime, /callAdminFunction\('prompt-preview'/));
 check('runtime is loaded by admin bootstrap', () => assert.match(source.loader, /admin-runtime-prompt-builder-v2\.js\?v=20260801-4/));
 
-// --- KI-Offenlegung am Gespraechsanfang -------------------------------------
+// --- Offenlegung am Gespraechsanfang ----------------------------------------
 //
 // Abschnitt 11 der Datenschutzerklaerung sagt zu, dass jeder Anrufer zu Beginn
-// erfaehrt, dass er mit einer KI spricht, dass er durch Fortfuehren einwilligt
-// und dass er eine Weiterleitung an einen Menschen verlangen kann. Bis
-// 10.08.2026 gab die Begruessung nur die Aufzeichnung preis -- und es fiel
-// niemandem auf, weil es keine Pruefung gab. Diese hier ist die Pruefung.
-const { KI_OFFENLEGUNG, offenlegungFuer, mitOffenlegung, buildGreeting } =
+// erfaehrt, dass er nicht mit einem Menschen spricht. Bis 10.08.2026 gab die
+// Begruessung nur die Aufzeichnung preis -- und es fiel niemandem auf, weil es
+// keine Pruefung gab. Diese hier ist die Pruefung.
+const { OFFENLEGUNG, offenlegungFuer, mitOffenlegung, buildGreeting } =
   require('../admin-panel/netlify/functions/_lib/prompt-builder-v2.js');
 
 const SPRACHEN = ['de', 'en', 'fr', 'it'];
@@ -832,11 +831,14 @@ const TYPEN = ['company', 'consultant', 'private'];
 
 // Geprueft wird die Bedeutung ueber Markierungen, nicht der ganze Satz --
 // sonst vergleicht der Test nur seine eigene Kopie des Textes mit sich selbst.
+//
+// Die Einwilligung durch Fortfuehren wird bewusst NICHT gesprochen und
+// deshalb hier auch nicht geprueft; sie ist in Abschnitt 11 anzupassen.
 const BESTANDTEILE = {
-  de: { ki:/KI-Assistentin, kein Mensch/i, verarbeitung:/automatisch verarbeitet und aufgezeichnet/i, einwilligung:/mit dem Fortführen erklären Sie sich damit einverstanden/i, mensch:/an einen Menschen weitergeleitet/i },
-  en: { ki:/AI assistant, not a human/i, verarbeitung:/processed and recorded automatically/i, einwilligung:/by continuing, you consent/i, mensch:/transferred to a person/i },
-  fr: { ki:/assistante IA, pas une personne/i, verarbeitung:/traité et enregistré automatiquement/i, einwilligung:/en poursuivant, vous y consentez/i, mensch:/transféré à une personne/i },
-  it: { ki:/assistente IA, non una persona/i, verarbeitung:/elaborata e registrata automaticamente/i, einwilligung:/proseguendo, lei acconsente/i, mensch:/trasferito a una persona/i }
+  de: { rolle:/digitale[nr]? Assistentin/i, aufzeichnung:/Gespräch wird aufgezeichnet/i, mensch:/lieber mit einem Menschen sprechen/i },
+  en: { rolle:/digital assistant/i, aufzeichnung:/call is recorded/i, mensch:/prefer to speak with a person/i },
+  fr: { rolle:/assistante numérique/i, aufzeichnung:/appel est enregistré/i, mensch:/préférez parler à une personne/i },
+  it: { rolle:/assistente digitale/i, aufzeichnung:/chiamata viene registrata/i, mensch:/preferisce parlare con una persona/i }
 };
 
 for (const sprache of SPRACHEN) {
@@ -852,8 +854,8 @@ for (const sprache of SPRACHEN) {
 // Offenlegung durchfallen, sondern muessen auf Deutsch zurueckfallen.
 for (const sprache of ['de_en', 'de_en_fr', '', 'xx']) {
   check(`language "${sprache}" falls back to a disclosure`, () => {
-    assert.equal(offenlegungFuer(sprache), KI_OFFENLEGUNG.de);
-    assert.match(buildGreeting('Lara', 'company', '', 'Muster AG', sprache), BESTANDTEILE.de.ki);
+    assert.equal(offenlegungFuer(sprache), OFFENLEGUNG.de);
+    assert.match(buildGreeting('Lara', 'company', '', 'Muster AG', sprache), BESTANDTEILE.de.rolle);
   });
 }
 
@@ -873,7 +875,7 @@ check('disclosure precedes a custom greeting, never trails its closing question'
   const eigen = 'Hoi, da isch d Muster AG. Was chani für Sie tue?';
   const ergebnis = mitOffenlegung(eigen, 'de');
   assert.ok(
-    ergebnis.indexOf('KI-Assistentin') < ergebnis.indexOf('Was chani für Sie tue?'),
+    ergebnis.indexOf('digitalen Assistentin') < ergebnis.indexOf('Was chani für Sie tue?'),
     'die Offenlegung muss vor der Schlussfrage kommen'
   );
 });
@@ -881,7 +883,7 @@ check('disclosure precedes a custom greeting, never trails its closing question'
 // Bei der erzeugten Begruessung dieselbe Anforderung, andere Mechanik.
 check('generated greeting puts the disclosure before its closing question', () => {
   const satz = buildGreeting('Lara', 'company', '', 'Muster AG', 'de');
-  assert.ok(satz.indexOf('KI-Assistentin') < satz.indexOf('Wie kann ich Ihnen helfen?'));
+  assert.ok(satz.indexOf('digitale Assistentin') < satz.indexOf('Wie kann ich Ihnen helfen?'));
 });
 
 check('disclosure is not duplicated when already present', () => {
@@ -908,7 +910,7 @@ check('compiled firstMessage carries the disclosure despite a custom greeting', 
     industryPrompt: '## BRANCHE\nTest.'
   });
   assert.ok(mitEigener.firstMessage.endsWith('Grüezi, Muster AG.'), 'die eigene Begruessung bleibt wortgleich erhalten');
-  assert.ok(mitEigener.firstMessage.startsWith('Ich bin eine KI-Assistentin'), 'die Offenlegung kommt zuerst');
+  assert.ok(mitEigener.firstMessage.startsWith('Sie sprechen mit einer digitalen Assistentin'), 'die Offenlegung kommt zuerst');
   for (const muster of Object.values(BESTANDTEILE.de)) assert.match(mitEigener.firstMessage, muster);
 });
 

@@ -324,31 +324,65 @@ function stripMasterMeta(value) {
   return (separator ? source.slice(separator.index + separator[0].length) : source).trim();
 }
 
-// Die KI-Offenlegung am Gespraechsanfang.
+// Die Offenlegung am Gespraechsanfang.
 //
 // Bis 10.08.2026 legte die Begruessung nur die AUFZEICHNUNG offen ("Das
 // Gespraech wird zur Bearbeitung aufgezeichnet") und stellte die Assistentin
 // als "die Assistentin von X" vor -- fuer Anrufende nicht von einem Menschen
 // zu unterscheiden. Abschnitt 11 der veroeffentlichten Datenschutzerklaerung
 // sagt dagegen seit Version 2.0 vom 01.05.2026 zu, dass jeder Anrufer zu
-// Beginn erfaehrt, dass er mit einer KI spricht, dass er durch Fortfuehren
-// einwilligt und dass er eine Weiterleitung an einen Menschen verlangen kann.
-// Zugesagt und ausgeliefert lagen also auseinander.
+// Beginn erfaehrt, dass er nicht mit einem Menschen spricht. Zugesagt und
+// ausgeliefert lagen auseinander.
 //
-// Vier Bestandteile, alle vier aus der Zusage abgeleitet und keiner optional:
-//   1. es ist eine KI, kein Mensch          (Art. 50 EU AI Act)
-//   2. automatische Verarbeitung inkl. Aufzeichnung
-//   3. Einwilligung durch Fortfuehren
-//   4. Ausweg: aufhoeren oder an einen Menschen weiterleiten lassen
+// Drei Bestandteile, in die Begruessung eingewoben statt als Warnhinweis
+// davorgesetzt:
+//   1. es ist ein digitaler Assistent, kein Mensch   (Art. 50 EU AI Act)
+//   2. das Gespraech wird aufgezeichnet
+//   3. Ausweg: auf Wunsch an einen Menschen
 //
-// Der Text ist bewusst laenger als die alte Ansage. Kuerzen hiesse, einen der
-// vier Bestandteile zu streichen -- und genau dieses Streichen hat die Luecke
-// erzeugt, die hier geschlossen wird.
-const KI_OFFENLEGUNG = {
-  de: 'Ich bin eine KI-Assistentin, kein Mensch. Dieses Gespräch wird zu Servicezwecken automatisch verarbeitet und aufgezeichnet; mit dem Fortführen erklären Sie sich damit einverstanden. Wenn Sie das nicht möchten, beenden Sie das Gespräch bitte oder sagen Sie mir, dass Sie an einen Menschen weitergeleitet werden möchten.',
-  en: 'I am an AI assistant, not a human. This call is processed and recorded automatically for service purposes; by continuing, you consent to this. If you would rather not, please end the call or tell me that you would like to be transferred to a person.',
-  fr: "Je suis une assistante IA, pas une personne. Cet appel est traité et enregistré automatiquement à des fins de service; en poursuivant, vous y consentez. Si vous ne le souhaitez pas, veuillez mettre fin à l'appel ou me dire que vous souhaitez être transféré à une personne.",
-  it: "Sono un'assistente IA, non una persona. Questa chiamata viene elaborata e registrata automaticamente per finalità di servizio; proseguendo, lei acconsente. Se non lo desidera, la preghiamo di terminare la chiamata o di dirmi che desidera essere trasferito a una persona."
+// Art. 50 verlangt klar erkennbar, nicht ausfuehrlich. Bestandteil 1 und 2
+// stehen deshalb in EINEM Satz mit der Vorstellung -- wer zuhoert, erfaehrt
+// beides, ohne dass es nach vorgelesenem Kleingedruckten klingt.
+//
+// Zur Wortwahl: "digitale Assistentin" statt "KI". Das ist eine bewusste
+// Entscheidung des Betreibers zugunsten der Natuerlichkeit und steht unter
+// juristischem Vorbehalt -- "digital" ist schwaecher als "KI", weil es auch
+// ein Sprachmenue meinen koennte. Wird die Formulierung geprueft und fuer zu
+// schwach befunden, ist `rolle` die einzige Stelle, die sich aendert.
+//
+// NICHT enthalten ist die Einwilligung durch Fortfuehren, die Abschnitt 11
+// ebenfalls nennt. Solange sie nicht gesprochen wird, muss Abschnitt 11
+// entsprechend angepasst werden -- sonst sagt die Datenschutzerklaerung
+// weiterhin etwas zu, das im Gespraech nicht vorkommt.
+const OFFENLEGUNG = {
+  de: {
+    rolle: 'die digitale Assistentin',
+    aufzeichnung: 'das Gespräch wird aufgezeichnet',
+    mensch: 'Wenn Sie lieber mit einem Menschen sprechen, sagen Sie es mir jederzeit.',
+    frage: 'Wie kann ich Ihnen helfen?',
+    eigenstaendig: 'Sie sprechen mit einer digitalen Assistentin, das Gespräch wird aufgezeichnet. Wenn Sie lieber mit einem Menschen sprechen, sagen Sie es mir jederzeit.'
+  },
+  en: {
+    rolle: 'the digital assistant',
+    aufzeichnung: 'this call is recorded',
+    mensch: 'If you would prefer to speak with a person, just tell me.',
+    frage: 'How may I help you?',
+    eigenstaendig: 'You are speaking with a digital assistant, and this call is recorded. If you would prefer to speak with a person, just tell me.'
+  },
+  fr: {
+    rolle: "l'assistante numérique",
+    aufzeichnung: 'cet appel est enregistré',
+    mensch: 'Si vous préférez parler à une personne, dites-le-moi.',
+    frage: 'Comment puis-je vous aider?',
+    eigenstaendig: "Vous parlez avec une assistante numérique et cet appel est enregistré. Si vous préférez parler à une personne, dites-le-moi."
+  },
+  it: {
+    rolle: "l'assistente digitale",
+    aufzeichnung: 'questa chiamata viene registrata',
+    mensch: 'Se preferisce parlare con una persona, me lo dica.',
+    frage: 'Come posso aiutarla?',
+    eigenstaendig: "Sta parlando con un'assistente digitale e questa chiamata viene registrata. Se preferisce parlare con una persona, me lo dica."
+  }
 };
 
 // `ai_language` kennt auch Mischwerte wie de_en oder de_en_fr. Fuer die
@@ -356,7 +390,7 @@ const KI_OFFENLEGUNG = {
 // eigene Fassung hat, laeuft auf Deutsch. Ein fehlender Schluessel darf hier
 // nie zu einer leeren Offenlegung fuehren.
 function offenlegungFuer(language) {
-  return KI_OFFENLEGUNG[language] || KI_OFFENLEGUNG.de;
+  return OFFENLEGUNG[language] || OFFENLEGUNG.de;
 }
 
 // Setzt die Offenlegung an eine Begruessung, die von aussen kommt.
@@ -367,56 +401,53 @@ function offenlegungFuer(language) {
 // Sie ersetzt jetzt nur noch den Begruessungsteil; die Offenlegung kommt in
 // jedem Fall dazu.
 //
-// Erkannt wird ausschliesslich der WOERTLICHE Offenlegungstext, keine freie
-// Umschreibung. Das ist Absicht: eine Heuristik, die "irgendwie nach KI
-// klingt" akzeptiert, wuerde genau den Fall durchlassen, den dieser Code
-// verhindern soll. Der Exakt-Vergleich deckt den realistischen Fall ab, dass
-// jemand eine bereits zusammengesetzte Begruessung zurueck ins Feld kopiert.
+// Hier laesst sie sich nicht einweben -- der fremde Satz ist unbekannt --,
+// deshalb die eigenstaendige Fassung. Sie steht VORNE, nicht hinten: der
+// Agent laeuft mit `disable_first_message_interruptions: false`
+// (AGENT_TEMPLATE in elevenlabs-provision-agent.js), Anrufende koennen die
+// Begruessung also unterbrechen. Kundeneigene Begruessungen enden fast immer
+// auf eine Frage; wer darauf antwortet, spricht alles Nachfolgende zu. Eine
+// Offenlegung hinter der Frage waere im String vorhanden und im Gespraech nie
+// angekommen -- der Fehler haette wie behoben ausgesehen.
 //
-// Die Offenlegung steht VORNE, nicht hinten. Der Agent laeuft mit
-// `disable_first_message_interruptions: false` (AGENT_TEMPLATE in
-// elevenlabs-provision-agent.js) -- Anrufende koennen die Begruessung also
-// jederzeit unterbrechen. Kundeneigene Begruessungen enden fast immer auf
-// eine Frage ("Was kann ich fuer Sie tun?"); wer darauf antwortet, spricht
-// alles Nachfolgende zu. Eine Offenlegung hinter der Frage waere im String
-// vorhanden und im Gespraech trotzdem nie angekommen -- der Fehler haette
-// wie behoben ausgesehen.
-//
-// Bei der erzeugten Begruessung stellt sich die Frage nicht: dort steht die
-// Offenlegung ohnehin vor der Schlussfrage.
+// Erkannt wird zur Vermeidung von Doppelungen nur der WOERTLICHE Text, keine
+// freie Umschreibung. Eine Heuristik, die "klingt irgendwie nach Assistent"
+// akzeptiert, wuerde genau den Fall durchlassen, den dieser Code verhindern
+// soll. Der Exakt-Vergleich deckt den realistischen Fall ab, dass jemand eine
+// bereits zusammengesetzte Begruessung zurueck ins Feld kopiert.
 function mitOffenlegung(greeting, language) {
   const basis = text(greeting);
   if (!basis) return '';
-  const offenlegung = offenlegungFuer(language);
-  if (basis.includes(offenlegung)) return basis;
-  return `${offenlegung} ${basis}`.replace(/\s+/g, ' ').trim();
+  const { eigenstaendig } = offenlegungFuer(language);
+  if (basis.includes(eigenstaendig)) return basis;
+  return `${eigenstaendig} ${basis}`.replace(/\s+/g, ' ').trim();
 }
 
 function buildGreeting(name, type, personName, firmName, language) {
   const spokenName = type === 'company' ? firmName : (personName || firmName);
-  const offenlegung = offenlegungFuer(language);
+  const { rolle, aufzeichnung, mensch, frage } = offenlegungFuer(language);
+  // Vorstellung, Rolle und Aufzeichnung in einem Satz; danach der Ausweg,
+  // dann die Frage. Die Offenlegung steht damit vor der Schlussfrage --
+  // sonst spricht sie zu, wer auf die Frage antwortet.
+  const schluss = `${mensch} ${frage}`;
   if (language === 'fr') {
-    const frage = 'Comment puis-je vous aider?';
-    if (type === 'company') return `Bonjour, ici ${name} de ${spokenName}. ${offenlegung} ${frage}`;
-    if (type === 'consultant') return `Bonjour, ici ${name}, l'assistante de ${spokenName} chez ${firmName}. ${offenlegung} ${frage}`;
-    return `Bonjour, ici ${name}, l'assistante de ${spokenName}. ${offenlegung} ${frage}`;
+    if (type === 'company') return `Bonjour, ici ${name}, ${rolle} de ${spokenName}, ${aufzeichnung}. ${schluss}`;
+    if (type === 'consultant') return `Bonjour, ici ${name}, ${rolle} de ${spokenName} chez ${firmName}, ${aufzeichnung}. ${schluss}`;
+    return `Bonjour, ici ${name}, ${rolle} de ${spokenName}, ${aufzeichnung}. ${schluss}`;
   }
   if (language === 'it') {
-    const frage = 'Come posso aiutarla?';
-    if (type === 'company') return `Buongiorno, sono ${name} di ${spokenName}. ${offenlegung} ${frage}`;
-    if (type === 'consultant') return `Buongiorno, sono ${name}, l'assistente di ${spokenName} presso ${firmName}. ${offenlegung} ${frage}`;
-    return `Buongiorno, sono ${name}, l'assistente di ${spokenName}. ${offenlegung} ${frage}`;
+    if (type === 'company') return `Buongiorno, sono ${name}, ${rolle} di ${spokenName}, ${aufzeichnung}. ${schluss}`;
+    if (type === 'consultant') return `Buongiorno, sono ${name}, ${rolle} di ${spokenName} presso ${firmName}, ${aufzeichnung}. ${schluss}`;
+    return `Buongiorno, sono ${name}, ${rolle} di ${spokenName}, ${aufzeichnung}. ${schluss}`;
   }
   if (language === 'en') {
-    const frage = 'How may I help you?';
-    if (type === 'company') return `Hello, this is ${name} from ${spokenName}. ${offenlegung} ${frage}`;
-    if (type === 'consultant') return `Hello, this is ${name}, assistant to ${spokenName} at ${firmName}. ${offenlegung} ${frage}`;
-    return `Hello, this is ${name}, assistant to ${spokenName}. ${offenlegung} ${frage}`;
+    if (type === 'company') return `Hello, this is ${name}, ${rolle} of ${spokenName}, and ${aufzeichnung}. ${schluss}`;
+    if (type === 'consultant') return `Hello, this is ${name}, ${rolle} of ${spokenName} at ${firmName}, and ${aufzeichnung}. ${schluss}`;
+    return `Hello, this is ${name}, ${rolle} of ${spokenName}, and ${aufzeichnung}. ${schluss}`;
   }
-  const frage = 'Wie kann ich Ihnen helfen?';
-  if (type === 'company') return `Grüezi, hier ist ${name} von ${spokenName}. ${offenlegung} ${frage}`;
-  if (type === 'consultant') return `Grüezi, hier ist ${name}, die Assistentin von ${spokenName} bei ${firmName}. ${offenlegung} ${frage}`;
-  return `Grüezi, hier ist ${name}, die Assistentin von ${spokenName}. ${offenlegung} ${frage}`;
+  if (type === 'company') return `Grüezi, hier spricht ${name}, ${rolle} von ${spokenName}, ${aufzeichnung}. ${schluss}`;
+  if (type === 'consultant') return `Grüezi, hier spricht ${name}, ${rolle} von ${spokenName} bei ${firmName}, ${aufzeichnung}. ${schluss}`;
+  return `Grüezi, hier spricht ${name}, ${rolle} von ${spokenName}, ${aufzeichnung}. ${schluss}`;
 }
 
 function formatOperationalUpdates(updates) {
@@ -955,7 +986,7 @@ module.exports = {
   parsePromptProfile,
   buildPromptV2,
   buildGreeting,
-  KI_OFFENLEGUNG,
+  OFFENLEGUNG,
   offenlegungFuer,
   mitOffenlegung,
   qualityReport,
