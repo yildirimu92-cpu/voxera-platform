@@ -52,7 +52,7 @@ const RATSCHEN = [
   {
     name: 'Laufzeit-Patches, die nachgeladen werden',
     ist: geladenePatches.length,
-    max: 24,
+    max: 21,
     ziel: 0,
     hinweis: 'Regel R1: eine Quelle pro Bildschirm.'
   },
@@ -74,28 +74,28 @@ const RATSCHEN = [
   {
     name: 'Zur Laufzeit per JavaScript eingefuegte Stylesheets',
     ist: patchDateien.filter((name) => /createElement\(['"]style['"]\)/.test(lies(`shared/${name}`))).length,
-    max: 15,
+    max: 10,
     ziel: 0,
     hinweis: 'Regel R3: CSS gehoert in eine Datei. → Welle 2 laeuft.'
   },
   {
     name: 'Dauer-Timer (setInterval) in geladenen Patches',
     ist: zaehle(patchQuelltext, /setInterval\s*\(/g),
-    max: 5,
+    max: 3,
     ziel: 0,
     hinweis: 'Regel R6: wer auf Aenderungen reagieren muss, wird gerufen.'
   },
   {
     name: 'MutationObserver in geladenen Patches',
     ist: zaehle(patchQuelltext, /new MutationObserver/g),
-    max: 11,
+    max: 9,
     ziel: 0,
     hinweis: 'Regel R6.'
   },
   {
     name: '!important in index.html und allen Laufzeit-Dateien',
     ist: zaehle(indexHtml, /!important/g) + zaehle(allePatchQuelltexte, /!important/g),
-    max: 718,
+    max: 356,
     ziel: 50,
     hinweis: 'Regel R3. → Welle 2 loest den grossen Teil davon auf.'
   }
@@ -133,7 +133,9 @@ const ZUSICHERUNGEN = [
     name: 'Die Farbwerte stehen in der Token-Datei, nicht in JavaScript',
     erfuellt: existsSync(join(ADMIN, 'shared/admin-design-tokens.css'))
       && indexHtml.includes('/shared/admin-design-tokens.css')
-      && indexHtml.includes('/shared/admin-components.css'),
+      && indexHtml.includes('/shared/admin-components.css')
+      && indexHtml.includes('/shared/admin-layout.css')
+      && indexHtml.includes('/shared/admin-responsive.css'),
     hinweis: 'Beide Dateien muessen NACH den <style>-Bloecken eingebunden sein, sonst braucht es wieder !important.'
   },
   {

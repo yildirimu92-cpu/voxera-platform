@@ -20,6 +20,12 @@ on:
       - 'admin-panel/netlify/functions/admin-mutate.js'
       - 'supabase/migrations/2026-08-10_standalone_credit_notes.sql'
       - 'supabase/migrations/2026-08-10_calls_admin_review.sql'
+      - 'supabase/migrations/2026-08-10_invoice_items_credit_note_sign.sql'
+      - 'admin-panel/netlify/functions/_lib/invoice-service.js'
+      - 'admin-panel/netlify/functions/customer-billing-update.js'
+      - 'admin-panel/netlify/functions/daily-billing-runner.js'
+      - 'admin-panel/netlify/functions/admin-overage-invoice.js'
+      - 'scripts/verify-invoice-tax-convention.mjs'
       - 'scripts/verify-admin-portal-structure.mjs'
       - 'scripts/verify-admin-entry-points.mjs'
       - '.github/workflows/verify-admin-portal-structure.yml'
@@ -37,6 +43,9 @@ jobs:
       # Die drei nachgeruesteten Einstiegspunkte: der Knopf muss da sein UND
       # auf eine Gegenstelle zeigen, die es wirklich gibt.
       - run: node scripts/verify-admin-entry-points.mjs
+      # Die 0%-MwSt-Konvention sucht sich ihre Schreibstellen selbst und meldet
+      # jede neue, die ihre Behandlung nicht benennt (Muster: checkLedger).
+      - run: node scripts/verify-invoice-tax-convention.mjs
       - run: node --check admin-panel/netlify/functions/admin-mutate.js
       # Syntaxprüfung der Kernmodule. Sie werden als normale Skript-Tags
       # geladen; ein Syntaxfehler würde das Portal beim Start zerlegen.

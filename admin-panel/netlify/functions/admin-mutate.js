@@ -612,6 +612,18 @@ exports.handler = async (event) => {
 
     // ── calls.setReviewed ───────────────────────────────────────────────────
     // Eigene Spalte, nicht read_at: read_at gehoert dem Kunden-Dashboard.
+    //
+    // Wettlauf zweier Admins: Die Bedingung steht IN der UPDATE-Anweisung
+    // (`reviewed_at is null` beim Markieren, `is not null` beim Zuruecknehmen).
+    // Postgres sperrt die Zeile fuer die Dauer des Updates, also gewinnt genau
+    // einer -- und der andere bekommt keine Zeile zurueck. Ein blosses
+    // "update ... where id = ?" haette beide gewinnen lassen: die zweite
+    // Schreibung haette die erste ueberschrieben, und beide Oberflaechen haetten
+    // "von dir geprueft" behauptet, obwohl nur eine stimmt.
+    //
+    // Der Verlierer bekommt kein Fehlerbild: der Anruf IST geprueft, nur eben
+    // von jemand anderem. Deshalb wird der tatsaechliche Stand nachgelesen und
+    // mit `already: true` zurueckgegeben.
     if (action === 'calls.setReviewed') {
       const denied = requireCapabilityOrFail(caller, 'customer:write');
       if (denied) return denied;
@@ -620,20 +632,35 @@ exports.handler = async (event) => {
       if (!callId) return response(400, { error: 'call_id ist erforderlich.' });
       const reviewed = body.reviewed !== false;   // Vorgabe: markieren
 
-      const patch = reviewed
-        ? { reviewed_at: new Date().toISOString(), reviewed_by: caller.userId }
-        : { reviewed_at: null, reviewed_by: null };
+      let schreibvorgang = sbAdmin.from('calls');
+      if (reviewed) {
+        schreibvorgang = schreibvorgang
+          .update({ reviewed_at: new Date().toISOString(), reviewed_by: caller.userId })
+          .eq('id', callId)
+          .is('reviewed_at', null);
+      } else {
+        schreibvorgang = schreibvorgang
+          .update({ reviewed_at: null, reviewed_by: null })
+          .eq('id', callId)
+          .not('reviewed_at', 'is', null);
+      }
 
-      const { data, error } = await sbAdmin
-        .from('calls')
-        .update(patch)
-        .eq('id', callId)
+      const { data: geschrieben, error } = await schreibvorgang
         .select('id,reviewed_at,reviewed_by')
         .maybeSingle();
-
       if (error) return response(400, { error: error.message });
-      if (!data) return response(404, { error: 'Anruf nicht gefunden.' });
-      return response(200, { ok: true, call: data });
+      if (geschrieben) return response(200, { ok: true, call: geschrieben, already: false });
+
+      // Keine Zeile geschrieben: entweder war der Zustand schon so, oder es gibt
+      // den Anruf nicht. Nur der zweite Fall ist ein Fehler.
+      const { data: stand, error: leseFehler } = await sbAdmin
+        .from('calls')
+        .select('id,reviewed_at,reviewed_by')
+        .eq('id', callId)
+        .maybeSingle();
+      if (leseFehler) return response(400, { error: leseFehler.message });
+      if (!stand) return response(404, { error: 'Anruf nicht gefunden.' });
+      return response(200, { ok: true, call: stand, already: true });
     }
 
     // ── Unbekannte Action ───────────────────────────────────────────────────

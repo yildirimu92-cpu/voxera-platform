@@ -6,27 +6,8 @@
   const isBilling = () => /billing/i.test(String(location.hash || '')) || /billing/i.test(String(location.pathname || ''));
   const isCustomers = () => /customers|kunden/i.test(String(location.hash || '')) || /customers|kunden/i.test(String(location.pathname || ''));
 
-  function injectStyles() {
-    if (document.getElementById('vx-admin-ui-cleanup-style')) return;
-    const style = document.createElement('style');
-    style.id = 'vx-admin-ui-cleanup-style';
-    style.textContent = `
-      .vx-customer-list-title{color:var(--ink,#1A1A2E)!important;background:transparent!important;text-shadow:none!important;font-size:16px!important;font-weight:750!important;letter-spacing:-.02em!important}
-      .vx-subscription-search-toolbar{display:flex;align-items:center;gap:12px;width:100%;padding:14px 16px;margin:0 0 14px;background:#fff;border:1px solid var(--line,#E4E8F0);border-radius:12px}
-      .vx-subscription-search-toolbar:before{content:'Subscription suchen';font-size:12px;font-weight:700;color:var(--slate,#7A8599);white-space:nowrap}
-      .vx-subscription-search-toolbar input{width:min(420px,100%)!important;min-width:240px;margin:0!important}
-      .vx-admin-manual-fallback{margin-top:12px;border:1px solid var(--line,#E4E8F0);border-radius:12px;background:#fff;overflow:hidden}
-      .vx-admin-manual-fallback>summary{cursor:pointer;list-style:none;padding:14px 16px;font-weight:700;color:var(--ink,#1A1A2E);background:#F8FAFC}
-      .vx-admin-manual-fallback>summary::-webkit-details-marker{display:none}
-      .vx-admin-manual-fallback>summary:after{content:'Nur verwenden, wenn die automatische Prüfung nicht möglich ist.';display:block;margin-top:3px;font-size:12px;font-weight:400;color:var(--slate,#7A8599)}
-      .vx-admin-manual-fallback>.vx-admin-manual-content{padding:0}
-      @media(max-width:760px){
-        .vx-subscription-search-toolbar{align-items:stretch;flex-direction:column}
-        .vx-subscription-search-toolbar input{width:100%!important;min-width:0}
-      }
-    `;
-    document.head.appendChild(style);
-  }
+  // Das Aussehen steht seit Welle 2 in shared/admin-components.css.
+
 
   function exactTextNodes(label) {
     return Array.from(document.querySelectorAll('h1,h2,h3,h4,h5,strong,span,div,p,button,a'))
@@ -144,7 +125,6 @@
   }
 
   function tick() {
-    injectStyles();
     fixCustomerListTitle();
     fixAllInvoicesButtons();
     fixSubscriptionSearch();

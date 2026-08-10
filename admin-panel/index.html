@@ -22,6 +22,8 @@
      braucht kein !important. -->
 <link rel="stylesheet" href="/shared/admin-design-tokens.css?v=20260810-1">
 <link rel="stylesheet" href="/shared/admin-components.css?v=20260810-1">
+<link rel="stylesheet" href="/shared/admin-layout.css?v=20260810-1">
+<link rel="stylesheet" href="/shared/admin-responsive.css?v=20260810-1">
 <script src="/shared/core/admin-format.js?v=20260810-1"></script>
 <script src="/shared/core/admin-feedback.js?v=20260810-1"></script>
 <script src="/shared/core/admin-lifecycle.js?v=20260810-1"></script>
@@ -2320,7 +2322,7 @@ body,.main{background:#F7F8FC;}
 
         <div class="customer-section-shell card">
           <div class="section-head">
-            <h3 style="font-size:15px;font-weight:700;letter-spacing:-.02em;color:#fff;">Kundenliste</h3>
+            <h3>Kundenliste</h3>
             <button class="btn btn-primary" id="open-create-customer-btn" onclick="openCreateCustomerModal()">
               <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 1v10M1 6h10"/></svg>
               Kunde anlegen
@@ -14732,9 +14734,21 @@ async function markCallReviewed(callId, reviewed = true){
       call_id: callId,
       reviewed
     });
+    // Der Server gibt den TATSAECHLICHEN Stand zurueck, nicht den erwarteten.
+    // Bei zwei gleichzeitigen Klicks gewinnt genau einer; der andere bekommt
+    // `already` und den echten Pruefer statt einer falschen Erfolgsmeldung.
     call.reviewedAt = antwort?.call?.reviewed_at || null;
-    if(call.raw) call.raw.reviewed_at = call.reviewedAt;
-    showToast(reviewed ? 'Anruf als geprüft markiert.' : 'Prüfung zurückgenommen.', { tone:'success' });
+    if(call.raw){
+      call.raw.reviewed_at = call.reviewedAt;
+      call.raw.reviewed_by = antwort?.call?.reviewed_by || null;
+    }
+    if(antwort?.already){
+      showToast(reviewed
+        ? 'Dieser Anruf war bereits von jemand anderem als geprüft markiert.'
+        : 'Dieser Anruf war bereits ungeprüft.', { tone:'info' });
+    }else{
+      showToast(reviewed ? 'Anruf als geprüft markiert.' : 'Prüfung zurückgenommen.', { tone:'success' });
+    }
   }catch(error){
     call.reviewedAt = vorher;
     voxAlert({ title:'Fehler', message: error?.message || 'Der Anruf konnte nicht als geprüft markiert werden.' });

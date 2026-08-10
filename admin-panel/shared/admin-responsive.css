@@ -1,0 +1,87 @@
+/*
+ * admin-responsive.css — schmale Fenster.
+ *
+ * Welle 2 des Admin-Zielbilds, Teil 2. Löst den CSS-Teil von
+ * `shared/admin-runtime-mobile.js` ab (76 Zeilen, 97 !important).
+ *
+ * Kernstück ist die Umstellung breiter Tabellen auf Karten: unter 768 px
+ * werden Kopfzeile und Zellen so umgebrochen, dass jede Zelle ihre
+ * Beschriftung aus `data-label` mitbringt. Die Attribute selbst setzt bis
+ * Welle 5 weiterhin admin-runtime-mobile.js; danach stehen sie im Markup und
+ * das Skript entfällt ganz.
+ */
+
+@media(max-width:768px){
+  html,body{width:100%;max-width:100%;overflow-x:hidden}
+  body,.app,.main,.content,.section,.card,.table-wrap,.bf-panel,.customer-section-shell{
+    min-width:0;max-width:100%
+  }
+  .main{width:100%}
+  .content{width:100%;padding:14px 12px calc(24px + var(--mobile-bottom-spacing,0px))}
+  .section{width:100%}
+  .card,.bf-panel,.customer-section-shell{overflow:hidden}
+  .grid-2,.grid-3,.grid-4,.kpi-grid,.offer-columns,.offer-editor,
+  .modal-grid-2,.profile-overview-grid,.profile-action-grid,
+  [style*="grid-template-columns:repeat(2"],[style*="grid-template-columns: repeat(2"],
+  [style*="grid-template-columns:1fr 1fr"],[style*="grid-template-columns: 1fr 1fr"]{
+    grid-template-columns:minmax(0,1fr)
+  }
+  .toolbar,.inline-actions,.section-head,.card-head,.bf-panel-head{
+    max-width:100%;min-width:0;flex-wrap:wrap
+  }
+  .toolbar{display:grid;grid-template-columns:minmax(0,1fr);gap:8px;padding:12px}
+  .toolbar>*,.toolbar input,.toolbar select,.toolbar button,
+  .inline-actions>*,.inline-actions input,.inline-actions select{
+    width:100%;max-width:100%;min-width:0
+  }
+  input,select,textarea,.input,.select{max-width:100%;min-width:0}
+  button,.btn{max-width:100%;white-space:normal}
+  .tabs,.segmented,.tab-bar{max-width:100%;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+  .tabs::-webkit-scrollbar,.segmented::-webkit-scrollbar,.tab-bar::-webkit-scrollbar{display:none}
+  .modal-overlay{padding:8px;align-items:flex-end}
+  .modal,.billing-dialog,.vox-support-modal{
+    width:100%;max-width:100%;max-height:calc(100dvh - 16px);
+    border-radius:16px 16px 0 0;overflow-y:auto;overflow-x:hidden
+  }
+  .modal-body,.billing-dialog-body{overflow-x:hidden}
+  img,svg,canvas,video{max-width:100%;height:auto}
+  pre,code{max-width:100%;overflow-wrap:anywhere;white-space:pre-wrap}
+  .table-wrap{width:100%;overflow:visible;border:0;box-shadow:none;background:transparent}
+  table.data-table,table.vox-mobile-table{
+    display:block;width:100%;min-width:0;max-width:100%;
+    border:0;background:transparent
+  }
+  table.vox-mobile-table thead{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+  table.vox-mobile-table tbody{display:block;width:100%}
+  table.vox-mobile-table tbody tr{
+    display:block;width:100%;max-width:100%;
+    margin:0 0 10px;padding:6px 12px;
+    border:1px solid var(--line);border-radius:12px;background:#fff;
+    box-shadow:0 1px 2px rgba(15,23,42,.04)
+  }
+  table.vox-mobile-table tbody td{
+    display:grid;grid-template-columns:minmax(92px,35%) minmax(0,65%);
+    gap:10px;align-items:start;width:100%;max-width:100%;
+    min-width:0;padding:10px 0;border:0;border-bottom:1px solid var(--line2);
+    white-space:normal;overflow-wrap:anywhere;word-break:break-word
+  }
+  table.vox-mobile-table tbody td:last-child{border-bottom:0}
+  table.vox-mobile-table tbody td::before{
+    content:attr(data-mobile-label);font-size:10px;font-weight:700;line-height:1.35;
+    color:var(--slate2);text-transform:uppercase;letter-spacing:.055em
+  }
+  table.vox-mobile-table tbody td[data-mobile-label=""]{display:block}
+  table.vox-mobile-table tbody td[data-mobile-label=""]::before{display:none}
+  table.vox-mobile-table tbody td[colspan]{display:block}
+  table.vox-mobile-table tbody td[colspan]::before{display:none}
+  table.vox-mobile-table tbody td .btn,
+  table.vox-mobile-table tbody td select,
+  table.vox-mobile-table tbody td input{width:100%;max-width:100%}
+  .list-item{align-items:flex-start;flex-direction:column}
+  .list-item>.btn,.list-item>button{width:100%}
+  #cw-header{display:block;padding:16px}
+  #cw-actions{width:100%;margin-top:14px;display:grid;grid-template-columns:1fr}
+  #cw-actions>*{width:100%}
+  #cw-kpis{grid-template-columns:1fr}
+  #offer-detail-shell,#offers-workspace,#section-customers,#section-onboarding,#section-billing-finance,#section-cases,#section-ai-setup{max-width:100%;overflow-x:hidden}
+}
