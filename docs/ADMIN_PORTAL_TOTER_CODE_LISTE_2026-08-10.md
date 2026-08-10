@@ -60,10 +60,10 @@ in Vorlagen-Zeichenketten und nicht aus den 29 Laufzeit-Patches.
 
 | Stufe | Funktion | Zeile | ≈ Z. | Anmerkung |
 |---|---|---|---|---|
-| **B** | `openCreditNoteModal` | 17045 | 15 | **Siehe Abschnitt 4 — das ist ein ganzes Feature.** |
+| **A** | `openCreditNoteModal` | 17045 | 15 | Siehe 4.2 — aeltere Generation ohne Server-Gegenstelle. |
 | **B** | `renderOnboardingDetail` | 6764 | 29 | Schreibt in die versteckten Onboarding-Stubs (Diagnose 3.7). |
-| **B** | `resendInvite` | 16906 | 16 | „Einladung erneut senden" — kein Einstieg. |
-| **B** | `markCallReviewed` | 14788 | 10 | Anruf als geprüft markieren — kein Einstieg. |
+| ~~B~~ | ~~`resendInvite`~~ | 16906 | 16 | **Erledigt** — Einstieg im Kunden-Workspace nachgeruestet, siehe 4.1. |
+| **A** | `markCallReviewed` | 14788 | 10 | Siehe 4.3 — schreibt nichts in die Datenbank. |
 | **A** | `sendBillingPaymentLink` | 13326 | 5 | Zahlungslink-Versand. Gehört zur abgelösten Stripe-/Zahlungslink-Phase — dieselbe, deren Bedienelemente `v3-regression-fix` per CSS versteckt. |
 | **A** | `sendMonthlyBillingPaymentLink` | 13467 | 5 | dito |
 | **A** | `sendYearlyBillingPaymentLink` | 13472 | 5 | dito |
@@ -87,30 +87,82 @@ Weitere Einzelfunde derselben Art, jeweils 3–8 Zeilen: `bfReminderBadge`, `rem
 
 ---
 
-## 4 · Ein vollständiges, aber unerreichbares Feature: Gutschriften
+## 4 · Die drei „nur der Knopf fehlt"-Fälle — nachgeprüft
 
-Der auffälligste Einzelfund. **Alles ist da:**
+**Korrektur vom 10.08., nach der Freigabe zum Nachrüsten.** Vor dem Bauen habe
+ich alle drei bis zum Server durchgeprüft. Nur einer war wirklich fertig. Die
+Einschätzung „vollständig gebaut, es fehlt nur der Einstieg" stimmte für die
+beiden anderen nicht — sie stützte sich auf das Vorhandensein von Markup und
+Absende-Funktion, nicht auf die Gegenstelle.
 
-- Das Modal-Markup `#credit-note-modal` (`index.html:4297–4313`) mit Betrag, Beschreibung,
-  Datum und dem Knopf „Gutschrift erstellen".
-- `closeCreditNoteModal()` und `submitCreditNote()` — beide korrekt aus dem Modal-Markup
-  verdrahtet.
-- `submitCreditNote()` ruft `admin-mutate` mit `action:'invoices.create'` und
-  `invoice_type:'credit_note'` auf, legt den Betrag negativ an und lädt danach neu. Der
-  serverseitige Gegenpart existiert und ist capability-geprüft.
+### 4.1 `resendInvite` — war tatsächlich fertig · **erledigt**
 
-**Was fehlt, ist genau eine Sache: der Knopf, der `openCreditNoteModal(customerId)`
-aufruft.** Es gibt ihn nirgends — nicht in `index.html`, nicht in den 29 Patches.
+`resendInvite()` ruft `send-customer-access` auf: ein existierender, über
+`require-admin` geschützter Endpunkt, der auch vom regulären „Zugang senden"
+benutzt wird. Nichts fehlte ausser dem Aufruf.
 
-Das ist kein Löschkandidat, sondern eine Frage an dich: **Brauchst du Gutschriften?**
+**Nachgerüstet** im Kunden-Workspace, sichtbar nur solange der Zugang gesendet,
+aber noch nicht aktiviert ist (`showInvitationSent`). Im Klick-Test erscheint der
+Knopf beim eingeladenen Kunden und bleibt bei allen anderen Zuständen aus.
 
-- **Ja** → ein Einstieg in Billing oder im Kunden-Workspace, geschätzt unter einer Stunde.
-  Das Feature ist ansonsten fertig.
-- **Nein** → Modal, drei Funktionen und die Markup-Zeilen entfernen (rund 60 Zeilen).
+### 4.2 Gutschriften — **nicht nachrüsten: es gibt sie schon, und zwar besser**
 
-Solange beides nicht entschieden ist, bleibt es unangetastet.
+Das tote `#credit-note-modal` in `index.html` ist eine **ältere Generation** einer
+Funktion, die im Portal längst bedienbar ist.
 
----
+| | tote Generation | lebende Generation |
+|---|---|---|
+| Einstieg | keiner | Knopf „Storno / Gutschrift" im Rechnungsdetail |
+| gebaut von | `index.html` | `admin-runtime-invoice-adjustments.js` |
+| Server-Aufruf | `admin-mutate` / `invoices.create` | `invoice-financial-action` / `create_credit` |
+| Server-Gegenstelle | **existiert nicht** | existiert, capability-geprüft |
+
+`admin-mutate.js` kennt elf Aktionen — `invoices.create` ist keine davon. Der
+Aufruf wäre mit `400 Unsupported action` zurückgekommen. Das Feature war also
+nie funktionsfähig, nicht nur unerreichbar.
+
+Fachlich sind es zwei verschiedene Fälle:
+
+- **Gutschrift auf eine bestehende Rechnung** — das ist die lebende Generation.
+  Sie ist erreichbar, verbucht `credited_amount` und `credit_reason` auf der
+  Rechnung und zeigt eine Historie.
+- **Freistehende Kulanzgutschrift ohne Rechnungsbezug** — das war die Absicht des
+  toten Modals. Dafür bräuchte es eine neue Server-Aktion mit Nummernkreis,
+  Mehrwertsteuer und QR-Rechnung. Das ist eine **neue Funktion**, kein
+  nachgerüsteter Einstieg.
+
+**Empfehlung:** Modal und die drei Funktionen löschen (rund 60 Zeilen).
+Den toten Einstieg zu verdrahten würde ein zweites, schlechteres Gutschriftsystem
+neben dem funktionierenden schaffen — genau das Muster, das dieser Umbau auflöst.
+
+**Frage an dich:** Fehlt dir die freistehende Kulanzgutschrift im Alltag? Wenn ja,
+ist das ein eigener kleiner Auftrag (Server-Aktion plus Einstieg). Wenn nein,
+kommt das Modal in Welle 7 weg.
+
+### 4.3 `markCallReviewed` — **nicht nachrüsten: der Knopf wäre eine Attrappe**
+
+Die Funktion schreibt **nichts in die Datenbank**:
+
+```js
+call.summary = `${call.summary} (reviewed)`;
+call.callback = false;
+state.events.unshift(`${nowStamp()} · … Call reviewed`);
+```
+
+Alle drei Zuweisungen treffen nur den lokalen `state`. Beim nächsten Laden ist
+die Markierung weg — und `call.summary` wäre dann um „(reviewed)" gewachsen,
+ohne dass es je gespeichert wurde. Ein Knopf dafür sähe aus wie eine Funktion und
+wäre keine.
+
+Die Tabelle `calls` hat zwar `read_at`, aber das ist der Gelesen-Zustand des
+**Kunden**-Dashboards. Ein Admin-„geprüft" darauf zu legen würde zwei Bedeutungen
+in eine Spalte mischen.
+
+**Empfehlung:** Funktion löschen. Wenn du „Anruf geprüft" als Admin-Funktion
+willst, braucht sie eine eigene Spalte und einen Schreibpfad — auch das ein
+eigener kleiner Auftrag, keine Nachrüstung.
+
+**Frage an dich:** Brauchst du „Anruf als geprüft markieren" im Admin-Portal?
 
 ## 5 · Attrappen — Fantasiedaten in einem Betriebswerkzeug
 
@@ -175,7 +227,7 @@ Admin-Thema QR-Rechnung. Vor dem Löschen kurz hineinsehen — falls dort etwas 
 | 1 · Frontend-Datei | 162 Z. | A |
 | 2 · Netlify-Functions | 6 Dateien | A |
 | 3 · Unerreichbare Funktionen | ~180 Z. | A/B |
-| 4 · Gutschriften-Feature | ~60 Z. | **B — Entscheidung** |
+| 4 · Gutschriften (aeltere Generation) | ~60 Z. | **A** — siehe 4.2 |
 | 5 · Attrappen | ~25 Z. + 3 Handler | C |
 | 6 · Versteckte Stubs | 5 Blöcke | folgt Abschnitt 3 |
 | 7 · Artefakte | 5 Textdateien | A |
@@ -189,7 +241,7 @@ Admin-Thema QR-Rechnung. Vor dem Löschen kurz hineinsehen — falls dort etwas 
 3. Abschnitt 5 (Attrappen) samt ihrer drei Handler.
 4. Abschnitt 3 (unerreichbare Funktionen).
 5. Abschnitt 6 (Stubs) — **erst danach**, sonst brechen ihre Schreiber.
-6. Abschnitt 4 (Gutschriften) — nur nach deiner Entscheidung.
+6. Abschnitt 4.2 und 4.3 — loeschbar, sobald die beiden Fragen unten beantwortet sind.
 
 ---
 
@@ -197,8 +249,8 @@ Admin-Thema QR-Rechnung. Vor dem Löschen kurz hineinsehen — falls dort etwas 
 
 | # | Frage |
 |---|---|
-| **1** | **Gutschriften** (Abschnitt 4): Einstieg nachrüsten oder Feature entfernen? |
-| **2** | **`resendInvite` und `markCallReviewed`** (Stufe B): auch vollständig gebaut, nur ohne Einstieg. Absicht oder Unfall? |
+| **1** | Fehlt dir die **freistehende Kulanzgutschrift** ohne Rechnungsbezug im Alltag? Die Gutschrift *auf eine Rechnung* gibt es bereits (siehe 4.2). |
+| **2** | Brauchst du **„Anruf als geprüft markieren"** im Admin-Portal? Heute schreibt die Funktion nichts (siehe 4.3). |
 | **3** | Sollen die fünf `swiss-qr-*.txt` vor dem Löschen inhaltlich gesichtet werden, oder gehen sie ungelesen? |
 
 Alles andere in dieser Liste ist ohne Rückfrage löschbar, sobald das Zielbild freigegeben

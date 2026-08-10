@@ -6202,7 +6202,15 @@ function renderCustomerWorkspace(id) {
     } else {
       primaryAction = '<span class="badge badge-green">' + esc(customerAccessTerminalLabel(actionState)) + '</span>';
     }
+    // Einladung erneut senden: resendInvite() war vollstaendig gebaut, aber von
+    // keiner Stelle aus erreichbar (siehe ADMIN_PORTAL_TOTER_CODE_LISTE). Der
+    // Knopf erscheint nur, solange der Zugang gesendet, aber noch nicht
+    // aktiviert ist -- danach waere ein erneutes Senden irrefuehrend.
+    const resendAction = actionState.showInvitationSent
+      ? '<button class="btn btn-quiet btn-sm" type="button" onclick="resendInvite(\'' + jsStr(id) + '\')" title="Zugangs-E-Mail noch einmal an den Kunden schicken" style="background:rgba(255,255,255,.12);color:#fff;border:none;">Einladung erneut senden</button>'
+      : '';
     g('cw-actions').innerHTML = primaryAction
+      + resendAction
       + '<button class="btn btn-quiet btn-sm" type="button" onclick="openCustomerProfile(\'' + jsStr(id) + '\')" style="background:rgba(255,255,255,.12);color:#fff;border:none;">Details</button>'
       + '<button class="btn btn-quiet btn-sm" type="button" onclick="openAiWizard(\'' + jsStr(id) + '\')" style="background:rgba(232,197,71,.15);color:#E8C547;border:none;">AI Wizard</button>';
   }
