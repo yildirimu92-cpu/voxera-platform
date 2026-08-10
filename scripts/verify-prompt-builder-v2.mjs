@@ -919,6 +919,60 @@ check('compiled firstMessage carries the disclosure despite a custom greeting', 
   for (const muster of Object.values(BESTANDTEILE.de)) assert.match(mitEigener.firstMessage, muster);
 });
 
+// --- Weiterleitung: nicht versprechen, was es nicht gibt -------------------
+//
+// Der Wizard-Schritt "Weiterleitungen" traegt im Admin-Panel das Abzeichen
+// "Demnaechst", und dem Agenten wird als einziges Werkzeug der Kalender
+// bereitgestellt. Bis 10.08.2026 schrieb der Prompt-Builder die gespeicherten
+// Ziele trotzdem als nutzbare Funktion in den Prompt.
+const { WEITERLEITUNG_FREIGESCHALTET, unknownText } =
+  require('../admin-panel/netlify/functions/_lib/prompt-builder-v2.js');
+
+const mitZielen = {
+  ...customer,
+  ai_forwarding_1_name: 'Notfalldienst',
+  ai_forwarding_1_number: '+41 41 000 00 00',
+  ai_forwarding_1_trigger: 'akuter Notfall',
+  ai_forwarding_2_name: 'Buchhaltung',
+  ai_forwarding_2_number: '+41 41 000 00 01'
+};
+
+check('forwarding targets stay out of the prompt while the feature is not released', () => {
+  assert.equal(WEITERLEITUNG_FREIGESCHALTET, false, 'Schalter passt nicht zum Admin-Panel');
+  const gebaut = buildPromptV2({ customer: mitZielen, masterPrompt: '{{CUSTOMER_LAYER}}' });
+  assert.ok(!gebaut.prompt.includes('WEITERLEITUNGEN'), 'Abschnitt WEITERLEITUNGEN steht im Prompt');
+  assert.ok(!gebaut.prompt.includes('Weiterleitungsfunktion'), 'Anweisung zur Weiterleitungsfunktion steht im Prompt');
+  assert.ok(!gebaut.prompt.includes('+41 41 000 00 00'), 'Zielnummer steht im Prompt');
+  assert.ok(!gebaut.prompt.includes('Notfalldienst'), 'Zielname steht im Prompt');
+});
+
+// Die Daten sollen gespeichert bleiben -- nur nicht in den Prompt. Der Test
+// haelt fest, dass hier nichts geloescht wird.
+check('forwarding data itself is untouched', () => {
+  assert.equal(mitZielen.ai_forwarding_1_number, '+41 41 000 00 00');
+  assert.equal(mitZielen.ai_forwarding_2_name, 'Buchhaltung');
+});
+
+check('unknown handling "human" falls back to the callback path', () => {
+  assert.equal(unknownText('human'), unknownText('callback'));
+  const notes = customer.ai_internal_notes.replace('"unknownHandling":"callback"', '"unknownHandling":"human"');
+  const gebaut = buildPromptV2({ customer: { ...customer, ai_internal_notes: notes }, masterPrompt: '{{CUSTOMER_LAYER}}' });
+  assert.match(gebaut.prompt, /Rückrufanfrage mit Name, Telefonnummer, Anliegen/);
+  assert.ok(!gebaut.prompt.includes('Leite an eine zuständige Person weiter'), 'Weiterleitungs-Anweisung steht im Prompt');
+});
+
+// Die Auswahl des Kunden bleibt erhalten -- geaendert ist der Prompttext,
+// nicht das Profil.
+check('the customer selection "human" is still reported by the profile', () => {
+  const notes = customer.ai_internal_notes.replace('"unknownHandling":"callback"', '"unknownHandling":"human"');
+  assert.equal(parsePromptProfile(notes).unknownHandling, 'human');
+});
+
+check('the other unknown-handling texts are unchanged', () => {
+  assert.match(unknownText('transparent'), /Sage offen/);
+  assert.match(unknownText('callback'), /Rückrufanfrage/);
+});
+
 if (failed) {
   console.error(`Prompt Builder V2 verification failed: ${failed}`);
   process.exit(1);

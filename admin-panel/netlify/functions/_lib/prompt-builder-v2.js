@@ -38,7 +38,7 @@
 //
 // Wirkt bei jedem Kunden, dessen Freitext Regelzeilen traegt -- also bei allen
 // mit Vorlagentext. Der Bump ist damit nicht nur formal noetig.
-const PROMPT_BUILDER_VERSION = '2.8';
+const PROMPT_BUILDER_VERSION = '2.9';
 const PROFILE_MARKER = 'PROMPT_V2';
 const WIZARD_MARKER = 'WIZARD';
 
@@ -260,11 +260,47 @@ const APPOINTMENT_TEXT = Object.freeze({
   direct: 'Du darfst einen Termin nur dann verbindlich bestätigen, wenn das angebundene Kalenderwerkzeug die Buchung erfolgreich bestätigt hat. Erfinde niemals freie Zeiten und behaupte nie eine Buchung ohne Werkzeugbestätigung.'
 });
 
+// Ist die Weiterleitungs-Funktion im Produkt freigeschaltet?
+//
+// Nein. Der Wizard-Schritt "Weiterleitungen" im Admin-Panel traegt das
+// Abzeichen "Demnaechst" und den Hinweis "Diese Daten werden gespeichert und
+// aktiviert sobald die Weiterleitungs-Funktion freigeschaltet wird"; die
+// Felder sind ausgegraut. Technisch deckt sich das: dem Agenten wird als
+// einziges Werkzeug das Kalender-Tool bereitgestellt (elevenlabs-sync.js,
+// tool_ids), und weder transfer_to_number noch eine vergleichbare Faehigkeit
+// existiert irgendwo im Repo.
+//
+// Der Prompt-Builder hat das bis zum 10.08.2026 ignoriert und die
+// gespeicherten Ziele als nutzbare Funktion in den Prompt geschrieben. Die
+// Oberflaeche sagte "noch nicht aktiv", der Prompt sagte "benutze es". Im
+// besten Fall liest der Agent eine Nummer vor, im schlechtesten kuendigt er
+// eine Weiterleitung an, die nicht stattfindet.
+//
+// Diese Konstante ist der eine Schalter dafuer. Wird die Funktion
+// freigeschaltet, gehoert hier `true` hin -- und zwar zusammen mit dem
+// Entfernen des "Demnaechst"-Abzeichens und der Bereitstellung eines
+// Transfer-Werkzeugs, nicht vorher. Die gespeicherten Zieldaten bleiben in
+// beiden Faellen unangetastet; es geht allein darum, was in den Prompt geht.
+const WEITERLEITUNG_FREIGESCHALTET = false;
+
 const UNKNOWN_TEXT = Object.freeze({
   transparent: 'Sage offen, dass dir die Information nicht vorliegt. Erfinde nichts und biete eine Rückmeldung durch das Unternehmen an.',
   callback: 'Nimm eine Rückrufanfrage mit Name, Telefonnummer, Anliegen und gewünschtem Zeitpunkt auf. Erfinde keine Antwort.',
   human: 'Leite an eine zuständige Person weiter, wenn eine konfigurierte Weiterleitung verfügbar ist. Andernfalls nimm eine vollständige Rückrufanfrage auf.'
 });
+
+// `human` verspricht eine Weiterleitung unter Vorbehalt ("wenn verfuegbar").
+// Solange die Funktion nicht freigeschaltet ist, ist der Vorbehalt nie
+// erfuellbar -- der Agent bekaeme eine Anweisung, deren Bedingung er nicht
+// pruefen kann. Er faellt deshalb auf den Rueckruf-Pfad zurueck, der ohnehin
+// die zweite Haelfte derselben Anweisung ist.
+//
+// Die gespeicherte Auswahl des Kunden bleibt davon unberuehrt: `profile`
+// meldet weiter `human`, nur der Prompttext ist ein anderer.
+function unknownText(handling) {
+  if (handling === 'human' && !WEITERLEITUNG_FREIGESCHALTET) return UNKNOWN_TEXT.callback;
+  return UNKNOWN_TEXT[handling];
+}
 
 function text(value) {
   return String(value ?? '').replace(/\\n/g, '\n').trim();
@@ -692,7 +728,7 @@ function buildPromptProfileSections(profile, appointmentMode, bookingUrl, templa
       : '';
     parts.push(`## TERMINBEFUGNIS\n${APPOINTMENT_TEXT[appointmentMode]}${booking}`);
   }
-  if (profile.unknownHandling) parts.push(`## VERHALTEN BEI UNSICHERHEIT\n${UNKNOWN_TEXT[profile.unknownHandling]}`);
+  if (profile.unknownHandling) parts.push(`## VERHALTEN BEI UNSICHERHEIT\n${unknownText(profile.unknownHandling)}`);
   return parts;
 }
 
@@ -950,9 +986,15 @@ function buildPromptV2({ customer = {}, masterPrompt = '', industryPrompt = '', 
   add('ESKALATION & FALLBACK', customer.ai_fallback_escalation);
   add('ANTWORTGRENZEN', customer.ai_response_constraints);
 
+  // Weiterleitungsziele nur dann in den Prompt, wenn es die Funktion gibt --
+  // siehe WEITERLEITUNG_FREIGESCHALTET. Die Felder werden im Wizard weiterhin
+  // erfasst und gespeichert; sie erreichen den Agenten nur nicht, solange er
+  // nichts damit anfangen kann.
   const forwarding = [];
-  if (text(customer.ai_forwarding_1_name) && text(customer.ai_forwarding_1_number)) forwarding.push(`- ${text(customer.ai_forwarding_1_name)}: ${text(customer.ai_forwarding_1_number)}${text(customer.ai_forwarding_1_trigger) ? ` (bei: ${text(customer.ai_forwarding_1_trigger)})` : ''}`);
-  if (text(customer.ai_forwarding_2_name) && text(customer.ai_forwarding_2_number)) forwarding.push(`- ${text(customer.ai_forwarding_2_name)}: ${text(customer.ai_forwarding_2_number)}${text(customer.ai_forwarding_2_trigger) ? ` (bei: ${text(customer.ai_forwarding_2_trigger)})` : ''}`);
+  if (WEITERLEITUNG_FREIGESCHALTET) {
+    if (text(customer.ai_forwarding_1_name) && text(customer.ai_forwarding_1_number)) forwarding.push(`- ${text(customer.ai_forwarding_1_name)}: ${text(customer.ai_forwarding_1_number)}${text(customer.ai_forwarding_1_trigger) ? ` (bei: ${text(customer.ai_forwarding_1_trigger)})` : ''}`);
+    if (text(customer.ai_forwarding_2_name) && text(customer.ai_forwarding_2_number)) forwarding.push(`- ${text(customer.ai_forwarding_2_name)}: ${text(customer.ai_forwarding_2_number)}${text(customer.ai_forwarding_2_trigger) ? ` (bei: ${text(customer.ai_forwarding_2_trigger)})` : ''}`);
+  }
   if (forwarding.length) customerParts.push(`## WEITERLEITUNGEN\nNutze nur die tatsächlich konfigurierte Weiterleitungsfunktion:\n${forwarding.join('\n')}`);
   if (text(customer.ai_emergency_number)) customerParts.push(`## NOTFALLNUMMER\nBei akuter Notlage gilt die hinterlegte Nummer ${text(customer.ai_emergency_number)}. Stelle keine medizinische Diagnose.`);
   if (!isCompany) customerParts.push('## ICH-FORM\nDu sprichst im Namen einer Einzelperson. Verwende ich statt wir, wenn du Aussagen des vertretenen Unternehmens oder der Person formulierst.');
@@ -996,6 +1038,8 @@ module.exports = {
   OFFENLEGUNG,
   offenlegungFuer,
   mitOffenlegung,
+  WEITERLEITUNG_FREIGESCHALTET,
+  unknownText,
   qualityReport,
   formatOperationalUpdates,
   neutralizePlaceholders
