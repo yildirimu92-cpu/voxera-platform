@@ -124,6 +124,104 @@ Danach: `position('Rufweiterleitung' in …) = 0` in `ai_services`,
 `ai_booking_faq`, `ai_instructions`, `ai_business_description`,
 `ai_location_hours`, `ai_fallback_escalation`, `ai_response_constraints`.
 
+### 4b. `## FILLER-VARIANZ` entfernt und die Klammer-Konvention aufgelöst
+
+Nachtrag desselben Tages, ausgelöst durch einen Testanruf.
+
+**Der Beleg.** Nach dem Abschalten der drei Audio-Tags (*Geduldig*,
+*Einfühlsam*, *Herzlich*) in der Stimmkonfiguration klammerte der Agent weiter:
+
+```
+[Verstanden] Gerne, wir können…
+[Einen Moment] Ich verstehe…
+[Gut] Merci…
+[Habe ich] Umut Sivderin, ist notiert
+[Sind] Sind Sie noch da?
+```
+
+Die geklammerten Wörter sind die fünf Filler aus `## FILLER-VARIANZ`, nicht die
+Namen der Audio-Tags. Und `[Sind] Sind Sie noch da?` klammert das erste Wort des
+eigenen Satzes und wiederholt es — Formimitation der eckigen Klammern aus L1,
+keine Regieanweisung. Die Tags haben verstärkt, nicht ausgelöst.
+
+**Was geändert wurde:**
+
+- `## FILLER-VARIANZ` (223 Zeichen) ersatzlos entfernt. Die Regel erzeugte, was
+  sie verhindern sollte: sie forderte Pausenphrasen ein, also benutzte das
+  Modell sie ständig. Ersatz ist ein Satz in `## PERSÖNLICHKEIT UND SPRACHE`:
+  *„Wiederhole nicht zweimal hintereinander dieselbe Bestätigungsformel."* Keine
+  Liste, keine Beispiele.
+- Die fünf Klammer-Platzhalter sind weg — nicht durch eine andere Schreibweise
+  ersetzt, sondern durch **Beschreibung statt Skript**:
+
+  | vorher | jetzt |
+  |---|---|
+  | `„von [Firma]" = Firma, nicht Name.` | Eine Nennung mit „von …" bezeichnet die Firma, nicht den Namen. |
+  | `„Grüezi, Herr/Frau [Nachname]. …"` | Begrüsse die Person beim ersten Mal mit „Grüezi", der Anrede und ihrem Nachnamen, dann die Frage nach dem Anliegen. |
+  | `FALSCH: „Habe ich, Herr/Frau [Nachname]..."` | FALSCH bei erster Nennung: mit einer Bestätigungsfloskel einsteigen statt zu begrüssen. |
+  | `„Habe ich Sie richtig verstanden, Herr/Frau [Name]?"` | Aktiv bestätigen: den verstandenen Namen mit Anrede wiederholen und fragen, ob er richtig ist. |
+  | `„Ich verstehe, Sie möchten [Anliegen]. …"` | Vor der Rückruf-Frage das Anliegen in einem Satz bestätigen und ankündigen, dass du es weiterleitest. |
+
+- Eine Zeile in `## ANTI-HALLUZINATION (KRITISCH)`:
+  *„Gib niemals Text in eckigen Klammern aus und sprich ihn nicht — weder als
+  Regieanweisung, Emotionsangabe noch als Platzhalter"*.
+
+**Warum keine Ersatz-Notation.** `<Nachname>` oder `NACHNAME` verschieben das
+Problem nur: jede Slot-Schreibweise ist eine Konvention, und die Beobachtung
+sagt gerade, dass Konventionen imitiert werden. Konkrete Beispielnamen wären am
+schlechtesten — der Fehlerfall wäre dann „Grüezi, Frau Meier" an jemanden, der
+nicht so heisst, also eine plausibel klingende Falschaussage statt eines
+offensichtlich kaputten Platzhalters. Zwei Abschnitte weiter oben steht
+ausdrücklich, `{{CUSTOMER_DISPLAY_NAME}}` sei niemals der Name des Anrufers;
+einen erfundenen Anrufernamen in denselben Prompt zu schreiben arbeitet dagegen.
+
+Die Regel nennt bewusst **kein** Beispiel und erklärt die Konvention nicht — das
+hätte sie ein sechstes Mal vorgeführt.
+
+### 4c. Woher Klammern sonst noch kommen könnten — vorab gezählt
+
+Damit die Frage nach dem nächsten Anruf schon beantwortet ist, statt dann erst
+gestellt zu werden. Gezählt mit derselben Regex wie `BRACKET_PLACEHOLDER`
+(`\[[^\]\n]{1,80}\]`):
+
+| Quelle | Treffer | neutralisiert? |
+|---|---:|---|
+| L2 `generic` | **0** | ja (`neutralizePlaceholders`) |
+| L2 `it-support` | **0** | ja |
+| L2, alle 19 `prompt_block` zusammen | **0** | ja |
+| L2, alle 19 `default_required_information` | **0** | ja |
+| L3 ausgeliefert (E2E Test AG) | **0** | ja, über `add()` |
+| L1 ausgeliefert, **vorher** | **5** | **nein** |
+| L1 ausgeliefert, **nachher** | **0** | entfällt |
+
+Damit ist belegt: **alle fünf Klammerausdrücke im bisherigen Prompt stammten aus
+L1.** `[Anliegen]`, `[Bereich]`, `[Firma]`, `[Nachname]` ×2, `[Name]` — mehr gab
+es im gesamten 17 532-Zeichen-Prompt nicht.
+
+Zwei Quellen, die heute nichts liefern, es aber könnten:
+
+1. **`formatOperationalUpdates()`** erzeugt Klammern **per Bauart**:
+   `- [Ferien / geschlossen] Titel | gültig ab …`. Diese Zeilen laufen
+   ausdrücklich **nicht** durch `neutralizePlaceholders()` (Kommentar im Code:
+   die Klammern sind dort Typmarke). Aktive Betriebsinformationen: derzeit
+   **0**. Legt jemand eine an, sind die Klammern zurück — dann aber an einer
+   Stelle, an der sie beabsichtigt sind.
+2. **`ai_internal_notes`** enthält vier Klammerausdrücke (`[WEBSITE_ANALYSIS]`,
+   `[PROMPT_V2]` und zwei JSON-Arrays). Die erreichen den Prompt nicht:
+   `parseMarkedJson()` liest die Zeilen und gibt nur den geparsten Inhalt
+   weiter.
+
+**Wenn nach dem nächsten Anruf trotzdem Klammern auftauchen**, kann es an keinem
+Layer liegen — dann kommt das Muster aus dem Modell selbst, und die Antwort ist
+nicht mehr Prompt, sondern Modell- oder Stimmkonfiguration.
+
+Nebenbefund für später, nicht heute: die 19 Branchenvorlagen tragen in ihren
+**Startwerten** (`default_location_hours`, `default_booking_faq`,
+`default_services`) zusammen **85** Klammerausdrücke. Die werden beim Anlegen
+eines Kunden in dessen Spalten kopiert und dort neutralisiert — der Agent hört
+also nicht `[Strasse, PLZ Ort]`, sondern „nicht hinterlegt; nicht erwähnen".
+Kein Klammerproblem, aber eine Textstelle, die niemand so geschrieben hat.
+
 ### 5. Vermerk im Dokumentationskopf, nicht im Prompt
 
 Die Vorgabe lautete, den Kopie-Vermerk „im L1-Text selbst" festzuhalten, nicht
@@ -150,15 +248,17 @@ wo die Sicherung liegt.
 
 | | vorher | nachher |
 |---|---:|---:|
-| `prompt_master_l1` | 9 140 | 9 274 |
+| `prompt_master_l1` | 9 140 | 9 363 |
 | davon Dokumentationskopf (nicht ausgeliefert) | 701 | 1 863 |
-| ausgelieferter L1-Anteil (vor Variablenauflösung) | 8 439 | 7 404 |
-| `md5` | `ea9c01673610bebf29df38a44202e577` | `0d7508600ed4c56458febcd58af42b6d` |
+| ausgelieferter L1-Anteil (vor Variablenauflösung) | 8 439 | 7 493 |
+| eckige Klammern im ausgelieferten Teil | 5 | **0** |
+| `md5` | `ea9c01673610bebf29df38a44202e577` | `b520b02846067252f2332d16573265c3` |
 
-Der ausgelieferte Teil schrumpft um **1 035 Zeichen**, obwohl das Feld wächst:
-839 Zeichen `CALL FORWARDING` und 661 Zeichen `MEHRSPRACHIGKEIT` fallen weg,
-die Erweiterung der Identitätsantwort ist kleiner, und der Zuwachs steckt
-vollständig im Kopf, der nie rausgeht.
+Der ausgelieferte Teil schrumpft um **946 Zeichen**, obwohl das Feld wächst:
+839 Zeichen `CALL FORWARDING`, 661 Zeichen `MEHRSPRACHIGKEIT` und 223 Zeichen
+`FILLER-VARIANZ` fallen weg; dagegen stehen die längere Identitätsantwort, die
+ausformulierten Anrede-Regeln und die neue Klammer-Zeile. Der Zuwachs des Feldes
+steckt vollständig im Kopf, der nie rausgeht.
 
 ## Erwarteter Fingerprint nach dem Sync
 
@@ -166,7 +266,7 @@ vollständig im Kopf, der nie rausgeht.
 
 ```
 vorher   v3.2.9.6bc4ec29b28f.fb37cc3bf171.b4b33bb6c6f0.4f53cda18c2b.31bf8d30bbdb
-nachher  v3.2.9.0e03fa528e4c.fb37cc3bf171.b4b33bb6c6f0.4f53cda18c2b.31bf8d30bbdb
+nachher  v3.2.9.e35458c9a757.fb37cc3bf171.b4b33bb6c6f0.4f53cda18c2b.31bf8d30bbdb
 ```
 
 Der alte Wert `6bc4ec29b28f` stimmt mit `sha256(alter L1)[0:12]` überein — die
@@ -176,8 +276,9 @@ Rechnung ist damit an der Realität geprüft und nicht nur aus dem Code gelesen.
 
 1. Sync auslösen (braucht ein Nutzer-JWT).
 2. `prompt_snapshot` prüfen: `## CALL FORWARDING`, `transfer_call`,
-   `Rufweiterleitung`, `nie proaktiv` und `## MEHRSPRACHIGKEIT` müssen
-   `position() = 0` ergeben. Nicht „sieht gut aus".
+   `Rufweiterleitung`, `nie proaktiv`, `## MEHRSPRACHIGKEIT`,
+   `## FILLER-VARIANZ` und die fünf Klammerausdrücke müssen `position() = 0`
+   ergeben. Nicht „sieht gut aus".
 3. Testanruf mit der ausdrücklichen Frage **„Sind Sie ein Mensch?"**.
    Abnahmekriterium: **das erste Wort der Antwort beantwortet die Frage.**
    Kommt zuerst Name und Firma, ist es nicht abgenommen.
