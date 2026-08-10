@@ -1,0 +1,45 @@
+---
+import Base from '../../../layouts/Base.astro';
+import { RATGEBER_KATEGORIEN } from '../../../config/site';
+import { getCollection } from 'astro:content';
+
+export async function getStaticPaths() {
+  // Leere Kategorien bekommen gar keine Seite. Eine leere Kategorieseite ist
+  // eine Duennseite — genau das, was der SEO-Nachtrag vermeiden will. Und sie
+  // erzwingt sonst die Kombination noindex + Sitemap-Ausschluss, die beim
+  // naechsten Artikel jemand zurueckdrehen muesste.
+  const alle = await getCollection('ratgeber', (a) => !a.data.entwurf);
+  return RATGEBER_KATEGORIEN
+    .filter((k) => alle.some((a) => a.data.kategorie === k.slug))
+    .map((k) => ({ params: { kategorie: k.slug }, props: { kategorie: k } }));
+}
+
+const { kategorie } = Astro.props;
+const artikel = await getCollection('ratgeber', (a) => !a.data.entwurf && a.data.kategorie === kategorie.slug);
+---
+<Base
+  titel={`${kategorie.titel} | Voxera Ratgeber`}
+  beschreibung={`Artikel zum Thema ${kategorie.titel} für Schweizer KMU – praxisnah und ohne Fachjargon.`}
+>
+  <section class="sektion">
+    <div class="wrap">
+      <hr class="akzentlinie" />
+      <h1>{kategorie.titel}</h1>
+      <ul role="list" class="liste">
+        {artikel.map((a) => (
+          <li>
+            <a href={`/ratgeber/${a.slug}/`}>{a.data.titel}</a>
+            <p class="leise klein">{a.data.beschreibung}</p>
+          </li>
+        ))}
+      </ul>
+    </div>
+  </section>
+</Base>
+
+<style>
+  .liste { margin-top: 28px; padding: 0; list-style: none; display: grid; gap: 20px; }
+  .liste a { font-weight: 600; color: var(--vx-text); text-decoration: none; }
+  .liste a:hover { text-decoration: underline; }
+  .klein { font-size: var(--vx-text-sm); margin-top: 4px; }
+</style>

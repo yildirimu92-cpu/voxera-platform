@@ -1,0 +1,78 @@
+---
+import { NAV, SITE } from '../config/site';
+const pfad = Astro.url.pathname;
+---
+<header class="kopf">
+  <div class="wrap kopf-inner">
+    <a href="/" class="marke">
+      {/* Die Bildmarke trägt ihren eigenen Night-Grund — die weissen Bogen- und
+          V-Elemente wären auf hellem Kopf sonst unsichtbar. alt bleibt leer,
+          weil die Wortmarke daneben den Namen schon ansagt; sonst hörten
+          Screenreader „Voxera Voxera". */}
+      <img src="/favicon.svg" alt="" width="30" height="30" />
+      <span>Voxera</span>
+    </a>
+    <nav aria-label="Hauptnavigation">
+      <ul role="list" class="nav">
+        {NAV.map((n) => (
+          <li>
+            <a href={n.href} aria-current={pfad.startsWith(n.href) ? 'page' : undefined}>{n.label}</a>
+          </li>
+        ))}
+      </ul>
+    </nav>
+    <a class="knopf knopf--sekundaer" href={SITE.dashboard}>Login</a>
+  </div>
+</header>
+
+<style>
+  /* Hell gefuehrt: der Kopf ist Teil der Seite, kein dunkler Block.
+     Trennung durch eine Hairline, nicht durch eine Flaeche. */
+  .kopf {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: color-mix(in srgb, var(--vx-ground) 92%, transparent);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--vx-hairline);
+  }
+  .kopf-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+    min-height: 68px;
+  }
+  .marke {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    font-family: var(--vx-font-display);
+    font-weight: 800;
+    font-size: 20px;
+    letter-spacing: -.04em;
+    color: var(--vx-text);
+    text-decoration: none;
+  }
+  .marke img { display: block; border-radius: 7px; }
+  .nav { display: flex; gap: 4px; list-style: none; margin: 0; padding: 0; }
+  .nav a {
+    display: block;
+    padding: 8px 12px;
+    border-radius: var(--vx-radius-sm);
+    font-size: var(--vx-text-sm);
+    font-weight: 500;
+    color: var(--vx-text-muted);
+    text-decoration: none;
+    transition: color var(--vx-motion), background var(--vx-motion);
+  }
+  .nav a:hover { color: var(--vx-text); background: var(--vx-recessed); }
+  /* Aktiver Zustand: Gold als Unterstreichung, nicht als Textfarbe. */
+  .nav a[aria-current='page'] {
+    color: var(--vx-text);
+    box-shadow: inset 0 -2px 0 var(--vx-accent);
+  }
+  @media (max-width: 860px) {
+    .nav { display: none; }
+  }
+</style>

@@ -1,0 +1,39 @@
+/* ============================================================
+   Schriften — selbst ausgeliefert, kein Google-Fonts-CDN.
+   Begruendung: Ladezeit (ein Verbindungsaufbau weniger im
+   kritischen Pfad) und Datenschutz (Content-Audit C12: die alte
+   Seite uebertrug bei jedem Aufruf die Besucher-IP an Google,
+   auf einer Seite, die mit Datenschutz wirbt).
+
+   STATUS: Die .woff2-Dateien fehlen noch — sie gehoeren zu den
+   Assets, die aus dem Netlify-Deploy nachgeliefert werden.
+   Bis dahin greift die Fallback-Kette in tokens.css, und die
+   Seite rendert in der System-Grotesk. Das ist bewusst so:
+   ein @font-face auf eine fehlende Datei faellt still zurueck,
+   ein <link rel="preload"> darauf erzeugt dagegen einen
+   nutzlosen Request und eine Konsolenwarnung — deshalb ist der
+   Preload in Base.astro erst wieder einzusetzen, wenn die
+   Dateien liegen. Der Build-Waechter erzwingt das.
+
+   Benoetigt werden genau zwei Schnitte:
+     /fonts/plus-jakarta-sans-700.woff2   (Display, h1/h2)
+     /fonts/dm-sans-400.woff2             (Fliesstext)
+   Weitere Schnitte nur, wenn sie wirklich gebraucht werden —
+   jeder zusaetzliche kostet Ladezeit.
+   ============================================================ */
+
+@font-face {
+  font-family: 'Plus Jakarta Sans';
+  src: url('/fonts/plus-jakarta-sans-700.woff2') format('woff2');
+  font-weight: 700 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'DM Sans';
+  src: url('/fonts/dm-sans-400.woff2') format('woff2');
+  font-weight: 400 500;
+  font-style: normal;
+  font-display: swap;
+}

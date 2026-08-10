@@ -1,0 +1,39 @@
+---
+/**
+ * Sichtbarer Platzhalter fuer Textstellen, die auf eine Zulieferung warten.
+ *
+ * Bewusst auffaellig statt als Behelfsformulierung: eine erfundene
+ * Zwischenfassung wandert sonst unbemerkt in den Livegang. Genau so sind die
+ * unbelegten Zahlen und die ungedeckten Kundenstimmen auf der alten Seite
+ * entstanden.
+ *
+ * Der Build-Waechter zaehlt diese Bausteine; vor dem Go-Live muss die Zahl
+ * null sein.
+ */
+interface Props {
+  was: string;
+  befund?: string;
+  wartetAuf?: string;
+}
+const { was, befund, wartetAuf } = Astro.props;
+---
+<div class="platzhalter" data-platzhalter role="note">
+  <strong>Platzhalter:</strong> {was}
+  {befund && <span class="ref">({befund})</span>}
+  {wartetAuf && <span class="warte">Wartet auf: {wartetAuf}</span>}
+</div>
+
+<style>
+  .platzhalter {
+    border: 1.5px dashed var(--vx-hairline-firm);
+    background: var(--vx-recessed);
+    border-radius: var(--vx-radius-sm);
+    padding: 14px 16px;
+    font-size: var(--vx-text-sm);
+    color: var(--vx-text-muted);
+    max-width: var(--vx-measure);
+  }
+  .platzhalter strong { color: var(--vx-text); }
+  .ref { font-variant: small-caps; }
+  .warte { display: block; margin-top: 4px; font-style: italic; }
+</style>

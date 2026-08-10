@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+
+# Transaktionsseiten gehoeren nicht in den Index. Sie tragen zusaetzlich
+# <meta name="robots" content="noindex"> und sind aus sitemap.xml gefiltert.
+Disallow: /offer-accept.html
+Disallow: /contract-signed.html
+
+Sitemap: https://voxera.ch/sitemap-index.xml

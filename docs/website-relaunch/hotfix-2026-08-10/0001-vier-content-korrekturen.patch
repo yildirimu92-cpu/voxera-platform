@@ -1,0 +1,218 @@
+From 5917bea42acf7a9d3fd495df4a00f7ec72afe507 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Mon, 10 Aug 2026 06:53:55 +0000
+Subject: [PATCH] Vier Content-Korrekturen an der Live-Seite
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+1) Ungedeckte Kundenstimmen entfernt (index.html)
+   Die drei namentlichen Testimonials mit Fuenf-Sterne-Bewertung (Marco R./Zuerich,
+   Sandra K./Bern, Thomas M./Luzern) und der Satz "Ueber 20 Schweizer KMU vertrauen
+   bereits auf Voxera" sind raus. Gegengeprueft in der Produktionsdatenbank:
+   4 Kundendatensaetze, 0 mit Live-Status, 19 Anrufe im gesamten System.
+   Die Sektionsueberschrift heisst jetzt "Worauf Sie sich verlassen koennen" statt
+   "Was unsere Kunden sagen", weil die Kennzahlen darunter bleiben.
+
+2) Datenresidenz an die Datenschutzerklaerung angeglichen
+   Die Datenschutzerklaerung war bereits korrekt (§5 listet Sub-Auftragsverarbeiter
+   nach Datenstandort, §6 benennt die US-Uebermittlung und den CLOUD Act, §8 nennt
+   Zuerich). Der Marketingtext behauptete das Gegenteil. Angeglichen an vier Stellen:
+   - offer-accept.html, Badges ueber dem Signaturfeld (Vorrang): "Schweizer Hosting"
+     -> "Schweizer Datenbank (Zuerich)", "DSGVO-konform" -> "revDSG & DSGVO", plus
+     Verweis auf die Abschnitte 5-7 der Datenschutzerklaerung bei den Vertragsdokumenten
+   - index.html Hero-Badge und Feature-Karte
+   - index.html FAQ "Was passiert mit meinen Daten?" - vollstaendig neu, deckt zugleich
+     die falsche Formulierung "nach Ihrer konfigurierten Aufbewahrungsfrist" ab: eine
+     kundenseitige Einstellmoeglichkeit gibt es nicht.
+   Die Datenschutzerklaerung selbst brauchte inhaltlich keine Aenderung.
+
+3) AGB: Arbeitsversions-Hinweis entfernt, Versionsstempel angeglichen (agb.html,
+   offer-accept.html)
+   Der Satz "Diese AGB sind eine operative Arbeitsversion ... sollte die finale Fassung
+   rechtlich geprueft werden" stand oeffentlich auf einer Seite, die im Signaturprozess
+   verbindlich akzeptiert wird. Der Zustimmungsstempel lautete v2.0-2026-05-01, waehrend
+   die Seite den Stand 03.07.2026 auslieferte - der Stempel zeigt jetzt v2.0-2026-07-03,
+   die Seite traegt die Version sichtbar.
+   Das ersetzt keine juristische Pruefung; die holt der Betreiber separat ein.
+
+4) Loeschfristen an das tatsaechliche Verhalten angepasst (datenschutz.html §7)
+   Audio und Transkripte 90 Tage statt der falschen 30, Anrufdaten und
+   Zusammenfassungen 180 Tage als eigene Zeile. Entspricht TRANSCRIPT_RETENTION_DAYS=90
+   und CALL_RECORD_RETENTION_DAYS=180 in enforce-data-retention.js sowie der dort
+   dokumentierten 90-Tage-Aufbewahrung des Audios bei ElevenLabs.
+
+Mitgezogen, weil (4) den Text der Datenschutzerklaerung veraendert: Version 2.0 (Stand
+01.05.) -> 2.1 (Stand 10.08.), samt Stempel und Beschriftungen in offer-accept.html.
+Ohne diesen Schritt haette (4) genau den Fehler neu erzeugt, den (3) behebt - einen
+Versionsstempel, der nicht zum ausgelieferten Text passt.
+
+Alle sechs HTML-Dateien nach der Aenderung auf Tag-Balance geprueft.
+---
+ agb.html          |  3 +--
+ datenschutz.html  |  7 ++++---
+ index.html        | 16 ++++++----------
+ offer-accept.html | 16 ++++++++++------
+ 4 files changed, 21 insertions(+), 21 deletions(-)
+
+diff --git a/agb.html b/agb.html
+index 066daa9..c2ba4dc 100644
+--- a/agb.html
++++ b/agb.html
+@@ -26,9 +26,8 @@ footer{background:var(--night);border-top:1px solid rgba(255,255,255,.06);paddin
+ </head>
+ <body>
+ <nav class="nav"><div class="nav-inner"><a href="/" class="nav-logo"><div class="nav-logo-box"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M6 7l6 8 6-8" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="nav-logo-word">Voxera</span></a><div class="nav-links"><a href="/#problem">Problem</a><a href="/#features">Funktionen</a><a href="/#pricing">Preise</a><a href="/#faq">FAQ</a></div><a class="nav-cta" href="/#pricing">Demo anfragen</a></div></nav>
+-<section class="legal-hero"><div class="legal-hero-inner"><div class="legal-badge">Rechtliches</div><h1>Allgemeine Geschäftsbedingungen</h1><p>Stand: 03. Juli 2026</p></div></section>
++<section class="legal-hero"><div class="legal-hero-inner"><div class="legal-badge">Rechtliches</div><h1>Allgemeine Geschäftsbedingungen</h1><p>Stand: 03. Juli 2026 · Version 2.0</p></div></section>
+ <main class="legal-body">
+-  <div class="legal-card"><p><strong>Hinweis:</strong> Diese AGB sind eine operative Arbeitsversion für Voxera. Vor produktivem Einsatz mit zahlenden Kunden sollte die finale Fassung rechtlich geprüft werden.</p></div>
+   <section class="legal-sec"><div class="legal-sec-num">01</div><h2>Geltungsbereich</h2><p>Diese Allgemeinen Geschäftsbedingungen regeln die Nutzung der Dienstleistungen von Voxera, insbesondere KI-gestützte Telefonassistenz, Anrufannahme, Gesprächszusammenfassung, Lead-Erfassung und damit verbundene digitale Services.</p></section>
+   <section class="legal-sec"><div class="legal-sec-num">02</div><h2>Leistungsumfang</h2><p>Voxera stellt technische Systeme zur Verfügung, welche Anrufe entgegennehmen, strukturieren und dem Kunden in geeigneter Form bereitstellen. Der konkrete Leistungsumfang ergibt sich aus dem gewählten Paket, der Offerte oder einer individuellen Vereinbarung.</p></section>
+   <section class="legal-sec"><div class="legal-sec-num">03</div><h2>Verfügbarkeit und technische Grenzen</h2><p>Voxera bemüht sich um eine hohe Verfügbarkeit der Services. Eine jederzeit unterbrechungsfreie Verfügbarkeit kann jedoch nicht garantiert werden. Unterbrüche können insbesondere durch Wartung, Drittanbieter, Telefonieanbieter, Internetdienste oder höhere Gewalt entstehen.</p></section>
+diff --git a/datenschutz.html b/datenschutz.html
+index a0f73c9..19aa066 100644
+--- a/datenschutz.html
++++ b/datenschutz.html
+@@ -110,7 +110,7 @@ footer{background:var(--night);border-top:1px solid rgba(255,255,255,.06);paddin
+   <div class="legal-hero-inner">
+     <div class="legal-badge">Rechtliches</div>
+     <h1>Datenschutzerklärung</h1>
+-    <p>Stand: 1. Mai 2026 · Voxera, Schweiz · Version 2.0</p>
++    <p>Stand: 10. August 2026 · Voxera, Schweiz · Version 2.1</p>
+   </div>
+ </div>
+ 
+@@ -238,8 +238,9 @@ footer{background:var(--night);border-top:1px solid rgba(255,255,255,.06);paddin
+     <h2>Wie lange speichern wir Ihre Daten?</h2>
+     <table class="data-table">
+       <tr><th>Datenart</th><th>Speicherdauer</th></tr>
+-      <tr><td>Audio-Aufzeichnungen von Anrufen</td><td>30 Tage nach Anruf, danach automatische Löschung</td></tr>
+-      <tr><td>Transkripte und Anruf-Metadaten</td><td>Während der Vertragsdauer, danach 30 Tage Übergangsfrist</td></tr>
++      <tr><td>Audio-Aufzeichnungen von Anrufen</td><td>90 Tage nach Anruf, danach Löschung</td></tr>
++      <tr><td>Transkripte</td><td>90 Tage nach Anruf, danach Löschung</td></tr>
++      <tr><td>Anrufdaten und Gesprächszusammenfassungen</td><td>180 Tage nach Anruf, danach Löschung</td></tr>
+       <tr><td>Kunden- und Vertragsdaten</td><td>Während der Vertragsdauer + 10 Jahre (gesetzliche Aufbewahrung gem. OR)</td></tr>
+       <tr><td>Rechnungsdaten</td><td>10 Jahre (Schweizer Buchführungspflicht)</td></tr>
+       <tr><td>Kontaktanfragen ohne Vertragsabschluss</td><td>2 Jahre nach letztem Kontakt</td></tr>
+diff --git a/index.html b/index.html
+index 9064c5c..04c31de 100644
+--- a/index.html
++++ b/index.html
+@@ -476,7 +476,7 @@ footer{background:var(--night);border-top:1px solid rgba(255,255,255,.06);paddin
+         </button>
+       </div>
+       <div class="hero-trust">
+-        <div class="hero-trust-item"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2L3 7v5c0 5.25 3.75 10.15 9 11.35C17.25 22.15 21 17.25 21 12V7L12 2z"/></svg>DSGVO-konform · Schweiz</div>
++        <div class="hero-trust-item"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2L3 7v5c0 5.25 3.75 10.15 9 11.35C17.25 22.15 21 17.25 21 12V7L12 2z"/></svg>Schweizer Datenbank · revDSG &amp; DSGVO</div>
+         <div class="hero-trust-item"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>Keine Mindestlaufzeit</div>
+         <div class="hero-trust-item"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Setup in unter 24h</div>
+         <div class="hero-trust-item"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>Aktionspreis bis 31. Mai</div>
+@@ -533,7 +533,7 @@ footer{background:var(--night);border-top:1px solid rgba(255,255,255,.06);paddin
+       <div class="feat-card rv rv-d2"><div class="feat-ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--sky)" stroke-width="2" stroke-linecap="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></div><div class="feat-h">Intelligente Priorisierung</div><div class="feat-p">Dringende Anliegen werden automatisch hervorgehoben. Sie bearbeiten zuerst was wichtig ist.</div></div>
+       <div class="feat-card rv"><div class="feat-ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--sky)" stroke-width="2" stroke-linecap="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.09 9.82 19.79 19.79 0 011 1.27 2 2 0 013 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L7.09 7.91A16 16 0 0016 16.91l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg></div><div class="feat-h">Rückruf-Management</div><div class="feat-p">Offene Rückrufe und Follow-ups in einer strukturierten Liste. Nichts geht vergessen. (Business+)</div></div>
+       <div class="feat-card rv rv-d1"><div class="feat-ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--sky)" stroke-width="2" stroke-linecap="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg></div><div class="feat-h">E-Mail-Benachrichtigungen</div><div class="feat-p">Sofortige Benachrichtigung bei neuen Anrufen – mit Zusammenfassung direkt in der E-Mail.</div></div>
+-      <div class="feat-card rv rv-d2"><div class="feat-ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--sky)" stroke-width="2" stroke-linecap="round"><path d="M12 2L3 7v5c0 5.25 3.75 10.15 9 11.35C17.25 22.15 21 17.25 21 12V7L12 2z"/></svg></div><div class="feat-h">Swiss Hosted · DSGVO-konform</div><div class="feat-p">Alle Daten in der Schweiz verarbeitet und gespeichert. Vollständig konform mit DSG und DSGVO.</div></div>
++      <div class="feat-card rv rv-d2"><div class="feat-ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--sky)" stroke-width="2" stroke-linecap="round"><path d="M12 2L3 7v5c0 5.25 3.75 10.15 9 11.35C17.25 22.15 21 17.25 21 12V7L12 2z"/></svg></div><div class="feat-h">Schweizer Datenbank · revDSG &amp; DSGVO</div><div class="feat-p">Ihre Kunden-, Anruf- und Konfigurationsdaten liegen in einem Schweizer Rechenzentrum (Zürich). Für Telefonie und Sprachverarbeitung arbeiten wir mit spezialisierten Anbietern zusammen – die eingesetzten Dienstleister und ihre Datenstandorte stehen in der <a href="/datenschutz" style="color:var(--sky);">Datenschutzerklärung</a>.</div></div>
+     </div>
+   </div>
+ </section>
+@@ -772,18 +772,14 @@ footer{background:var(--night);border-top:1px solid rgba(255,255,255,.06);paddin
+ <section class="sec">
+   <div class="wrap">
+     <div class="t-eye rv">Vertrauen</div>
+-    <h2 class="t-h1 rv rv-d1">Was unsere Kunden sagen</h2>
++    <h2 class="t-h1 rv rv-d1">Worauf Sie sich verlassen können</h2>
+     <div class="trust-stats rv rv-d2">
+       <div style="text-align:center;"><div class="trust-stat-n">24/7</div><div class="trust-stat-l">Erreichbarkeit</div></div>
+       <div style="text-align:center;"><div class="trust-stat-n">&lt;10s</div><div class="trust-stat-l">Reaktionszeit</div></div>
+       <div style="text-align:center;"><div class="trust-stat-n">99%</div><div class="trust-stat-l">Verfügbarkeit</div></div>
+       <div style="text-align:center;"><div class="trust-stat-n">CHF 0</div><div class="trust-stat-l">Pro verpasstem Anruf</div></div>
+     </div>
+-    <div class="trust-grid" style="margin-top:48px;">
+-      <div class="trust-card rv"><div class="trust-stars">★★★★★</div><div class="trust-q">«Ich war auf der Baustelle, Voxera hat einen Auftrag entgegengenommen und mir die Zusammenfassung per E-Mail geschickt. Der Kunde war beeindruckt wie schnell ich zurückgerufen habe.»</div><div class="trust-author"><div class="trust-av">MR</div><div><div class="trust-name">Marco R.</div><div class="trust-role">Elektriker, Zürich</div></div></div></div>
+-      <div class="trust-card rv rv-d1"><div class="trust-stars">★★★★★</div><div class="trust-q">«Früher habe ich jeden Anruf während der Behandlung verpasst. Jetzt sehe ich nach der Sitzung sofort wer angerufen hat und was sie wollten. Meine Patienten schätzen das sehr.»</div><div class="trust-author"><div class="trust-av">SK</div><div><div class="trust-name">Sandra K.</div><div class="trust-role">Physiotherapeutin, Bern</div></div></div></div>
+-      <div class="trust-card rv rv-d2"><div class="trust-stars">★★★★★</div><div class="trust-q">«Die Einrichtung hat wirklich nur 20 Minuten gedauert. Seitdem verliere ich keine Anfragen mehr – und das Dashboard ist so übersichtlich dass ich keine Einschulung brauchte.»</div><div class="trust-author"><div class="trust-av">TM</div><div><div class="trust-name">Thomas M.</div><div class="trust-role">Immobilienmakler, Luzern</div></div></div></div>
+-    </div>
++    <!-- Kundenstimmen entfernt: es gibt noch keine freigegebenen Referenzen. -->
+   </div>
+ </section>
+ 
+@@ -881,7 +877,7 @@ footer{background:var(--night);border-top:1px solid rgba(255,255,255,.06);paddin
+       <div class="faq-item"><div class="faq-q" onclick="toggleFaq(this)">Merken meine Kunden, dass ein KI drangeht?<div class="faq-ico">+</div></div><div class="faq-a"><div class="faq-a-inner">Voxera führt natürliche, professionelle Gespräche auf Deutsch. Die meisten Anrufer merken keinen Unterschied zu einem menschlichen Empfang. Sie können den Assistenten mit Ihrem Firmennamen und eigener Begrüssung konfigurieren.</div></div></div>
+       <div class="faq-item"><div class="faq-q" onclick="toggleFaq(this)">Funktioniert Voxera mit meiner bestehenden Nummer?<div class="faq-ico">+</div></div><div class="faq-a"><div class="faq-a-inner">Ja. Sie richten eine einfache Rufweiterleitung auf Ihrem bestehenden Anschluss ein – Ihre Kunden rufen weiterhin Ihre gewohnte Nummer an. Voxera schaltet sich nur ein wenn Sie nicht abnehmen (konfigurierbar: sofort, nach X Klingeln, bei besetzt).</div></div></div>
+       <div class="faq-item"><div class="faq-q" onclick="toggleFaq(this)">Wie schnell ist Voxera eingerichtet?<div class="faq-ico">+</div></div><div class="faq-a"><div class="faq-a-inner">Nach Vertragsabschluss richten wir Ihren Assistenten innerhalb von 24 Stunden ein. Die Rufweiterleitung auf Ihrem Telefon dauert 5 Minuten. Wir begleiten Sie dabei persönlich per Video-Call.</div></div></div>
+-      <div class="faq-item"><div class="faq-q" onclick="toggleFaq(this)">Was passiert mit meinen Daten?<div class="faq-ico">+</div></div><div class="faq-a"><div class="faq-a-inner">Alle Daten werden ausschliesslich in der Schweiz verarbeitet und gespeichert. Voxera ist vollständig konform mit dem Schweizerischen Datenschutzgesetz (DSG) und der DSGVO. Gespräche werden verschlüsselt und nach Ihrer konfigurierten Aufbewahrungsfrist gelöscht.</div></div></div>
++      <div class="faq-item"><div class="faq-q" onclick="toggleFaq(this)">Was passiert mit meinen Daten?<div class="faq-ico">+</div></div><div class="faq-a"><div class="faq-a-inner">Ihre Kunden-, Anruf- und Konfigurationsdaten werden in einem Schweizer Rechenzentrum (Zürich) gespeichert. Für die Telefonie und die KI-Sprachverarbeitung setzen wir spezialisierte Dienstleister ein; dabei kann eine Übermittlung in die USA erfolgen, abgesichert über EU-Standardvertragsklauseln. Alle Übertragungen sind verschlüsselt. Audioaufzeichnungen und Transkripte werden nach 90 Tagen gelöscht, Anrufdaten nach 180 Tagen. Voxera richtet sich nach dem Schweizer Datenschutzgesetz (revDSG) und – soweit anwendbar – der DSGVO. Die vollständige Liste der Dienstleister mit Datenstandorten steht in der <a href="/datenschutz" style="color:var(--blue);">Datenschutzerklärung</a>.</div></div></div>
+       <div class="faq-item"><div class="faq-q" onclick="toggleFaq(this)">Kann ich jederzeit kündigen?<div class="faq-ico">+</div></div><div class="faq-a"><div class="faq-a-inner">Monatspläne sind monatlich kündbar mit 30 Tagen Frist. Keine Mindestlaufzeit. Jahrespläne laufen 12 Monate und verlängern sich automatisch wenn Sie nicht 30 Tage vor Ablauf kündigen.</div></div></div>
+       <div class="faq-item"><div class="faq-q" onclick="toggleFaq(this)">Was ist der Unterschied zu einem Anrufbeantworter?<div class="faq-ico">+</div></div><div class="faq-a"><div class="faq-a-inner">Ein Anrufbeantworter nimmt auf – Voxera führt ein Gespräch. Voxera stellt Rückfragen, erkennt das Anliegen, priorisiert und fasst zusammen. 72% der Anrufer sprechen keine Nachricht auf einem Anrufbeantworter – aber sie antworten auf Fragen von Voxera.</div></div></div>
+     </div>
+@@ -932,7 +928,7 @@ footer{background:var(--night);border-top:1px solid rgba(255,255,255,.06);paddin
+   <div class="wrap"><div class="final-inner">
+     <div class="final-tag">Jetzt starten</div>
+     <h2 class="final-h">Ihr nächster Anruf kommt.<br>Sind Sie bereit?</h2>
+-    <p class="final-p">Über 20 Schweizer KMU vertrauen bereits auf Voxera. Starten Sie heute – in unter 24 Stunden einsatzbereit.</p>
++    <p class="final-p">Starten Sie heute – in unter 24 Stunden einsatzbereit.</p>
+     <div class="final-actions">
+       <button class="btn-hero" onclick="openPlanSelector()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="13 17 18 12 13 7"/><polyline points="6 17 11 12 6 7"/></svg>Jetzt starten – ab CHF 99/Mt</button>
+       <button class="btn-hero-ol" onclick="window.open('https://calendly.com/voxera_ch/voxera-demo-ai-telefonassistent','_blank')">Erstgespräch buchen</button>
+diff --git a/offer-accept.html b/offer-accept.html
+index 8a63dd0..dcda4e5 100644
+--- a/offer-accept.html
++++ b/offer-accept.html
+@@ -179,11 +179,11 @@
+           </span>
+           <span class="hero-badge">
+             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+-            Schweizer Hosting
++            Schweizer Datenbank (Zürich)
+           </span>
+           <span class="hero-badge">
+             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+-            DSGVO-konform
++            revDSG &amp; DSGVO
+           </span>
+         </div>
+         <div id="ctaRow" class="cta-row" style="display:none;">
+@@ -284,12 +284,16 @@
+           </a>
+           <a href="https://voxera.ch/datenschutz" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:600;color:var(--blue);text-decoration:none;">
+             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+-            Datenschutzerklärung v2.0
++            Datenschutzerklärung v2.1
+           </a>
+           <span style="display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:600;color:var(--g600);">
+             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+             AVV v1.0 — als PDF-Anhang dieser Offerte-E-Mail erhalten
+           </span>
++          <span style="display:block;font-size:12px;color:var(--g600);line-height:1.55;margin-top:2px;">
++            Zur Datenverarbeitung, den eingesetzten Dienstleistern und ihren Datenstandorten:
++            siehe Datenschutzerklärung, Abschnitte 5–7.
++          </span>
+         </div>
+       </div>
+ 
+@@ -313,7 +317,7 @@
+         </label>
+         <label class="checkbox">
+           <input id="confirmDse" type="checkbox" />
+-          <span style="font-size:13.5px;">Ich habe die <a href="https://voxera.ch/datenschutz" target="_blank" style="color:var(--blue);font-weight:600;">Datenschutzerklärung (v2.0)</a> gelesen und nehme sie zur Kenntnis.</span>
++          <span style="font-size:13.5px;">Ich habe die <a href="https://voxera.ch/datenschutz" target="_blank" style="color:var(--blue);font-weight:600;">Datenschutzerklärung (v2.1)</a> gelesen und nehme sie zur Kenntnis.</span>
+         </label>
+       </div>
+ 
+@@ -564,9 +568,9 @@ async function submitAcceptance() {
+     method:'POST',headers:{'Content-Type':'application/json'},
+     body: JSON.stringify({
+       token,signer_name,signer_email,signature_data,
+-      agb_accepted,agb_version:'v2.0-2026-05-01',
++      agb_accepted,agb_version:'v2.0-2026-07-03',
+       avv_accepted,avv_version:'v1.0-2026-05-01',
+-      dse_accepted,dse_version:'v2.0-2026-05-01',
++      dse_accepted,dse_version:'v2.1-2026-08-10',
+       confirm_accepted:agb_accepted&&avv_accepted&&dse_accepted
+     })
+   });
+-- 
+2.43.0
+

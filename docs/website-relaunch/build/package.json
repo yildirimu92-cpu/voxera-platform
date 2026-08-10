@@ -1,0 +1,16 @@
+{
+  "name": "voxera-website",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build && node scripts/verify-seo.mjs",
+    "preview": "astro preview",
+    "verify": "node scripts/verify-seo.mjs"
+  },
+  "devDependencies": {
+    "@astrojs/sitemap": "^3.2.1",
+    "astro": "^5.1.1"
+  }
+}

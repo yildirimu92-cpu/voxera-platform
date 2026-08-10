@@ -1,0 +1,124 @@
+/* Grundlagen. Setzt die Tokens aus tokens.css um — keine neuen Farbwerte. */
+
+*, *::before, *::after { box-sizing: border-box; }
+body, h1, h2, h3, h4, p, figure, ul, ol { margin: 0; padding: 0; }
+ul[role='list'] { list-style: none; }
+
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    transition-duration: .01ms !important;
+  }
+}
+
+body {
+  background: var(--vx-ground);
+  color: var(--vx-text);
+  font-family: var(--vx-font-body);
+  font-size: var(--vx-text-base);
+  line-height: var(--vx-leading-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3 {
+  font-family: var(--vx-font-display);
+  line-height: var(--vx-leading-head);
+  letter-spacing: var(--vx-tracking-head);
+  font-weight: 800;
+  text-wrap: balance;
+}
+h1 { font-size: var(--vx-text-h1); }
+h2 { font-size: var(--vx-text-h2); }
+h3 { font-size: var(--vx-text-h3); font-weight: 700; }
+
+p { max-width: var(--vx-measure); }
+h1 + p, h2 + p, h3 + p { margin-top: var(--vx-gap-head-body); }
+
+a { color: var(--vx-link); text-underline-offset: 2px; }
+a:focus-visible, button:focus-visible {
+  outline: 2px solid var(--vx-text);
+  outline-offset: 3px;
+  border-radius: 3px;
+}
+
+img { max-width: 100%; height: auto; }
+
+/* ---- Bewegungsbudget --------------------------------------
+   Ausschliesslich opacity und transform, <= 200ms, ease-out.
+   Kein Scroll-Jacking, kein Parallax, keine zaehlenden Zahlen. */
+:root { --vx-motion: 180ms cubic-bezier(.2, .7, .3, 1); }
+
+/* ---- Bausteine --------------------------------------------- */
+.skip {
+  position: absolute;
+  left: -9999px;
+}
+.skip:focus {
+  left: 16px; top: 16px;
+  z-index: 100;
+  background: var(--vx-text);
+  color: var(--vx-action-text);
+  padding: 10px 16px;
+  border-radius: var(--vx-radius-sm);
+}
+
+.wrap {
+  max-width: var(--vx-content-max);
+  margin-inline: auto;
+  padding-inline: clamp(20px, 5vw, 48px);
+}
+
+/* Sektionsabstand als Zahl, nicht als Absicht. */
+.sektion { padding-block: var(--vx-section-y); }
+.sektion--zurueckgesetzt { background: var(--vx-recessed); }
+/* Sand: genau EINE Flaeche pro Seite, ganze Sektionsbreite.
+   Sekundaertext ist hier nicht erlaubt — darauf gilt Night. */
+.sektion--warm { background: var(--vx-warm); }
+.sektion--warm .leise { color: var(--vx-text); }
+
+.leise { color: var(--vx-text-muted); }
+
+.hairline { border-top: 1px solid var(--vx-hairline); }
+
+.karte {
+  background: var(--vx-ground);
+  border: 1px solid var(--vx-hairline);
+  border-radius: var(--vx-radius);
+  padding: 24px;
+  /* Genau eine Schattenstufe im ganzen Projekt. */
+  box-shadow: var(--vx-shadow);
+}
+
+/* Primaeraktion: Night, wie im Dashboard. Gold traegt nie Text. */
+.knopf {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--vx-action);
+  color: var(--vx-action-text);
+  font-weight: 700;
+  font-size: var(--vx-text-sm);
+  padding: 13px 22px;
+  border: 0;
+  border-radius: var(--vx-radius-sm);
+  text-decoration: none;
+  cursor: pointer;
+  transition: background var(--vx-motion);
+}
+.knopf:hover { background: var(--vx-action-hover); }
+.knopf--sekundaer {
+  background: transparent;
+  color: var(--vx-text);
+  border: 1.5px solid var(--vx-hairline-firm);
+}
+.knopf--sekundaer:hover { background: var(--vx-recessed); }
+
+/* Gold: Hairlines, Badges, aktive Zustaende — nie als Textfarbe. */
+.akzentlinie {
+  width: 46px; height: 2px;
+  background: var(--vx-accent);
+  border: 0;
+  margin-bottom: 18px;
+}

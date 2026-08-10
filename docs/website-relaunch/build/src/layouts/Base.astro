@@ -1,0 +1,100 @@
+---
+/**
+ * Basis-Layout. Traegt die gesamte SEO-Verdrahtung, damit sie nicht pro Seite
+ * wiederholt (und irgendwann vergessen) wird.
+ *
+ * Die alte Seite hatte KEIN Canonical, KEIN Schema.org und auf den Rechtstexten
+ * weder Description noch Canonical (Content-Audit C19/C20). Beides ist hier
+ * Pflichtparameter statt Option: `titel` und `beschreibung` haben keine
+ * Defaults, und scripts/verify-seo.mjs bricht den Build ab, wenn eine Seite
+ * ohne sie durchrutscht oder ein Titel doppelt vorkommt.
+ */
+import { SITE } from '../config/site';
+import '../styles/tokens.css';
+import '../styles/fonts.css';
+import '../styles/base.css';
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+
+interface Props {
+  titel: string;          // <= 60 Zeichen
+  beschreibung: string;   // <= 155 Zeichen
+  noindex?: boolean;
+  ogBild?: string;
+  /** JSON-LD, seitenspezifisch. Wird als <script type="application/ld+json"> ausgegeben. */
+  schema?: Record<string, unknown> | Record<string, unknown>[];
+}
+
+const { titel, beschreibung, noindex = false, ogBild = '/og-image.png', schema } = Astro.props;
+
+const canonical = new URL(Astro.url.pathname, SITE.url).href;
+const ogBildAbsolut = new URL(ogBild, SITE.url).href;
+
+// Organization + LocalBusiness global. Die Adresse stammt aus dem Impressum.
+const organisation = {
+  '@context': 'https://schema.org',
+  '@type': 'LocalBusiness',
+  name: 'Voxera',
+  url: SITE.url,
+  email: SITE.mail,
+  telephone: SITE.telefon,
+  address: {
+    '@type': 'PostalAddress',
+    streetAddress: 'Binsböschenweg 3',
+    postalCode: '6045',
+    addressLocality: 'Meggen',
+    addressRegion: 'LU',
+    addressCountry: 'CH',
+  },
+  areaServed: { '@type': 'Country', name: 'Schweiz' },
+};
+
+const schemas = [organisation, ...(schema ? (Array.isArray(schema) ? schema : [schema]) : [])];
+---
+<!doctype html>
+<html lang={SITE.lang}>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <title>{titel}</title>
+  <meta name="description" content={beschreibung} />
+  <link rel="canonical" href={canonical} />
+  {noindex && <meta name="robots" content="noindex, follow" />}
+
+  {/* hreflang. Bei einer Sprache selbstreferenzierend, also heute wirkungslos —
+      und morgen ohne Umbau korrekt, wenn /fr/ und /it/ dazukommen. */}
+  {SITE.sprachen.map((l) => <link rel="alternate" hreflang={l} href={canonical} />)}
+  <link rel="alternate" hreflang="x-default" href={canonical} />
+
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content={titel} />
+  <meta property="og:description" content={beschreibung} />
+  <meta property="og:url" content={canonical} />
+  <meta property="og:image" content={ogBildAbsolut} />
+  <meta property="og:locale" content="de_CH" />
+  <meta name="twitter:card" content="summary_large_image" />
+
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="icon" href="/favicon.ico" sizes="32x32" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+  <meta name="theme-color" content="#0D1F3C" />
+
+  {/* Schriften: selbst ausgeliefert, kein Google-Fonts-CDN (Content-Audit C12).
+      @font-face steht in src/styles/fonts.css, die Dateien in public/fonts/.
+      Preload nur der zwei tatsaechlich genutzten Schnitte — scripts/verify-seo.mjs
+      bricht den Build ab, wenn ein Preload-Ziel nicht existiert. */}
+  <link rel="preload" href="/fonts/plus-jakarta-sans-700.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="/fonts/dm-sans-400.woff2" as="font" type="font/woff2" crossorigin />
+
+  {schemas.map((s) => <script type="application/ld+json" set:html={JSON.stringify(s)} />)}
+</head>
+<body>
+  <a class="skip" href="#inhalt">Zum Inhalt springen</a>
+  <Header />
+  <main id="inhalt">
+    <slot />
+  </main>
+  <Footer />
+</body>
+</html>

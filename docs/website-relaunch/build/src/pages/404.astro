@@ -1,0 +1,30 @@
+---
+import Base from '../layouts/Base.astro';
+---
+<Base
+  titel="Seite nicht gefunden | Voxera"
+  beschreibung="Diese Adresse gibt es nicht mehr. Zurück zur Startseite oder direkt zu Preisen, Branchen und Demo."
+  noindex={true}
+>
+  <section class="sektion">
+    <div class="wrap">
+      <hr class="akzentlinie" />
+      <h1>Diese Seite gibt es nicht</h1>
+      <p class="leise">
+        Möglicherweise hat sich die Adresse geändert. Diese Übersicht hilft weiter:
+      </p>
+      <ul role="list" class="ziele">
+        <li><a href="/">Startseite</a></li>
+        <li><a href="/so-funktionierts/">So funktioniert es</a></li>
+        <li><a href="/branchen/">Branchen</a></li>
+        <li><a href="/preise/">Preise</a></li>
+        <li><a href="/demo/">Demo</a></li>
+        <li><a href="/kontakt/">Kontakt</a></li>
+      </ul>
+    </div>
+  </section>
+</Base>
+
+<style>
+  .ziele { margin-top: 24px; padding: 0; list-style: none; display: grid; gap: 8px; }
+</style>

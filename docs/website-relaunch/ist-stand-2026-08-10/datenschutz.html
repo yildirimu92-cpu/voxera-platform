@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Datenschutzerklärung – Voxera</title>
+<meta name="robots" content="noindex">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.ico" sizes="32x32">
+<link rel="icon" href="/favicon.png" type="image/png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="theme-color" content="#0D1F3C">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --night:#0D1F3C;--night-2:#122444;--blue:#1A6FE8;--sky:#4B9FFF;
+  --gold:#E8C547;--white:#fff;--off:#F7F8FC;
+  --g100:#F1F5F9;--g200:#E2E8F0;--g400:#94A3B8;--g600:#475569;--g900:#0F172A;
+  --fd:'Plus Jakarta Sans',sans-serif;--fb:'DM Sans',sans-serif;
+}
+html{scroll-behavior:smooth;-webkit-font-smoothing:antialiased;}
+body{font-family:var(--fb);color:var(--g900);background:var(--white);}
+a{text-decoration:none;color:inherit;}
+
+.nav{position:fixed;top:0;left:0;right:0;z-index:300;background:rgba(13,31,60,.96);backdrop-filter:blur(20px);border-bottom:1px solid rgba(255,255,255,.07);}
+.nav-inner{display:flex;align-items:center;justify-content:space-between;height:70px;max-width:1160px;margin:0 auto;padding:0 clamp(20px,5vw,56px);}
+.nav-logo{display:flex;align-items:center;gap:10px;}
+.nav-logo-box{width:32px;height:32px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.1);border-radius:9px;display:flex;align-items:center;justify-content:center;}
+.nav-logo-word{font-family:var(--fd);font-size:17px;font-weight:800;color:white;letter-spacing:-.035em;}
+.nav-links{display:flex;align-items:center;gap:4px;}
+.nav-links a{font-size:13.5px;font-weight:500;color:rgba(255,255,255,.55);padding:7px 13px;border-radius:7px;transition:all .15s;}
+.nav-links a:hover{color:white;background:rgba(255,255,255,.07);}
+.nav-cta{background:var(--blue);color:white;padding:9px 20px;border-radius:9px;font-size:13.5px;font-weight:700;border:none;cursor:pointer;transition:all .2s;}
+.nav-cta:hover{background:#1340B0;}
+
+.legal-hero{background:var(--night);padding:100px 0 64px;position:relative;overflow:hidden;}
+.legal-hero::before{content:'';position:absolute;right:-80px;top:-80px;width:400px;height:400px;border-radius:50%;background:radial-gradient(circle,rgba(26,111,232,.15) 0%,transparent 65%);}
+.legal-hero-inner{max-width:1160px;margin:0 auto;padding:0 clamp(20px,5vw,56px);position:relative;z-index:1;}
+.legal-badge{display:inline-flex;align-items:center;gap:8px;font-size:10px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--gold);margin-bottom:16px;}
+.legal-badge::before{content:'';display:block;width:18px;height:1.5px;background:var(--gold);}
+.legal-hero h1{font-family:var(--fd);font-size:clamp(32px,5vw,56px);font-weight:800;letter-spacing:-.04em;color:white;margin-bottom:12px;line-height:1.08;}
+.legal-hero p{font-size:16px;color:rgba(255,255,255,.5);}
+
+.legal-body{max-width:800px;margin:0 auto;padding:64px clamp(20px,5vw,56px) 100px;}
+.legal-sec{margin-bottom:52px;}
+.legal-sec-num{font-size:10px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--blue);margin-bottom:8px;}
+.legal-sec h2{font-family:var(--fd);font-size:22px;font-weight:700;color:var(--night);margin-bottom:14px;padding-bottom:12px;border-bottom:2px solid var(--g100);letter-spacing:-.02em;}
+.legal-sec h3{font-family:var(--fd);font-size:16px;font-weight:700;color:var(--night);margin-top:18px;margin-bottom:8px;letter-spacing:-.01em;}
+.legal-sec p{font-size:15px;color:var(--g600);line-height:1.8;margin-bottom:12px;}
+.legal-sec ul{padding-left:20px;margin-bottom:12px;}
+.legal-sec ul li{font-size:15px;color:var(--g600);line-height:1.78;margin-bottom:7px;}
+.legal-sec a{color:var(--blue);}
+.legal-box{background:#EBF4FF;border-left:3px solid var(--blue);border-radius:0 10px 10px 0;padding:16px 20px;margin-bottom:28px;}
+.legal-box p{color:#1340B0;font-weight:500;margin:0;font-size:14.5px;}
+.legal-card{background:var(--off);border:1px solid var(--g200);border-radius:14px;padding:24px 28px;margin-bottom:20px;}
+.legal-card p{font-size:15px;color:var(--g600);line-height:1.85;margin:0;}
+.legal-card strong{color:var(--night);}
+.legal-card a{color:var(--blue);}
+.data-table{width:100%;border-collapse:collapse;margin-bottom:20px;font-size:13.5px;}
+.data-table th{background:var(--night);color:white;padding:10px 12px;text-align:left;font-weight:600;font-size:12.5px;}
+.data-table td{padding:10px 12px;border-bottom:1px solid var(--g200);color:var(--g600);vertical-align:top;line-height:1.55;}
+.data-table tr:last-child td{border-bottom:none;}
+.data-table tr:nth-child(even) td{background:var(--off);}
+.data-table .flag{font-size:14px;}
+
+footer{background:var(--night);border-top:1px solid rgba(255,255,255,.06);padding:48px 0 28px;}
+.footer-inner{max-width:1160px;margin:0 auto;padding:0 clamp(20px,5vw,56px);}
+.footer-top{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:20px;margin-bottom:32px;padding-bottom:28px;border-bottom:1px solid rgba(255,255,255,.07);}
+.footer-logo{display:flex;align-items:center;gap:9px;}
+.footer-logo-ico{width:28px;height:28px;background:rgba(255,255,255,.08);border-radius:7px;display:flex;align-items:center;justify-content:center;}
+.footer-logo-w{font-family:var(--fd);font-size:16px;font-weight:800;color:white;letter-spacing:-.03em;}
+.footer-links{display:flex;gap:20px;flex-wrap:wrap;}
+.footer-links a{font-size:13px;color:rgba(255,255,255,.4);transition:color .15s;}
+.footer-links a:hover{color:white;}
+.footer-bottom{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;font-size:12px;color:rgba(255,255,255,.25);}
+
+@media(max-width:768px){
+  .nav-links,.nav-cta{display:none;}
+  .legal-hero{padding:90px 0 48px;}
+  .legal-body{padding:40px 20px 60px;}
+  .footer-top{flex-direction:column;align-items:flex-start;}
+  .footer-bottom{flex-direction:column;}
+  .data-table{font-size:12px;}
+  .data-table th,.data-table td{padding:8px;}
+}
+</style>
+</head>
+<body>
+<nav class="nav">
+  <div class="nav-inner">
+    <a href="/" class="nav-logo">
+      <div class="nav-logo-box"><svg width="18" height="18" viewBox="0 0 16 16" fill="none"><path d="M8 2C4.5 2,2 4.5,2 8" stroke="#4B9FFF" stroke-width="1.6" stroke-linecap="round"/><path d="M8 2C11.5 2,14 4.5,14 8" stroke="#E8C547" stroke-width="1.6" stroke-linecap="round"/><path d="M2 8C2 11.5,4.5 14,8 14C11.5 14,14 11.5,14 8" stroke="white" stroke-width="1.6" stroke-linecap="round"/><path d="M5.5 5.5L8 10L10.5 5.5" stroke="white" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      <span class="nav-logo-word">VOXERA</span>
+    </a>
+    <div class="nav-links">
+      <a href="/#wie">So funktioniert's</a>
+      <a href="/#features">Features</a>
+      <a href="/#preise">Preise</a>
+      <a href="/#beratung">Beratung</a>
+      <a href="/#kontakt">Kontakt</a>
+    </div>
+    <a href="https://dashboard.voxera.ch" target="_blank" class="nav-cta">Dashboard</a>
+  </div>
+</nav>
+
+<div class="legal-hero">
+  <div class="legal-hero-inner">
+    <div class="legal-badge">Rechtliches</div>
+    <h1>Datenschutzerklärung</h1>
+    <p>Stand: 1. Mai 2026 · Voxera, Schweiz · Version 2.0</p>
+  </div>
+</div>
+
+<div class="legal-body">
+  <div class="legal-box"><p>Voxera nimmt den Schutz Ihrer persönlichen Daten ernst. Diese Datenschutzerklärung informiert Sie umfassend darüber, welche Daten wir zu welchem Zweck erheben, an wen wir sie weitergeben und welche Rechte Sie haben.</p></div>
+
+  <div class="legal-sec">
+    <div class="legal-sec-num">1. Verantwortliche Stelle</div>
+    <h2>Wer ist verantwortlich?</h2>
+    <p>Verantwortlich für die in dieser Erklärung beschriebenen Datenverarbeitungen im Sinne des Schweizerischen Datenschutzgesetzes (revDSG) und – soweit anwendbar – der EU-Datenschutz-Grundverordnung (DSGVO) ist:</p>
+    <div class="legal-card">
+      <p><strong>Voxera</strong><br>Binsböschenweg 3, 6045 Meggen, Schweiz<br>E-Mail: <a href="mailto:info@voxera.ch">info@voxera.ch</a><br>Web: <a href="https://voxera.ch">www.voxera.ch</a></p>
+    </div>
+    <h3>Besonderheit bei Anrufverarbeitung</h3>
+    <p>Soweit Voxera im Auftrag eines Geschäftskunden (z.B. Arztpraxis, Anwaltskanzlei, KMU) Anrufe entgegennimmt und verarbeitet, ist <strong>der Geschäftskunde</strong> der Datenschutz-Verantwortliche für die Anruferdaten. Voxera handelt dabei als <strong>Auftragsverarbeiter</strong> auf Grundlage eines Auftragsverarbeitungsvertrags (siehe <strong>AVV</strong>).</p>
+    <p>Anfragen von Anrufern bezüglich ihrer Daten richten sich primär an den Geschäftskunden, der angerufen wurde. Voxera unterstützt subsidiär bei berechtigten Anliegen.</p>
+  </div>
+
+  <div class="legal-sec">
+    <div class="legal-sec-num">2. Erhobene Daten</div>
+    <h2>Welche Daten wir erheben</h2>
+    <p>Wir erheben und verarbeiten folgende Kategorien personenbezogener Daten:</p>
+    <table class="data-table">
+      <tr><th>Datenkategorie</th><th>Beispiele</th><th>Zweck</th></tr>
+      <tr><td>Kontaktdaten<br>(Voxera-Kunden)</td><td>Firma, Name, E-Mail, Telefon, Adresse, UID</td><td>Vertragsabwicklung, Kommunikation, Abrechnung</td></tr>
+      <tr><td>Anrufdaten<br>(Anrufer beim Voxera-Kunden)</td><td>Rufnummer, Audioaufzeichnung, Transkript, Datum/Uhrzeit, Dauer, Gesprächszusammenfassung</td><td>Erbringung des KI-Telefonassistenten im Auftrag des Voxera-Kunden</td></tr>
+      <tr><td>Dashboard-Nutzungsdaten</td><td>Login-Zeiten, IP-Adresse, genutzte Funktionen</td><td>Bereitstellung des Kundenportals, Sicherheit</td></tr>
+      <tr><td>Zahlungsdaten</td><td>Rechnungsadresse, Zahlungsbestätigungen</td><td>Abrechnung. Hinweis: Kreditkartendaten werden ausschliesslich beim Zahlungsdienstleister gespeichert, nicht bei Voxera</td></tr>
+      <tr><td>Technische Daten</td><td>IP-Adresse, Browser, Gerät, Logs</td><td>Sicherheit, Fehleranalyse, technischer Betrieb</td></tr>
+      <tr><td>Konfigurationsdaten</td><td>Begrüssungstexte, KI-Anweisungen, Geschäftslogik</td><td>Personalisierung des KI-Assistenten</td></tr>
+    </table>
+  </div>
+
+  <div class="legal-sec">
+    <div class="legal-sec-num">3. Rechtsgrundlagen</div>
+    <h2>Auf welcher Basis verarbeiten wir Daten?</h2>
+    <p>Wir verarbeiten personenbezogene Daten ausschliesslich auf einer der folgenden Rechtsgrundlagen:</p>
+    <ul>
+      <li><strong>Vertragserfüllung</strong> (Art. 31 Abs. 2 lit. a revDSG / Art. 6 Abs. 1 lit. b DSGVO): Daten, die zur Erbringung unserer Dienstleistung erforderlich sind</li>
+      <li><strong>Berechtigte Interessen</strong> (Art. 31 Abs. 2 lit. b revDSG / Art. 6 Abs. 1 lit. f DSGVO): Sicherheit, Betrugsprävention, technische Optimierung, soweit Ihre Interessen nicht überwiegen</li>
+      <li><strong>Einwilligung</strong> (Art. 31 Abs. 1 revDSG / Art. 6 Abs. 1 lit. a DSGVO): Soweit Sie für bestimmte Verarbeitungen ausdrücklich eingewilligt haben (z.B. Marketing-Newsletter)</li>
+      <li><strong>Gesetzliche Verpflichtung</strong> (Art. 31 Abs. 2 lit. c revDSG / Art. 6 Abs. 1 lit. c DSGVO): Insbesondere Buchführungs- und Aufbewahrungspflichten</li>
+    </ul>
+  </div>
+
+  <div class="legal-sec">
+    <div class="legal-sec-num">4. Verwendungszwecke</div>
+    <h2>Wie wir Ihre Daten nutzen</h2>
+    <ul>
+      <li>Bereitstellung und Betrieb des KI-Telefonassistenten</li>
+      <li>Anzeige von Anrufdaten, Transkripten und Auswertungen im Kunden-Dashboard</li>
+      <li>Rechnungsstellung und Vertragsabwicklung</li>
+      <li>Technischer Support und Kundenkommunikation</li>
+      <li>Verbesserung unserer Dienstleistungen (in aggregierter, nicht-personenbezogener Form)</li>
+      <li>Einhaltung gesetzlicher Verpflichtungen</li>
+      <li>Sicherheits- und Betrugsprävention</li>
+    </ul>
+    <p><strong>Wir verkaufen Ihre Daten nicht.</strong> Wir verwenden Anrufinhalte oder personenbezogene Daten <strong>nicht für das Training</strong> unserer KI-Modelle und auch nicht für das Training von KI-Modellen Dritter, soweit dies nicht durch eine spezifische Funktion mit Ihrer ausdrücklichen Einwilligung erfolgt.</p>
+  </div>
+
+  <div class="legal-sec">
+    <div class="legal-sec-num">5. Empfänger und Sub-Auftragsverarbeiter</div>
+    <h2>Wer erhält Ihre Daten?</h2>
+    <p>Wir geben personenbezogene Daten nur weiter, soweit dies zur Erbringung unserer Dienstleistung erforderlich ist. Wir nutzen dafür sorgfältig ausgewählte Drittanbieter (Sub-Auftragsverarbeiter), mit denen wir Auftragsverarbeitungsverträge (DPA) abgeschlossen haben.</p>
+    <p>Es kommen folgende <strong>Kategorien</strong> von Empfängern und Sub-Auftragsverarbeitern zum Einsatz:</p>
+    <table class="data-table">
+      <tr>
+        <th>Kategorie</th>
+        <th>Zweck</th>
+        <th>Datenstandort</th>
+      </tr>
+      <tr>
+        <td><strong>Telefonie-Infrastruktur</strong></td>
+        <td>Bereitstellung der Voxera-Rufnummern, Anrufweiterleitung, Sprachübertragung</td>
+        <td>Schweiz / EU / USA</td>
+      </tr>
+      <tr>
+        <td><strong>KI-Sprachdienste</strong></td>
+        <td>Spracherkennung, Sprachverstehen, Sprachsynthese, Verarbeitung der Anrufinhalte</td>
+        <td>USA</td>
+      </tr>
+      <tr>
+        <td><strong>Cloud-Datenbank und Authentifizierung</strong></td>
+        <td>Sichere Speicherung von Kunden-, Anruf- und Konfigurationsdaten</td>
+        <td>Schweiz (primärer Datenstandort)</td>
+      </tr>
+      <tr>
+        <td><strong>Web-Hosting</strong></td>
+        <td>Bereitstellung der Webanwendung und Website</td>
+        <td>EU / USA</td>
+      </tr>
+      <tr>
+        <td><strong>Workflow- und E-Mail-Dienste</strong></td>
+        <td>Versand transaktionaler E-Mails (Rechnungen, Benachrichtigungen)</td>
+        <td>EU</td>
+      </tr>
+      <tr>
+        <td><strong>Zahlungsdienstleister</strong></td>
+        <td>Abwicklung von Zahlungen (sofern angewendet)</td>
+        <td>EU / USA</td>
+      </tr>
+    </table>
+    <p>Geschäftskunden (B2B) erhalten im Rahmen des <strong>Auftragsverarbeitungsvertrags (AVV)</strong> die vollständige Liste der eingesetzten Sub-Auftragsverarbeiter mit Anbieternamen und Datenstandorten. Anrufer und sonstige Betroffene können diese Liste auf begründete Anfrage unter <a href="mailto:info@voxera.ch">info@voxera.ch</a> erhalten.</p>
+    <p>Voxera informiert Vertragskunden mindestens 30 Tage im Voraus über beabsichtigte Änderungen der eingesetzten Sub-Auftragsverarbeiter und gibt ihnen die Möglichkeit, der Änderung aus berechtigtem Grund zu widersprechen.</p>
+  </div>
+
+  <div class="legal-sec">
+    <div class="legal-sec-num">6. Datenübermittlung in Drittländer</div>
+    <h2>Übermittlung in die USA und ausserhalb der EU/CH</h2>
+    <p>Einige unserer Sub-Auftragsverarbeiter haben ihren Hauptsitz in den USA. Bei der Verarbeitung Ihrer Daten kann eine Übermittlung in die USA erfolgen, insbesondere im Rahmen der KI-Sprachverarbeitung und Telefonie-Infrastruktur.</p>
+    <p>Wir stellen ein angemessenes Datenschutzniveau wie folgt sicher:</p>
+    <ul>
+      <li><strong>EU-Standardvertragsklauseln (SCC):</strong> Wir haben mit allen US-Anbietern die von der Europäischen Kommission genehmigten Standardvertragsklauseln abgeschlossen</li>
+      <li><strong>Technische Massnahmen:</strong> Verschlüsselung der Datenübertragung (TLS), Zugriffskontrollen, Pseudonymisierung wo möglich</li>
+      <li><strong>Organisatorische Massnahmen:</strong> Vertragliche Verpflichtungen unserer Sub-Auftragsverarbeiter zur Einhaltung des Datenschutzes</li>
+      <li><strong>Datenminimierung:</strong> Wir übermitteln nur Daten, die für die jeweilige Leistung zwingend erforderlich sind</li>
+      <li><strong>Datenresidenz Schweiz:</strong> Die zentrale Datenbank von Voxera wird in einem Rechenzentrum in der Schweiz betrieben</li>
+    </ul>
+    <p>Trotz dieser Massnahmen können wir nicht ausschliessen, dass US-Behörden unter bestimmten Umständen (z.B. nach dem CLOUD Act) Zugriff auf bei US-Anbietern gespeicherte Daten verlangen. Wir informieren transparent darüber.</p>
+    <p>Auf Anfrage übermitteln wir Ihnen Kopien der abgeschlossenen Standardvertragsklauseln.</p>
+  </div>
+
+  <div class="legal-sec">
+    <div class="legal-sec-num">7. Speicherdauer</div>
+    <h2>Wie lange speichern wir Ihre Daten?</h2>
+    <table class="data-table">
+      <tr><th>Datenart</th><th>Speicherdauer</th></tr>
+      <tr><td>Audio-Aufzeichnungen von Anrufen</td><td>30 Tage nach Anruf, danach automatische Löschung</td></tr>
+      <tr><td>Transkripte und Anruf-Metadaten</td><td>Während der Vertragsdauer, danach 30 Tage Übergangsfrist</td></tr>
+      <tr><td>Kunden- und Vertragsdaten</td><td>Während der Vertragsdauer + 10 Jahre (gesetzliche Aufbewahrung gem. OR)</td></tr>
+      <tr><td>Rechnungsdaten</td><td>10 Jahre (Schweizer Buchführungspflicht)</td></tr>
+      <tr><td>Kontaktanfragen ohne Vertragsabschluss</td><td>2 Jahre nach letztem Kontakt</td></tr>
+      <tr><td>Technische Logs (Server, Sicherheit)</td><td>Maximal 90 Tage</td></tr>
+      <tr><td>Marketing-Einwilligungen</td><td>Bis zum Widerruf der Einwilligung</td></tr>
+    </table>
+    <p>Im Falle der Vertragsbeendigung werden personenbezogene Daten gelöscht oder anonymisiert, soweit keine gesetzlichen Aufbewahrungspflichten entgegenstehen. Daten, die ausschliesslich aufgrund gesetzlicher Aufbewahrungspflichten weitergespeichert werden, werden für andere Zwecke gesperrt.</p>
+  </div>
+
+  <div class="legal-sec">
+    <div class="legal-sec-num">8. Datensicherheit</div>
+    <h2>Wie schützen wir Ihre Daten?</h2>
+    <p>Wir treffen umfangreiche technische und organisatorische Massnahmen, um Ihre Daten vor unberechtigtem Zugriff, Verlust oder Manipulation zu schützen:</p>
+    <ul>
+      <li><strong>Verschlüsselung:</strong> Alle Datenübertragungen erfolgen verschlüsselt über TLS/HTTPS. Daten in Datenbanken sind im Ruhezustand verschlüsselt (AES-256)</li>
+      <li><strong>Zugriffskontrolle:</strong> Strikte Berechtigungsverwaltung, Mehr-Faktor-Authentifizierung für Voxera-Mitarbeiter, Need-to-know-Prinzip</li>
+      <li><strong>Datenresidenz:</strong> Die Hauptdatenbank wird in der Schweiz (Zürich) betrieben</li>
+      <li><strong>Sicherheits-Updates:</strong> Regelmässige Aktualisierungen aller Systemkomponenten, Patch-Management</li>
+      <li><strong>Backup und Wiederherstellung:</strong> Regelmässige Backups der Daten, dokumentierte Wiederherstellungsprozesse</li>
+      <li><strong>Audit-Logs:</strong> Protokollierung aller Zugriffe auf personenbezogene Daten</li>
+      <li><strong>Vendor-Sicherheit:</strong> Sorgfältige Auswahl und vertragliche Verpflichtung aller Sub-Auftragsverarbeiter</li>
+    </ul>
+    <p>Bei einem Datenschutzvorfall mit hohem Risiko informieren wir den Eidgenössischen Datenschutz- und Öffentlichkeitsbeauftragten (EDÖB) sowie die Betroffenen unverzüglich gemäss den gesetzlichen Vorgaben.</p>
+  </div>
+
+  <div class="legal-sec">
+    <div class="legal-sec-num">9. Cookies und Webanalyse</div>
+    <h2>Cookies und Tracking</h2>
+    <p>Unsere Website (voxera.ch) und Webanwendungen (admin.voxera.ch, dashboard.voxera.ch) verwenden technisch notwendige Cookies für den Betrieb, die Sicherheit und die Authentifizierung. Diese Cookies sind erforderlich, um die Funktionsfähigkeit der Anwendung zu gewährleisten.</p>
+    <p>Wir verwenden <strong>keine Tracking-, Analyse- oder Werbe-Cookies</strong> ohne Ihre Einwilligung. Soweit wir in Zukunft optionale Webanalyse-Tools einsetzen, werden Sie über einen Cookie-Banner um Ihre Einwilligung gebeten.</p>
+    <p>Wenn Sie unser Kontaktformular nutzen, werden die eingegebenen Daten ausschliesslich zur Bearbeitung Ihrer Anfrage verarbeitet.</p>
+  </div>
+
+  <div class="legal-sec">
+    <div class="legal-sec-num">10. Ihre Rechte</div>
+    <h2>Datenschutzrechte der betroffenen Personen</h2>
+    <p>Sie haben gegenüber uns die folgenden Rechte hinsichtlich der Sie betreffenden personenbezogenen Daten:</p>
+    <table class="data-table">
+      <tr><th>Recht</th><th>Was bedeutet das?</th></tr>
+      <tr><td><strong>Auskunft</strong><br>(Art. 25 revDSG / Art. 15 DSGVO)</td><td>Sie können jederzeit Auskunft darüber verlangen, welche personenbezogenen Daten wir zu Ihrer Person speichern</td></tr>
+      <tr><td><strong>Berichtigung</strong><br>(Art. 32 revDSG / Art. 16 DSGVO)</td><td>Unrichtige oder unvollständige Daten können Sie durch uns korrigieren lassen</td></tr>
+      <tr><td><strong>Löschung</strong><br>(Art. 32 revDSG / Art. 17 DSGVO)</td><td>Sie können die Löschung Ihrer Daten verlangen, soweit keine gesetzlichen Aufbewahrungspflichten entgegenstehen</td></tr>
+      <tr><td><strong>Einschränkung</strong><br>(Art. 18 DSGVO)</td><td>Sie können verlangen, dass wir die Verarbeitung einschränken</td></tr>
+      <tr><td><strong>Datenübertragbarkeit</strong><br>(Art. 28 revDSG / Art. 20 DSGVO)</td><td>Sie haben das Recht, Ihre Daten in einem strukturierten, maschinenlesbaren Format zu erhalten</td></tr>
+      <tr><td><strong>Widerspruch</strong><br>(Art. 30 revDSG / Art. 21 DSGVO)</td><td>Sie können der Verarbeitung Ihrer Daten widersprechen, insbesondere bei Verarbeitung auf Grundlage berechtigter Interessen</td></tr>
+      <tr><td><strong>Widerruf von Einwilligungen</strong></td><td>Erteilte Einwilligungen können Sie jederzeit mit Wirkung für die Zukunft widerrufen</td></tr>
+    </table>
+    <h3>Wie Sie Ihre Rechte ausüben können</h3>
+    <p>Senden Sie uns eine Anfrage an <a href="mailto:info@voxera.ch">info@voxera.ch</a>. Zur Identifikation kann eine Identitätsprüfung erforderlich sein. Wir beantworten Anfragen grundsätzlich innerhalb von 30 Tagen kostenlos. Bei offensichtlich unbegründeten oder exzessiven Anfragen können wir ein angemessenes Entgelt verlangen oder die Bearbeitung verweigern.</p>
+    <h3>Anrufer-Anfragen</h3>
+    <p>Wenn Sie als Anrufer (nicht als Voxera-Vertragskunde) eine Anfrage zu Ihren Daten haben, wenden Sie sich bitte primär an das Unternehmen, das Sie angerufen haben (den Voxera-Geschäftskunden). Voxera unterstützt subsidiär bei berechtigten Anliegen.</p>
+    <h3>Beschwerderecht</h3>
+    <p>Sie haben das Recht, sich bei einer Aufsichtsbehörde zu beschweren. In der Schweiz ist dies der <strong>Eidgenössische Datenschutz- und Öffentlichkeitsbeauftragte (EDÖB)</strong>, Feldeggweg 1, 3003 Bern, <a href="https://www.edoeb.admin.ch">www.edoeb.admin.ch</a>. Für EU-Bürger gelten die jeweils zuständigen nationalen Aufsichtsbehörden.</p>
+  </div>
+
+  <div class="legal-sec">
+    <div class="legal-sec-num">11. KI-Telefonie</div>
+    <h2>Besonderheiten bei der KI-Telefonie</h2>
+    <p>Im Rahmen unseres KI-Telefonassistenten («Lara») werden Telefongespräche automatisch entgegengenommen, transkribiert und mittels KI verarbeitet.</p>
+    <h3>Disclosure am Gesprächsanfang</h3>
+    <p>Voxera stellt sicher, dass jeder Anrufer zu Beginn des Gesprächs in folgender oder vergleichbarer Form informiert wird:</p>
+    <div class="legal-card"><p>«Guten Tag, Sie sprechen mit der KI-Assistentin von [Kundenname]. Dieses Gespräch wird zu Servicezwecken automatisch verarbeitet. Mit dem Fortführen erklären Sie sich damit einverstanden. Falls Sie nicht einverstanden sind, beenden Sie bitte das Gespräch oder fordern Sie eine Weiterleitung an einen Menschen an.»</p></div>
+    <p>Der Voxera-Kunde ist verpflichtet, diese Disclosure-Funktion korrekt zu konfigurieren und in seinem operativen Betrieb einzusetzen.</p>
+    <h3>Verarbeitete Daten</h3>
+    <ul>
+      <li><strong>Audio des Gesprächs:</strong> Verarbeitung in Echtzeit; kurzfristige Zwischenspeicherung im Rahmen des technisch Notwendigen</li>
+      <li><strong>Transkript des Gesprächs:</strong> Speicherung gemäss den oben genannten Speicherfristen</li>
+      <li><strong>Metadaten:</strong> Anrufzeit, Telefonnummer (sofern übermittelt), Anrufdauer, Gesprächszusammenfassung</li>
+    </ul>
+    <h3>EU AI Act</h3>
+    <p>Voxera ist ein KI-System im Sinne von Art. 50 EU AI Act. Wir erfüllen die Transparenzpflicht durch die obenstehende Disclosure am Anfang jedes Gesprächs. Anrufer aus der EU werden somit klar darüber informiert, dass sie mit einem KI-System sprechen.</p>
+    <h3>Verantwortlichkeit</h3>
+    <ul>
+      <li><strong>Für die Verarbeitung von Anruferdaten</strong> ist primär unser Geschäftskunde (das Unternehmen, das Sie angerufen haben) verantwortlich. Voxera handelt als Auftragsverarbeiter.</li>
+      <li><strong>Für die Voxera-eigene Verarbeitung</strong> (Vertragsdaten unserer Geschäftskunden, Plattform-Nutzung, technischer Betrieb) ist Voxera selbst verantwortlich.</li>
+    </ul>
+  </div>
+
+  <div class="legal-sec">
+    <div class="legal-sec-num">12. Datenschutz-Folgenabschätzung</div>
+    <h2>DSFA und besondere Schutzmassnahmen</h2>
+    <p>Aufgrund der Natur der KI-gestützten Anrufverarbeitung haben wir eine Datenschutz-Folgenabschätzung (DSFA) gemäss Art. 22 revDSG / Art. 35 DSGVO durchgeführt. Wir haben angemessene technische und organisatorische Massnahmen ergriffen, um identifizierte Risiken zu minimieren.</p>
+    <p>Bei besonders sensiblen Branchen (z.B. Arztpraxen, Anwaltskanzleien) empfehlen wir unseren Kunden, ihrerseits eine eigene Datenschutz-Folgenabschätzung durchzuführen und uns gegebenenfalls bei Rückfragen zu kontaktieren.</p>
+  </div>
+
+  <div class="legal-sec">
+    <div class="legal-sec-num">13. Änderungen dieser Erklärung</div>
+    <h2>Aktualisierungen</h2>
+    <p>Wir können diese Datenschutzerklärung anpassen, um sie an neue gesetzliche Anforderungen, geänderte Verarbeitungsprozesse oder neue Sub-Auftragsverarbeiter anzupassen. Wesentliche Änderungen kommunizieren wir aktiv (z.B. per E-Mail an Vertragskunden). Die jeweils aktuelle Version finden Sie unter <a href="https://voxera.ch/datenschutz">voxera.ch/datenschutz</a>.</p>
+  </div>
+
+  <div class="legal-sec">
+    <div class="legal-sec-num">Kontakt</div>
+    <h2>Datenschutz-Anfragen</h2>
+    <div class="legal-card">
+      <p><strong>Voxera</strong><br>Binsböschenweg 3, 6045 Meggen, Schweiz<br>E-Mail: <a href="mailto:info@voxera.ch">info@voxera.ch</a><br><br>Wir beantworten Datenschutzanfragen grundsätzlich innerhalb von 30 Tagen.</p>
+    </div>
+  </div>
+</div>
+
+<footer>
+  <div class="footer-inner">
+    <div class="footer-top">
+      <div class="footer-logo">
+        <div class="footer-logo-ico"><svg width="18" height="18" viewBox="0 0 16 16" fill="none"><path d="M8 2C4.5 2,2 4.5,2 8" stroke="#4B9FFF" stroke-width="1.6" stroke-linecap="round"/><path d="M8 2C11.5 2,14 4.5,14 8" stroke="#E8C547" stroke-width="1.6" stroke-linecap="round"/><path d="M2 8C2 11.5,4.5 14,8 14C11.5 14,14 11.5,14 8" stroke="white" stroke-width="1.6" stroke-linecap="round"/><path d="M5.5 5.5L8 10L10.5 5.5" stroke="white" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <span class="footer-logo-w">VOXERA</span>
+      </div>
+      <div class="footer-links">
+        <a href="/">Startseite</a>
+        <a href="/#preise">Preise</a>
+        <a href="/#beratung">Beratung</a>
+        <a href="/datenschutz.html">Datenschutz</a>
+        <a href="/agb">AGB</a>
+        <a href="/impressum.html">Impressum</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>© 2026 Voxera · Swiss Trust Tech · Alle Rechte vorbehalten.</span>
+      <div style="display:flex;gap:16px;">
+        <a href="/datenschutz.html" style="color:rgba(255,255,255,.25);">Datenschutz</a>
+        <a href="/agb" style="color:rgba(255,255,255,.25);">AGB</a>
+        <a href="/impressum.html" style="color:rgba(255,255,255,.25);">Impressum</a>
+      </div>
+    </div>
+  </div>
+</footer>
+</body>
+</html>

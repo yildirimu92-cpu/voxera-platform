@@ -1,0 +1,27 @@
+---
+import Base from '../../layouts/Base.astro';
+import { SITE } from '../../config/site';
+---
+<Base
+  titel="Anfrage erhalten | Voxera"
+  beschreibung="Ihre Anfrage ist angekommen. Wir melden uns in der Regel innert 24 Stunden."
+  noindex={true}
+>
+  <section class="sektion">
+    <div class="wrap">
+      <hr class="akzentlinie" />
+      <h1>Danke – Ihre Anfrage ist da</h1>
+      <p class="leise">
+        Wir melden uns in der Regel innert 24 Stunden. Wenn es eilt, rufen Sie an:
+        <a href={`tel:${SITE.telefon.replace(/\s/g, '')}`}>{SITE.telefon}</a>.
+      </p>
+      <p class="aktionen">
+        <a class="knopf knopf--sekundaer" href="/">Zurück zur Startseite</a>
+      </p>
+    </div>
+  </section>
+</Base>
+
+<style>
+  .aktionen { margin-top: 28px; }
+</style>

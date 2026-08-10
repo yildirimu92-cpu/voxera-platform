@@ -1,0 +1,78 @@
+/* ============================================================
+   Voxera Website — Design-Tokens
+   Option B „Schweizer Werkbank", entschieden am 10.08.2026.
+   Verbindlich festgelegt in ZIELBILD Abschnitt C.1.
+
+   Regeln, die aus der Entscheidung folgen und hier durchgesetzt
+   werden, statt sie der Umsetzung zu ueberlassen:
+     - Sand ist eine Sektionstrennung, kein Farbtupfer:
+       genau EINE Flaeche pro Seite, ganze Breite.
+     - Gold traegt nie Text. Nur Linien, Punkte, kleine Flaechen
+       mit Night-Text darauf.
+     - Sekundaertext laeuft nur auf Weiss und Canvas, nie auf Sand.
+     - Ordnung kommt aus Abstand und Hairlines, nicht aus
+       gestapelten Schatten: genau eine Schattenstufe.
+   ============================================================ */
+
+:root {
+  /* ---- Farbrollen (verbindlich) ------------------------------ */
+  --vx-ground:        #FFFFFF;  /* Seitenhintergrund, Karten */
+  --vx-recessed:      #F7F8FA;  /* Sektionswechsel, Eingabefelder */
+  --vx-warm:          #F5EDD0;  /* Sand — genau eine Sektion pro Seite */
+  --vx-text:          #0D1F3C;  /* Night — Text und Ueberschriften */
+  --vx-text-muted:    #5B6879;  /* nur auf --vx-ground und --vx-recessed */
+  --vx-accent:        #E8C547;  /* Gold — Hairlines, Badges, aktive Zustaende */
+  --vx-link:          #1A6FE8;  /* Links im Fliesstext */
+
+  /* Primaeraktion: Night, wie im Dashboard die bestaetigende Aktion */
+  --vx-action:        var(--vx-text);
+  --vx-action-hover:  #13284D;
+  --vx-action-text:   #FFFFFF;
+
+  /* Feedback-Farben kommen ausschliesslich in Produkt-Screenshots vor,
+     nie in der Seitengestaltung — sonst verliert Gruen seine Bedeutung. */
+
+  /* ---- Linien und Flaechen ----------------------------------- */
+  --vx-hairline:      rgba(13, 31, 60, .07);
+  --vx-hairline-firm: rgba(13, 31, 60, .12);
+  --vx-radius:        12px;
+  --vx-radius-sm:     8px;
+  --vx-shadow:        0 1px 2px rgba(13, 31, 60, .04),
+                      0 8px 24px -14px rgba(13, 31, 60, .18);
+
+  /* ---- Typografie -------------------------------------------- */
+  /* Selbst ausgeliefert, kein Google-Fonts-CDN (Befund C12).
+     Die Dateien liegen in /public/fonts/ — siehe fonts.css. */
+  --vx-font-display: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+  --vx-font-body:    'DM Sans', ui-sans-serif, system-ui, sans-serif;
+
+  --vx-text-sm:      14px;
+  --vx-text-base:    17px;
+  --vx-text-lg:      19px;
+  --vx-text-h3:      clamp(20px, 2.2vw, 24px);
+  --vx-text-h2:      clamp(26px, 3.4vw, 36px);
+  --vx-text-h1:      clamp(34px, 5.2vw, 54px);
+
+  --vx-leading-body: 1.65;
+  --vx-leading-head: 1.12;
+  --vx-tracking-head: -.03em;
+
+  /* ---- Raum --------------------------------------------------
+     „Viel Weissraum" als Zahl statt als Absicht. */
+  --vx-section-y:     96px;   /* Desktop */
+  --vx-section-y-sm:  64px;   /* Mobil */
+  --vx-gap-head-body: 16px;
+  --vx-content-max:   1120px;
+  --vx-measure:       68ch;   /* Textspalte */
+}
+
+@media (max-width: 700px) {
+  :root {
+    --vx-text-base: 16px;
+    --vx-section-y: var(--vx-section-y-sm);
+  }
+}
+
+/* Die Seite ist bewusst hell gefuehrt und hat keinen Dunkelmodus:
+   Option B lebt von Weissraum und Kontrast auf hellem Grund. Farben
+   sind deshalb absolut gesetzt, nicht themenabhaengig. */
