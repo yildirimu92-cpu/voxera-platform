@@ -354,34 +354,41 @@ function stripMasterMeta(value) {
 // ebenfalls nennt. Solange sie nicht gesprochen wird, muss Abschnitt 11
 // entsprechend angepasst werden -- sonst sagt die Datenschutzerklaerung
 // weiterhin etwas zu, das im Gespraech nicht vorkommt.
+// Kein Hinweis auf Weiterleitung an einen Menschen. Er stand hier bis zum
+// 10.08.2026 und ist entfernt, weil es die Faehigkeit nicht gibt: dem Agenten
+// wird als einziges Werkzeug das Kalender-Tool bereitgestellt (siehe
+// elevenlabs-sync.js, tool_ids), eine Transfer-Funktion existiert nirgends im
+// Repo. Ein gesprochenes "sagen Sie es mir jederzeit" waere ein Versprechen
+// ohne technische Grundlage gewesen -- dieselbe Fehlerklasse wie die
+// Offenlegung, die dieser Branch behebt, nur andersherum.
+//
+// Der Prompt selbst enthaelt diesen Widerspruch weiterhin an zwei Stellen
+// (UNKNOWN_HANDLING.human und der Block WEITERLEITUNGEN). Das ist ein eigener
+// Befund und gehoert nicht in diesen Branch.
 const OFFENLEGUNG = {
   de: {
     rolle: 'die digitale Assistentin',
     aufzeichnung: 'das Gespräch wird aufgezeichnet',
-    mensch: 'Wenn Sie lieber mit einem Menschen sprechen, sagen Sie es mir jederzeit.',
     frage: 'Wie kann ich Ihnen helfen?',
-    eigenstaendig: 'Sie sprechen mit einer digitalen Assistentin, das Gespräch wird aufgezeichnet. Wenn Sie lieber mit einem Menschen sprechen, sagen Sie es mir jederzeit.'
+    eigenstaendig: 'Sie sprechen mit einer digitalen Assistentin, das Gespräch wird aufgezeichnet.'
   },
   en: {
     rolle: 'the digital assistant',
     aufzeichnung: 'this call is recorded',
-    mensch: 'If you would prefer to speak with a person, just tell me.',
     frage: 'How may I help you?',
-    eigenstaendig: 'You are speaking with a digital assistant, and this call is recorded. If you would prefer to speak with a person, just tell me.'
+    eigenstaendig: 'You are speaking with a digital assistant, and this call is recorded.'
   },
   fr: {
     rolle: "l'assistante numérique",
     aufzeichnung: 'cet appel est enregistré',
-    mensch: 'Si vous préférez parler à une personne, dites-le-moi.',
     frage: 'Comment puis-je vous aider?',
-    eigenstaendig: "Vous parlez avec une assistante numérique et cet appel est enregistré. Si vous préférez parler à une personne, dites-le-moi."
+    eigenstaendig: "Vous parlez avec une assistante numérique et cet appel est enregistré."
   },
   it: {
     rolle: "l'assistente digitale",
     aufzeichnung: 'questa chiamata viene registrata',
-    mensch: 'Se preferisce parlare con una persona, me lo dica.',
     frage: 'Come posso aiutarla?',
-    eigenstaendig: "Sta parlando con un'assistente digitale e questa chiamata viene registrata. Se preferisce parlare con una persona, me lo dica."
+    eigenstaendig: "Sta parlando con un'assistente digitale e questa chiamata viene registrata."
   }
 };
 
@@ -425,11 +432,11 @@ function mitOffenlegung(greeting, language) {
 
 function buildGreeting(name, type, personName, firmName, language) {
   const spokenName = type === 'company' ? firmName : (personName || firmName);
-  const { rolle, aufzeichnung, mensch, frage } = offenlegungFuer(language);
-  // Vorstellung, Rolle und Aufzeichnung in einem Satz; danach der Ausweg,
-  // dann die Frage. Die Offenlegung steht damit vor der Schlussfrage --
-  // sonst spricht sie zu, wer auf die Frage antwortet.
-  const schluss = `${mensch} ${frage}`;
+  const { rolle, aufzeichnung, frage } = offenlegungFuer(language);
+  // Vorstellung, Rolle und Aufzeichnung in einem Satz, dann die Frage. Die
+  // Offenlegung steht damit vor der Schlussfrage -- sonst spricht sie zu, wer
+  // auf die Frage antwortet.
+  const schluss = frage;
   if (language === 'fr') {
     if (type === 'company') return `Bonjour, ici ${name}, ${rolle} de ${spokenName}, ${aufzeichnung}. ${schluss}`;
     if (type === 'consultant') return `Bonjour, ici ${name}, ${rolle} de ${spokenName} chez ${firmName}, ${aufzeichnung}. ${schluss}`;

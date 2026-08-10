@@ -834,11 +834,16 @@ const TYPEN = ['company', 'consultant', 'private'];
 //
 // Die Einwilligung durch Fortfuehren wird bewusst NICHT gesprochen und
 // deshalb hier auch nicht geprueft; sie ist in Abschnitt 11 anzupassen.
+//
+// Ebenso fehlt der Hinweis auf Weiterleitung an einen Menschen: die
+// Faehigkeit gibt es nicht (dem Agenten wird nur das Kalender-Tool
+// bereitgestellt). Eine Pruefung darauf wuerde ein Versprechen festschreiben,
+// das das Produkt nicht einloesen kann.
 const BESTANDTEILE = {
-  de: { rolle:/digitale[nr]? Assistentin/i, aufzeichnung:/Gespräch wird aufgezeichnet/i, mensch:/lieber mit einem Menschen sprechen/i },
-  en: { rolle:/digital assistant/i, aufzeichnung:/call is recorded/i, mensch:/prefer to speak with a person/i },
-  fr: { rolle:/assistante numérique/i, aufzeichnung:/appel est enregistré/i, mensch:/préférez parler à une personne/i },
-  it: { rolle:/assistente digitale/i, aufzeichnung:/chiamata viene registrata/i, mensch:/preferisce parlare con una persona/i }
+  de: { rolle:/digitale[nr]? Assistentin/i, aufzeichnung:/Gespräch wird aufgezeichnet/i },
+  en: { rolle:/digital assistant/i, aufzeichnung:/call is recorded/i },
+  fr: { rolle:/assistante numérique/i, aufzeichnung:/appel est enregistré/i },
+  it: { rolle:/assistente digitale/i, aufzeichnung:/chiamata viene registrata/i }
 };
 
 for (const sprache of SPRACHEN) {
