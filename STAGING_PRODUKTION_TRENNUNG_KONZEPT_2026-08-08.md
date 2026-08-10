@@ -214,6 +214,64 @@ getestet wurde. Die Kommandozentrale führt das als eigenen offenen Punkt; er bl
 gehört aber sachlich in dieselbe Umsetzung (ein Restore-Test *ist* das Befüllen eines
 Staging-Projekts).
 
+### 1.6 Default-Privilegien: Staging und Produktion weichen ausgerechnet hier ab
+
+Gefunden am 10.08.2026 beim Prüfen des offenen Review-Threads auf PR #896
+(`db_security_invariants`, TRUNCATE-Sweep). Zwei Befunde, beide gegen die
+Live-Datenbanken gemessen, nicht aus dem Repo hergeleitet.
+
+**Befund A — der TRUNCATE-Sweep aus PR #892 war grantor-gebunden und hat nur
+die Hälfte erreicht.**
+
+```sql
+select pg_get_userbyid(defaclrole) as grantor, defaclobjtype, defaclacl::text
+from pg_default_acl
+where defaclnamespace::regnamespace::text = 'public' and defaclobjtype = 'r';
+```
+
+Gemessen auf `ulcofbgrovgcvowdjrge` (Produktion):
+
+| Grantor | ACL für `anon` / `authenticated` auf künftige Tabellen |
+| --- | --- |
+| `postgres` | `arwdxtm` |
+| `supabase_admin` | `arwd**D**xtm` |
+
+`D` = TRUNCATE. Unter `postgres` ist es weg — der Sweep
+(`20260809164858_truncate_grant_sweep.sql:92-93`, `alter default privileges …
+revoke truncate … from anon/authenticated`) hat gewirkt. Unter `supabase_admin`
+steht es weiterhin, weil `alter default privileges` ohne `for role` nur für die
+ausführende Rolle gilt. Der Kommentar in der Migration — „Wurzel: kuenftige
+Tabellen erben kein TRUNCATE mehr" — trifft damit nur zur Hälfte zu.
+
+Ausserdem gehen für **beide** Grantoren weiterhin INSERT, SELECT, UPDATE, DELETE
+(`arwd`) an künftige Tabellen — der Sweep hat ausschliesslich TRUNCATE
+adressiert. Jede neu angelegte Tabelle in `public` erbt diese vier Rechte für
+`anon`/`authenticated`, bis eine Migration sie einzeln zurücknimmt. Der
+Rundum-Wächter (`db_security_invariants_catalog.sql:370-371`) prüft nur
+TRUNCATE und nur auf bereits existierenden Tabellen — eine neue Tabelle mit
+offenem SELECT würde keine Prüfung auslösen.
+
+**Befund B — Staging ist für genau diese Prüfung ungeeignet.** Dieselbe
+Abfrage gegen `voxera-staging` (`hzqiyyqfchvfcmmbemvd`, angelegt 08.08.)
+liefert **keine einzige Zeile**. Dort vergeben neu angelegte Tabellen von
+vornherein nichts an `anon`/`authenticated` — vermutlich, weil neuere
+Supabase-Projekte diese permissiven Default-ACLs nicht mehr mitbringen
+(nicht verifiziert, für die Sache ohne Belang).
+
+**Konsequenz für dieses Konzept:** Staging und Produktion unterscheiden sich in
+genau der Eigenschaft, die eine Rechte-Migration prüfen soll. Eine Migration,
+die auf Staging sauber aussieht — keine offenen Grants auf einer neuen Tabelle —
+kann in Produktion trotzdem eine offene Tabelle hinterlassen, weil die
+Ausgangslage der beiden Umgebungen verschieden ist. Für Migrationen, die
+Tabellen anlegen oder Grants ändern, ist ein grüner Staging-Lauf **kein**
+Nachweis, dass Produktion ebenso grün wäre. Jede Option in diesem Konzept, die
+Staging als Vorprüfung für produktionswirksame Migrationen vorsieht, muss diese
+Divergenz entweder auflösen (Staging auf denselben Default-ACL-Stand bringen)
+oder ausdrücklich als Lücke benennen.
+
+Nicht Teil dieses Punktes: ob und wie die fehlenden `revoke`-Anweisungen
+nachgezogen werden. Das ist Gegenstand des offenen Threads auf PR #896 selbst.
+
 ---
 
 ## 2. Optionen
@@ -434,6 +492,10 @@ schließt die Lücke, die den P0-Vorfall ermöglicht hat.
 1. Option 3 sofort, oder direkt auf Option 1 gehen?
 2. Externe Dienste (Twilio, ElevenLabs, Make) mit trennen oder bewusst später? (+1–2 Tage)
 3. Ist das Supabase-Projekt „Finanzpilot" wirklich fremd, oder verfügbar?
+4. Siehe 1.6: Soll Staging auf denselben Default-ACL-Stand wie Produktion gebracht
+   werden, damit ein grüner Staging-Lauf bei Rechte-Migrationen wieder aussagekräftig
+   ist — oder wird die Divergenz bewusst stehengelassen und jede Rechte-Migration
+   separat gegen Produktion geprüft?
 
 **Vor der Umsetzung im Netlify-Dashboard nachzusehen** (siehe 1.4 — ändert die Aufwände nicht,
 aber die Einschätzung der heutigen Exponiertheit):
