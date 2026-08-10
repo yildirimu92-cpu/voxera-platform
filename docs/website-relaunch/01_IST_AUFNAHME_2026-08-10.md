@@ -1,16 +1,36 @@
 # Schritt 1 — Ist-Aufnahme voxera.ch (Sicherung)
 
 **Datum:** 10.08.2026
-**Status:** ⚠️ **Unvollständig — die Vollsicherung ist technisch blockiert.** Was rekonstruierbar
-war, steht unten. Was nur von der Live-Seite kommen kann, ist am Ende als Beschaffungsliste
-aufgeführt.
+**Status:** ✅ **Im Kern erledigt.** Die Seite ist gesichert und versioniert.
 
-> **Nachtrag 10.08.2026 — Auflösung zugesagt.** Umut lädt das Netlify-Deploy-ZIP hoch (Weg 2
-> unten), zunächst getrieben von der Datenresidenz-Frage, die unabhängig vom Relaunch akut
-> behandelt wird. Dasselbe ZIP wird anschliessend als Schritt-1-Sicherungskopie nachgereicht.
-> **Sobald es vorliegt:** Inhalt hier ablegen, dieses Dokument von „rekonstruiert" auf
-> „gesichert" umstellen, das Content-Audit auf den Volltext ausweiten und die Redirect-Karte
-> alt→neu erstellen. Bis dahin bleibt der Schritt formal offen.
+> ## ✅ Aufgelöst am 10.08.2026 — die Sicherung liegt vor
+>
+> Umut hat die Dateien direkt geliefert. Sie liegen unverändert in
+> **[`ist-stand-2026-08-10/`](ist-stand-2026-08-10/)** — damit existiert erstmals eine
+> **versionierte Kopie der alten Seite**, und das Risiko, gegen das dieser Schritt gerichtet
+> war, ist ausgeräumt.
+>
+> | Datei | Was es ist |
+> |---|---|
+> | `index.html` (252 KB) | Startseite — One-Pager mit allen Sektionen |
+> | `agb.html` · `datenschutz.html` · `impressum.html` | Rechtstexte — **die wichtigsten**, weil in Verträgen referenziert |
+> | `offer-accept.html` | Transaktionsseite: Offerte digital unterzeichnen |
+> | `contract-signed.html` | Transaktionsseite: unterzeichneter Vertrag |
+> | `netlify.toml` · `_redirects` | Deploy-Konfiguration, Rewrites, Catch-all |
+>
+> **Was daraus folgte:** sieben neue Befunde aus der Startseite und vier aus den Rechtstexten
+> — siehe Content-Audit. Der wichtigste: die **Datenschutzerklärung beschreibt die
+> Datenverarbeitung korrekt** und widerspricht damit der Startseiten-FAQ. Die richtige
+> Formulierung für C2 existiert also bereits im eigenen Haus.
+>
+> **Noch offen — der letzte Rest:** eine **vollständige Dateiliste des Deploys**. Ohne sie
+> lässt sich nicht ausschliessen, dass weitere Seiten existieren; bei `offer-accept.html` war
+> genau das der Fall (vorher nirgends dokumentiert). Ausserdem fehlen die Bild-Assets
+> (`og-image.png`, Favicons). Beides blockiert den Bau nicht, wohl aber die vollständige
+> Redirect-Karte.
+>
+> Der Abschnitt unten beschreibt den ursprünglichen Blockierungsgrund und bleibt als
+> Protokoll stehen.
 
 ---
 
