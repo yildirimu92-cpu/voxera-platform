@@ -11,6 +11,7 @@
  */
 import { SITE } from '../config/site';
 import '../styles/tokens.css';
+import '../styles/fonts.css';
 import '../styles/base.css';
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
@@ -79,10 +80,19 @@ const schemas = [organisation, ...(schema ? (Array.isArray(schema) ? schema : [s
   <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
   <meta name="theme-color" content="#0D1F3C" />
 
-  {/* Schriften selbst ausgeliefert, kein Google-Fonts-CDN (Content-Audit C12).
-      Preload nur der zwei tatsaechlich genutzten Schnitte. */}
-  <link rel="preload" href="/fonts/plus-jakarta-sans-700.woff2" as="font" type="font/woff2" crossorigin />
-  <link rel="preload" href="/fonts/dm-sans-400.woff2" as="font" type="font/woff2" crossorigin />
+  {/* Schriften: selbst ausgeliefert, kein Google-Fonts-CDN (Content-Audit C12).
+      Die @font-face-Regeln stehen in src/styles/fonts.css.
+
+      Der Preload der zwei Schnitte ist bewusst ENTFERNT, solange die
+      .woff2-Dateien fehlen: ein Preload auf eine nicht vorhandene Datei
+      erzeugt auf jedem Seitenaufruf einen nutzlosen Request und eine
+      Konsolenwarnung. Sobald /fonts/ befuellt ist, hier wieder einsetzen:
+
+        <link rel="preload" href="/fonts/plus-jakarta-sans-700.woff2" as="font" type="font/woff2" crossorigin />
+        <link rel="preload" href="/fonts/dm-sans-400.woff2" as="font" type="font/woff2" crossorigin />
+
+      scripts/verify-seo.mjs bricht den Build ab, wenn ein Preload-Ziel
+      nicht existiert — der Fehler kann also nicht zurueckkommen. */}
 
   {schemas.map((s) => <script type="application/ld+json" set:html={JSON.stringify(s)} />)}
 </head>

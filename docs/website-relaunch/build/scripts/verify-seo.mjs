@@ -23,6 +23,9 @@ const JS_BUDGET_KB = 30;
 const fehler = [];
 const warnungen = [];
 const offeneStellen = [];
+const fehlendePreloads = new Set();
+const referenzierteAssets = new Set();
+const fehlendeAssets = [];
 
 async function htmlDateien(dir) {
   const out = [];
@@ -103,6 +106,58 @@ for (const datei of dateien) {
   // Sichtbare Platzhalter zaehlen: vor dem Go-Live muss diese Zahl null sein.
   const platzhalter = einmal(s, /data-platzhalter/g);
   if (platzhalter > 0) offeneStellen.push(`${seite}: ${platzhalter}`);
+
+  // Lokale Referenzen, die ins Leere zeigen.
+  //
+  // Ein <link rel="preload"> auf eine fehlende Datei ist strikt schaedlich:
+  // ein nutzloser Request auf jedem Seitenaufruf plus Konsolenwarnung. Das ist
+  // ein Fehler, kein Schoenheitsfleck.
+  //
+  // Fehlende Bilder (Favicon, og-image) sind dagegen aktuell erwartbar — die
+  // Assets stehen noch aus. Sie werden gesammelt und am Ende gemeldet, damit
+  // der offene Rest sichtbar bleibt, ohne den Build zu blockieren.
+  for (const m of s.matchAll(/<link\b[^>]*rel=["']preload["'][^>]*href=["'](\/[^"']+)["']/gi)) {
+    fehlendePreloads.add(m[1]);
+  }
+  for (const m of s.matchAll(/<link\b[^>]*rel=["'](?:icon|apple-touch-icon)["'][^>]*href=["'](\/[^"']+)["']/gi)) {
+    referenzierteAssets.add(m[1]);
+  }
+  for (const m of s.matchAll(/<meta\b[^>]*property=["']og:image["'][^>]*content=["']([^"']+)["']/gi)) {
+    const pfad = m[1].replace(/^https?:\/\/[^/]+/, '');
+    if (pfad.startsWith('/')) referenzierteAssets.add(pfad);
+  }
+}
+
+// Auch die CSS-Dateien nach lokalen Referenzen absuchen — die Schriften stehen
+// als url() in @font-face und tauchen sonst in keiner Liste auf, obwohl der
+// Browser sie anfordert.
+async function cssDateien(dir) {
+  const out = [];
+  for (const e of await readdir(dir, { withFileTypes: true })) {
+    const p = join(dir, e.name);
+    if (e.isDirectory()) out.push(...(await cssDateien(p)));
+    else if (e.name.endsWith('.css')) out.push(p);
+  }
+  return out;
+}
+for (const c of await cssDateien(DIST)) {
+  const css = await readFile(c, 'utf8');
+  for (const m of css.matchAll(/url\(\s*['"]?(\/[^'")]+)['"]?\s*\)/g)) {
+    referenzierteAssets.add(m[1]);
+  }
+}
+
+// Existieren die referenzierten Dateien wirklich?
+async function existiert(pfad) {
+  try { await readFile(join(DIST, pfad.replace(/^\//, ''))); return true; } catch { return false; }
+}
+for (const p of fehlendePreloads) {
+  if (!(await existiert(p))) {
+    fehler.push(`Preload zeigt ins Leere: ${p} — Preload erst setzen, wenn die Datei existiert`);
+  }
+}
+for (const p of referenzierteAssets) {
+  if (!(await existiert(p))) fehlendeAssets.push(p);
 }
 
 // noindex und Sitemap muessen zusammenpassen. Eine Seite, die man Google per
@@ -147,10 +202,15 @@ if (jsKb > JS_BUDGET_KB * 3) {
 for (const w of warnungen) console.warn(`WARNUNG  ${w}`);
 for (const f of fehler) console.error(`FEHLER   ${f}`);
 
+if (fehlendeAssets.length) {
+  console.log('\nFehlende Assets (referenziert, aber nicht im Build) — blockiert den Livegang:');
+  for (const a of [...new Set(fehlendeAssets)].sort()) console.log(`  ${a}`);
+}
+
 if (offeneStellen.length) {
   console.log('\nOffene Stellen (Platzhalter je Seite) — vor dem Go-Live muss das leer sein:');
   for (const o of offeneStellen) console.log(`  ${o}`);
 }
 
-console.log(`\n${dateien.length} Seiten geprueft — ${fehler.length} Fehler, ${warnungen.length} Warnungen, ${offeneStellen.length} Seiten mit Platzhaltern.`);
+console.log(`\n${dateien.length} Seiten geprueft — ${fehler.length} Fehler, ${warnungen.length} Warnungen, ${offeneStellen.length} Seiten mit Platzhaltern, ${new Set(fehlendeAssets).size} fehlende Assets.`);
 if (fehler.length) process.exit(1);

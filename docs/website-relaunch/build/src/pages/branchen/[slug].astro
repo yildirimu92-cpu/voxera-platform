@@ -126,12 +126,9 @@ if (inhalt?.faq.length) {
     </section>
   ) : null}
 
-  <section class="sektion sektion--zurueckgesetzt">
-    <div class="wrap">
-      <h2>Passende Ratgeber-Artikel</h2>
-      <p class="leise">Noch keine Artikel in dieser Kategorie.</p>
-    </div>
-  </section>
+  {/* Der Ratgeber-Slot erscheint erst, wenn es Artikel gibt. Eine Sektion, die
+      ueber zwei volle Abstaende hinweg "noch keine Artikel" sagt, ist
+      verschenkter Platz und schwaecht die Seite. */}
 </Base>
 
 <style>
