@@ -1,0 +1,23 @@
+---
+import Base from '../../layouts/Base.astro';
+import Platzhalter from '../../components/Platzhalter.astro';
+---
+<Base
+  titel="Kontakt | Voxera"
+  beschreibung="Fragen zu Voxera? Schreiben Sie uns oder rufen Sie an – wir antworten auf Deutsch, persönlich und innert 24 Stunden."
+>
+  <section class="sektion">
+    <div class="wrap">
+      <hr class="akzentlinie" />
+      <h1>Direkt erreichbar</h1>
+      <Platzhalter
+        was="Kontaktformular"
+        wartetAuf="Netlify-Forms-Markup, damit Anfragen weiterhin ankommen"
+      />
+      <p class="leise" style="margin-top:20px;font-size:var(--vx-text-sm);">
+        Wichtig beim Umzug: Fehlt das <code>data-netlify</code>-Markup, kommen still keine
+        Anfragen mehr an – kein Fehler, keine Meldung, nur Stille.
+      </p>
+    </div>
+  </section>
+</Base>

@@ -1,0 +1,23 @@
+---
+import Base from '../../layouts/Base.astro';
+import Platzhalter from '../../components/Platzhalter.astro';
+---
+<Base
+  titel="Häufige Fragen zum KI-Telefonassistenten | Voxera"
+  beschreibung="Antworten zu Gesprächsführung, Rufweiterleitung, Einrichtung, Datenschutz und Kündigung – kurz und ohne Fachjargon."
+>
+  <section class="sektion">
+    <div class="wrap">
+      <hr class="akzentlinie" />
+      <h1>Häufige Fragen</h1>
+      <Platzhalter
+        was="FAQ-Inhalte inklusive FAQPage-Schema"
+        wartetAuf="Übernahme der bestehenden sechs Fragen, mit korrigierter Datenschutz-Antwort"
+      />
+      <p class="leise" style="margin-top:20px;font-size:var(--vx-text-sm);">
+        Die Datenschutz-Antwort wird aus der Datenschutzerklärung abgeleitet, nicht neu
+        formuliert – dort steht bereits die zutreffende Fassung.
+      </p>
+    </div>
+  </section>
+</Base>

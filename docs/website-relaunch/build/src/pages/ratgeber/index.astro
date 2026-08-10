@@ -1,0 +1,55 @@
+---
+import Base from '../../layouts/Base.astro';
+import { RATGEBER_KATEGORIEN } from '../../config/site';
+import { getCollection } from 'astro:content';
+
+const artikel = (await getCollection('ratgeber', (a) => !a.data.entwurf))
+  .sort((a, b) => b.data.aktualisiert.valueOf() - a.data.aktualisiert.valueOf());
+---
+<Base
+  titel="Ratgeber: Erreichbarkeit und KI im Schweizer KMU | Voxera"
+  beschreibung="Praxisnahe Artikel zu Telefonie, Erreichbarkeit, KI im Kleinbetrieb sowie Recht und Datenschutz in der Schweiz."
+>
+  <section class="sektion">
+    <div class="wrap">
+      <hr class="akzentlinie" />
+      <h1>Ratgeber</h1>
+      <ul role="list" class="kategorien">
+        {RATGEBER_KATEGORIEN.map((k) => (
+          <li><a href={`/ratgeber/thema/${k.slug}/`}>{k.titel}</a></li>
+        ))}
+      </ul>
+
+      {artikel.length === 0 ? (
+        <p class="leise">Die ersten Artikel erscheinen in Kürze.</p>
+      ) : (
+        <ul role="list" class="artikel">
+          {artikel.map((a) => (
+            <li class="karte">
+              <h2><a href={`/ratgeber/${a.slug}/`}>{a.data.titel}</a></h2>
+              <p class="leise">{a.data.beschreibung}</p>
+              <p class="leise klein">
+                <time datetime={a.data.aktualisiert.toISOString()}>
+                  Aktualisiert am {a.data.aktualisiert.toLocaleDateString('de-CH')}
+                </time>
+              </p>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  </section>
+</Base>
+
+<style>
+  .kategorien { display: flex; flex-wrap: wrap; gap: 10px; margin: 28px 0 40px; padding: 0; list-style: none; }
+  .kategorien a {
+    display: block; padding: 8px 14px; font-size: var(--vx-text-sm); text-decoration: none;
+    color: var(--vx-text); border: 1px solid var(--vx-hairline); border-radius: 999px;
+  }
+  .artikel { display: grid; gap: 16px; padding: 0; list-style: none; }
+  .artikel h2 { font-size: var(--vx-text-lg); }
+  .artikel a { color: inherit; text-decoration: none; }
+  .artikel a:hover { text-decoration: underline; }
+  .klein { font-size: 13px; margin-top: 10px; }
+</style>

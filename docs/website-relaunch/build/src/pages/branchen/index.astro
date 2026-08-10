@@ -1,0 +1,39 @@
+---
+import Base from '../../layouts/Base.astro';
+import { BRANCHEN } from '../../config/site';
+---
+<Base
+  titel="Telefonservice für Schweizer KMU nach Branche | Voxera"
+  beschreibung="Acht Branchen, acht zugeschnittene Assistenten: Handwerk, Gesundheit, Immobilien, Treuhand, Beauty, Garage, Gastronomie, Detailhandel."
+>
+  <section class="sektion">
+    <div class="wrap">
+      <hr class="akzentlinie" />
+      <h1>Voxera passt zu Ihrer Branche</h1>
+      <p class="leise">
+        Der Assistent stellt die Rückfragen, die in Ihrer Branche zählen. Was er bei einem
+        Notfallanruf fragt, unterscheidet sich in der Zahnarztpraxis von der Baustelle.
+      </p>
+      <ul role="list" class="liste">
+        {BRANCHEN.map((b) => (
+          <li>
+            <a class="karte" href={`/branchen/${b.slug}/`}>
+              <h2>{b.titel}</h2>
+              <p class="leise klein">Hauptbegriff: {b.keyword}</p>
+            </a>
+          </li>
+        ))}
+      </ul>
+    </div>
+  </section>
+</Base>
+
+<style>
+  .liste {
+    display: grid; gap: 12px; margin-top: 32px; padding: 0; list-style: none;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  }
+  .liste a { display: block; text-decoration: none; color: inherit; }
+  .liste h2 { font-size: var(--vx-text-base); }
+  .klein { font-size: 13px; margin-top: 6px; }
+</style>

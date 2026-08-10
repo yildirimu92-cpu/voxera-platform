@@ -1,0 +1,117 @@
+---
+import Base from '../layouts/Base.astro';
+import Platzhalter from '../components/Platzhalter.astro';
+import { BRANCHEN } from '../config/site';
+import { PLAENE } from '../config/preise';
+
+const guenstigster = Math.min(...PLAENE.map((p) => p.monatlichChf));
+---
+<Base
+  titel="KI-Telefonassistent für Schweizer KMU | Voxera"
+  beschreibung={`Voxera nimmt Ihre Anrufe entgegen, fasst zusammen und priorisiert – damit Sie keinen Auftrag mehr verpassen. Ab CHF ${guenstigster}/Monat.`}
+>
+  {/* Kein Hintergrundbild im Hero. Typografie plus ein Produkt-Screenshot ist
+      bei einer hellen Richtung der staerkere Einstieg und die beste
+      Ausgangslage fuer den LCP-Wert (Zielbild C.1). */}
+  <section class="sektion hero">
+    <div class="wrap">
+      <hr class="akzentlinie" />
+      <h1>Kein Anruf mehr verpasst.<br />Voxera übernimmt.</h1>
+      <p class="gross leise">
+        Voxera nimmt Ihre Anrufe entgegen, fasst zusammen und priorisiert – damit Sie sich
+        auf die Arbeit konzentrieren können, für die Sie gerufen werden.
+      </p>
+      <p class="aktionen">
+        <a class="knopf" href="/demo/">Demo ansehen</a>
+        <a class="knopf knopf--sekundaer" href="/preise/">Preise</a>
+      </p>
+    </div>
+  </section>
+
+  <section class="sektion sektion--zurueckgesetzt">
+    <div class="wrap">
+      <h2>Warum Schweizer KMU Aufträge verlieren</h2>
+      <Platzhalter
+        was="Die drei Vergleichszahlen (62 % / 3.4 h / CHF 4'500) und die Anrufbeantworter-Zahl (72 %)"
+        befund="C4"
+        wartetAuf="zitierfähige Quellen mit Jahr und Erhebungsbasis"
+      />
+      <p class="leise hinweis">
+        Bis die Quellen vorliegen, steht hier keine Zahl. Eine unbelegte Vergleichsangabe ist
+        nach UWG angreifbar – und ein Interessent, der nachfragt, bekommt heute keine Antwort.
+      </p>
+    </div>
+  </section>
+
+  <section class="sektion">
+    <div class="wrap">
+      <h2>Voxera passt zu Ihrer Branche</h2>
+      <p class="leise">
+        Der Assistent kennt die typischen Anliegen Ihrer Branche – und stellt die Rückfragen,
+        die Sie sonst selbst stellen würden.
+      </p>
+      <ul role="list" class="branchen">
+        {BRANCHEN.map((b) => (
+          <li>
+            <a class="karte" href={`/branchen/${b.slug}/`}>
+              <h3>{b.titel}</h3>
+            </a>
+          </li>
+        ))}
+      </ul>
+    </div>
+  </section>
+
+  {/* Sand: genau EINE Flaeche pro Seite. Hier ist sie. */}
+  <section class="sektion sektion--warm">
+    <div class="wrap">
+      <h2>In unter 24 Stunden eingerichtet</h2>
+      <Platzhalter
+        was="Belastbarkeit der 24-Stunden-Zusage"
+        befund="C8"
+        wartetAuf="interne Zusage mit definiertem Support-Prozess"
+      />
+      <p class="aktionen"><a class="knopf" href="/so-funktionierts/">So funktioniert's</a></p>
+    </div>
+  </section>
+
+  {/* Kein Testimonial-Block. Es gibt keine freigegebenen Kundenstimmen — die
+      alte Seite trug drei ungedeckte (C16). Vertrauen entsteht hier ueber
+      Demo, Ablauf, Preise und Rechtsrahmen. */}
+</Base>
+
+<script>
+  // Die alte Seite war ein One-Pager; ihre Anker stehen in E-Mails und
+  // Offerten. Fragmente erreichen den Server nie, deshalb hier clientseitig.
+  const ZIELE = {
+    '#wie': '/so-funktionierts/',
+    '#features': '/so-funktionierts/',
+    '#preise': '/preise/',
+    '#pricing': '/preise/',
+    '#branchen': '/branchen/',
+    '#beratung': '/demo/',
+    '#demo': '/demo/',
+    '#kontakt': '/kontakt/',
+    '#faq': '/faq/',
+  };
+  const ziel = ZIELE[location.hash];
+  if (ziel) location.replace(ziel);
+</script>
+
+<style>
+  .hero { padding-block: clamp(56px, 9vw, 120px) var(--vx-section-y); }
+  .gross { font-size: var(--vx-text-lg); }
+  .aktionen { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 28px; }
+  .hinweis { margin-top: 16px; font-size: var(--vx-text-sm); }
+  .branchen {
+    display: grid;
+    gap: 12px;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    margin-top: 32px;
+    list-style: none;
+    padding: 0;
+  }
+  .branchen a { display: block; text-decoration: none; color: inherit; transition: border-color var(--vx-motion); }
+  .branchen a:hover { border-color: var(--vx-hairline-firm); }
+  .branchen h3 { font-size: var(--vx-text-base); }
+</style>

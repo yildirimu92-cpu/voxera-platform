@@ -41,8 +41,13 @@ eigenen Datenschutzerklärung. Es muss nichts erfunden werden, nur angeglichen.
 - **Preise: mit den aktuellen Werten als Platzhalter weiterarbeiten.** Das Finale hängt an
   der laufenden Margen-Rechnung. Bedingung: der Platzhalter trägt **kein Ablaufdatum** —
   genau das ist der Fehler aus Befund C1.
-- **`detailhandel-logistik`: Vorlage wird nachgebaut.** Als eigener Produktpunkt abgegrenzt
-  (Dokument 04). Die Branchenseite darf erst live gehen, wenn die Vorlage steht.
+- **`detailhandel-logistik`: zwei getrennte Vorlagen** (`detailhandel` + `logistik`) werden
+  nachgebaut. Als eigener Produktpunkt abgegrenzt (Dokument 04). Die Branchenseite darf erst
+  live gehen, wenn beide Vorlagen stehen.
+- **✅ Baustart für das entscheidungsfreie Gerüst ist freigegeben** (10.08.2026) — Sitemap,
+  Layout, alle Seitentypen, SEO-Technik und Ratgeber-Unterbau. Läuft parallel zum Hotfix an
+  der Live-Seite. **Gesperrt bleiben:** `/preise/`, `/branchen/detailhandel-logistik/` und der
+  finale Relaunch.
 - **Datenresidenz: läuft in einem separaten, sofortigen Strang** — unabhängig vom Relaunch,
   weil die Aussage heute live steht. Die neue Seite erbt das Ergebnis, statt die Frage ein
   zweites Mal aufzumachen.

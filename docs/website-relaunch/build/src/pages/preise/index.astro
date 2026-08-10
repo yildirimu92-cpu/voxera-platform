@@ -1,0 +1,87 @@
+---
+import Base from '../../layouts/Base.astro';
+import Platzhalter from '../../components/Platzhalter.astro';
+import { PLAENE, AKTION, KONDITIONEN, GEPLANT } from '../../config/preise';
+import { SITE } from '../../config/site';
+
+// Offer-Schema aus derselben Quelle wie die Tabelle. priceValidUntil wird nur
+// gesetzt, wenn tatsächlich eine Aktion läuft — sonst bliebe ein totes Datum
+// maschinenlesbar in den Suchergebnissen stehen (Befund C1).
+const schema = {
+  '@context': 'https://schema.org',
+  '@type': 'SoftwareApplication',
+  name: 'Voxera',
+  applicationCategory: 'BusinessApplication',
+  operatingSystem: 'Web',
+  url: SITE.url,
+  offers: PLAENE.map((p) => ({
+    '@type': 'Offer',
+    name: p.name,
+    price: p.monatlichChf,
+    priceCurrency: 'CHF',
+    ...(AKTION ? { priceValidUntil: AKTION.gueltigBis } : {}),
+  })),
+};
+---
+<Base
+  titel="Preise | Voxera KI-Telefonassistent"
+  beschreibung="Drei Pläne ab CHF 99 pro Monat, inklusive Schweizer Nummer und Dashboard. Keine Mindestlaufzeit, 30 Tage Kündigungsfrist."
+  schema={schema}
+>
+  <section class="sektion">
+    <div class="wrap">
+      <hr class="akzentlinie" />
+      <h1>Transparent und fair</h1>
+
+      <Platzhalter
+        was="Endgültige Preise"
+        befund="C1"
+        wartetAuf="Margen-Rechnung (ElevenLabs-Überschreitungspreis, Twilio-Minutenpreis)"
+      />
+      <p class="leise hinweis">
+        Die Zahlen unten sind der freigegebene Platzhalterstand. Es wird bewusst
+        <strong> kein Aktionsdatum</strong> geführt: ein Ablaufdatum, das ohne Deploy still
+        verstreicht, ist genau der Fehler, den diese Seite nicht wiederholen soll.
+        <strong> Diese Seite geht erst mit den echten Zahlen live.</strong>
+      </p>
+
+      <ul role="list" class="plaene">
+        {PLAENE.map((p) => (
+          <li class="karte" data-hervorgehoben={p.hervorgehoben}>
+            <h2>{p.name}</h2>
+            <p class="preis">CHF {p.monatlichChf}<span class="leise klein"> / Monat</span></p>
+            <p class="leise klein">Einrichtung einmalig CHF {p.einrichtungChf}.–</p>
+            <ul role="list" class="merkmale">
+              {p.enthalten.map((m) => <li>{m}</li>)}
+              <li>{p.inklusivMinuten} Minuten inklusive</li>
+              <li>CHF {p.zusatzminuteChf.toFixed(2)} pro Zusatzminute</li>
+              {p.nichtEnthalten?.map((m) => <li class="leise">Nicht enthalten: {m}</li>)}
+            </ul>
+            {GEPLANT.filter((g) => g.plan === p.id).map((g) => (
+              <p class="geplant leise klein">Geplant, noch nicht verfügbar: {g.was}</p>
+            ))}
+          </li>
+        ))}
+      </ul>
+
+      <ul role="list" class="konditionen leise klein">
+        {KONDITIONEN.map((k) => <li>{k}</li>)}
+      </ul>
+    </div>
+  </section>
+</Base>
+
+<style>
+  .hinweis { margin-top: 16px; font-size: var(--vx-text-sm); }
+  .plaene {
+    display: grid; gap: 16px; margin-top: 40px; padding: 0; list-style: none;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  }
+  /* Hervorhebung ueber eine Goldlinie, nicht ueber eine Goldflaeche mit Text. */
+  .plaene [data-hervorgehoben="true"] { border-top: 3px solid var(--vx-accent); }
+  .preis { font-family: var(--vx-font-display); font-size: 34px; font-weight: 800; letter-spacing: -.03em; margin-top: 8px; }
+  .klein { font-size: 13px; }
+  .merkmale { margin-top: 16px; padding: 0; list-style: none; display: grid; gap: 7px; font-size: var(--vx-text-sm); }
+  .geplant { margin-top: 12px; font-style: italic; }
+  .konditionen { margin-top: 32px; padding: 0; list-style: none; display: grid; gap: 6px; }
+</style>

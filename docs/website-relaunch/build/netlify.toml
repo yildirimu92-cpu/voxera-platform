@@ -1,0 +1,77 @@
+# Deploy-Konfiguration des Relaunchs.
+#
+# EINE Quelle fuer Weiterleitungen: diese Datei. Auf der alten Seite standen
+# dieselben drei Regeln zusaetzlich in `_redirects`, wo sie nie zum Zug kamen,
+# weil Netlify netlify.toml zuerst auswertet (Content-Audit C19). Es gibt hier
+# deshalb bewusst kein `_redirects`.
+
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "22"
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+
+# Selbst ausgelieferte Schriften und Bilder sind versioniert und duerfen lange
+# im Cache bleiben.
+[[headers]]
+  for = "/fonts/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# --- Rechtstexte: kurze Form ist kanonisch ---------------------------------
+# Sie steht im generierten Vertragstext und in der Dokumentenliste des
+# Kunden-Dashboards. Die alten .html-Varianten waren per 200-Rewrite parallel
+# erreichbar und haben Duplicate Content erzeugt — daher jetzt 301.
+[[redirects]]
+  from = "/agb.html"
+  to = "/agb"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/datenschutz.html"
+  to = "/datenschutz"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/impressum.html"
+  to = "/impressum"
+  status = 301
+  force = true
+
+# --- Transaktionsseiten -----------------------------------------------------
+# Kein Marketing. Muessen den Relaunch funktionsfaehig ueberleben: das
+# Kunden-Dashboard und der Offertenversand deeplinken mit Token hierher.
+# TODO(uebernahme): beide Dateien aus voxera-website-live uebernehmen, bevor
+# der Relaunch live geht. Ohne sie brechen unterzeichnete Vertragslinks.
+[[headers]]
+  for = "/offer-accept.html"
+  [headers.values]
+    Cache-Control = "no-store, max-age=0"
+    X-Robots-Tag = "noindex"
+
+[[headers]]
+  for = "/contract-signed.html"
+  [headers.values]
+    Cache-Control = "no-store, max-age=0"
+    X-Robots-Tag = "noindex"
+
+# --- Alte Anker -------------------------------------------------------------
+# Die alte Seite war ein One-Pager; alle Sektionen waren Anker. Diese Adressen
+# stehen in E-Mails und Offerten. Serverseitig sind Fragmente nicht umleitbar
+# (der Teil nach # erreicht den Server nie) — die Umleitung passiert deshalb
+# clientseitig auf der Startseite, siehe src/pages/index.astro.
+# Echte Pfade der alten Seite, die es weiterhin gibt, brauchen keine Regel.
+
+# --- 404 --------------------------------------------------------------------
+# Keine Catch-all-Regel auf die Startseite. Astro erzeugt eine echte 404-Seite;
+# Netlify liefert sie automatisch mit Status 404 aus.

@@ -1,0 +1,91 @@
+---
+import { SITE, NAV, BRANCHEN } from '../config/site';
+const jahr = 2026;
+---
+<footer class="fuss">
+  <div class="wrap">
+    <div class="spalten">
+      <div>
+        <p class="marke">Voxera</p>
+        <p class="leise">Der KI-Telefonassistent für Schweizer KMU.</p>
+      </div>
+
+      <div>
+        <h2 class="titel">Produkt</h2>
+        <ul role="list">
+          {NAV.map((n) => <li><a href={n.href}>{n.label}</a></li>)}
+        </ul>
+      </div>
+
+      <div>
+        <h2 class="titel">Branchen</h2>
+        <ul role="list">
+          {BRANCHEN.map((b) => <li><a href={`/branchen/${b.slug}/`}>{b.titel}</a></li>)}
+        </ul>
+      </div>
+
+      <div>
+        <h2 class="titel">Rechtliches</h2>
+        {/* Pfade unveraendert: /agb und /datenschutz stehen im generierten
+            Vertragstext und in der Dokumentenliste des Kunden-Dashboards. */}
+        <ul role="list">
+          <li><a href="/datenschutz">Datenschutz</a></li>
+          <li><a href="/agb">AGB</a></li>
+          <li><a href="/impressum">Impressum</a></li>
+          <li><a href="/avv">AVV</a></li>
+        </ul>
+      </div>
+
+      <div>
+        <h2 class="titel">Kontakt</h2>
+        <ul role="list">
+          <li><a href={`mailto:${SITE.mail}`}>{SITE.mail}</a></li>
+          <li><a href={`tel:${SITE.telefon.replace(/\s/g, '')}`}>{SITE.telefon}</a></li>
+          <li class="leise">{SITE.ort}</li>
+        </ul>
+      </div>
+    </div>
+
+    <p class="unten leise">© {jahr} Voxera · Alle Rechte vorbehalten.</p>
+  </div>
+</footer>
+
+<style>
+  .fuss {
+    border-top: 1px solid var(--vx-hairline);
+    background: var(--vx-recessed);
+    padding-block: 56px 32px;
+    margin-top: var(--vx-section-y);
+  }
+  .spalten {
+    display: grid;
+    gap: 32px;
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  }
+  .marke {
+    font-family: var(--vx-font-display);
+    font-weight: 800;
+    font-size: 19px;
+    letter-spacing: -.04em;
+    margin-bottom: 8px;
+  }
+  .titel {
+    font-family: var(--vx-font-body);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--vx-text-muted);
+    margin-bottom: 12px;
+  }
+  ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+  li, .fuss a { font-size: var(--vx-text-sm); }
+  .fuss a { color: var(--vx-text); text-decoration: none; }
+  .fuss a:hover { text-decoration: underline; }
+  .unten {
+    margin-top: 40px;
+    padding-top: 20px;
+    border-top: 1px solid var(--vx-hairline);
+    font-size: 13px;
+  }
+</style>

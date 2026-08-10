@@ -1,0 +1,25 @@
+---
+import Base from '../../layouts/Base.astro';
+import Platzhalter from '../../components/Platzhalter.astro';
+---
+<Base
+  titel="So funktioniert Voxera in drei Schritten"
+  beschreibung="Schweizer Nummer aktivieren, Rufweiterleitung einrichten, Dashboard öffnen. Ohne Technikkenntnisse, ohne neue Hardware."
+>
+  <section class="sektion">
+    <div class="wrap">
+      <hr class="akzentlinie" />
+      <h1>In drei Schritten eingerichtet</h1>
+      <Platzhalter
+        was="Liste der tatsächlich getesteten Telefonanbieter"
+        befund="C5"
+        wartetAuf="Bestätigung, mit welchen Anbietern die Rufweiterleitung verifiziert ist"
+      />
+      <p class="leise" style="margin-top:20px;font-size:var(--vx-text-sm);">
+        Die alte Seite versprach „funktioniert bei allen Anbietern". Eine Absolutaussage, die
+        genau einmal falsch sein muss, um beim Onboarding zu platzen. Hier stehen künftig die
+        Anbieter, die wirklich getestet sind.
+      </p>
+    </div>
+  </section>
+</Base>

@@ -1,0 +1,86 @@
+---
+import Base from '../../layouts/Base.astro';
+import Platzhalter from '../../components/Platzhalter.astro';
+import { BRANCHEN, SITE } from '../../config/site';
+
+export function getStaticPaths() {
+  return BRANCHEN.map((b) => ({ params: { slug: b.slug }, props: { branche: b } }));
+}
+
+const { branche } = Astro.props;
+const gesperrt = 'gesperrt' in branche ? branche.gesperrt : undefined;
+
+// Service-Schema je Branchenseite.
+const schema = {
+  '@context': 'https://schema.org',
+  '@type': 'Service',
+  name: `KI-Telefonassistent für ${branche.titel}`,
+  serviceType: 'Telefonservice',
+  provider: { '@type': 'Organization', name: 'Voxera', url: SITE.url },
+  areaServed: { '@type': 'Country', name: 'Schweiz' },
+};
+---
+<Base
+  titel={`${branche.titel}: KI-Telefonassistent | Voxera`}
+  beschreibung={`Voxera nimmt Anrufe für ${branche.titel} entgegen, erfasst das Anliegen und priorisiert. Keine verpassten Aufträge mehr.`}
+  noindex={Boolean(gesperrt)}
+  schema={schema}
+>
+  <section class="sektion">
+    <div class="wrap">
+      <hr class="akzentlinie" />
+      <h1>{branche.titel}</h1>
+
+      {gesperrt && (
+        <div class="sperre" role="note">
+          <strong>Diese Seite darf noch nicht live gehen.</strong>
+          <p>{gesperrt}</p>
+          <p class="leise">
+            Sie ist bis dahin auf <code>noindex</code> gesetzt. Erst wenn die zwei Vorlagen
+            <code>detailhandel</code> und <code>logistik</code> im Produkt stehen, verspricht
+            diese Seite etwas, das Voxera auch hält.
+          </p>
+        </div>
+      )}
+
+      <Platzhalter
+        was={`Branchentext für ${branche.titel}`}
+        wartetAuf={`Ausformulierung aus den Produkt-Vorlagen: ${branche.vorlagen.join(', ')}`}
+      />
+
+      <p class="leise hinweis">
+        Der Text entsteht aus den echten Prompt-Vorlagen des Produkts – konkrete Anliegen und
+        Rückfragen statt „auch für {branche.titel} geeignet". Genau das ist der Unterschied
+        zwischen einer Seite, die rankt, und acht Seiten, die sich gegenseitig entwerten.
+      </p>
+
+      <p class="aktionen">
+        <a class="knopf" href="/demo/">Demo ansehen</a>
+        <a class="knopf knopf--sekundaer" href="/preise/">Preise</a>
+      </p>
+    </div>
+  </section>
+
+  <section class="sektion sektion--zurueckgesetzt">
+    <div class="wrap">
+      <h2>Passende Ratgeber-Artikel</h2>
+      {/* Slot bleibt leer, bis es Artikel gibt. Jeder Artikel verlinkt genau
+          eine Branchenseite — die Verzahnung entsteht beim Schreiben. */}
+      <p class="leise">Noch keine Artikel in dieser Kategorie.</p>
+    </div>
+  </section>
+</Base>
+
+<style>
+  .hinweis { margin-top: 20px; font-size: var(--vx-text-sm); }
+  .aktionen { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 28px; }
+  .sperre {
+    border-left: 3px solid var(--vx-accent);
+    background: var(--vx-recessed);
+    border-radius: 0 var(--vx-radius-sm) var(--vx-radius-sm) 0;
+    padding: 16px 20px;
+    margin-bottom: 24px;
+    max-width: var(--vx-measure);
+  }
+  .sperre p { margin-top: 8px; font-size: var(--vx-text-sm); }
+</style>

@@ -2,7 +2,7 @@
 
 **Datum:** 10.08.2026 · **Entschieden von Umut am 10.08.2026**
 **Art:** Produktarbeit (Datenbank + Prompt), **kein Website-Text**
-**Status:** vorgemerkt, **nicht begonnen**
+**Status:** vorgemerkt, **nicht begonnen** · Umfang entschieden: **zwei getrennte Vorlagen**
 
 ---
 
@@ -26,7 +26,19 @@ Produkt nicht hält.
 
 ---
 
-## Eine Entscheidung vorab: eine Vorlage oder zwei?
+## ✅ Entschieden: zwei getrennte Vorlagen
+
+**Beschlossen am 10.08.2026:** `detailhandel` **und** `logistik` werden als zwei eigene
+Vorlagen gebaut.
+
+Damit entfällt die Rückfallposition („falls nur eine gebaut wird") — die Branchenseite
+`/branchen/detailhandel-logistik/` kann beide Zielgruppen mit echter Substanz bedienen, statt
+eine davon zu streichen. Für die Umsetzung heisst das: `sort_order` 180 und 190, Aufwand rund
+**1 Arbeitstag**, und die Abnahmekriterien weiter unten gelten **je Vorlage**.
+
+Die Abwägung bleibt als Protokoll stehen:
+
+### Warum zwei und nicht eine
 
 Detailhandel und Logistik sind als Zielgruppe zusammengefasst, aber die Anrufe überschneiden
 sich kaum:
@@ -39,15 +51,9 @@ sich kaum:
 Eine gemeinsame Vorlage müsste beides abdecken und würde dadurch so allgemein, dass sie sich
 kaum noch von `generic` unterscheidet — womit der Punkt sein Ziel verfehlt.
 
-**Empfehlung: zwei Vorlagen** — `detailhandel` und `logistik`. Der Mehraufwand gegenüber
-einer ist klein (die Struktur ist dieselbe, nur die Texte unterscheiden sich), der
-Qualitätsgewinn deutlich. Die Website-Branchenseite bleibt eine Seite und deckt beide ab.
-
-**Falls nur eine gebaut wird:** dann `detailhandel` — die grössere und für ein KI-Telefon
-naheliegendere Zielgruppe. Die Branchenseite müsste dann konsequenterweise nur Detailhandel
-bewerben und Logistik streichen, statt es weiter zu versprechen.
-
-*Diese Entscheidung ist offen und gehört an den Anfang der Umsetzung.*
+Der Mehraufwand gegenüber einer Vorlage ist klein — die Struktur ist dieselbe, nur die Texte
+unterscheiden sich. Der Qualitätsgewinn ist deutlich. Die Website-Branchenseite bleibt **eine**
+Seite und deckt beide Vorlagen ab.
 
 ---
 
@@ -112,7 +118,7 @@ ausdrücklich entfernt.
 
 ## Umsetzungsweg
 
-1. Entscheiden: eine Vorlage oder zwei (siehe oben).
+1. ~~Entscheiden: eine Vorlage oder zwei~~ — entschieden: **zwei** (`detailhandel`, `logistik`).
 2. Texte schreiben — am besten an einer inhaltlich nahen Bestandsvorlage orientiert
    (`reinigung` für Offerten-Logik, `garage` für Auftrags-/Statusanfragen).
 3. Migration nach dem Muster der bestehenden Migrationen anlegen, mit Selbstkontrolle am Ende
@@ -137,8 +143,7 @@ ausdrücklich entfernt.
 
 ## Aufwand
 
-**Eine Vorlage: rund 0.5 Arbeitstage. Zwei: rund 1 Arbeitstag.** Der Grossteil ist
-Textarbeit, nicht Technik — die Struktur steht, die Migration ist Routine. Was den Aufwand
+**Zwei Vorlagen: rund 1 Arbeitstag.** Der Grossteil ist Textarbeit, nicht Technik — die Struktur steht, die Migration ist Routine. Was den Aufwand
 nach oben treiben kann, ist einzig die `service-faq.js`-Kalibrierung, falls sie tatsächlich
 nachgezogen werden muss; das ist vorher nicht sicher einschätzbar.
 
