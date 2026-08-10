@@ -1,10 +1,15 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
+import { ladeAdminApi, ADMIN_API_PATH } from './lib/admin-api-harness.mjs';
 
 const files = {
   runtime: 'admin-panel/shared/admin-runtime-voices.js',
-  errorRuntime: 'admin-panel/shared/admin-runtime-voice-errors.js',
+  // Welle 1: admin-runtime-voice-errors.js ist aufgeloest. Es hat
+  // callAdminFunction nur umwickelt, um vier ElevenLabs-Fehlercodes in
+  // verstaendliche Saetze zu uebersetzen. Das ist jetzt describeError() in
+  // core/admin-api.js -- kein Wrapper, sondern ein Woerterbuch.
+  errorRuntime: ADMIN_API_PATH,
   endpoint: 'admin-panel/netlify/functions/admin-voices.js',
   loader: 'admin-panel/shared/offer-brand.js',
   customerPreview: 'customer-dashboard/netlify/functions/preview-voice.js',
@@ -40,12 +45,29 @@ assert.match(source.runtime, /root\.aiShowTab/);
 assert.match(source.runtime, /audio_base64/);
 assert.match(source.runtime, /URL\.createObjectURL/);
 
-assert.match(source.errorRuntime, /payment_required/);
-assert.match(source.errorRuntime, /aktives ElevenLabs-Abonnement/);
-assert.match(source.errorRuntime, /missing_permissions/);
-assert.match(source.errorRuntime, /quota_exceeded/);
-assert.match(source.errorRuntime, /name === 'admin-voices'/);
-assert.match(source.errorRuntime, /root\.callAdminFunction = async function/);
+// Die vier Fehlercodes werden nicht mehr im Quelltext gesucht, sondern
+// durchgereicht: dieselbe Funktion, die der Browser aufruft.
+{
+  const { api } = ladeAdminApi();
+  const uebersetzt = (code) => api.describeError('admin-voices',
+    Object.assign(new Error('Request failed'), { payload: { provider_code: code, error: 'Request failed' } }));
+
+  assert.match(uebersetzt('payment_required').message, /aktives ElevenLabs-Abonnement/);
+  assert.match(uebersetzt('missing_permissions').message, /Text zu Sprache/);
+  assert.match(uebersetzt('quota_exceeded').message, /Guthaben ist aufgebraucht/);
+  assert.match(uebersetzt('credits_exhausted').message, /Guthaben ist aufgebraucht/);
+  // Die Nutzlast muss mitgezogen werden, sonst zeigt die Oberflaeche weiter den
+  // englischen Rohtext an.
+  assert.match(uebersetzt('payment_required').payload.error, /aktives ElevenLabs-Abonnement/);
+  // Unbekannte Codes und fremde Endpunkte bleiben unberuehrt (Gegenprobe).
+  assert.equal(uebersetzt('etwas_anderes').message, 'Request failed');
+  assert.equal(
+    api.describeError('admin-mutate', Object.assign(new Error('Request failed'), { payload: { provider_code: 'payment_required' } })).message,
+    'Request failed'
+  );
+  // Kein Wrapper mehr: die Uebersetzung haengt nicht an einer Neuzuweisung.
+  assert.doesNotMatch(source.errorRuntime, /root\.callAdminFunction\s*=\s*[^=]/);
+}
 
 assert.match(source.endpoint, /requireAdminCaller/);
 // admin-voices.js gates capability per action: catalog management (list/update/preview)
@@ -73,7 +95,11 @@ assert.doesNotMatch(source.endpoint, /delete\(\)/);
 assert.doesNotMatch(source.endpoint, /body\.api_key/);
 
 assert.match(source.loader, /admin-runtime-voices\.js\?v=20260802-2/);
-assert.match(source.loader, /admin-runtime-voice-errors\.js\?v=20260802-1/);
+// admin-runtime-voice-errors.js wird nicht mehr nachgeladen; core/admin-api.js
+// steht als Skript-Tag im Kopf von index.html, also garantiert vor dem ersten
+// Aufruf statt im Nachladerennen.
+assert.doesNotMatch(source.loader, /admin-runtime-voice-errors\.js/);
+assert.match(fs.readFileSync('admin-panel/index.html', 'utf8'), /\/shared\/core\/admin-api\.js/);
 assert.match(source.customerPreview, /environmentHost\(process\.env\.SUPABASE_URL\)/);
 assert.match(source.customerPreview, /preview_url,preview_text/);
 assert.match(source.customerPreview, /hasManagedPreviewText/);

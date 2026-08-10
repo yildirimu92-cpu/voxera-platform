@@ -14,34 +14,32 @@
   if (!root.CUSTOMER_STATUS) root.CUSTOMER_STATUS = Object.freeze({
     ONBOARDING:'onboarding', READY:'ready', INVITED:'invited', ACTIVATED:'activated', LIVE:'live', PAUSED:'paused', DELETED:'deleted'
   });
+  // Welle 1 des Zielbilds hat vier Dateien vollstaendig abgeloest
+  // (data-integrity, contract-termination, voice-errors,
+  // invoice-mail-routing-fix). Ihre Umleitungen stehen jetzt als Regeln in
+  // shared/core/admin-api.js, die beiden Praedikate in core/admin-lifecycle.js.
+  // Die Kernmodule werden nicht hier nachgeladen, sondern stehen als normale
+  // Skript-Tags im Kopf von index.html -- deterministisch statt im Rennen.
   [
-    '/shared/admin-runtime-ui.js?v=20260801-1',
+    '/shared/admin-runtime-ui.js?v=20260810-1',
     '/shared/admin-runtime-navigation.js?v=20260731-3',
     '/shared/admin-runtime-sync.js?v=20260731-4',
     '/shared/admin-runtime-cases.js?v=20260731-3',
     '/shared/admin-runtime-cases-admin-only.js?v=20260731-1',
-    '/shared/admin-runtime-mobile.js?v=20260731-1',
+    '/shared/admin-runtime-mobile.js?v=20260810-1',
     '/shared/admin-runtime-operations-v3.js?v=20260801-2',
     '/shared/admin-runtime-cases-state-hotfix.js?v=20260731-1',
     '/shared/admin-runtime-cases-usability-fix.js?v=20260731-2',
-    '/shared/admin-runtime-launch-p0.js?v=20260801-4',
+    '/shared/admin-runtime-launch-p0.js?v=20260810-1',
     '/shared/admin-runtime-prompt-builder-v2.js?v=20260801-4',
-    '/shared/admin-runtime-data-integrity.js?v=20260731-1',
-    '/shared/admin-runtime-contract-termination.js?v=20260731-1',
-    '/shared/admin-runtime-invoice-adjustments.js?v=20260731-1',
-    '/shared/admin-runtime-design-system-v2.js?v=20260731-1',
-    '/shared/admin-runtime-payment-account.js?v=20260801-2',
+    '/shared/admin-runtime-invoice-adjustments.js?v=20260810-1',
+    '/shared/admin-runtime-design-system-v2.js?v=20260810-1',
+    '/shared/admin-runtime-payment-account.js?v=20260810-1',
     '/shared/admin-runtime-voices.js?v=20260802-2',
-    '/shared/admin-runtime-voice-errors.js?v=20260802-1',
-    '/shared/admin-runtime-billing-inline-qr.js?v=20260801-3',
-    '/shared/admin-runtime-invoice-only-ch.js?v=20260801-2',
-    '/shared/admin-runtime-invoice-mail-routing-fix.js?v=20260801-3',
-    '/shared/admin-runtime-admin-ui-cleanup.js?v=20260801-1',
-    '/shared/admin-runtime-design-system-v3.js?v=20260801-2',
-    '/shared/admin-runtime-v3-regression-fix.js?v=20260801-1',
-    '/shared/admin-runtime-plan-input-cleanup.js?v=20260801-1',
-    '/shared/admin-runtime-plan-input-render-fix.js?v=20260801-1',
-    '/shared/admin-runtime-plan-placeholder-visibility.js?v=20260801-1',
+    '/shared/admin-runtime-billing-inline-qr.js?v=20260810-1',
+    '/shared/admin-runtime-invoice-only-ch.js?v=20260810-1',
+    '/shared/admin-runtime-admin-ui-cleanup.js?v=20260810-1',
+    '/shared/admin-runtime-v3-regression-fix.js?v=20260810-1',
     '/shared/admin-runtime-billing-ui-consolidated.js?v=20260801-3',
     '/shared/admin-runtime-twilio-number-assignment.js?v=20260801-4'
   ].forEach((src, index) => {

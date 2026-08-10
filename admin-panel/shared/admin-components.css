@@ -1,0 +1,516 @@
+/*
+ * admin-components.css — Karte, Kopfzeile, Formularfeld, Knopf, Reiter, Tabelle.
+ *
+ * Welle 2 des Admin-Zielbilds, Regel R3: CSS gehört in eine Datei.
+ *
+ * Löst ab:
+ *   admin-runtime-design-system-v3.js  (vollständig)
+ *   admin-runtime-v3-regression-fix.js (CSS-Teil; die DOM-Logik bleibt dort bis Welle 5)
+ *   die Kopfzeilen-Regeln aus den beiden <style>-Generationen in index.html
+ *   applyDarkHeaderContrast() aus admin-runtime-ui.js
+ *
+ * Die Kopfzeile — der teuerste Fehler des Portals
+ * ----------------------------------------------
+ * `.card-head` hatte drei Eigentümer, die nichts voneinander wussten:
+ *
+ *   1. index.html gab ihr einen navyfarbenen Grund und weisse Schrift.
+ *   2. admin-runtime-ui.js mass beim Start die Hintergrundfarbe, rechnete die
+ *      Helligkeit aus und stempelte bei „dunkel" die Klasse vox-dark-head, die
+ *      color:#fff erzwang. Zu diesem Zeitpunkt war der Grund noch navy.
+ *   3. design-system-v2/v3 übermalten den Grund danach mit einem weissen
+ *      Verlauf — die Schrift blieb weiss.
+ *
+ * Ergebnis: 30 von 33 Kartenüberschriften standen weiss auf weiss. Der
+ * Ablationstest hat gezeigt, dass Punkt 2 die alleinige Ursache war: ohne
+ * admin-runtime-ui.js war keine einzige Kopfzeile unlesbar.
+ *
+ * Deshalb steht die Kopfzeile hier genau einmal, und die Schriftfarbe kommt aus
+ * derselben Regel wie der Grund — nicht aus einer Messung.
+ *
+ * Kein !important
+ * ---------------
+ * Diese Datei wird NACH den <style>-Blöcken von index.html geladen. Bei
+ * gleicher Spezifität gewinnt sie damit von selbst. Wo doch ein !important
+ * nötig ist, steht der Grund daneben.
+ */
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Grundfläche
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+html,
+body,
+.main {
+  background: var(--vx-admin-bg);
+}
+
+body {
+  color: var(--vx-admin-ink);
+}
+
+.content {
+  max-width: var(--vx-admin-content-max);
+  padding-top: 24px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Karte
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.card,
+.bf-panel,
+.bf-block,
+.settings-card,
+.profile-card,
+.customer-section-shell,
+.customer-workspace-section,
+.offer-card,
+.offer-header-card,
+.vx-payment-account-card {
+  background: var(--vx-admin-surface);
+  border: 1px solid var(--vx-admin-line);
+  border-radius: var(--vx-admin-radius);
+  box-shadow: var(--vx-admin-shadow);
+  overflow: hidden;
+}
+
+.card:hover,
+.settings-card:hover,
+.profile-card:hover,
+.customer-section-shell:hover {
+  box-shadow: var(--vx-admin-shadow-hover);
+}
+
+.card-body,
+.settings-card-body,
+.bf-panel-body {
+  padding: 22px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Kopfzeile — EINE Definition für alle Schreibweisen, die im Markup vorkommen
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.card-head,
+.card-header,
+.section-head,
+.settings-card-header,
+.bf-panel-head,
+.bf-panel-header,
+.vx-unified-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: var(--vx-admin-head-height);
+  padding: 18px 22px;
+  margin: 0;
+  background: var(--vx-admin-surface);
+  color: var(--vx-admin-ink);
+  border: 0;
+  border-bottom: 1px solid var(--vx-admin-line);
+  border-radius: var(--vx-admin-radius) var(--vx-admin-radius) 0 0;
+  box-shadow: none;
+}
+
+/* Die Schriftfarbe kommt aus derselben Regel wie der Grund. Genau diese
+   Kopplung fehlte vorher — deshalb konnte die eine ohne die andere wandern. */
+.card-head h1, .card-head h2, .card-head h3, .card-head strong, .card-head .card-title,
+.card-header h1, .card-header h2, .card-header h3, .card-header strong, .card-header .card-title,
+.section-head h1, .section-head h2, .section-head h3, .section-head strong,
+.settings-card-header h2, .settings-card-header h3,
+.bf-panel-head h2, .bf-panel-head h3,
+.bf-panel-header h2, .bf-panel-header h3,
+.vx-unified-head h1, .vx-unified-head h2, .vx-unified-head h3, .vx-unified-head strong, .vx-unified-head .card-title {
+  margin: 0;
+  color: var(--vx-admin-ink);
+  font-size: 16px;
+  font-weight: 760;
+  line-height: 1.25;
+  letter-spacing: -.02em;
+  text-shadow: none;
+}
+
+.card-head .muted, .card-head p, .card-head small,
+.card-header .muted, .card-header p, .card-header small,
+.section-head .muted, .section-head p, .section-head small,
+.vx-unified-head .muted, .vx-unified-head p, .vx-unified-head small {
+  color: var(--vx-admin-muted);
+}
+
+/* Die Kennzeichen in der Kopfzeile lagen früher als weiss-auf-weiss neben der
+   Überschrift und waren aus demselben Grund unsichtbar. */
+.card-head .badge,
+.card-header .badge,
+.section-head .badge,
+.vx-unified-head .badge {
+  font-size: 10px;
+  font-weight: 720;
+  padding: 3px 9px;
+  border-radius: var(--vx-admin-radius-pill);
+  background: var(--vx-admin-blue-tint);
+  color: var(--vx-admin-blue-ink);
+  border: 0;
+}
+
+/* Der Kunden-Workspace baut seine Karten mit eigenem, dunklem Kopf — dort ist
+   die weisse Schrift gewollt und steht in derselben Regel wie der Grund. */
+.cw-dark-head {
+  background: var(--vx-admin-navy);
+  color: var(--vx-admin-on-dark);
+}
+.cw-dark-head h1, .cw-dark-head h2, .cw-dark-head h3, .cw-dark-head strong {
+  color: var(--vx-admin-on-dark);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Titel und Hilfstexte
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.section-title,
+.card-title,
+.panel-title {
+  color: var(--vx-admin-ink);
+  font-weight: 760;
+}
+
+.section-subtitle,
+.helper-text,
+.field-help {
+  color: var(--vx-admin-muted);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Formularfelder
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+input:not([type=checkbox]):not([type=radio]),
+select,
+textarea,
+.input,
+.select {
+  min-height: var(--vx-admin-field-height);
+  padding: 10px 13px;
+  border: 1px solid var(--vx-admin-line-strong);
+  border-radius: var(--vx-admin-radius-xs);
+  background: var(--vx-admin-surface);
+  color: var(--vx-admin-ink);
+  font-size: 14px;
+  box-shadow: inset 0 1px 0 rgba(16,33,61,.02);
+}
+
+textarea {
+  min-height: 112px;
+  line-height: 1.5;
+}
+
+label,
+.field-label {
+  display: block;
+  color: var(--vx-admin-label);
+  font-size: 12px;
+  font-weight: 700;
+  margin-bottom: 7px;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: var(--vx-admin-blue-soft);
+  box-shadow: var(--vx-admin-focus-ring);
+}
+
+/* Eingetippte Werte müssen lesbar sein, auch wenn ein Elternelement einen
+   Textschatten oder eine Deckkraft erbt. Ohne diese Zeilen sahen Zahlen in den
+   Plan-Feldern doppelt aus. */
+#section-settings input,
+#section-settings textarea {
+  -webkit-text-fill-color: currentColor;
+  color: var(--vx-admin-ink);
+  font-variant-numeric: tabular-nums;
+  text-shadow: none;
+  filter: none;
+  opacity: 1;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Knöpfe
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.btn,
+button.btn,
+a.btn {
+  min-height: var(--vx-admin-control-height);
+  padding: 9px 16px;
+  border-radius: var(--vx-admin-radius-xs);
+  font-size: 13px;
+  font-weight: 720;
+  box-shadow: none;
+}
+
+.btn-primary,
+button.btn-primary {
+  background: var(--vx-admin-blue);
+  border-color: var(--vx-admin-blue);
+  color: var(--vx-admin-on-dark);
+  box-shadow: 0 8px 18px rgba(33,103,232,.18);
+}
+
+.btn-secondary,
+.btn:not(.btn-primary):not(.btn-danger) {
+  background: var(--vx-admin-surface);
+  border-color: var(--vx-admin-line);
+  color: var(--vx-admin-ink);
+}
+
+.btn-danger {
+  background: var(--vx-admin-danger-tint);
+  border-color: var(--vx-admin-danger-line);
+  color: var(--vx-admin-danger);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Werkzeugleiste und Reiter
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.toolbar,
+.filter-bar,
+.vx-toolbar {
+  padding: 12px;
+  border-radius: var(--vx-admin-radius-md);
+  background: var(--vx-admin-surface);
+  border: 1px solid var(--vx-admin-line);
+  box-shadow: var(--vx-admin-shadow);
+}
+
+.module-tabs,
+.bf-tabs,
+.segmented,
+.tab-bar {
+  background: var(--vx-admin-surface-sunk);
+  border: 1px solid #DDE5EF;
+  border-radius: 13px;
+  padding: 5px;
+}
+
+.module-tab,
+.bf-tab,
+.segmented > button,
+.tab-bar > button {
+  min-height: 38px;
+  padding: 8px 16px;
+  border-radius: 9px;
+}
+
+.module-tab.active,
+.bf-tab-active,
+.segmented > button.active,
+.tab-bar > button.active {
+  background: var(--vx-admin-surface);
+  color: var(--vx-admin-ink);
+  box-shadow: 0 3px 10px rgba(16,33,61,.09);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Tabellen
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+thead th {
+  background: #F6F8FC;
+  color: var(--vx-admin-label);
+  font-size: 11px;
+  font-weight: 760;
+  letter-spacing: .05em;
+}
+
+tbody td {
+  border-bottom: 1px solid var(--vx-admin-line-soft);
+}
+
+tbody tr:hover {
+  background: #FAFCFF;
+}
+
+.badge,
+.status-pill {
+  border-radius: var(--vx-admin-radius-pill);
+  font-weight: 720;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Leerzustände
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.vx-empty-state,
+.vx-empty-cell {
+  min-height: 180px;
+  padding: 36px 22px;
+  background: var(--vx-admin-surface);
+  color: var(--vx-admin-muted);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Einstellungen und Kundenliste
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+#section-settings .grid-4 {
+  gap: 16px;
+  align-items: start;
+}
+
+#section-settings .grid-4 > * {
+  border: 1px solid var(--vx-admin-line);
+  border-radius: 16px;
+  background: var(--vx-admin-surface);
+  box-shadow: var(--vx-admin-shadow-raised);
+  padding: 18px;
+}
+
+#section-settings textarea { resize: vertical; }
+
+#section-settings input[type=checkbox] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--vx-admin-blue);
+}
+
+#section-customers .customer-card,
+#section-customers .customer-row-card {
+  border: 1px solid var(--vx-admin-line);
+  border-radius: var(--vx-admin-radius);
+  box-shadow: var(--vx-admin-shadow);
+  overflow: hidden;
+}
+
+#section-customers .customer-card-body { padding: 20px; }
+
+/* Alt-Bedienelemente der Zahlungslink-Phase. Die Klasse wird von
+   admin-runtime-v3-regression-fix.js gesetzt. → Welle 5 entfernt das Markup,
+   dann fällt auch diese Regel weg. */
+.vx-legacy-payment-link-hidden { display: none; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Billing-Zeilenaktionen
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+#section-billing-finance .vx-billing-action-shell {
+  min-width: 0;
+  width: max-content;
+  max-width: 300px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: nowrap;
+}
+
+#section-billing-finance .vx-billing-action-primary {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: nowrap;
+}
+
+#section-billing-finance .vx-billing-action-primary .btn,
+#section-billing-finance .vx-billing-action-primary button,
+#section-billing-finance .vx-billing-action-primary a,
+#section-billing-finance .vx-billing-action-more > summary {
+  min-height: 38px;
+  height: 38px;
+  padding: 0 13px;
+  white-space: nowrap;
+  width: auto;
+}
+
+#section-billing-finance .vx-billing-action-menu {
+  min-width: 210px;
+  z-index: 250;
+}
+
+#section-billing-finance td:last-child,
+#section-billing-finance [role="cell"]:last-child {
+  min-width: 310px;
+  vertical-align: middle;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Übergänge
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.card,
+.settings-card,
+.profile-card,
+.customer-section-shell,
+.btn,
+input,
+select,
+textarea {
+  transition: border-color .16s ease, box-shadow .16s ease, transform .16s ease, background-color .16s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card, .settings-card, .profile-card, .customer-section-shell,
+  .btn, input, select, textarea { transition: none; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Schmale Fenster
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@media (max-width: 1100px) {
+  #section-settings .grid-4 { grid-template-columns: repeat(2, minmax(0,1fr)); }
+}
+
+@media (max-width: 900px) {
+  #section-billing-finance .vx-billing-action-shell,
+  #section-billing-finance .vx-billing-action-primary {
+    width: 100%;
+    max-width: none;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0,1fr));
+  }
+  #section-billing-finance .vx-billing-action-primary .btn,
+  #section-billing-finance .vx-billing-action-primary button,
+  #section-billing-finance .vx-billing-action-primary a,
+  #section-billing-finance .vx-billing-action-more,
+  #section-billing-finance .vx-billing-action-more > summary { width: 100%; }
+  #section-billing-finance td:last-child,
+  #section-billing-finance [role="cell"]:last-child { min-width: 0; }
+}
+
+@media (max-width: 760px) {
+  .content { padding: 14px 10px 32px; }
+  .card-head, .card-header, .section-head,
+  .settings-card-header, .bf-panel-head, .bf-panel-header, .vx-unified-head {
+    padding: 15px;
+    min-height: 56px;
+  }
+  .card-body, .settings-card-body, .bf-panel-body { padding: 15px; }
+  #section-settings .grid-4 { grid-template-columns: minmax(0,1fr); }
+  .btn, button.btn, a.btn { width: 100%; }
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Aus admin-runtime-admin-ui-cleanup.js (Welle 2, Teil 2)
+   Die Klassen werden dort weiterhin per JavaScript angehaengt; das Aussehen
+   steht ab jetzt hier. → Welle 5 bringt die Klassen ins Markup.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.vx-customer-list-title{color:var(--ink,#1A1A2E);background:transparent;text-shadow:none;font-size:16px;font-weight:750;letter-spacing:-.02em}
+.vx-subscription-search-toolbar{display:flex;align-items:center;gap:12px;width:100%;padding:14px 16px;margin:0 0 14px;background:#fff;border:1px solid var(--line,#E4E8F0);border-radius:12px}
+.vx-subscription-search-toolbar:before{content:'Subscription suchen';font-size:12px;font-weight:700;color:var(--slate,#7A8599);white-space:nowrap}
+.vx-subscription-search-toolbar input{width:min(420px,100%);min-width:240px;margin:0}
+.vx-admin-manual-fallback{margin-top:12px;border:1px solid var(--line,#E4E8F0);border-radius:12px;background:#fff;overflow:hidden}
+.vx-admin-manual-fallback>summary{cursor:pointer;list-style:none;padding:14px 16px;font-weight:700;color:var(--ink,#1A1A2E);background:#F8FAFC}
+.vx-admin-manual-fallback>summary::-webkit-details-marker{display:none}
+.vx-admin-manual-fallback>summary:after{content:'Nur verwenden, wenn die automatische Prüfung nicht möglich ist.';display:block;margin-top:3px;font-size:12px;font-weight:400;color:var(--slate,#7A8599)}
+.vx-admin-manual-fallback>.vx-admin-manual-content{padding:0}
+@media(max-width:760px){
+  .vx-subscription-search-toolbar{align-items:stretch;flex-direction:column}
+  .vx-subscription-search-toolbar input{width:100%;min-width:0}
+}

@@ -6,6 +6,11 @@ const files = {
   cases: fs.readFileSync('admin-panel/shared/admin-runtime-cases.js', 'utf8'),
   adminOnlyCases: fs.readFileSync('admin-panel/shared/admin-runtime-cases-admin-only.js', 'utf8'),
   mobile: fs.readFileSync('admin-panel/shared/admin-runtime-mobile.js', 'utf8'),
+  // Welle 2 Teil 2: admin-runtime-mobile.js hat sein Stylesheet zur Laufzeit
+  // eingefuegt und brauchte dafuer 97 !important. Die Regeln liegen jetzt in
+  // shared/admin-responsive.css. Was Verhalten ist -- das Setzen von
+  // data-mobile-label je Zelle -- ist in der JS-Datei geblieben.
+  responsive: fs.readFileSync('admin-panel/shared/admin-responsive.css', 'utf8'),
   loader: fs.readFileSync('admin-panel/shared/offer-brand.js', 'utf8')
 };
 
@@ -25,9 +30,14 @@ const checks = [
   ['Cockpit and customer views use the same strict case filter', files.adminOnlyCases.includes("'renderOverview'") && files.adminOnlyCases.includes("'renderCustomerWorkspace'") && files.adminOnlyCases.includes('withAdminCases')],
   ['Admin-only case runtime is loaded by the Admin bootstrap', files.loader.includes('/shared/admin-runtime-cases-admin-only.js')],
   ['Assistant change requests render inline', files.cases.includes('function renderAssistantRequestsInline()') && !files.cases.includes('Zu den Assistenten-Cases')],
-  ['Mobile tables become labelled cards', files.mobile.includes('data-mobile-label') && files.mobile.includes('table.vox-mobile-table tbody tr')],
-  ['Mobile layout prevents page-level horizontal overflow', files.mobile.includes('overflow-x:hidden!important') && files.mobile.includes('grid-template-columns:minmax(0,1fr)!important')],
-  ['Mobile runtime is loaded by the Admin bootstrap', files.loader.includes('/shared/admin-runtime-mobile.js')]
+  // Die Zusage ist dieselbe geblieben, nur der Nachweis liegt jetzt getrennt:
+  // die Beschriftung setzt die JS-Datei, die Darstellung das Stylesheet.
+  ['Mobile tables become labelled cards', files.mobile.includes('dataset.mobileLabel') && files.responsive.includes('table.vox-mobile-table tbody tr')],
+  ['Mobile layout prevents page-level horizontal overflow', /overflow-x:\s*hidden/.test(files.responsive) && /grid-template-columns:\s*minmax\(0,\s*1fr\)/.test(files.responsive)],
+  ['Mobile runtime is loaded by the Admin bootstrap', files.loader.includes('/shared/admin-runtime-mobile.js')],
+  ['The responsive layer is linked, not injected at runtime',
+    fs.readFileSync('admin-panel/index.html', 'utf8').includes('/shared/admin-responsive.css')
+      && !/createElement\(['"]style['"]\)/.test(files.mobile)]
 ];
 
 let failed = false;

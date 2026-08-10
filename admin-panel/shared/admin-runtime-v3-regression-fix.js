@@ -1,103 +1,21 @@
+/**
+ * Alt-Bedienelemente der Zahlungslink-Phase im Billing und in den Einstellungen.
+ *
+ * Rest dieser Datei nach Welle 2. Der CSS-Teil -- er reparierte, was
+ * admin-runtime-design-system-v3.js angerichtet hatte -- ist mit v3 zusammen
+ * nach shared/admin-components.css gewandert. Uebrig bleibt DOM-Logik:
+ * das Verstecken der Alt-Zahlungslinks (der Ablationstest hat gezeigt, dass
+ * hier 12 Bedienelemente unsichtbar gemacht werden) und das Zusammenfassen der
+ * Zeilenaktionen im Billing.
+ *
+ * → Welle 5: Beides gehoert in screens/billing.js beziehungsweise verschwindet
+ * mit dem Markup, das es versteckt. Bis dahin bleibt es hier.
+ */
 (function (w) {
   'use strict';
   if (!w || typeof document === 'undefined') return;
 
   const norm = value => String(value || '').replace(/\s+/g, ' ').trim().toLowerCase();
-
-  function injectStyles() {
-    if (document.getElementById('vx-admin-v3-regression-fix-css')) return;
-    const style = document.createElement('style');
-    style.id = 'vx-admin-v3-regression-fix-css';
-    style.textContent = `
-      /* Prevent inherited/legacy text effects from making form values look doubled. */
-      #section-settings input,
-      #section-settings select,
-      #section-settings textarea,
-      #section-settings label,
-      #section-settings .field,
-      #section-settings [class*="label"]{
-        text-shadow:none!important;
-        filter:none!important;
-        opacity:1!important;
-      }
-      #section-settings input,
-      #section-settings textarea{
-        -webkit-text-fill-color:currentColor!important;
-        color:var(--vx3-ink,#10213D)!important;
-        font-variant-numeric:tabular-nums!important;
-      }
-
-      /* Keep customer section headings readable on light cards. */
-      #section-customers .vx-unified-head,
-      #section-customers .card-head,
-      #section-customers .card-header,
-      #section-customers [class*="section-head"]{
-        color:var(--vx3-ink,#10213D)!important;
-        background:linear-gradient(180deg,#fff 0%,#fbfcfe 100%)!important;
-      }
-      #section-customers .vx-unified-head *,
-      #section-customers .card-head *,
-      #section-customers .card-header *,
-      #section-customers [class*="section-head"] *{
-        color:inherit!important;
-        text-shadow:none!important;
-      }
-
-      /* Billing actions: compact, predictable and aligned. */
-      #section-billing-finance .vx-billing-action-shell{
-        min-width:0!important;
-        width:max-content!important;
-        max-width:300px!important;
-        display:flex!important;
-        align-items:center!important;
-        gap:7px!important;
-        flex-wrap:nowrap!important;
-      }
-      #section-billing-finance .vx-billing-action-primary{
-        display:flex!important;
-        align-items:center!important;
-        gap:7px!important;
-        flex-wrap:nowrap!important;
-      }
-      #section-billing-finance .vx-billing-action-primary .btn,
-      #section-billing-finance .vx-billing-action-primary button,
-      #section-billing-finance .vx-billing-action-primary a,
-      #section-billing-finance .vx-billing-action-more>summary{
-        min-height:38px!important;
-        height:38px!important;
-        padding:0 13px!important;
-        white-space:nowrap!important;
-        width:auto!important;
-      }
-      #section-billing-finance .vx-billing-action-menu{
-        min-width:210px!important;
-        z-index:250!important;
-      }
-      #section-billing-finance td:last-child,
-      #section-billing-finance [role="cell"]:last-child{
-        min-width:310px!important;
-        vertical-align:middle!important;
-      }
-
-      .vx-legacy-payment-link-hidden{display:none!important}
-
-      @media(max-width:900px){
-        #section-billing-finance .vx-billing-action-shell,
-        #section-billing-finance .vx-billing-action-primary{
-          width:100%!important;max-width:none!important;
-          display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;
-        }
-        #section-billing-finance .vx-billing-action-primary .btn,
-        #section-billing-finance .vx-billing-action-primary button,
-        #section-billing-finance .vx-billing-action-primary a,
-        #section-billing-finance .vx-billing-action-more,
-        #section-billing-finance .vx-billing-action-more>summary{width:100%!important}
-        #section-billing-finance td:last-child,
-        #section-billing-finance [role="cell"]:last-child{min-width:0!important}
-      }
-    `;
-    document.head.appendChild(style);
-  }
 
   function hideLegacyPaymentLinks() {
     const settings = document.querySelector('#section-settings');
@@ -145,7 +63,6 @@
   }
 
   function tick() {
-    injectStyles();
     hideLegacyPaymentLinks();
     reconcileBillingActions();
   }

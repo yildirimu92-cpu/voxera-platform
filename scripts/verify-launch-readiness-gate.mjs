@@ -30,7 +30,9 @@ const checks = [
   ['runtime requests server readiness on modal open', /action:'check'/.test(source.runtime) && /openCustomerGoLiveModal/.test(source.runtime)],
   ['runtime blocks submit when server gate fails', /voxServerBlocked/.test(source.runtime) && /button\.disabled = true/.test(source.runtime)],
   ['runtime visibly separates automatic and manual tests', /Ein Häkchen ersetzt keinen realen Testanruf/.test(source.runtime)],
-  ['runtime cache version is refreshed', /admin-runtime-launch-p0\.js\?v=20260801-4/.test(source.loader)]
+  // Welle 1 hat admin-runtime-launch-p0.js geaendert (die Endpunkt-Aliasse sind
+  // nach core/admin-api.js gezogen), deshalb ist der Cache-Stempel nachgezogen.
+  ['runtime cache version is refreshed', /admin-runtime-launch-p0\.js\?v=20260810-1/.test(source.loader)]
 ];
 
 for (const [name, passed] of checks) {
