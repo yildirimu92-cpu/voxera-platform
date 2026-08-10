@@ -5,6 +5,13 @@
 war, steht unten. Was nur von der Live-Seite kommen kann, ist am Ende als Beschaffungsliste
 aufgeführt.
 
+> **Nachtrag 10.08.2026 — Auflösung zugesagt.** Umut lädt das Netlify-Deploy-ZIP hoch (Weg 2
+> unten), zunächst getrieben von der Datenresidenz-Frage, die unabhängig vom Relaunch akut
+> behandelt wird. Dasselbe ZIP wird anschliessend als Schritt-1-Sicherungskopie nachgereicht.
+> **Sobald es vorliegt:** Inhalt hier ablegen, dieses Dokument von „rekonstruiert" auf
+> „gesichert" umstellen, das Content-Audit auf den Volltext ausweiten und die Redirect-Karte
+> alt→neu erstellen. Bis dahin bleibt der Schritt formal offen.
+
 ---
 
 ## 1. Warum die Vollsicherung nicht durchgeführt werden konnte

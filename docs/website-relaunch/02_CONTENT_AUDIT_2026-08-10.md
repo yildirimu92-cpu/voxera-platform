@@ -14,6 +14,18 @@ vollständig** und wird es erst, wenn der Volltext vorliegt.
 
 ---
 
+## Stand der Rückmeldungen (10.08.2026)
+
+| Befund | Rückmeldung Umut |
+|---|---|
+| **C2 Datenresidenz** | Wird **sofort und unabhängig vom Relaunch** entschärft — nicht erst mit der neuen Seite. Umut lädt dazu das Netlify-Deploy-ZIP hoch. Die Richtungsentscheidung (Text anpassen / EU-Endpunkt prüfen / streichen) läuft in diesem separaten Strang. |
+| **C1 Preise** | **Noch nicht final.** Hängt an einer laufenden Margen-Rechnung — ElevenLabs-Überschreitungspreis und Twilio-Minutenpreis stehen noch aus. **Bis dahin gilt: mit den aktuellen Preisen als Platzhalter weiterarbeiten**, die Änderung kommt separat nach. |
+| **C4** Zahlenquellen, **C5** getestete Telefonanbieter, EU-/CH-Endpunkt-Frage aus C2 | Zulieferung folgt, sobald Umut sie zusammen hat. |
+| Design-Option | **B — Schweizer Werkbank** gewählt (siehe Zielbild, Teil C). |
+| Branchenlücke `detailhandel-logistik` | Vorlage wird **nachgebaut**. Als eigener Produktpunkt abgegrenzt: [`04_PRODUKTPUNKT_BRANCHENVORLAGE_DETAILHANDEL.md`](04_PRODUKTPUNKT_BRANCHENVORLAGE_DETAILHANDEL.md). |
+
+---
+
 ## Kurzfassung
 
 | # | Befund | Status | Vor Launch |
@@ -55,6 +67,20 @@ abgelaufenen Aktionspreis überhaupt erst entstehen liess.
 1. Aktion beenden → reguläre Preise (490/690/990) ausweisen, oder
 2. Aktion mit **neuem, echtem Ablaufdatum** verlängern, oder
 3. Aktionspreise zu regulären Preisen machen (390/540/790) und den Aktionsrahmen streichen.
+
+> **Stand 10.08.2026:** noch offen. Die Entscheidung hängt an einer laufenden
+> Margen-Rechnung; der ElevenLabs-Überschreitungspreis und der Twilio-Minutenpreis fehlen
+> noch. **Bis dahin wird mit den heutigen Preisen als Platzhalter weitergearbeitet.**
+>
+> Das ist unproblematisch, solange die Bau-Vorgabe unten eingehalten wird: liegen alle Preise
+> in **einer** Content-Datei, ist der spätere Austausch eine Änderung an einer Stelle statt
+> an sechs. Zwei Dinge sind dabei aber wichtig:
+> - Der **Launch** darf nicht mit dem Platzhalter passieren — C1 bleibt bis zur echten
+>   Entscheidung ein Launch-Blocker für `/preise/`, auch wenn der Bau weiterläuft.
+> - Der Platzhalter darf **kein abgelaufenes Datum** tragen. Genau das ist der Fehler, den
+>   dieser Befund beschreibt. Solange die Aktion nicht entschieden ist, wird sie in der
+>   Platzhalter-Fassung ohne Ablaufdatum geführt und `priceValidUntil` bleibt leer — lieber
+>   eine Lücke als eine falsche Zusage.
 
 **Bau-Vorgabe unabhängig davon:** Preise und Ablaufdaten auf der neuen Seite in **eine
 einzige Datenquelle** (eine Content-Datei) legen, aus der sowohl Preistabelle als auch
@@ -113,6 +139,20 @@ Gesprächsaufzeichnungen werden von dort abgerufen, liegen also dort. Das Wort
 **Bis das entschieden ist, gilt:** Die Aussage darf in **keiner** Form auf die neue Seite —
 und auch nicht in den Sales-One-Pager oder das Pitch-Deck, die dieselbe Formulierung
 übernommen haben. Ich habe sie in keinem der Zielbild-Textbausteine verwendet.
+
+> **Stand 10.08.2026:** Dieser Punkt wird **sofort und unabhängig vom Relaunch** behandelt —
+> die falsche Aussage steht heute live und soll nicht bis zur neuen Seite warten. Umut lädt
+> dafür das Netlify-Deploy-ZIP hoch, damit direkt am Bestand entschärft werden kann.
+>
+> Für den Relaunch heisst das: **die Entscheidung fällt in dem anderen Strang, nicht hier.**
+> Sobald sie steht, wird die gewählte Formulierung übernommen — die neue Seite erbt das
+> Ergebnis, statt die Frage ein zweites Mal aufzumachen. Bis dahin bleibt der Platz in den
+> Textbausteinen leer.
+>
+> Zwei Dinge, die beim Entschärfen am Bestand leicht untergehen und deshalb hier stehen:
+> die **FAQ** ist nicht die einzige Stelle — das Badge „Swiss Hosted · DSGVO-konform" (C3)
+> trägt dieselbe Aussage in Kurzform, und der **Datenschutztext** muss zur neuen Formulierung
+> passen, sonst widersprechen sich Marketing- und Rechtstext auf derselben Domain.
 
 ---
 
@@ -291,8 +331,21 @@ Als Bau-Vorgabe festgehalten, weil ein Relaunch das leicht übersieht:
 
 ## Was als Nächstes gebraucht wird
 
-1. **Entscheidung zu C2** (Datenresidenz) — blockiert den Launch, nicht den Bau.
-2. **Entscheidung zu C1** (Preise/Aktion) — blockiert die Preisseite.
-3. **Quellen zu C4** (62 % / 3.4 h / CHF 4'500) — blockiert die Startseite.
-4. **Antwort zu C5** (getestete Anbieter) und **C8** (24h-Zusage).
-5. **Die Sicherung aus Dokument 01**, damit dieses Audit vollständig werden kann.
+*Stand nach der Rückmeldung vom 10.08.2026.*
+
+| | Punkt | Wer | Status |
+|---|---|---|---|
+| 1 | **C2 Datenresidenz** — Richtungsentscheidung | Umut, **separater Strang** | läuft, ZIP unterwegs |
+| 2 | **Sicherung** aus Dokument 01 (dasselbe ZIP) | Umut | zugesagt |
+| 3 | **C4** Quellen für 62 % / 3.4 h / CHF 4'500 | Umut | ausstehend |
+| 4 | **C5** tatsächlich getestete Telefonanbieter | Umut | ausstehend |
+| 5 | **C1 Preise** — final nach der Margen-Rechnung | Umut | ausstehend, **Platzhalter freigegeben** |
+| 6 | **C8** Belastbarkeit der 24h-Zusage | Umut | ausstehend |
+| 7 | **C9/C10** — FAQ-Aufbewahrungsfrist und Kalender-Bewerbung | prüfbar, **sobald der Volltext da ist** | wartet auf Punkt 2 |
+
+Erledigt: Design-Option (B), Branchenlücke `detailhandel-logistik`
+([Produktpunkt](04_PRODUKTPUNKT_BRANCHENVORLAGE_DETAILHANDEL.md)).
+
+**Nichts davon blockiert den Baubeginn** — mit Ausnahme von Punkt 2, das für die
+Redirect-Karte und die Rechtstexte gebraucht wird. Die Punkte 1 und 3–6 blockieren jeweils
+nur einzelne Textstellen und das Go-Live, nicht das Gerüst.
