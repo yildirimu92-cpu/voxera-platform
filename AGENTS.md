@@ -200,6 +200,27 @@ For database-related fixes:
 8. Avoid schema changes unless the current schema cannot support the required behavior.
 9. Report required migrations separately from frontend changes.
 
+### STOP before `supabase link` / `supabase db push`
+
+80 of the 105 files in `supabase/migrations/` have no version prefix
+(`2026-04-02_name.sql` instead of `20260402090000_name.sql`). The Supabase
+CLI reads the filename up to the first `_` as the version and matches it
+against `supabase_migrations.schema_migrations`. A name without a 14-digit
+timestamp matches nothing, so the CLI considers those 80 files **not
+applied** — even though their DDL has been in production for months.
+
+Nothing applies them automatically today: no workflow calls `db push`,
+there is no `supabase/config.toml`, and the Netlify build only runs
+`build-runtime-config.mjs`. The trap springs the first time somebody links
+this repo to the production database and pushes.
+
+Before you link or push: read `supabase/migrations/README.md` and issue
+#924. Run `--dry-run` first and actually read the list it offers. If it
+offers ~80 migrations, stop.
+
+New migrations must always be created with `supabase migration new <name>`
+so they get a proper timestamp prefix.
+
 ---
 
 ## Performance / Slow Action Rules
