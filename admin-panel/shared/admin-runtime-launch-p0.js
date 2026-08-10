@@ -7,19 +7,8 @@
   const readinessCache = new Map();
   let readinessRequest = 0;
 
-  function installFunctionRouting() {
-    const original = w.callAdminFunction;
-    if (typeof original !== 'function' || original.__voxLaunchP0Routing) return;
-    const routed = function (name, payload) {
-      const mapped = name === 'trigger-elevenlabs-sync'
-        ? 'trigger-elevenlabs-sync-v2'
-        : (name === 'scrape-website' ? 'scrape-website-v2' : name);
-      return original.call(this, mapped, payload);
-    };
-    routed.__voxLaunchP0Routing = true;
-    routed.__voxOriginal = original;
-    w.callAdminFunction = routed;
-  }
+  // Die Umleitung auf trigger-elevenlabs-sync-v2 und scrape-website-v2 steht
+  // seit Welle 1 als Endpunkt-Alias in shared/core/admin-api.js.
 
   function addScrapedField(data, key) {
     data._scrapedFields = Array.isArray(data._scrapedFields) ? data._scrapedFields : [];
@@ -299,7 +288,6 @@
     if (typeof w.wizardScrapeWebsite !== 'function' || w.wizardScrapeWebsite.__voxLaunchP0Website) return;
 
     const enhanced = async function () {
-      installFunctionRouting();
       const input = document.getElementById('wz-website-url');
       const button = document.getElementById('wz-scrape-btn');
       const feedback = document.getElementById('wz-scrape-feedback');
@@ -450,7 +438,6 @@
     const requestId = ++readinessRequest;
     summary.innerHTML = '<div style="font-size:12px;color:var(--slate2)">Launch-Voraussetzungen werden serverseitig geprüft…</div>';
     try {
-      installFunctionRouting();
       const result = await w.callAdminFunction('customer-go-live', { action:'check', customer_id:id });
       if (requestId !== readinessRequest || currentGoLiveCustomerId() !== id) return;
       if (!result?.success || !result?.technical_gate) throw new Error(result?.error || 'Launch-Prüfung fehlgeschlagen.');
@@ -520,7 +507,6 @@
   }
 
   function install() {
-    installFunctionRouting();
     installWizardTemplateTransition();
     installWebsiteExtraction();
     installWebsiteAnalysisHydration();

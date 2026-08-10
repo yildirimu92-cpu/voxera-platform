@@ -251,34 +251,12 @@
     w.openInvoiceOperational = wrapped;
   }
 
-  function installLegacyRouting() {
-    const original = w.callAdminFunction;
-    if (typeof original !== 'function' || original.__voxInvoiceAdjustments) return;
-    const routed = function (name,payload) {
-      const action = lower(payload?.action);
-      if (name === 'customer-billing-update' && action === 'cancel_invoice') {
-        return original.call(this,'invoice-financial-action',{
-          action:'void_draft',invoice_id:payload.invoice_id,reason:payload.reason || payload.notes || null,
-          request_id:payload.request_id || requestId('void_draft')
-        });
-      }
-      if (name === 'customer-billing-update' && action === 'create_credit_note') {
-        return original.call(this,'invoice-financial-action',{
-          action:'create_credit',invoice_id:payload.invoice_id,amount:payload.amount,reason:payload.reason || payload.description || payload.notes,
-          request_id:payload.request_id || requestId('create_credit')
-        });
-      }
-      return original.call(this,name,payload);
-    };
-    routed.__voxInvoiceAdjustments = true;
-    routed.__voxOriginal = original;
-    w.callAdminFunction = routed;
-  }
+  // Die Umleitung von cancel_invoice und create_credit_note auf
+  // invoice-financial-action steht seit Welle 1 in shared/core/admin-api.js.
 
   function install() {
     addCss();
     ensureModal();
-    installLegacyRouting();
     installDetailHook();
     w.openInvoiceFinancialAction = openModal;
     w.closeInvoiceFinancialAction = closeModal;

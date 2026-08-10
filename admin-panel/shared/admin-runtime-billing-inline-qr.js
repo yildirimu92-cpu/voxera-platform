@@ -6,40 +6,22 @@
   const busy = new Set();
   let selectedLabel = null;
   let lastSignature = '';
-  let billingCallWrapped = false;
 
   const norm = value => String(value || '').trim().toLowerCase();
   const esc = value => String(value == null ? '' : value).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const onBilling = () => /billing/i.test(String(location.hash || '')) || /billing/i.test(String(location.pathname || ''));
   const invoices = () => (typeof state !== 'undefined' && Array.isArray(state.invoices)) ? state.invoices : [];
 
-  function mergeInvoiceIntoState(invoice) {
+  function mergeInvoiceIntoState(invoice) {  // noch genutzt vom Zeilen-Rendering
     if (!invoice || typeof state === 'undefined' || !Array.isArray(state.invoices)) return;
     const index = state.invoices.findIndex(row => String(row.id) === String(invoice.id));
     if (index >= 0) state.invoices[index] = { ...state.invoices[index], ...invoice };
     else state.invoices.unshift(invoice);
   }
 
-  function installOverageInvoiceRoute() {
-    if (billingCallWrapped || typeof w.callAdminFunction !== 'function') return;
-    const original = w.callAdminFunction.bind(w);
-    w.callAdminFunction = async function (functionName, payload, ...rest) {
-      const action = norm(payload?.action);
-      if (functionName === 'customer-billing-update' && action === 'create_overage_invoice') {
-        const result = await original('admin-overage-invoice', payload, ...rest);
-        if (result?.invoice) mergeInvoiceIntoState(result.invoice);
-        if (result?.success && typeof w.showToast === 'function') {
-          w.showToast(result.created === false
-            ? 'Überzugsrechnung für diese Periode ist bereits vorhanden.'
-            : 'Überzugsrechnung mit Swiss QR Code wurde erstellt.');
-        }
-        lastSignature = '';
-        return result;
-      }
-      return original(functionName, payload, ...rest);
-    };
-    billingCallWrapped = true;
-  }
+  // Die Umleitung von create_overage_invoice auf admin-overage-invoice steht
+  // seit Welle 1 in shared/core/admin-api.js, samt der Nachbearbeitung
+  // (Rechnung in state uebernehmen, Toast).
 
   function findTabs() {
     return Array.from(document.querySelectorAll('button,a,[role="tab"]'))
@@ -145,7 +127,6 @@
   }
 
   function tick() {
-    installOverageInvoiceRoute();
     if (!onBilling()) return;
     const next = signature();
     if (next === lastSignature) return;

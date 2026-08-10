@@ -10,6 +10,16 @@
 <!-- Laufzeit-Konfiguration (Supabase-Zugangsdaten), siehe scripts/runtime-config.mjs. -->
 <script src="/vx-runtime-config.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<!-- Kernmodule des Admin-Portals (Welle 1 des Zielbilds).
+     Bewusst hier als normale Skript-Tags im Kopf und nicht über die Nachladeliste
+     in shared/offer-brand.js: dadurch stehen sie garantiert vor dem Inline-Skript
+     bereit. Die Laufzeit-Dateien werden dynamisch nachgeladen und mussten ihre
+     Existenz deshalb mit ready()-Wächtern und Wiederholungen absichern — genau
+     das entfällt hier. -->
+<script src="/shared/core/admin-format.js?v=20260810-1"></script>
+<script src="/shared/core/admin-feedback.js?v=20260810-1"></script>
+<script src="/shared/core/admin-lifecycle.js?v=20260810-1"></script>
+<script src="/shared/core/admin-api.js?v=20260810-1"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
 :root{
@@ -4567,32 +4577,22 @@ function isMissingManualTasksDbExtensionError(raw){
   const schemaIssue=/schema cache|column|does not exist|could not find/.test(msg);
   return columnMentioned&&relationMentioned&&schemaIssue;
 }
-async function callAdminFunction(name,payload){
-  if(!(authClient&&authClient.auth)) throw new Error('Admin-Auth nicht verfügbar.');
-  const {data:{session},error}=await authClient.auth.getSession();
-  if(error||!session?.access_token) throw new Error('Admin-Session fehlt.');
-  const res=await fetch(`/.netlify/functions/${name}`,{
-    method:'POST',
-    headers:{
-      'Content-Type':'application/json',
-      'Authorization':`Bearer ${session.access_token}`
-    },
-    body:JSON.stringify(payload||{})
-  });
-  const json=await res.json().catch(()=>({}));
-  if(!res.ok){
-    const message=(
-      json?.error?.message||
-      json?.message||
-      (typeof json?.error==='string'?json.error:'')||
-      `HTTP ${res.status}`
-    );
-    const err=new Error(message);
-    err.status=res.status;
-    err.payload=json;
-    throw err;
+// Der Aufruf selbst liegt seit Welle 1 in shared/core/admin-api.js: eine
+// Endpunkttabelle, ein Fehlerwörterbuch, ein fetch. Vorher war diese Funktion
+// achtfach von Laufzeit-Dateien umwickelt; die Umleitungen stehen jetzt dort
+// als Regeln in genau der Reihenfolge, in der die Wrapper ausgewertet wurden.
+// Hier bleibt nur, was index.html besitzt: der Zugang zur Admin-Session.
+VoxeraAdminApi.configure({
+  getAccessToken: async () => {
+    if(!(authClient&&authClient.auth)) throw new Error('Admin-Auth nicht verfügbar.');
+    const {data:{session},error}=await authClient.auth.getSession();
+    if(error||!session?.access_token) throw new Error('Admin-Session fehlt.');
+    return session.access_token;
   }
-  return json;
+});
+
+async function callAdminFunction(name,payload){
+  return VoxeraAdminApi.call(name,payload);
 }
 async function callCustomerBillingUpdate(payload){
   const body=(payload&&typeof payload==='object')?payload:{};
@@ -7132,102 +7132,11 @@ function applyIndustryTemplate(){
 }
 // ── End Industry Templates ───────────────────────────────────────────────────
 
-// ── Shared Dialog (Confirm/Alert/Prompt) ─────────────────────────────────────
-let _voxDialogResolve = null;
-
-function voxDialogResolve(value){
-  if(!_voxDialogResolve) return;
-  const fn = _voxDialogResolve;
-  _voxDialogResolve = null;
-  document.getElementById('vox-dialog-modal')?.classList.remove('open');
-  fn(value);
-}
-
-function _voxDialogReset(){
-  // If a previous dialog is still pending, cancel it cleanly
-  if(_voxDialogResolve){
-    const prev = _voxDialogResolve;
-    _voxDialogResolve = null;
-    prev(null);
-  }
-}
-
-function voxConfirm({title='Bestätigen', message='', confirmText='Bestätigen', cancelText='Abbrechen', danger=false}={}){
-  _voxDialogReset();
-  return new Promise(resolve => {
-    _voxDialogResolve = resolve;
-    document.getElementById('vox-dialog-title').textContent = title;
-    const bodyEl = document.getElementById('vox-dialog-body');
-    bodyEl.innerHTML = String(message).replace(/\n/g,'<br>');
-    bodyEl.style.display = message ? 'block' : 'none';
-    document.getElementById('vox-dialog-input-wrap').style.display = 'none';
-    const cancelBtn = document.getElementById('vox-dialog-cancel');
-    const confirmBtn = document.getElementById('vox-dialog-confirm');
-    cancelBtn.textContent = cancelText; cancelBtn.style.display = '';
-    confirmBtn.textContent = confirmText;
-    confirmBtn.className = danger ? 'btn btn-danger' : 'btn btn-primary';
-    cancelBtn.onclick = () => voxDialogResolve(false);
-    confirmBtn.onclick = () => voxDialogResolve(true);
-    document.getElementById('vox-dialog-modal').classList.add('open');
-  });
-}
-
-function voxAlert({title='Hinweis', message='', confirmText='OK'}={}){
-  _voxDialogReset();
-  return new Promise(resolve => {
-    _voxDialogResolve = resolve;
-    document.getElementById('vox-dialog-title').textContent = title;
-    const bodyEl = document.getElementById('vox-dialog-body');
-    bodyEl.innerHTML = String(message).replace(/\n/g,'<br>');
-    bodyEl.style.display = message ? 'block' : 'none';
-    document.getElementById('vox-dialog-input-wrap').style.display = 'none';
-    const cancelBtn = document.getElementById('vox-dialog-cancel');
-    const confirmBtn = document.getElementById('vox-dialog-confirm');
-    cancelBtn.style.display = 'none';
-    confirmBtn.textContent = confirmText;
-    confirmBtn.className = 'btn btn-primary';
-    confirmBtn.onclick = () => voxDialogResolve(true);
-    document.getElementById('vox-dialog-modal').classList.add('open');
-  });
-}
-
-function voxPrompt({title='Eingabe', message='', label='', placeholder='', defaultValue='', confirmText='Speichern', cancelText='Abbrechen', required=false}={}){
-  _voxDialogReset();
-  return new Promise(resolve => {
-    _voxDialogResolve = resolve;
-    document.getElementById('vox-dialog-title').textContent = title;
-    const bodyEl = document.getElementById('vox-dialog-body');
-    bodyEl.innerHTML = message ? String(message).replace(/\n/g,'<br>') : '';
-    bodyEl.style.display = message ? 'block' : 'none';
-    document.getElementById('vox-dialog-input-wrap').style.display = 'block';
-    const labelEl = document.getElementById('vox-dialog-input-label');
-    labelEl.textContent = label || '';
-    labelEl.style.display = label ? 'block' : 'none';
-    const errEl = document.getElementById('vox-dialog-input-error');
-    errEl.style.display = 'none';
-    const inputEl = document.getElementById('vox-dialog-input');
-    inputEl.placeholder = placeholder || '';
-    inputEl.value = defaultValue || '';
-    const cancelBtn = document.getElementById('vox-dialog-cancel');
-    const confirmBtn = document.getElementById('vox-dialog-confirm');
-    cancelBtn.textContent = cancelText; cancelBtn.style.display = '';
-    confirmBtn.textContent = confirmText;
-    confirmBtn.className = 'btn btn-primary';
-    cancelBtn.onclick = () => voxDialogResolve(null);
-    confirmBtn.onclick = () => {
-      const v = String(inputEl.value || '').trim();
-      if(required && !v){
-        errEl.textContent = 'Eingabe erforderlich.';
-        errEl.style.display = 'block';
-        inputEl.focus();
-        return;
-      }
-      voxDialogResolve(v);
-    };
-    document.getElementById('vox-dialog-modal').classList.add('open');
-    setTimeout(() => inputEl.focus(), 50);
-  });
-}
+// ── Shared Dialog ────────────────────────────────────────────────────────────
+// voxConfirm / voxAlert / voxPrompt liegen seit Welle 1 in
+// shared/core/admin-feedback.js. Das Markup (#vox-dialog-*) bleibt hier; die
+// Funktionen stehen dort unveraendert und behalten ihre Namen, damit die 27
+// bestehenden Aufrufstellen unangetastet weiterlaufen.
 // ── End Shared Dialog ────────────────────────────────────────────────────────
 
 // ── AI Setup Wizard ──────────────────────────────────────────────────────────
@@ -8657,24 +8566,30 @@ function openAddAdminModal(){
   callAdminFunction('admin-mutate',{action:'admins.create',email,role}).then(()=>{
     showToast('✓ Admin '+email+' hinzugefügt.');
     renderSettings();
-  }).catch((e)=>alert('Fehler beim Eintragen: '+(e?.message||e)));
+  }).catch((e)=>voxAlert({title:'Fehler', message:'Fehler beim Eintragen: '+(e?.message||e)}));
 }
 
 async function updateAdminRole(adminId,newRole){
   if(!authClient) return;
   try{
     await callAdminFunction('admin-mutate',{action:'admins.updateRole',admin_id:adminId,role:newRole});
-  }catch(error){alert('Fehler: '+(error?.message||error));renderSettings();return;}
+  }catch(error){voxAlert({title:'Fehler', message:'Fehler: '+(error?.message||error)});renderSettings();return;}
   showToast('✓ Rolle aktualisiert.');
 }
 
 async function setAdminStatus(adminId,nextStatus,email){
   const actionLabel=nextStatus==='disabled'?'deaktivieren':'reaktivieren';
-  if(!confirm('Admin '+email+' wirklich '+actionLabel+'?')) return;
+  const bestaetigt=await voxConfirm({
+    title:'Admin '+actionLabel+'?',
+    message:'Admin '+esc(email)+' wirklich '+actionLabel+'?',
+    confirmText:actionLabel.charAt(0).toUpperCase()+actionLabel.slice(1),
+    danger:nextStatus!=='active'
+  });
+  if(!bestaetigt) return;
   if(!authClient) return;
   try{
     await callAdminFunction('admin-mutate',{action:'admins.setStatus',admin_id:adminId,status:nextStatus});
-  }catch(error){alert('Fehler: '+(error?.message||error));return;}
+  }catch(error){voxAlert({title:'Fehler', message:'Fehler: '+(error?.message||error)});return;}
   showToast(nextStatus==='disabled'?'✓ Admin deaktiviert.':'✓ Admin reaktiviert.');
   renderSettings();
 }
@@ -8892,9 +8807,9 @@ async function offerStatusChanged(){
   const next=String(document.getElementById('offer-status-select')?.value||'draft').toLowerCase();
   if(!OFFER_STATUS_OPTIONS.includes(next)) return;
   if(isOfferStatusDropdownLocked(offer.status)&&next!==offer.status){
-    alert(String(offer.status||'').toLowerCase()==='contract_failed'
+    voxAlert({message:String(offer.status||'').toLowerCase()==='contract_failed'
       ? 'Vertragserstellung ist fehlgeschlagen. Der Status kann hier nicht manuell geändert werden – bitte über „Vertrag wiederherstellen“ erneut versuchen.'
-      : 'Finale Offerten können nicht mehr umgestellt werden. Bitte Offerte duplizieren für einen neuen Zyklus.');
+      : 'Finale Offerten können nicht mehr umgestellt werden. Bitte Offerte duplizieren für einen neuen Zyklus.'});
     hydrateOfferStatusSelect(offer.status);
     return;
   }
@@ -8907,7 +8822,7 @@ async function offerStatusChanged(){
     else showToast('✓ Offer-Status aktualisiert.');
   }catch(e){
     hydrateOfferStatusSelect(offer.status);
-    alert('Status konnte nicht gespeichert werden: '+(e?.message||e));
+    voxAlert({title:'Fehler', message:'Status konnte nicht gespeichert werden: '+(e?.message||e)});
     return;
   }
   openOfferDetail(offer.id,true);
@@ -9285,7 +9200,7 @@ async function recoverAcceptedOfferContract(){
   if(!offer) return;
   const statusKey=String(offer.status||'').toLowerCase();
   if(statusKey!=='accepted'&&statusKey!=='contract_failed'){
-    alert('Wiederherstellung ist nur für akzeptierte oder fehlgeschlagene Offerten verfügbar.');
+    voxAlert({title:'Fehler', message:'Wiederherstellung ist nur für akzeptierte oder fehlgeschlagene Offerten verfügbar.'});
     return;
   }
   offer.__recoverPending=true;
@@ -9295,12 +9210,12 @@ async function recoverAcceptedOfferContract(){
     if(json?.offer) Object.assign(offer,mapDbOfferToUi(json.offer));
     openOfferDetail(offer.id,true);
     if(String(offer.status||'').toLowerCase()==='contract_failed'){
-      alert('Vertragserstellung ist erneut fehlgeschlagen. Details siehe Case „Vertragserstellung fehlgeschlagen“ zu dieser Offerte.');
+      voxAlert({title:'Fehler', message:'Vertragserstellung ist erneut fehlgeschlagen. Details siehe Case „Vertragserstellung fehlgeschlagen“ zu dieser Offerte.'});
     }else{
       showToast('✓ Vertrag erfolgreich verknüpft.');
     }
   }catch(e){
-    alert('Vertrag konnte nicht wiederhergestellt werden: '+(e?.message||e));
+    voxAlert({title:'Fehler', message:'Vertrag konnte nicht wiederhergestellt werden: '+(e?.message||e)});
   }finally{
     offer.__recoverPending=false;
     applyOfferReadonlyState(offer);
@@ -9310,7 +9225,7 @@ function unlinkOfferCustomer(){
   const offer=state.offers.find(o=>idsEq(o.id,state.selectedOfferId));
   if(!offer) return;
   if(isFinalOfferStatus(offer.status)){
-    alert('Finale Offerten sind gesperrt. Bitte duplizieren, um Änderungen vorzunehmen.');
+    voxAlert({message:'Finale Offerten sind gesperrt. Bitte duplizieren, um Änderungen vorzunehmen.'});
     return;
   }
   offer.customerId='';
@@ -9519,7 +9434,7 @@ async function createOffer(){
       payload.duration_months=fallback.durationMonths;
     }
     const json=await callAdminFunction('admin-mutate',{action:'offers.create',payload});
-    if(!json?.offer){alert('Offerte konnte nicht erstellt werden.'); return;}
+    if(!json?.offer){voxAlert({title:'Fehler', message:'Offerte konnte nicht erstellt werden.'}); return;}
     fallback.id=String(json.offer.id); Object.assign(fallback,mapDbOfferToUi(json.offer));
   }
   applyPlanDefaultsToOffer(fallback);
@@ -9961,7 +9876,7 @@ async function saveOffer(){
   if(authClient){
     try{
       await callAdminFunction('admin-mutate',{action:'offers.update',offer_id:offer.id,payload});
-    }catch(error){alert('Speichern fehlgeschlagen: '+(error?.message||error));return;}
+    }catch(error){voxAlert({title:'Fehler', message:'Speichern fehlgeschlagen: '+(error?.message||error)});return;}
   }
   await trackOfferEventClient('saved',offer);
   showToast('✓ Offerte gespeichert.');
@@ -10028,7 +9943,7 @@ async function sendOffer(){
   }catch(e){
     offer.deliveryStatus='failed';
     setOfferSendFeedback('failed',`Senden fehlgeschlagen (${e.message||e}). Erneut senden zum Retry.`);
-    alert('Senden fehlgeschlagen: '+(e.message||e));
+    voxAlert({title:'Fehler', message:'Senden fehlgeschlagen: '+(e.message||e)});
   }
 }
 async function duplicateOffer(){
@@ -10037,7 +9952,7 @@ async function duplicateOffer(){
   let dup;
   if(authClient){
     const json=await callAdminFunction('admin-mutate',{action:'offers.create',payload});
-    if(!json?.offer){alert('Duplizieren fehlgeschlagen.'); return;}
+    if(!json?.offer){voxAlert({title:'Fehler', message:'Duplizieren fehlgeschlagen.'}); return;}
     dup=mapDbOfferToUi(json.offer);
   }else{
     dup={...offer,id:crypto.randomUUID?crypto.randomUUID():String(Date.now()),offerNumber:'OFF-DRAFT',status:'draft',contractId:'',invoiceId:'',sentAt:'',sentToEmail:'',sendSubject:'',deliveryStatus:''};
@@ -10047,7 +9962,7 @@ async function duplicateOffer(){
 async function createContractFromOffer(){
   const offer=state.offers.find(o=>idsEq(o.id,state.selectedOfferId)); if(!offer) return;
   if(offer.status!=='accepted'){
-    alert('Vertragserstellung erst nach Status "Akzeptiert".');
+    voxAlert({message:'Vertragserstellung erst nach Status "Akzeptiert".'});
     return;
   }
   if(offer.contractId){
@@ -10067,7 +9982,7 @@ function printOfferPdf(){
     window.open(`/offer-pdf.html?token=${encodeURIComponent(token)}`,'_blank','noopener');
     return;
   }
-  alert('PDF-Link ist noch nicht verfügbar. Bitte Offerte zuerst senden.');
+  voxAlert({title:'Fehler', message:'PDF-Link ist noch nicht verfügbar. Bitte Offerte zuerst senden.'});
 }
 
 // ─── Contract helpers ──────────────────────────────────────────────────────
@@ -11321,11 +11236,13 @@ async function saveSignature() {
   }
 
   if (ct.signatureData) {
-    var overwriteConfirmed = confirm(
-      'Für diesen Vertrag ist bereits eine Kundensignatur hinterlegt (z.B. aus der digitalen Offerten-Annahme).\n\n' +
-      'Mit "OK" wird diese durch die hier neu erfasste Signatur ersetzt. Bitte nur bestätigen, wenn der Kunde jetzt tatsächlich erneut/vor Ort unterschreibt.\n\n' +
-      'Bestehende Signatur überschreiben?'
-    );
+    var overwriteConfirmed = await voxConfirm({
+      title: 'Bestehende Signatur überschreiben?',
+      message: 'Für diesen Vertrag ist bereits eine Kundensignatur hinterlegt (z.B. aus der digitalen Offerten-Annahme).\n\n' +
+               'Die hier neu erfasste Signatur ersetzt sie. Bitte nur bestätigen, wenn der Kunde jetzt tatsächlich erneut oder vor Ort unterschreibt.',
+      confirmText: 'Überschreiben',
+      danger: true
+    });
     if (!overwriteConfirmed) return;
   }
 
@@ -12112,7 +12029,7 @@ function printContract(id) {
   if (!ct) return;
   var acc = contractAcceptanceData(ct);
   var w = window.open('', '_blank');
-  if (!w) { alert('Bitte Pop-ups erlauben.'); return; }
+  if (!w) { voxAlert({message:'Bitte Pop-ups erlauben.'}); return; }
   var displayPlan = planLabel(ct.plan || '—');
   var signedAt = acc ? formatDateDE(acc.createdAt) : formatDateDE(ct.updatedAt || ct.createdAt);
   var signedBy = acc ? (acc.acceptedByName || '—') : (ct.customerName || '—');
@@ -12167,7 +12084,7 @@ function handleContractWordUpload(inputEl) {
       renderContracts();
       showToast('\u2713 Word-Datei gespeichert.');
     } catch(err) {
-      alert('Fehler beim Speichern: ' + (err.message || err));
+      voxAlert({title:'Fehler', message:'Fehler beim Speichern: ' + (err.message || err)});
     }
   };
   reader.readAsDataURL(file);
@@ -12175,7 +12092,7 @@ function handleContractWordUpload(inputEl) {
 
 function downloadContractWord(id) {
   var ct = state.contracts.find(function(c) { return idsEq(c.id, id); });
-  if (!ct || !ct.contractDocument) { alert('Keine Word-Datei vorhanden.'); return; }
+  if (!ct || !ct.contractDocument) { voxAlert({message:'Keine Word-Datei vorhanden.'}); return; }
   var a = document.createElement('a');
   a.href = ct.contractDocument;
   a.download = 'Vertrag_' + (ct.customerName || id).replace(/\s+/g, '_') + '.docx';
@@ -13215,14 +13132,19 @@ function applyMarkActivatedResult(customerId,customerPatch){
 
 async function markCustomerActivated(customerId){
   const customer=customerById(customerId);
-  if(!customer){alert('Kunde nicht gefunden.');return;}
+  if(!customer){voxAlert({title:'Fehler', message:'Kunde nicht gefunden.'});return;}
   const onboarding=onboardingForCustomer(customerId);
   const actionState=getCustomerQuickActionState(customer,onboarding);
   if(!actionState.showMarkActivated){
-    alert('Voraussetzungen für die Aktivierung sind (noch) nicht erfüllt. Bitte Kunde neu laden.');
+    voxAlert({title:'Fehler', message:'Voraussetzungen für die Aktivierung sind (noch) nicht erfüllt. Bitte Kunde neu laden.'});
     return;
   }
-  if(!confirm(`Zugang für „${customer.name||customer.customer_name||'diesen Kunden'}“ als aktiviert markieren?\n\nBitte nur bestätigen, wenn der Kunde sich erfolgreich im Portal eingeloggt hat.`)) return;
+  const bestaetigt=await voxConfirm({
+    title:'Zugang als aktiviert markieren?',
+    message:`Zugang für „${esc(customer.name||customer.customer_name||'diesen Kunden')}“ als aktiviert markieren?\n\nBitte nur bestätigen, wenn der Kunde sich erfolgreich im Portal eingeloggt hat.`,
+    confirmText:'Als aktiviert markieren'
+  });
+  if(!bestaetigt) return;
   try{
     const json=await callAdminFunction('send-customer-access',{customer_id:customerId,action:'mark_activated'});
     if(!json?.success) throw new Error(json?.error||'Aktivierung fehlgeschlagen.');
@@ -13235,7 +13157,7 @@ async function markCustomerActivated(customerId){
     const payload=error?.payload||{};
     const reasons=[payload?.error||error?.message||'Fehler bei der Aktivierung.'];
     if(Array.isArray(payload?.hard_blockers)&&payload.hard_blockers.length) reasons.push(payload.hard_blockers.join(' · '));
-    alert(reasons.join('\n'));
+    voxAlert({message:reasons.join('\n')});
   }
 }
 
@@ -13312,14 +13234,19 @@ async function submitSendAccess(){
 
 async function sendPasswordReset(customerId){
   const customer=customerById(customerId);
-  if(!customer){alert('Kunde nicht gefunden.');return;}
-  if(!confirm(`Passwort-Reset-Link an ${customer.email} senden?`)) return;
+  if(!customer){voxAlert({title:'Fehler', message:'Kunde nicht gefunden.'});return;}
+  const bestaetigt=await voxConfirm({
+    title:'Passwort-Reset senden?',
+    message:`Passwort-Reset-Link an ${esc(customer.email)} senden?`,
+    confirmText:'Link senden'
+  });
+  if(!bestaetigt) return;
   try{
     const json=await callAdminFunction('send-customer-access',{customer_id:customerId,action:'reset_password'});
     if(!json?.success) throw new Error(json?.error||'Versand fehlgeschlagen.');
     showToast(`✓ Passwort-Reset an ${customer.email} gesendet.`);
   }catch(err){
-    alert(`Fehler beim PW-Reset: ${err.message}`);
+    voxAlert({title:'Fehler', message:`Fehler beim PW-Reset: ${err.message}`});
   }
 }
 
@@ -13461,7 +13388,7 @@ async function sendInvoiceEmail(invoiceId, btnEl, options={}){
 }
 
 async function markBillingPaid(customerId){
-  alert('Direktes Kunden-Payment-Markieren ist deaktiviert. Bitte die konkrete Rechnung im Finance-Board als bezahlt markieren.');
+  voxAlert({message:'Direktes Kunden-Payment-Markieren ist deaktiviert. Bitte die konkrete Rechnung im Finance-Board als bezahlt markieren.'});
 }
 
 async function sendMonthlyBillingPaymentLink(customerId){
@@ -13475,14 +13402,14 @@ async function sendYearlyBillingPaymentLink(customerId){
 }
 
 async function markSubscriptionPaid(customerId){
-  alert('Subscription-Payment wird nur noch über konkrete Rechnungen gebucht. Bitte im Finance-Board die Rechnung als bezahlt markieren.');
+  voxAlert({message:'Subscription-Payment wird nur noch über konkrete Rechnungen gebucht. Bitte im Finance-Board die Rechnung als bezahlt markieren.'});
 }
 
 async function createManualSetupInvoice(customerId,contractId=''){
   const customer=customerById(customerId);
   if(!customer) return;
   const resolvedContractId=String(contractId||latestContractForCustomer(customerId)?.id||'').trim();
-  if(!resolvedContractId){ alert('Kein Vertrag verfügbar. Bitte zuerst Vertrag prüfen/aktivieren.'); return; }
+  if(!resolvedContractId){ voxAlert({message:'Kein Vertrag verfügbar. Bitte zuerst Vertrag prüfen/aktivieren.'}); return; }
   try{
     const json=await callCustomerBillingUpdate({
       customer_id:customerId,
@@ -14363,13 +14290,9 @@ function renderProfileMinutes(customerId){
   if(overageEl) overageEl.textContent = `Überzug: ${usage.overage_minutes} Min · ${moneyChf(usage.overage_amount)}`;
 }
 
-function showToast(msg,duration=3000){
-  const t=document.getElementById('toast');
-  if(!t){alert(msg);return;}
-  t.textContent=msg;t.style.opacity='1';
-  clearTimeout(t._timer);
-  t._timer=setTimeout(()=>{t.style.opacity='0';},duration);
-}
+// showToast liegt seit Welle 1 in shared/core/admin-feedback.js. Aussehen und
+// Signatur sind unveraendert -- die Tonalitaet des Toasts ist ein eigener,
+// noch nicht beauftragter Punkt und wird dort vorbereitet, nicht hier.
 
 // ─── Zustellstatus ehrlich anzeigen ──────────────────────────────────────────
 // Die Netlify-Funktionen liefern seit der Vereinheitlichung alle dasselbe
@@ -14733,7 +14656,7 @@ async function submitCreateCustomer(event){
 async function createCaseForCustomer(customerId,title='Follow-up',note='Manuell erstellt'){
   const c=customerById(customerId);
   if(!c){
-    alert('Case konnte nicht erstellt werden: Kunde nicht gefunden.');
+    voxAlert({title:'Fehler', message:'Case konnte nicht erstellt werden: Kunde nicht gefunden.'});
     return;
   }
   try{
@@ -14750,17 +14673,17 @@ async function createCaseForCustomer(customerId,title='Follow-up',note='Manuell 
     const payload=error?.payload||{};
     const rawMessage=payload?.details||payload?.error||error?.message||'';
     if(payload?.code==='cases_schema_extension_missing'||isMissingManualTasksDbExtensionError(rawMessage)){
-      alert(MANUAL_TASKS_DB_EXTENSION_MESSAGE);
+      voxAlert({message:MANUAL_TASKS_DB_EXTENSION_MESSAGE});
       return;
     }
-    alert(payload?.error||error?.message||'Case konnte nicht erstellt werden.');
+    voxAlert({message:payload?.error||error?.message||'Case konnte nicht erstellt werden.'});
   }
 }
 
 async function updateCase(caseId,field,value){
   const target=state.cases.find(c=>c.id===caseId);
   if(!target){
-    alert('Case konnte nicht aktualisiert werden: Case nicht gefunden.');
+    voxAlert({title:'Fehler', message:'Case konnte nicht aktualisiert werden: Case nicht gefunden.'});
     return;
   }
   try{
@@ -14778,10 +14701,10 @@ async function updateCase(caseId,field,value){
     const payload=error?.payload||{};
     const rawMessage=payload?.details||payload?.error||error?.message||'';
     if(payload?.code==='cases_schema_extension_missing'||isMissingManualTasksDbExtensionError(rawMessage)){
-      alert(MANUAL_TASKS_DB_EXTENSION_MESSAGE);
+      voxAlert({message:MANUAL_TASKS_DB_EXTENSION_MESSAGE});
       return;
     }
-    alert(payload?.error||error?.message||'Case konnte nicht aktualisiert werden.');
+    voxAlert({message:payload?.error||error?.message||'Case konnte nicht aktualisiert werden.'});
   }
 }
 
@@ -14802,7 +14725,7 @@ async function toggleCustomerStatus(customerId){
   if(current==='paused') targetStatus='live';
   else if(current==='live') targetStatus='paused';
   else{
-    alert(`Lifecycle-Update fehlgeschlagen: ${current} kann nicht auf live/paused gewechselt werden.`);
+    voxAlert({title:'Fehler', message:`Lifecycle-Update fehlgeschlagen: ${current} kann nicht auf live/paused gewechselt werden.`});
     return;
   }
   try{
@@ -14834,7 +14757,7 @@ async function toggleCustomerStatus(customerId){
     renderAll(); hydrateFilters(); openCustomerProfile(customerId);
   }catch(error){
     const payload=error?.payload||{};
-    alert(payload?.error||error?.message||'Lifecycle-Update fehlgeschlagen.');
+    voxAlert({message:payload?.error||error?.message||'Lifecycle-Update fehlgeschlagen.'});
   }
 }
 
@@ -14891,7 +14814,7 @@ async function toggleOnboardingStep(customerId,step){
       o.blocker=prevOnboarding.blocker;
     }
     const payload=error?.payload||{};
-    alert(payload?.error||error?.message||'Onboarding-Update fehlgeschlagen.');
+    voxAlert({message:payload?.error||error?.message||'Onboarding-Update fehlgeschlagen.'});
   }
 }
 
@@ -16906,14 +16829,19 @@ async function wizardAiGenerateRegeln(){
 async function resendInvite(customerId) {
   const c = customerById(customerId);
   if (!c) return;
-  if (!confirm(`Einladung erneut an ${c.email || c.name} senden?`)) return;
+  const bestaetigt = await voxConfirm({
+    title: 'Einladung erneut senden?',
+    message: `Einladung erneut an ${esc(c.email || c.name)} senden?`,
+    confirmText: 'Erneut senden'
+  });
+  if (!bestaetigt) return;
   try {
     showToast('Sende Einladung…');
     await callAdminFunction('send-customer-access', { customer_id: customerId });
     showToast('Einladung erfolgreich gesendet ✓');
     await loadDataFromSupabase();
   } catch(e) {
-    alert('Fehler beim Senden: ' + (e?.message || e));
+    voxAlert({title:'Fehler', message:'Fehler beim Senden: ' + (e?.message || e)});
   }
 }
 
@@ -16921,7 +16849,7 @@ async function resendInvite(customerId) {
 var _extendContractId = null;
 function openContractExtendModal(customerId) {
   const contracts = state.contracts.filter(ct => idsEq(ct.customerId, customerId) && (ct.status === 'active' || ct.status === 'signed'));
-  if (!contracts.length) { alert('Kein aktiver Vertrag gefunden.'); return; }
+  if (!contracts.length) { voxAlert({message:'Kein aktiver Vertrag gefunden.'}); return; }
   _extendContractId = contracts[0].id;
   const today = new Date().toISOString().slice(0,10);
   const startInput = document.getElementById('extend-start-date');
@@ -16977,7 +16905,7 @@ function openPlanChangeModal(customerId) {
   const c = customerById(customerId);
   if (!c) return;
   const contracts = state.contracts.filter(ct => idsEq(ct.customerId, customerId) && (ct.status === 'active' || ct.status === 'signed'));
-  if (!contracts.length) { alert('Kein aktiver Vertrag gefunden.'); return; }
+  if (!contracts.length) { voxAlert({message:'Kein aktiver Vertrag gefunden.'}); return; }
   _planChangeCustomerId = customerId;
   _planChangeContractId = contracts[0].id;
   _planChangeSelectedPlan = null;
