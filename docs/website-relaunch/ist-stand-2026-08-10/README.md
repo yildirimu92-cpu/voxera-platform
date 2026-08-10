@@ -28,5 +28,8 @@ Betreiber, nicht durch den Relaunch.
 - **Vollständige Dateiliste des Deploys** — ohne sie lässt sich nicht ausschliessen, dass
   weitere Seiten existieren. Bei `offer-accept.html` war genau das der Fall: sie war vorher
   nirgends dokumentiert. Blockiert die vollständige Redirect-Karte.
-- Bild-Assets: `favicon.svg`, `favicon.ico`, `favicon_16/32.png`, `apple-touch-icon.png`,
-  `og-image.png`
+
+Die Bild-Assets sind seit dem 10.08.2026 nachgeliefert und liegen hier (`favicon.svg`,
+`favicon.ico`, `favicon.png`, `favicon_16.png`, `favicon_32.png`, `apple-touch-icon.png`,
+`og-image.png`) — geprüft auf Format und Masse. Damit ist die Archivkopie inhaltlich
+vollständig; offen ist nur noch der Abgleich gegen die echte Dateiliste.
