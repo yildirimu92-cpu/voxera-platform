@@ -15,7 +15,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-const MIGRATION = 'supabase/migrations/2026-08-08_p0_security_foundation_catchup.sql';
+const MIGRATION = 'supabase/migrations/20260808040253_p0_security_foundation_catchup.sql';
 const P0 = 'supabase/migrations/2026-07-28_p0_security_foundation.sql';
 const PREFLIGHT = 'supabase/verification/p0_catchup_preflight.sql';
 const POSTFLIGHT = 'supabase/verification/p0_catchup_post_migration.sql';

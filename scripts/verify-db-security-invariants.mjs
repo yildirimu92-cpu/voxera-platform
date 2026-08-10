@@ -28,7 +28,6 @@ const CATALOG_SQL = path.join(REPO, 'supabase/verification/db_security_invariant
 const BEHAVIOR_SQL = path.join(REPO, 'supabase/verification/db_security_invariants_behavior.sql');
 const BASELINE = path.join(REPO, 'supabase/verification/db-security-baseline.json');
 const MIGRATIONS_DIR = path.join(REPO, 'supabase/migrations');
-const SQL_DIR = path.join(REPO, 'supabase/sql');
 
 const EXIT_OK = 0;
 const EXIT_VIOLATION = 1;
@@ -247,9 +246,32 @@ function checkBaseline(baseline) {
 // ── Gruppe G: Ledger-Drift ──────────────────────────────────────────────────
 
 function checkLedger(baseline) {
-  const preLedger = new Set(baseline.preLedgerMigrations?.files || []);
+  // Zwei Listen, dieselbe Kategorie: vor dem Ledger entstanden, Anwendung
+  // nicht nachweisbar. Getrennt gefuehrt, weil migratedFromSqlDir zusaetzlich
+  // die Haertungspruefung steuert und dort eine andere Begruendung traegt.
+  const preLedger = new Set([
+    ...(baseline.preLedgerMigrations?.files || []),
+    ...(baseline.migratedFromSqlDir?.files || []),
+  ]);
   const files = fs.readdirSync(MIGRATIONS_DIR).filter((f) => f.endsWith('.sql')).sort();
-  const nameOf = (f) => f.replace(/^\d{4}-\d{2}-\d{2}_/, '').replace(/\.sql$/, '');
+
+  // Zwei Namensschemata nebeneinander, und das ist Absicht:
+  //   20260809172215_admin_notification_settings.sql -- im Ledger nachgewiesen,
+  //     traegt seine Version im Namen (Supabase-CLI-Schema).
+  //   2026-04-08_core_tables_schema_sot.sql -- vor dem Ledger entstanden. Eine
+  //     Version waere hier erfunden; der Dateiname sagt darum, dass es keine
+  //     gibt.
+  const nameOf = (f) => f
+    .replace(/^\d{14}_/, '')
+    .replace(/^\d{4}-\d{2}-\d{2}_/, '')
+    .replace(/\.sql$/, '');
+  const versionOf = (f) => (f.match(/^(\d{14})_/) || [])[1] || null;
+
+  // Die Version ist der belastbare Schluessel: Supabase selbst gleicht darueber
+  // ab, und anders als der Name kann sie nicht auseinanderlaufen. Der Name
+  // bleibt als zweiter Weg fuer Dateien ohne Version im Namen.
+  const ledgerVersions = new Set(info.ledger.values());
+  const repoVersions = new Set(files.map(versionOf).filter(Boolean));
 
   const tracked = files.filter((f) => !preLedger.has(f));
 
@@ -265,7 +287,8 @@ function checkLedger(baseline) {
 
   // Richtung 1 -- der P0-Fehlermodus: Migration liegt im Repo, wurde auf der DB
   // aber nie angewandt. Genau hier blieb der alte Check monatelang gruen.
-  const isApplied = (f) => info.ledger.has(nameOf(f))
+  const isApplied = (f) => (versionOf(f) && ledgerVersions.has(versionOf(f)))
+    || info.ledger.has(nameOf(f))
     || (aliasMap[f] || []).some((ledgerName) => info.ledger.has(ledgerName));
   const missing = tracked.filter((f) => !isApplied(f));
   add(missing.length === 0 ? 'PASS' : 'FAIL', 'G-ledger',
@@ -277,24 +300,20 @@ function checkLedger(baseline) {
   // Richtung 2: auf der DB angewandt, aber keine Repo-Datei -- eine Aenderung,
   // die am Repo vorbei eingespielt wurde.
   //
-  // Hier zaehlt SQL_DIR mit, in Richtung 1 bewusst nicht. Das Repo legt DDL
-  // ueberwiegend unter supabase/sql/ ab (66 Dateien gegenueber 17 unter
-  // supabase/migrations/); wer von dort aus einspielt, erzeugt sonst
-  // zwangslaeufig eine Waise, obwohl die Aenderung sehr wohl reproduzierbar
-  // im Repo steht. Die Frage dieser Richtung ist "gibt es eine Repo-Datei",
-  // nicht "liegt sie im richtigen Ordner".
+  // Hier zaehlen ALLE Dateien mit, auch die vor dem Ledger entstandenen; in
+  // Richtung 1 bewusst nicht. Die Frage dieser Richtung ist "gibt es eine
+  // Repo-Datei", nicht "ist sie nachweislich angewandt". Bis 2026-08-10 stand
+  // hier ein zweites Verzeichnis supabase/sql/, weil das Repo DDL ueberwiegend
+  // dort ablegte; seit der Zusammenlegung ist die Unterscheidung gegenstandslos.
   //
-  // Umgekehrt darf Richtung 1 supabase/sql/ NICHT mitlesen: die Dateien dort
-  // stammen groesstenteils aus der Zeit vor dem Ledger (ab 2026-04) und wuerden
-  // reihenweise als "nicht angewandt" gemeldet -- ein Check, der am ersten Tag
-  // rot ist, wird abgeschaltet und schuetzt dann gar nichts mehr.
-  const sqlFiles = fs.existsSync(SQL_DIR)
-    ? fs.readdirSync(SQL_DIR).filter((f) => f.endsWith('.sql'))
-    : [];
-  const repoNames = new Map([...tracked, ...sqlFiles].map((f) => [nameOf(f), f]));
+  // Umgekehrt darf Richtung 1 die Altbestaende NICHT mitlesen: sie stammen aus
+  // der Zeit vor dem Ledger (ab 2026-04) und wuerden reihenweise als "nicht
+  // angewandt" gemeldet -- ein Check, der am ersten Tag rot ist, wird
+  // abgeschaltet und schuetzt dann gar nichts mehr.
+  const repoNames = new Map(files.map((f) => [nameOf(f), f]));
 
-  const orphans = [...info.ledger.keys()]
-    .filter((n) => !repoNames.has(n) && !aliasOwner.has(n));
+  const orphans = [...info.ledger.keys()].filter((n) => !repoVersions.has(info.ledger.get(n))
+    && !repoNames.has(n) && !aliasOwner.has(n));
   add(orphans.length === 0 ? 'PASS' : 'FAIL', 'G-ledger',
     'keine DB-Migration ohne Repo-Datei',
     orphans.length
@@ -305,7 +324,7 @@ function checkLedger(baseline) {
   // der ein Befund dauerhaft ruhen kann: ein Eintrag auf eine geloeschte Datei
   // oder auf einen Ledger-Namen, den es nicht gibt, wuerde beide Richtungen
   // oben stillschweigend entschaerfen.
-  const knownFiles = new Set([...files, ...sqlFiles]);
+  const knownFiles = new Set(files);
   const staleAliases = [];
   for (const [file, names] of Object.entries(aliasMap)) {
     if (!knownFiles.has(file)) {
@@ -446,7 +465,7 @@ for (const [label, file] of [['Katalog', CATALOG_SQL], ['Laufzeitverhalten', BEH
     if (/ci_security_probe_(census|identity)/.test(stderr) && /does not exist/i.test(stderr)) {
       fail(EXIT_UNVERIFIABLE,
         'Die Proben-Helfer fehlen auf der Datenbank -- die Migration\n'
-        + '  supabase/migrations/2026-08-08_ci_security_verifier_role.sql\n'
+        + '  supabase/migrations/20260808114412_ci_security_verifier_role.sql\n'
         + 'ist noch nicht angewandt. Bis dahin sind die Invarianten NICHT geprueft.\n'
         + `\npsql:\n${stderr}`);
     }

@@ -230,7 +230,17 @@ angewandt wurde, mit Begründung. `checkLedger()` liest sie in beiden Richtungen
 
 **Diese Etappe lohnt sich auch dann, wenn der Rest nie umgesetzt wird.**
 
-### E2 — Ausnahmelisten vorbereiten *(Vorbedingung für E3)*
+### E2 — Ausnahmelisten vorbereiten — **umgesetzt am 2026-08-10, mit einer Abweichung**
+
+> **Abweichung vom Vorschlag: keine Datumsgrenze, sondern eine namentliche
+> Liste** (`migratedFromSqlDir`, 64 Dateien). Beim Bauen gemessen: eine
+> Datumsgrenze bei 2026-08-08 hätte auch die elf Dateien ausgeschlossen, die
+> schon vorher in `supabase/migrations/` lagen — die Altbestände und diese elf
+> überschneiden sich zeitlich (beide reichen bis 2026-08-06). Das hätte **acht
+> heute geprüfte Tabellen-Definitionen ungeprüft gelassen**, ohne dass es
+> auffällt. Die Liste ist abgeschlossen (sie wächst nie wieder) und prüft sich
+> selbst. Abdeckung nachgemessen: 12 Tabellen-Definitionen vorher, 12 nachher.
+
 
 - `preLedgerMigrations.files` um die 67 Dateien aus `supabase/sql/` ergänzen,
   mit demselben ausdrücklichen „nicht nachweisbar"-Vermerk.
@@ -241,7 +251,13 @@ angewandt wurde, mit Begründung. `checkLedger()` liest sie in beiden Richtungen
 - Aufwand: ~2–3 h. Beide Skripte laufen danach unverändert grün, weil noch
   nichts verschoben ist.
 
-### E3 — Verzeichnis vereinheitlichen
+### E3 — Verzeichnis vereinheitlichen — **umgesetzt am 2026-08-10**
+
+> 67 Dateien per `git mv` verschoben, alle als reine Umbenennung erkannt
+> (`R100`), Historie erhalten. `supabase/sql/` existiert nicht mehr,
+> `supabase/migrations/` trägt 100 Dateien. `SQL_DIR` ist aus
+> `verify-db-security-invariants.mjs` restlos entfernt.
+
 
 - `git mv` der 67 Dateien nach `supabase/migrations/` (mit `git mv`, damit die
   Historie mitläuft — die Historie einzelner Dateien ist intakt, siehe
@@ -260,7 +276,20 @@ angewandt wurde, mit Begründung. `checkLedger()` liest sie in beiden Richtungen
   bewusst **nicht** anfassen — die beschreiben einen damaligen Stand.
 - Aufwand: ~3–4 h. Abnahme: alle betroffenen Verify-Skripte lokal grün.
 
-### E4 — Umbenennung auf Ledger-Versionen *(optional, Entscheidung E-a)*
+### E4 — Umbenennung auf Ledger-Versionen — **umgesetzt am 2026-08-10**
+
+> 25 Dateien (nicht 27 — zwei tragen je zwei Ledger-Zeilen) auf
+> `<14-stellige Version>_<slug>.sql` umbenannt. Die 75 Vor-Ledger-Dateien
+> behalten `YYYY-MM-DD_`: für sie wäre jede Version erfunden, und der Dateiname
+> sagt das jetzt.
+>
+> `checkLedger()` gleicht seither **über die Version** ab — den Schlüssel, den
+> Supabase selbst benutzt und der nicht auseinanderlaufen kann; der Name bleibt
+> als zweiter Weg für Dateien ohne Version. Damit lösen sich drei der vier
+> Zuordnungen von selbst auf. Übrig bleiben genau die zwei echten
+> 1-Datei-zu-2-Ledger-Zeilen-Fälle (`notification_mode_gating`,
+> `core_field_layer_j6`) — der Rest war Namensdrift und ist strukturell weg.
+
 
 Nur die 27 im Ledger nachgewiesenen Dateien, Version aus dem Ledger übernommen.
 Die Zuordnungstabelle aus E1 wird danach für diese Dateien überflüssig — bis auf

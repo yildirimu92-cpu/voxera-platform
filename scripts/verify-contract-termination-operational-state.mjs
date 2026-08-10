@@ -5,7 +5,7 @@ const paths = {
   endpoint:'admin-panel/netlify/functions/contract-terminate.js',
   runtime:'admin-panel/shared/admin-runtime-contract-termination.js',
   loader:'admin-panel/shared/offer-brand.js',
-  migration:'supabase/sql/2026-07-31_contract_termination_operational_state.sql'
+  migration:'supabase/migrations/2026-07-31_contract_termination_operational_state.sql'
 };
 const src = Object.fromEntries(Object.entries(paths).map(([key,path]) => [key, fs.readFileSync(path,'utf8')]));
 let failed = 0;

@@ -17,7 +17,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-const MIGRATION = 'supabase/migrations/2026-08-08_ai_change_requests_tenant_isolation_reassert.sql';
+const MIGRATION = 'supabase/migrations/20260808031625_ai_change_requests_tenant_isolation_reassert.sql';
 const P0 = 'supabase/migrations/2026-07-28_p0_security_foundation.sql';
 const PREFLIGHT = 'supabase/verification/ai_change_requests_tenant_isolation_preflight.sql';
 const POSTFLIGHT = 'supabase/verification/ai_change_requests_tenant_isolation_post_migration.sql';

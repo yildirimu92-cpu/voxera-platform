@@ -5,7 +5,7 @@ const runtimePath = 'admin-panel/shared/admin-runtime-operations-v3.js';
 const createPath = 'admin-panel/netlify/functions/cases-create-admin.js';
 const duePath = 'admin-panel/netlify/functions/cases-due-update.js';
 const loaderPath = 'admin-panel/shared/offer-brand.js';
-const migrationPath = 'supabase/sql/2026-07-31_admin_case_queue_and_due_dates.sql';
+const migrationPath = 'supabase/migrations/2026-07-31_admin_case_queue_and_due_dates.sql';
 
 for (const path of [runtimePath, createPath, duePath]) {
   new vm.Script(fs.readFileSync(path, 'utf8'), { filename: path });

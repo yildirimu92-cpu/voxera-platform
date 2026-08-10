@@ -18,7 +18,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 
-const MIGRATION = 'supabase/migrations/2026-08-08_notifications_rls_current_customer_id.sql';
+const MIGRATION = 'supabase/migrations/20260808032146_notifications_rls_current_customer_id.sql';
 const PREFLIGHT = 'supabase/verification/notifications_rls_preflight.sql';
 const POSTFLIGHT = 'supabase/verification/notifications_rls_post_migration.sql';
 const INDEX = 'customer-dashboard/index.html';

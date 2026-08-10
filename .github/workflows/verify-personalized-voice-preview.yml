@@ -5,7 +5,7 @@ on:
     paths:
       - 'customer-dashboard/netlify/functions/preview-voice.js'
       - 'customer-dashboard/netlify/functions/_lib/assistant-greeting.js'
-      - 'supabase/migrations/2026-08-09_customer_voice_previews.sql'
+      - 'supabase/migrations/20260809155951_customer_voice_previews.sql'
       - 'scripts/verify-personalized-voice-preview.mjs'
       - '.github/workflows/verify-personalized-voice-preview.yml'
   push:
@@ -13,7 +13,7 @@ on:
     paths:
       - 'customer-dashboard/netlify/functions/preview-voice.js'
       - 'customer-dashboard/netlify/functions/_lib/assistant-greeting.js'
-      - 'supabase/migrations/2026-08-09_customer_voice_previews.sql'
+      - 'supabase/migrations/20260809155951_customer_voice_previews.sql'
       - 'scripts/verify-personalized-voice-preview.mjs'
       - '.github/workflows/verify-personalized-voice-preview.yml'
 

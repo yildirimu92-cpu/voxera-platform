@@ -21,8 +21,8 @@ Checks prüfen verschiedene Dinge und ersetzen einander nicht.
 ### 1. Migration anwenden
 
 ```
-supabase/migrations/2026-08-08_ci_security_verifier_role.sql
-supabase/migrations/2026-08-08_ci_security_verifier_role_census_v2.sql
+supabase/migrations/20260808114412_ci_security_verifier_role.sql
+supabase/migrations/20260808122741_ci_security_verifier_role_census_v2.sql
 ```
 
 Legt an:
@@ -135,7 +135,7 @@ die elf Migrationen ohne Ledger-Eintrag — jeweils mit Begründung im Bericht).
 | D2 | ein Nicht-Admin ändert keine fremden Zeilen (RLS auf UPDATE und DELETE) | Verhalten |
 | E | `is_admin()` löst eindeutig auf, `current_customer_id()` löst korrekt auf, `anon` kommt an keine der Funktionen | Verhalten |
 | F | Policies, Grants, Spalten-Allowlists, `search_path`-Pinning, Funktionssignaturen | Katalog |
-| G | Migrations-Ledger ↔ Repo in beide Richtungen (Richtung „angewandt?" gegen `supabase/migrations/`, Richtung „Repo-Datei vorhanden?" zusätzlich gegen `supabase/sql/`) | Katalog |
+| G | Migrations-Ledger ↔ Repo in beide Richtungen (Richtung „angewandt?" nur für Migrationen ab dem Ledger, Richtung „Repo-Datei vorhanden?" gegen den gesamten Bestand in `supabase/migrations/`) | Katalog |
 | H | keine neuen `anon`/`authenticated`-Grants, keine neue Tabelle ohne RLS | Baseline-Diff |
 
 ### Warum jede Probe eine Gegenkontrolle hat
@@ -224,8 +224,11 @@ der Job aufgibt.
 der Datenbank. Das ist der P0-Fehler in seiner Reinform. Migration anwenden.
 
 **Gruppe G, „nur auf der DB"** — jemand hat am Repo vorbei geändert. Die
-Änderung als SQL-Datei nachdokumentieren, damit sie reproduzierbar wird;
-`supabase/sql/` genügt, das Verzeichnis wird für diese Richtung mitgelesen.
+Änderung als SQL-Datei in `supabase/migrations/` nachdokumentieren, damit sie
+reproduzierbar wird. Der Dateiname trägt dabei die Version aus dem Ledger:
+`<14-stellige Version>_<name>.sql`. Wurde dieselbe Datei in mehreren Schritten
+angewandt, kommen die übrigen Versionen als `ledgerAliases` in
+`supabase/verification/db-security-baseline.json`.
 
 Häufigster Auslöser ist nicht der böse Eingriff, sondern **Anwenden vor dem
 Merge**: eine Migration wird auf einem Feature-Branch auf Produktion
