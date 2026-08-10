@@ -1,23 +1,101 @@
 ---
 import Base from '../../layouts/Base.astro';
 import Platzhalter from '../../components/Platzhalter.astro';
+import { KONDITIONEN } from '../../config/preise';
+
+/**
+ * FAQ. Übernimmt die sechs Fragen der alten Seite — mit drei Korrekturen aus
+ * dem Content-Audit:
+ *
+ *  - Die Datenschutz-Antwort ist aus der Datenschutzerklärung abgeleitet und
+ *    nicht neu formuliert (C2). Dort steht bereits die zutreffende Fassung.
+ *  - „72 % sprechen keine Nachricht auf einen Anrufbeantworter" ist raus —
+ *    die Zahl hat keine Quelle (C4). Das Argument trägt auch ohne sie.
+ *  - Die alte Antwort „Die meisten Anrufer merken keinen Unterschied" ist
+ *    ersetzt. Sie widersprach der eigenen Datenschutzerklärung, die in §11
+ *    eine Ansage zu Beginn jedes Gesprächs zusichert (EU AI Act Art. 50).
+ */
+const FRAGEN = [
+  {
+    frage: 'Merken meine Kunden, dass eine KI drangeht?',
+    antwort:
+      'Ja — und zwar weil wir es sagen. Jedes Gespräch beginnt mit dem Hinweis, dass eine KI-Assistentin abnimmt und das Gespräch automatisch verarbeitet wird. Das ist Pflicht und richtig so. Der Unterschied liegt nicht darin, das zu verschleiern, sondern darin, dass das Gespräch danach natürlich verläuft: Lara stellt Rückfragen, erkennt das Anliegen und hält fest, worauf es ankommt.',
+  },
+  {
+    frage: 'Funktioniert Voxera mit meiner bestehenden Nummer?',
+    antwort:
+      'Ja. Sie richten eine Rufweiterleitung auf Ihrem bestehenden Anschluss ein — Ihre Kunden wählen weiterhin die gewohnte Nummer. Voxera schaltet sich nur ein, wenn Sie nicht abnehmen, und Sie legen fest, wann das gilt: sofort, nach einer bestimmten Anzahl Klingelzeichen oder bei besetzt.',
+  },
+  {
+    frage: 'Was passiert mit meinen Daten?',
+    antwort:
+      'Ihre Kunden-, Anruf- und Konfigurationsdaten werden in einem Schweizer Rechenzentrum in Zürich gespeichert. Für die Telefonie und die KI-Sprachverarbeitung setzen wir spezialisierte Dienstleister ein; dabei kann eine Übermittlung in die USA erfolgen, abgesichert über EU-Standardvertragsklauseln. Alle Übertragungen sind verschlüsselt. Audioaufzeichnungen und Transkripte werden nach 90 Tagen gelöscht, Anrufdaten nach 180 Tagen. Voxera richtet sich nach dem Schweizer Datenschutzgesetz (revDSG) und, soweit anwendbar, der DSGVO. Die vollständige Liste der Dienstleister mit ihren Datenstandorten steht in der Datenschutzerklärung.',
+    link: { href: '/datenschutz', text: 'Zur Datenschutzerklärung' },
+  },
+  {
+    frage: 'Kann ich jederzeit kündigen?',
+    antwort:
+      'Monatspläne sind monatlich kündbar mit 30 Tagen Frist, ohne Mindestlaufzeit. Jahrespläne laufen 12 Monate und verlängern sich automatisch, wenn Sie nicht 30 Tage vor Ablauf kündigen.',
+  },
+  {
+    frage: 'Was ist der Unterschied zu einem Anrufbeantworter?',
+    antwort:
+      'Ein Anrufbeantworter nimmt auf — Voxera führt ein Gespräch. Lara stellt Rückfragen, erkennt das Anliegen, erfasst die Angaben, die Sie für eine Einschätzung brauchen, und markiert Dringendes als dringend. Statt einer Nachricht, die Sie abhören und selbst einordnen müssen, steht die Anfrage strukturiert im Dashboard.',
+  },
+];
+
+const schema = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: FRAGEN.map((f) => ({
+    '@type': 'Question',
+    name: f.frage,
+    acceptedAnswer: { '@type': 'Answer', text: f.antwort },
+  })),
+};
 ---
 <Base
   titel="Häufige Fragen zum KI-Telefonassistenten | Voxera"
-  beschreibung="Antworten zu Gesprächsführung, Rufweiterleitung, Einrichtung, Datenschutz und Kündigung – kurz und ohne Fachjargon."
+  beschreibung="Antworten zu Gesprächsführung, Rufweiterleitung, Datenschutz und Kündigung – kurz, ohne Fachjargon und ohne Kleingedrucktes."
+  schema={schema}
 >
   <section class="sektion">
     <div class="wrap">
       <hr class="akzentlinie" />
       <h1>Häufige Fragen</h1>
+
+      <dl class="faq">
+        {FRAGEN.map((f) => (
+          <div class="eintrag">
+            <dt>{f.frage}</dt>
+            <dd>
+              {f.antwort}
+              {f.link && <><br /><a href={f.link.href}>{f.link.text}</a></>}
+            </dd>
+          </div>
+        ))}
+      </dl>
+
+      <h2>Wie schnell ist Voxera eingerichtet?</h2>
       <Platzhalter
-        was="FAQ-Inhalte inklusive FAQPage-Schema"
-        wartetAuf="Übernahme der bestehenden sechs Fragen, mit korrigierter Datenschutz-Antwort"
+        was="Antwort zur Einrichtungsdauer"
+        befund="C8"
+        wartetAuf="belastbare interne Zusage mit definiertem Support-Prozess"
       />
-      <p class="leise" style="margin-top:20px;font-size:var(--vx-text-sm);">
-        Die Datenschutz-Antwort wird aus der Datenschutzerklärung abgeleitet, nicht neu
-        formuliert – dort steht bereits die zutreffende Fassung.
-      </p>
+
+      <ul role="list" class="konditionen leise klein">
+        {KONDITIONEN.map((k) => <li>{k}</li>)}
+      </ul>
     </div>
   </section>
 </Base>
+
+<style>
+  .faq { margin-top: 32px; max-width: var(--vx-measure); }
+  .eintrag + .eintrag { margin-top: 24px; padding-top: 24px; border-top: 1px solid var(--vx-hairline); }
+  .faq dt { font-weight: 700; font-size: var(--vx-text-lg); }
+  .faq dd { margin: 10px 0 0; }
+  h2 { margin-top: 56px; }
+  .konditionen { margin-top: 40px; padding: 0; list-style: none; display: grid; gap: 6px; }
+  .klein { font-size: 13px; }
+</style>

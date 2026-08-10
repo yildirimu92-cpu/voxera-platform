@@ -91,6 +91,27 @@ for (const datei of dateien) {
   }
 }
 
+// noindex und Sitemap muessen zusammenpassen. Eine Seite, die man Google per
+// Sitemap anbietet und gleichzeitig per noindex verbietet, ist ein
+// Widerspruch — und er entsteht leise, sobald jemand eine Seite sperrt und den
+// Sitemap-Filter vergisst.
+{
+  let sitemapXml = '';
+  for (const name of ['sitemap-0.xml', 'sitemap-index.xml']) {
+    try { sitemapXml += await readFile(join(DIST, name), 'utf8'); } catch { /* nicht vorhanden */ }
+  }
+  if (sitemapXml) {
+    for (const datei of dateien) {
+      const s = await readFile(datei, 'utf8');
+      if (!/<meta[^>]+name=["']robots["'][^>]+noindex/i.test(s)) continue;
+      const pfad = '/' + relative(DIST, datei).replace(/index\.html$/, '');
+      if (sitemapXml.includes(pfad === '/' ? `${DIST}/` : pfad)) {
+        fehler.push(`${pfad}: steht auf noindex, ist aber in der Sitemap — Filter in astro.config.mjs ergaenzen`);
+      }
+    }
+  }
+}
+
 // JS-Budget ueber die ganze Seite.
 let jsBytes = 0;
 async function jsDateien(dir) {

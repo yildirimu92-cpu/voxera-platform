@@ -5,6 +5,11 @@ import { getCollection } from 'astro:content';
 
 const artikel = (await getCollection('ratgeber', (a) => !a.data.entwurf))
   .sort((a, b) => b.data.aktualisiert.valueOf() - a.data.aktualisiert.valueOf());
+
+// Nur Kategorien verlinken, die auch eine Seite haben — sonst zeigt die
+// Navigation ins Leere.
+const kategorien = RATGEBER_KATEGORIEN.filter((k) =>
+  artikel.some((a) => a.data.kategorie === k.slug));
 ---
 <Base
   titel="Ratgeber: Erreichbarkeit und KI im Schweizer KMU | Voxera"
@@ -15,7 +20,7 @@ const artikel = (await getCollection('ratgeber', (a) => !a.data.entwurf))
       <hr class="akzentlinie" />
       <h1>Ratgeber</h1>
       <ul role="list" class="kategorien">
-        {RATGEBER_KATEGORIEN.map((k) => (
+        {kategorien.map((k) => (
           <li><a href={`/ratgeber/thema/${k.slug}/`}>{k.titel}</a></li>
         ))}
       </ul>

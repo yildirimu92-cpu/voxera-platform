@@ -2,6 +2,7 @@
 import Base from '../../layouts/Base.astro';
 import Platzhalter from '../../components/Platzhalter.astro';
 import { BRANCHEN, SITE } from '../../config/site';
+import { INHALTE } from '../../config/branchen-inhalte';
 
 export function getStaticPaths() {
   return BRANCHEN.map((b) => ({ params: { slug: b.slug }, props: { branche: b } }));
@@ -9,25 +10,54 @@ export function getStaticPaths() {
 
 const { branche } = Astro.props;
 const gesperrt = 'gesperrt' in branche ? branche.gesperrt : undefined;
+const inhalt = INHALTE[branche.slug];
 
-// Service-Schema je Branchenseite.
-const schema = {
-  '@context': 'https://schema.org',
-  '@type': 'Service',
-  name: `KI-Telefonassistent für ${branche.titel}`,
-  serviceType: 'Telefonservice',
-  provider: { '@type': 'Organization', name: 'Voxera', url: SITE.url },
-  areaServed: { '@type': 'Country', name: 'Schweiz' },
-};
+const schema: Record<string, unknown>[] = [
+  {
+    '@context': 'https://schema.org',
+    '@type': 'Service',
+    name: `KI-Telefonassistent für ${branche.titel}`,
+    serviceType: 'Telefonservice',
+    provider: { '@type': 'Organization', name: 'Voxera', url: SITE.url },
+    areaServed: { '@type': 'Country', name: 'Schweiz' },
+  },
+  {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Start', item: SITE.url + '/' },
+      { '@type': 'ListItem', position: 2, name: 'Branchen', item: SITE.url + '/branchen/' },
+      { '@type': 'ListItem', position: 3, name: branche.titel },
+    ],
+  },
+];
+
+// FAQPage nur, wenn es wirklich Fragen gibt — ein leeres Schema ist schlimmer
+// als keines.
+if (inhalt?.faq.length) {
+  schema.push({
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: inhalt.faq.map((f) => ({
+      '@type': 'Question',
+      name: f.frage,
+      acceptedAnswer: { '@type': 'Answer', text: f.antwort },
+    })),
+  });
+}
 ---
 <Base
   titel={`${branche.titel}: KI-Telefonassistent | Voxera`}
-  beschreibung={`Voxera nimmt Anrufe für ${branche.titel} entgegen, erfasst das Anliegen und priorisiert. Keine verpassten Aufträge mehr.`}
+  beschreibung={`Voxera nimmt Anrufe für ${branche.titel} entgegen, erkennt das Anliegen und priorisiert. Keine verpassten Aufträge mehr.`}
   noindex={Boolean(gesperrt)}
   schema={schema}
 >
   <section class="sektion">
     <div class="wrap">
+      <nav aria-label="Brotkrumen" class="krumen leise">
+        <a href="/">Start</a> › <a href="/branchen/">Branchen</a> › {branche.titel}
+      </nav>
+
       <hr class="akzentlinie" />
       <h1>{branche.titel}</h1>
 
@@ -36,23 +66,42 @@ const schema = {
           <strong>Diese Seite darf noch nicht live gehen.</strong>
           <p>{gesperrt}</p>
           <p class="leise">
-            Sie ist bis dahin auf <code>noindex</code> gesetzt. Erst wenn die zwei Vorlagen
-            <code>detailhandel</code> und <code>logistik</code> im Produkt stehen, verspricht
+            Bis dahin steht sie auf <code>noindex</code>. Erst wenn die zwei Vorlagen
+            <code> detailhandel</code> und <code>logistik</code> im Produkt stehen, verspricht
             diese Seite etwas, das Voxera auch hält.
           </p>
         </div>
       )}
 
-      <Platzhalter
-        was={`Branchentext für ${branche.titel}`}
-        wartetAuf={`Ausformulierung aus den Produkt-Vorlagen: ${branche.vorlagen.join(', ')}`}
-      />
+      {inhalt ? (
+        <>
+          <p class="einstieg">{inhalt.einstieg}</p>
 
-      <p class="leise hinweis">
-        Der Text entsteht aus den echten Prompt-Vorlagen des Produkts – konkrete Anliegen und
-        Rückfragen statt „auch für {branche.titel} geeignet". Genau das ist der Unterschied
-        zwischen einer Seite, die rankt, und acht Seiten, die sich gegenseitig entwerten.
-      </p>
+          <h2>Was am Telefon tatsächlich passiert</h2>
+          <ul role="list" class="situationen">
+            {inhalt.situationen.map((s) => (
+              <li class="karte">
+                <h3>{s.titel}</h3>
+                <p class="leise">{s.text}</p>
+              </li>
+            ))}
+          </ul>
+
+          <h2>Was aufgenommen wird</h2>
+          <ul role="list" class="erfasst">
+            {inhalt.erfasst.map((e) => <li>{e}</li>)}
+          </ul>
+          <p class="leise klein">
+            Diese Angaben sind für {branche.titel} voreingestellt und lassen sich an Ihren
+            Betrieb anpassen.
+          </p>
+        </>
+      ) : (
+        <Platzhalter
+          was={`Branchentext für ${branche.titel}`}
+          wartetAuf={`Produkt-Vorlagen: ${branche.vorlagen.join(', ')}`}
+        />
+      )}
 
       <p class="aktionen">
         <a class="knopf" href="/demo/">Demo ansehen</a>
@@ -61,26 +110,62 @@ const schema = {
     </div>
   </section>
 
+  {inhalt?.faq.length ? (
+    <section class="sektion sektion--warm">
+      <div class="wrap">
+        <h2>Häufige Fragen</h2>
+        <dl class="faq">
+          {inhalt.faq.map((f) => (
+            <div class="faq-eintrag">
+              <dt>{f.frage}</dt>
+              <dd>{f.antwort}</dd>
+            </div>
+          ))}
+        </dl>
+      </div>
+    </section>
+  ) : null}
+
   <section class="sektion sektion--zurueckgesetzt">
     <div class="wrap">
       <h2>Passende Ratgeber-Artikel</h2>
-      {/* Slot bleibt leer, bis es Artikel gibt. Jeder Artikel verlinkt genau
-          eine Branchenseite — die Verzahnung entsteht beim Schreiben. */}
       <p class="leise">Noch keine Artikel in dieser Kategorie.</p>
     </div>
   </section>
 </Base>
 
 <style>
-  .hinweis { margin-top: 20px; font-size: var(--vx-text-sm); }
-  .aktionen { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 28px; }
+  .krumen { font-size: 13px; margin-bottom: 20px; }
+  .krumen a { color: var(--vx-text-muted); text-decoration: none; }
+  .einstieg { font-size: var(--vx-text-lg); margin-top: var(--vx-gap-head-body); }
+  h2 { margin-top: 56px; }
+  .situationen {
+    display: grid; gap: 12px; margin-top: 24px; padding: 0; list-style: none;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  }
+  .situationen h3 { font-size: var(--vx-text-base); margin-bottom: 8px; }
+  .situationen p { font-size: var(--vx-text-sm); }
+  .erfasst {
+    margin-top: 20px; padding: 0; list-style: none; display: grid; gap: 8px;
+    max-width: var(--vx-measure);
+  }
+  .erfasst li { padding-left: 18px; position: relative; }
+  /* Gold als Aufzaehlungspunkt — Flaeche, nicht Textfarbe. */
+  .erfasst li::before {
+    content: ''; position: absolute; left: 0; top: .62em;
+    width: 7px; height: 2px; background: var(--vx-accent);
+  }
+  .klein { font-size: 13px; margin-top: 14px; }
+  .aktionen { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 40px; }
   .sperre {
     border-left: 3px solid var(--vx-accent);
     background: var(--vx-recessed);
     border-radius: 0 var(--vx-radius-sm) var(--vx-radius-sm) 0;
-    padding: 16px 20px;
-    margin-bottom: 24px;
-    max-width: var(--vx-measure);
+    padding: 16px 20px; margin-bottom: 24px; max-width: var(--vx-measure);
   }
   .sperre p { margin-top: 8px; font-size: var(--vx-text-sm); }
+  .faq { margin-top: 24px; max-width: var(--vx-measure); }
+  .faq-eintrag + .faq-eintrag { margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--vx-hairline-firm); }
+  .faq dt { font-weight: 700; }
+  .faq dd { margin: 6px 0 0; }
 </style>

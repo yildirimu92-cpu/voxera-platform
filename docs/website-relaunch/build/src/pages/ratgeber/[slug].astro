@@ -1,0 +1,92 @@
+---
+import Base from '../../layouts/Base.astro';
+import { SITE, BRANCHEN, RATGEBER_KATEGORIEN } from '../../config/site';
+import { getCollection } from 'astro:content';
+
+export async function getStaticPaths() {
+  const artikel = await getCollection('ratgeber', (a) => !a.data.entwurf);
+  return artikel.map((a) => ({ params: { slug: a.slug }, props: { artikel: a } }));
+}
+
+const { artikel } = Astro.props;
+const { Content } = await artikel.render();
+const d = artikel.data;
+
+const branche = BRANCHEN.find((b) => b.slug === d.branche)!;
+const kategorie = RATGEBER_KATEGORIEN.find((k) => k.slug === d.kategorie)!;
+const url = `${SITE.url}/ratgeber/${artikel.slug}/`;
+
+const schema = [
+  {
+    '@context': 'https://schema.org',
+    '@type': 'Article',
+    headline: d.titel,
+    description: d.beschreibung,
+    author: { '@type': 'Person', name: d.autor },
+    publisher: { '@type': 'Organization', name: 'Voxera', url: SITE.url },
+    datePublished: d.veroeffentlicht.toISOString(),
+    dateModified: d.aktualisiert.toISOString(),
+    mainEntityOfPage: url,
+  },
+  {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Start', item: SITE.url + '/' },
+      { '@type': 'ListItem', position: 2, name: 'Ratgeber', item: SITE.url + '/ratgeber/' },
+      { '@type': 'ListItem', position: 3, name: kategorie.titel, item: `${SITE.url}/ratgeber/thema/${kategorie.slug}/` },
+      { '@type': 'ListItem', position: 4, name: d.titel },
+    ],
+  },
+];
+
+const fmt = (x: Date) => x.toLocaleDateString('de-CH', { day: '2-digit', month: 'long', year: 'numeric' });
+---
+<Base titel={`${d.titel} | Voxera Ratgeber`} beschreibung={d.beschreibung} schema={schema}>
+  <article class="sektion">
+    <div class="wrap schmal">
+      <nav aria-label="Brotkrumen" class="krumen leise">
+        <a href="/">Start</a> › <a href="/ratgeber/">Ratgeber</a> ›
+        <a href={`/ratgeber/thema/${kategorie.slug}/`}>{kategorie.titel}</a>
+      </nav>
+
+      <hr class="akzentlinie" />
+      <h1>{d.titel}</h1>
+
+      <p class="meta leise">
+        {d.autor} ·
+        <time datetime={d.veroeffentlicht.toISOString()}>{fmt(d.veroeffentlicht)}</time>
+        {d.aktualisiert.valueOf() !== d.veroeffentlicht.valueOf() && (
+          <> · Aktualisiert am <time datetime={d.aktualisiert.toISOString()}>{fmt(d.aktualisiert)}</time></>
+        )}
+      </p>
+
+      <div class="text"><Content /></div>
+
+      {/* Jeder Artikel verlinkt genau eine Branchenseite. So entsteht die
+          Verzahnung beim Schreiben und nicht als Aufraeumaktion. */}
+      <aside class="karte weiter">
+        <h2>Passend dazu</h2>
+        <p class="leise">
+          Wie das konkret bei {branche.titel} aussieht, steht auf der Branchenseite.
+        </p>
+        <p><a class="knopf" href={`/branchen/${branche.slug}/`}>{branche.titel}</a></p>
+      </aside>
+    </div>
+  </article>
+</Base>
+
+<style>
+  .schmal { max-width: 760px; }
+  .krumen { font-size: 13px; margin-bottom: 20px; }
+  .krumen a { color: var(--vx-text-muted); text-decoration: none; }
+  .meta { font-size: var(--vx-text-sm); margin-top: 16px; }
+  .text { margin-top: 40px; }
+  .text :global(h2) { margin-top: 44px; font-size: var(--vx-text-h3); }
+  .text :global(p) { margin-top: 16px; }
+  .text :global(ol) { margin-top: 16px; padding-left: 22px; display: grid; gap: 12px; max-width: var(--vx-measure); }
+  .text :global(strong) { font-weight: 700; }
+  .weiter { margin-top: 56px; }
+  .weiter h2 { font-size: var(--vx-text-base); }
+  .weiter p { margin-top: 8px; }
+</style>
