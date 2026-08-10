@@ -28,8 +28,40 @@
 --    Zielzustand (Anrufdatensaetze werden nie ueber den Browser-Client
 --    geloescht) und wird hier nur dokumentiert, nicht durch eine neue Policy
 --    ersetzt.
+--
+-- Review-Nachtrag (#910): calls_select_admin/calls_select_own/calls_update_own
+-- werden unten als Duplikat-Ziel genannt, aber keine Migration im Repo legt
+-- sie an -- sie existieren nur live auf Produktion/Staging (vermutlich aus
+-- der P0-Nachziehung, ausserhalb von supabase/migrations angewendet). Ein
+-- Restore oder eine neue Umgebung ohne diesen Drift haette nach den Drops
+-- unten keinen SELECT/UPDATE-Zugriff mehr auf calls. Deshalb zuerst die drei
+-- kanonischen Policies idempotent sicherstellen (Ausdruecke 1:1 aus der
+-- Live-Diagnose gegen pg_policy uebernommen), erst danach die Alt-Policies
+-- droppen.
 
 begin;
+
+do $ensure_canonical$
+begin
+  if not exists (
+    select 1 from pg_policy where polname = 'calls_select_admin' and polrelid = 'public.calls'::regclass
+  ) then
+    execute 'create policy calls_select_admin on public.calls for select to authenticated using (public.is_admin())';
+  end if;
+
+  if not exists (
+    select 1 from pg_policy where polname = 'calls_select_own' and polrelid = 'public.calls'::regclass
+  ) then
+    execute 'create policy calls_select_own on public.calls for select to authenticated using (customer_id = public.current_customer_id())';
+  end if;
+
+  if not exists (
+    select 1 from pg_policy where polname = 'calls_update_own' and polrelid = 'public.calls'::regclass
+  ) then
+    execute 'create policy calls_update_own on public.calls for update to authenticated using (customer_id = public.current_customer_id()) with check (customer_id = public.current_customer_id())';
+  end if;
+end
+$ensure_canonical$;
 
 drop policy if exists "Calls: Read own + Admin" on public.calls;
 drop policy if exists "admins_read_calls" on public.calls;
