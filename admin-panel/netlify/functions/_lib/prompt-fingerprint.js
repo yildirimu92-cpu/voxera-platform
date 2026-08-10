@@ -85,7 +85,7 @@ function serialize(value) {
 //                                                  stattgefunden?
 //
 // Ob die Offenlegungsformel zusaetzlich in den Fingerprint gehoert, ist
-// offen und bewusst nicht hier entschieden -- siehe das Ticket dazu. Bis
+// offen und bewusst nicht hier entschieden -- siehe Issue #927. Bis
 // dahin gilt: fuer Aussagen ueber den gesprochenen Satz ist diese Funktion
 // die falsche Quelle.
 function promptFingerprint({
