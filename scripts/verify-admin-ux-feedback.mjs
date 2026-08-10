@@ -11,14 +11,17 @@ const files = {
   // shared/admin-responsive.css. Was Verhalten ist -- das Setzen von
   // data-mobile-label je Zelle -- ist in der JS-Datei geblieben.
   responsive: fs.readFileSync('admin-panel/shared/admin-responsive.css', 'utf8'),
+  // Welle 2 Teil 3: die Bildschirm-eigenen Regeln aus den zehn frueheren
+  // Laufzeit-Stylesheets liegen jetzt hier, in der frueheren Einfuegereihenfolge.
+  screens: fs.readFileSync('admin-panel/shared/admin-screens.css', 'utf8'),
   loader: fs.readFileSync('admin-panel/shared/offer-brand.js', 'utf8')
 };
 
 const checks = [
   ['Cockpit MRR is derived only from live customers', files.ui.includes("const liveCustomers = customers.filter(c => life(c) === 'live');") && files.ui.includes('const mrr = liveCustomers.reduce')],
   ['Onboarding ignores customer portal activation for operational completion', files.ui.includes('isPortalActivationStep') && files.ui.includes("return 'activated';")],
-  ['Customer workspace uses the new light header treatment', files.ui.includes('#cw-header{background:linear-gradient')],
-  ['Sales header is no longer sticky', files.navigation.includes('#offer-detail-shell .offer-header-card{position:static!important')],
+  ['Customer workspace uses the new light header treatment', files.screens.includes('#cw-header{background:linear-gradient')],
+  ['Sales header is no longer sticky', files.screens.includes('#offer-detail-shell .offer-header-card{position:static')],
   ['Billing customer shortcut applies an exact customer filter', files.navigation.includes('billingCustomerId') && files.navigation.includes('state.invoices = (originalRows || []).filter')],
   ['Contract customer shortcut applies an exact customer filter', files.navigation.includes('contractsCustomerId') && files.navigation.includes('state.contracts = (originalRows || []).filter')],
   ['Cases navigation is restored', files.cases.includes('function ensureCasesNavigation()') && files.cases.includes('Cases & Support')],

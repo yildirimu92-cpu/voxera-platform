@@ -64,37 +64,10 @@
     return (state.cases || []).filter(row => !isCustomerFollowUp(row));
   }
 
-  function addCasesCss() {
-    if (document.getElementById('voxera-cases-runtime-css')) return;
-    const style = document.createElement('style');
-    style.id = 'voxera-cases-runtime-css';
-    style.textContent = `
-      #section-cases .card{overflow:hidden!important}
-      #section-cases .section-head.vox-cases-head{
-        background:#fff!important;color:var(--ink)!important;
-        border-bottom:1px solid var(--line)!important;
-        border-radius:14px 14px 0 0!important;
-        margin:0!important;padding:16px 18px!important
-      }
-      #section-cases .section-head.vox-cases-head h2,
-      #section-cases .section-head.vox-cases-head h3,
-      #section-cases .section-head.vox-cases-head strong{color:var(--ink)!important}
-      #section-cases .section-head.vox-cases-head .muted,
-      #section-cases .section-head.vox-cases-head p{color:var(--slate)!important}
-      #section-cases .toolbar{border:0!important;border-bottom:1px solid var(--line)!important;border-radius:0!important;box-shadow:none!important;margin:0!important}
-      #section-cases .table-wrap{border:0!important;border-radius:0!important;box-shadow:none!important;margin:0!important}
-      #section-cases .data-table td{vertical-align:top}
-      #section-cases .case-source-note{font-size:10px;color:var(--slate2);margin-top:3px}
-      @media(max-width:768px){
-        #section-cases .section-head.vox-cases-head{align-items:stretch!important}
-        #section-cases .section-head.vox-cases-head .inline-actions,
-        #section-cases .section-head.vox-cases-head button{width:100%!important}
-        #section-cases .toolbar{display:grid!important;grid-template-columns:1fr!important;padding:12px!important}
-        #section-cases .toolbar>*{width:100%!important;min-width:0!important}
-      }
-    `;
-    document.head.appendChild(style);
-  }
+  // Die Stilregeln dieser Datei stehen seit Welle 2 Teil 3 in
+  // shared/admin-screens.css. Die Funktion addCasesCss() und ihr Aufruf sind
+  // entfallen -- ein zur Laufzeit eingefuegtes Stylesheet gewann nur deshalb,
+  // weil es zuletzt kam, und brauchte dafuer !important.
 
   async function hydrateMetadata() {
     if (typeof authClient === 'undefined' || !authClient || typeof state === 'undefined') return;
@@ -253,7 +226,6 @@
   }
 
   ready(async () => {
-    addCasesCss();
     w.openOperationalAssistantCase = openAssistant;
     ensureCasesNavigation();
     patchCasesHeader();

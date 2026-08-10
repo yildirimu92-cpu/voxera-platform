@@ -18,33 +18,10 @@
     return `${prefix}:${id}`;
   }
 
-  function addCss() {
-    if (document.getElementById('vox-invoice-adjustments-css')) return;
-    const style = document.createElement('style');
-    style.id = 'vox-invoice-adjustments-css';
-    style.textContent = `
-      #invoice-adjustment-modal{z-index:420}
-      #invoice-adjustment-modal .modal{max-width:720px;padding:0;overflow:hidden;display:flex;flex-direction:column;max-height:var(--modal-max-height)}
-      .vox-fin-head{padding:22px 24px;background:linear-gradient(135deg,#081F3D,#0D315E);color:#fff;display:flex;justify-content:space-between;gap:16px;align-items:flex-start}
-      .vox-fin-head .modal-title{color:#fff}.vox-fin-head .modal-sub{color:rgba(255,255,255,.68);margin-top:5px}
-      .vox-fin-body{padding:20px 24px;overflow:auto;min-height:0}
-      .vox-fin-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-bottom:16px}
-      .vox-fin-kpi{padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--bg)}
-      .vox-fin-kpi span{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--slate2);font-weight:700}
-      .vox-fin-kpi strong{display:block;margin-top:4px;font-size:14px;color:var(--ink)}
-      .vox-fin-action{border:1px solid var(--line);border-radius:14px;padding:15px;margin-top:12px;background:#fff}
-      .vox-fin-action h4{font-size:13px;margin:0 0 5px}.vox-fin-action p{font-size:12px;color:var(--slate);margin:0 0 12px}
-      .vox-fin-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.vox-fin-grid .full{grid-column:1/-1}
-      .vox-fin-grid label{font-size:11px;font-weight:700;color:var(--slate);display:block;margin-bottom:5px}
-      .vox-fin-grid input,.vox-fin-grid select,.vox-fin-grid textarea{width:100%;border:1px solid var(--line);border-radius:9px;padding:9px 10px;font:inherit;background:#fff;color:var(--ink)}
-      .vox-fin-grid textarea{min-height:72px;resize:vertical}
-      .vox-fin-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:12px}
-      .vox-fin-history{margin-top:16px}.vox-fin-history-row{padding:9px 0;border-bottom:1px solid var(--line2);display:flex;justify-content:space-between;gap:12px;font-size:12px}
-      .vox-fin-feedback{margin-top:12px;padding:10px 12px;border-radius:10px;font-size:12px;display:none}.vox-fin-feedback.error{display:block;background:var(--red-light);color:var(--red);border:1px solid var(--red-mid)}.vox-fin-feedback.ok{display:block;background:var(--green-light);color:var(--green-dark);border:1px solid var(--green-mid)}
-      @media(max-width:680px){.vox-fin-summary{grid-template-columns:1fr 1fr}.vox-fin-grid{grid-template-columns:1fr}.vox-fin-grid .full{grid-column:auto}.vox-fin-head,.vox-fin-body{padding:18px}.vox-fin-actions .btn{flex:1}}
-    `;
-    document.head.appendChild(style);
-  }
+  // Die Stilregeln dieser Datei stehen seit Welle 2 Teil 3 in
+  // shared/admin-screens.css. Die Funktion addCss() und ihr Aufruf sind
+  // entfallen -- ein zur Laufzeit eingefuegtes Stylesheet gewann nur deshalb,
+  // weil es zuletzt kam, und brauchte dafuer !important.
 
   function ensureModal() {
     if (document.getElementById('invoice-adjustment-modal')) return;
@@ -255,7 +232,6 @@
   // invoice-financial-action steht seit Welle 1 in shared/core/admin-api.js.
 
   function install() {
-    addCss();
     ensureModal();
     installDetailHook();
     w.openInvoiceFinancialAction = openModal;

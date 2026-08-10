@@ -48,33 +48,10 @@
     if (w.state && Array.isArray(w.state.cases)) w.state.cases = w.state.cases.filter(isAdminCase);
   }
 
-  function addCss() {
-    if (document.getElementById('voxera-ops-v3-css')) return;
-    const style = document.createElement('style');
-    style.id = 'voxera-ops-v3-css';
-    style.textContent = `
-      #case-capture-modal .modal{max-width:620px!important;border-radius:18px!important;padding:0!important;overflow:hidden!important;border:1px solid var(--line)!important;box-shadow:0 24px 70px rgba(13,31,60,.22)!important}
-      #case-capture-modal .modal-top{padding:18px 20px!important;margin:0!important;border-bottom:1px solid var(--line)!important;background:linear-gradient(180deg,#fff,#F8FAFC)!important}
-      #case-capture-modal .modal-title{font-family:var(--font-display)!important;font-size:18px!important;color:var(--ink)!important}
-      #case-capture-modal .modal-sub{color:var(--slate)!important;margin-top:3px!important}
-      #case-capture-modal #case-capture-feedback{margin:14px 20px 0!important}
-      #case-capture-modal form{padding:18px 20px 20px!important;display:grid!important;gap:14px!important}
-      #case-capture-modal form>div{margin:0!important}
-      #case-capture-modal label{display:block!important;font-size:11px!important;font-weight:700!important;letter-spacing:.055em!important;text-transform:uppercase!important;color:var(--slate2)!important;margin-bottom:6px!important}
-      #case-capture-modal .input,#case-capture-modal .select,#case-capture-modal .textarea{width:100%!important;min-height:42px!important;border:1px solid var(--line)!important;border-radius:10px!important;background:#fff!important;padding:10px 12px!important;font:inherit!important;color:var(--ink)!important}
-      #case-capture-modal .textarea{min-height:110px!important;resize:vertical!important}
-      #case-capture-modal .input:focus,#case-capture-modal .select:focus,#case-capture-modal .textarea:focus,#reminder-modal-note:focus{outline:none!important;border-color:var(--blue)!important;box-shadow:0 0 0 3px rgba(26,111,232,.12)!important}
-      .vox-case-due-grid{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:end}
-      .vox-case-due-quick{display:flex;gap:6px;flex-wrap:wrap}.vox-case-due-quick button{min-height:42px}
-      #reminder-modal .billing-dialog-field{background:#F8FAFC!important;border:1px solid var(--line)!important;border-radius:12px!important;padding:12px 14px!important}
-      #reminder-modal-note{display:block!important;width:100%!important;min-height:96px!important;border:1px solid #D8DEE9!important;border-radius:10px!important;background:#fff!important;padding:11px 12px!important;font:inherit!important;line-height:1.45!important;color:var(--ink)!important;resize:vertical!important}
-      .vox-case-due-cell{min-width:185px}.vox-case-due-cell input{width:100%;min-width:0}
-      .vox-escalation-box{border:1px solid #F4C7C7;background:#FFF7F7;border-radius:12px;margin:10px 0;padding:12px 14px}
-      .vox-escalation-row{display:flex;gap:12px;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #F8DADA}.vox-escalation-row:last-child{border-bottom:0}
-      @media(max-width:768px){#case-capture-modal .modal{width:calc(100vw - 20px)!important;max-height:calc(100dvh - 20px)!important}.vox-case-due-grid{grid-template-columns:1fr}.vox-case-due-quick button{flex:1}.vox-escalation-row{align-items:stretch;flex-direction:column}}
-    `;
-    document.head.appendChild(style);
-  }
+  // Die Stilregeln dieser Datei stehen seit Welle 2 Teil 3 in
+  // shared/admin-screens.css. Die Funktion addCss() und ihr Aufruf sind
+  // entfallen -- ein zur Laufzeit eingefuegtes Stylesheet gewann nur deshalb,
+  // weil es zuletzt kam, und brauchte dafuer !important.
 
   function ensureDueField() {
     const form = document.getElementById('case-capture-form');
@@ -257,7 +234,7 @@
   }
 
   function install() {
-    addCss(); ensureDueField(); purgeCases();
+    ensureDueField(); purgeCases();
     const open = w.openCaseCaptureModal;
     if (typeof open === 'function' && !open.__voxOpsV3) {
       const wrapped = function () { const result = open.apply(this, arguments); resetDue(); return result; };

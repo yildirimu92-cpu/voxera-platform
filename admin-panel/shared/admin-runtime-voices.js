@@ -28,29 +28,10 @@
     return root.callAdminFunction('admin-voices', payload);
   }
 
-  function addStyles() {
-    if (document.getElementById('vx-admin-voices-style')) return;
-    const style = document.createElement('style');
-    style.id = 'vx-admin-voices-style';
-    style.textContent = `
-      #ai-panel-voices{display:none}
-      .vx-voice-layout{display:grid;grid-template-columns:minmax(270px,.75fr) minmax(0,1.45fr);gap:16px;align-items:start}
-      .vx-voice-list{display:grid;gap:8px;max-height:620px;overflow:auto;padding-right:2px}
-      .vx-voice-row{width:100%;display:flex;align-items:center;gap:11px;text-align:left;border:1px solid var(--line);background:#fff;border-radius:12px;padding:11px 12px;cursor:pointer;font:inherit;color:var(--ink);transition:.15s ease}
-      .vx-voice-row:hover{border-color:#B9D4FF;background:#F8FBFF}.vx-voice-row.active{border-color:#1A6FE8;box-shadow:0 0 0 1px #1A6FE8;background:#F7FAFF}
-      .vx-voice-icon{width:38px;height:38px;border-radius:11px;background:#EEF4FF;color:#1A6FE8;display:flex;align-items:center;justify-content:center;flex:0 0 auto;font-size:17px}
-      .vx-voice-row-main{min-width:0;flex:1}.vx-voice-row-name{font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.vx-voice-row-meta{font-size:11px;color:var(--slate2);margin-top:2px}
-      .vx-voice-badges{display:flex;gap:5px;flex-wrap:wrap;margin-top:6px}.vx-voice-badge{display:inline-flex;align-items:center;padding:3px 7px;border-radius:999px;background:#F1F5F9;color:#64748B;font-size:10px;font-weight:700}.vx-voice-badge.green{background:#ECFDF5;color:#047857}.vx-voice-badge.amber{background:#FFF7ED;color:#9A3412}
-      .vx-voice-editor{border:1px solid var(--line);border-radius:14px;background:#fff;padding:16px}.vx-voice-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.vx-voice-field{display:grid;gap:6px}.vx-voice-field.full{grid-column:1/-1}.vx-voice-field label{font-size:11px;font-weight:700;color:var(--slate2)}
-      .vx-voice-field input,.vx-voice-field select,.vx-voice-field textarea{width:100%;border:1px solid var(--line);border-radius:9px;padding:9px 10px;font:500 13px inherit;color:var(--ink);background:#fff}.vx-voice-field textarea{min-height:92px;resize:vertical;line-height:1.5}.vx-voice-field input[readonly]{background:#F8FAFC;color:#64748B}
-      .vx-voice-checks{display:flex;gap:18px;flex-wrap:wrap;margin:14px 0}.vx-voice-checks label{display:flex;align-items:center;gap:7px;font-size:12px;font-weight:600;color:var(--ink)}
-      .vx-voice-preview-box{margin-top:14px;padding:13px;border-radius:12px;background:#F8FAFC;border:1px solid var(--line)}.vx-voice-preview-box audio{width:100%;margin-top:10px;height:36px}
-      .vx-voice-preview-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}.vx-voice-preview-panel{padding:11px;border:1px solid var(--line);border-radius:10px;background:#fff}.vx-voice-preview-panel strong{font-size:11px;display:block}.vx-voice-preview-panel .muted{font-size:10.5px;margin-top:2px}
-      .vx-voice-actions{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;margin-top:14px}.vx-voice-feedback{display:none;margin:0 0 12px;padding:10px 12px;border-radius:9px;font-size:12px}.vx-voice-feedback.show{display:block}.vx-voice-feedback.success{background:#ECFDF5;color:#047857}.vx-voice-feedback.error{background:#FEF2F2;color:#B91C1C}.vx-voice-feedback.loading{background:#EFF6FF;color:#1D4ED8}.vx-voice-warning{padding:10px 12px;border-radius:10px;background:#FFF7ED;color:#9A3412;font-size:12px;margin-top:12px}
-      @media(max-width:900px){.vx-voice-layout{grid-template-columns:1fr}.vx-voice-list{max-height:330px}}@media(max-width:720px){.vx-voice-preview-grid{grid-template-columns:1fr}}@media(max-width:640px){.vx-voice-grid{grid-template-columns:1fr}.vx-voice-field.full{grid-column:auto}.vx-voice-actions .btn{flex:1 1 100%}}
-    `;
-    document.head.appendChild(style);
-  }
+  // Die Stilregeln dieser Datei stehen seit Welle 2 Teil 3 in
+  // shared/admin-screens.css. Die Funktion addStyles() und ihr Aufruf sind
+  // entfallen -- ein zur Laufzeit eingefuegtes Stylesheet gewann nur deshalb,
+  // weil es zuletzt kam, und brauchte dafuer !important.
 
   function shell() {
     return document.getElementById('vx-admin-voices-settings');
@@ -416,7 +397,6 @@
   }
 
   function install() {
-    addStyles();
     ensureAssistantTab();
     const observer = new MutationObserver(() => ensureAssistantTab());
     observer.observe(document.documentElement, { childList: true, subtree: true });

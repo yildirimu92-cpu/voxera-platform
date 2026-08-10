@@ -75,16 +75,8 @@
   }
 
   function install() {
-    const style = document.createElement('style');
-    style.id = 'vx-invoice-only-ch-style';
-    style.textContent = `
-      :is(.form-group,.field,label,tr,.settings-row,.setting-row):has([name*="stripe" i]),
-      :is(.form-group,.field,label,tr,.settings-row,.setting-row):has([id*="stripe" i]),
-      :is(.form-group,.field,label,tr,.settings-row,.setting-row):has([name*="payment_link" i]),
-      :is(.form-group,.field,label,tr,.settings-row,.setting-row):has([id*="payment_link" i]),
-      :is(.form-group,.field,label,tr,.settings-row,.setting-row):has([name="setup_fee_link"]){display:none!important;}
-    `;
-    document.head.appendChild(style);
+    // Die :has()-Regeln, die die Alt-Felder fuer Zahlungslinks ausblenden,
+    // stehen seit Welle 2 Teil 3 in shared/admin-screens.css.
     // Kein Intervall mehr (Regel R6): das Verstecken haengt an echten
     // Ereignissen. Neue Alt-Felder entstehen nur beim Rendern eines Screens
     // oder beim Oeffnen eines Dialogs, und beides folgt auf einen Klick.

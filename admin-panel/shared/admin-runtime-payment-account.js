@@ -192,9 +192,8 @@
   }
 
   function install() {
-    const style = document.createElement('style');
-    style.textContent = '@media(max-width:768px){.vx-payment-setup-grid{grid-template-columns:1fr!important}}';
-    document.head.appendChild(style);
+    // Die einzige Stilregel dieser Datei (das einspaltige Raster auf schmalen
+    // Fenstern) steht seit Welle 2 Teil 3 in shared/admin-screens.css.
     const observer = new MutationObserver(() => {
       if (document.getElementById('section-settings') && !shell()) {
         ensureShell();

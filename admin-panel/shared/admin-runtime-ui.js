@@ -104,45 +104,10 @@
     }
   }
 
-  function addCss() {
-    if (document.getElementById('voxera-runtime-ui-css')) return;
-    const style = document.createElement('style');
-    style.id = 'voxera-runtime-ui-css';
-    style.textContent = `
-      #overview-kpis,#onboarding-kpis,#finance-kpi-strip{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:0!important;border:1px solid var(--line)!important;border-radius:14px!important;overflow:hidden!important;margin-bottom:16px!important;background:#fff!important;box-shadow:0 1px 2px rgba(15,23,42,.04)!important}
-      #overview-kpis>*,#onboarding-kpis>*,#finance-kpi-strip>*{min-width:0!important;padding:16px 18px!important;margin:0!important;border:0!important;border-radius:0!important;background:#fff!important;box-shadow:none!important}
-      #overview-kpis>*+*,#onboarding-kpis>*+*,#finance-kpi-strip>*+*{border-left:1px solid var(--line)!important}
-      #overview-kpis>:nth-child(1),#onboarding-kpis>:nth-child(1),#finance-kpi-strip>:nth-child(1){background:#ECFDF5!important}
-      #overview-kpis>:nth-child(2),#onboarding-kpis>:nth-child(2),#finance-kpi-strip>:nth-child(2){background:#FFFBEB!important}
-      #overview-kpis>:nth-child(3),#onboarding-kpis>:nth-child(3),#finance-kpi-strip>:nth-child(3){background:#EFF6FF!important}
-      #overview-kpis .kpi-label,#onboarding-kpis .kpi-label,#finance-kpi-strip .bf-kpi-label{font-size:10px!important;font-weight:700!important;text-transform:uppercase!important;letter-spacing:.08em!important;color:#64748B!important;margin-bottom:7px!important}
-      #overview-kpis .kpi-value,#onboarding-kpis .kpi-value,#finance-kpi-strip .bf-kpi-value{color:#0D1F3C!important;font-size:25px!important;font-weight:800!important;line-height:1.05!important;letter-spacing:-.035em!important}
-      #overview-kpis .kpi-sub,#onboarding-kpis .kpi-sub,#finance-kpi-strip .bf-kpi-sub{font-size:11px!important;color:#64748B!important;margin-top:5px!important;line-height:1.35!important}
-
-      /* Die Kopfzeilen-Regeln und die Klasse vox-dark-head sind mit Welle 2
-         entfallen. Sie stammten aus applyDarkHeaderContrast(): die Funktion
-         mass beim Start die Hintergrundfarbe jeder Kopfzeile und stempelte bei
-         "dunkel" weisse Schrift ein. Als design-system-v2/v3 den Grund spaeter
-         hell uebermalten, blieb die Schrift weiss -- 30 von 33 Ueberschriften
-         waren unsichtbar. Die Kopfzeile hat jetzt genau einen Eigentuemer:
-         shared/admin-components.css. */
-      #cw-header{background:linear-gradient(135deg,#FFFFFF 0%,#F3F7FF 100%)!important;border:1px solid var(--line)!important;box-shadow:0 1px 3px rgba(15,23,42,.06)!important;padding:18px 20px!important}
-      #cw-header #cw-avatar{background:#EAF2FF!important;color:#1558BA!important}
-      #cw-header #cw-name{color:var(--ink)!important}
-      #cw-header #cw-meta{color:var(--slate)!important}
-      #cw-header #cw-actions .btn{background:#fff!important;color:var(--ink)!important;border:1px solid var(--line)!important}
-      #cw-header #cw-actions .btn.btn-primary{background:var(--blue)!important;color:#fff!important;border-color:var(--blue)!important}
-      #cw-header #cw-actions .btn:hover{border-color:var(--blue-mid)!important}
-
-      #overview-activity-list{display:block!important;margin-top:12px}
-      .vox-ops{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;padding:14px 16px 16px}
-      .vox-op{border:1px solid var(--line);border-radius:12px;background:#F8FAFC;padding:13px 14px;text-align:left;cursor:pointer;font:inherit}
-      .vox-op b{display:block;font-size:22px;color:#0D1F3C;margin:5px 0 4px}.vox-op span{font-size:10px;color:#64748B;text-transform:uppercase;letter-spacing:.07em;font-weight:700}.vox-op small{font-size:11px;color:#64748B}
-      @media(max-width:900px){#overview-kpis,#onboarding-kpis,#finance-kpi-strip{grid-template-columns:1fr 1fr!important}#overview-kpis>:nth-child(3),#onboarding-kpis>:nth-child(3),#finance-kpi-strip>:nth-child(3){grid-column:1/-1;border-left:0!important;border-top:1px solid var(--line)!important}.vox-ops{grid-template-columns:1fr 1fr}}
-      @media(max-width:560px){#overview-kpis,#onboarding-kpis,#finance-kpi-strip{grid-template-columns:1fr!important}#overview-kpis>*+*,#onboarding-kpis>*+*,#finance-kpi-strip>*+*{border-left:0!important;border-top:1px solid var(--line)!important}#overview-kpis>:nth-child(3),#onboarding-kpis>:nth-child(3),#finance-kpi-strip>:nth-child(3){grid-column:auto}.vox-ops{grid-template-columns:1fr}}
-    `;
-    document.head.appendChild(style);
-  }
+  // Die Stilregeln dieser Datei stehen seit Welle 2 Teil 3 in
+  // shared/admin-screens.css. Die Funktion addCss() und ihr Aufruf sind
+  // entfallen -- ein zur Laufzeit eingefuegtes Stylesheet gewann nur deshalb,
+  // weil es zuletzt kam, und brauchte dafuer !important.
 
   function patchCockpit() {
     try {
@@ -229,7 +194,6 @@
 
   ready(() => {
     installOperationalOnboardingSemantics();
-    addCss();
     const overview = typeof renderOverview === 'function' ? renderOverview : null;
     if (overview) renderOverview = function () { const r = overview.apply(this, arguments); patchCockpit(); return r; };
     const onboarding = typeof renderOnboarding === 'function' ? renderOnboarding : null;

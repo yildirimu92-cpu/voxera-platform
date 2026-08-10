@@ -31,6 +31,18 @@ const ADMIN = join(ROOT, 'admin-panel');
 const lies = (relativerPfad) => readFileSync(join(ADMIN, relativerPfad), 'utf8');
 const zaehle = (text, muster) => (text.match(muster) || []).length;
 
+/**
+ * Kommentare weg, bevor gezaehlt wird.
+ *
+ * Die Kopfkommentare dieser Umbauwellen nennen die Zahlen, um die es geht --
+ * "233 !important entfernt". Ohne diesen Schritt zaehlt die Ratsche die eigene
+ * Beschreibung mit und meldet einen Anstieg, wo nur ein Satz dazugekommen ist.
+ */
+const ohneKommentare = (text) => text
+  .replace(/\/\*[\s\S]*?\*\//g, ' ')
+  .replace(/<!--[\s\S]*?-->/g, ' ')
+  .replace(/^\s*\/\/.*$/gm, ' ');
+
 const indexHtml = lies('index.html');
 const offerBrand = lies('shared/offer-brand.js');
 
@@ -40,6 +52,17 @@ const patchDateien = readdirSync(join(ADMIN, 'shared'))
 const geladenePatches = [...offerBrand.matchAll(/'\/shared\/(admin-runtime-[a-z0-9-]*\.js)/g)].map((m) => m[1]);
 const patchQuelltext = geladenePatches.map((name) => lies(`shared/${name}`)).join('\n');
 const allePatchQuelltexte = patchDateien.map((name) => lies(`shared/${name}`)).join('\n');
+
+/**
+ * Die Stilschichten zaehlen mit.
+ *
+ * Ohne sie waere die !important-Zahl allein dadurch gefallen, dass Welle 2 die
+ * Regeln aus den Laufzeit-Dateien in .css-Dateien verschoben hat -- 356 waeren
+ * auf 193 gesunken, ohne dass ein einziges !important verschwunden waere. Eine
+ * Ratsche, die man durch Umziehen bedienen kann, misst nichts.
+ */
+const stilDateien = readdirSync(join(ADMIN, 'shared')).filter((name) => /\.css$/.test(name));
+const alleStilQuelltexte = stilDateien.map((name) => lies(`shared/${name}`)).join('\n');
 
 /**
  * Obergrenzen. Jede darf sinken, keine darf steigen.
@@ -74,9 +97,10 @@ const RATSCHEN = [
   {
     name: 'Zur Laufzeit per JavaScript eingefuegte Stylesheets',
     ist: patchDateien.filter((name) => /createElement\(['"]style['"]\)/.test(lies(`shared/${name}`))).length,
-    max: 10,
+    max: 0,
     ziel: 0,
-    hinweis: 'Regel R3: CSS gehoert in eine Datei. → Welle 2 laeuft.'
+    hinweis: 'Regel R3: CSS gehoert in eine Datei. Wer zur Laufzeit ein Stylesheet einfuegt, '
+      + 'gewinnt nur, weil er zuletzt kommt -- und braucht dafuer !important.'
   },
   {
     name: 'Dauer-Timer (setInterval) in geladenen Patches',
@@ -93,11 +117,16 @@ const RATSCHEN = [
     hinweis: 'Regel R6.'
   },
   {
-    name: '!important in index.html und allen Laufzeit-Dateien',
-    ist: zaehle(indexHtml, /!important/g) + zaehle(allePatchQuelltexte, /!important/g),
+    name: '!important in index.html, Laufzeit- und Stildateien',
+    ist: zaehle(ohneKommentare(indexHtml), /!important/g)
+      + zaehle(ohneKommentare(allePatchQuelltexte), /!important/g)
+      + zaehle(ohneKommentare(alleStilQuelltexte), /!important/g),
     max: 356,
     ziel: 50,
-    hinweis: 'Regel R3. → Welle 2 loest den grossen Teil davon auf.'
+    hinweis: 'Regel R3. Die Zahl steht noch fast unveraendert, und das ist ehrlich so: '
+      + 'Welle 2 Teil 3 hat die Regeln zusammengelegt, aber die Prioritaeten sind '
+      + 'gemessen ineinander verhakt (siehe scripts/browser-important-audit-admin.mjs). '
+      + 'Sie aufzuloesen heisst, je Konflikt zu entscheiden, welche Regel gilt.'
   }
 ];
 
@@ -135,8 +164,19 @@ const ZUSICHERUNGEN = [
       && indexHtml.includes('/shared/admin-design-tokens.css')
       && indexHtml.includes('/shared/admin-components.css')
       && indexHtml.includes('/shared/admin-layout.css')
-      && indexHtml.includes('/shared/admin-responsive.css'),
-    hinweis: 'Beide Dateien muessen NACH den <style>-Bloecken eingebunden sein, sonst braucht es wieder !important.'
+      && indexHtml.includes('/shared/admin-responsive.css')
+      && indexHtml.includes('/shared/admin-screens.css'),
+    hinweis: 'Alle Stilschichten muessen NACH den <style>-Bloecken eingebunden sein, sonst braucht es wieder !important.'
+  },
+  {
+    name: 'admin-screens.css steht als letzte Stilschicht',
+    erfuellt: (() => {
+      const kopf = indexHtml.slice(0, indexHtml.indexOf('</head>'));
+      return kopf.indexOf('/shared/admin-screens.css') > kopf.indexOf('/shared/admin-responsive.css');
+    })(),
+    hinweis: 'Die Datei traegt die Regeln der zehn frueheren Laufzeit-Stylesheets. Die wurden per '
+      + 'head.appendChild() eingefuegt und gewannen deshalb gegen alles andere. Nur als letzte '
+      + 'Einbindung bleibt diese Reihenfolge erhalten.'
   },
   {
     name: 'Jede Datei in shared/ ohne admin-runtime-Praefix wird auch geladen',
