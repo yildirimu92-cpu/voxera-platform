@@ -301,6 +301,43 @@ Every commit summary must mention whether it was audit-only or implementation.
 
 ---
 
+## Merge Rules
+
+**No merge-go while unresolved review threads are open.**
+
+A pull request is not ready to merge as long as a single review thread on it is
+unresolved — regardless of who opened it, regardless of CI being green, and
+regardless of the finding looking minor.
+
+Each open thread must reach one of exactly two end states before the merge:
+
+1. **Fixed** — the finding is addressed in the branch, and the thread carries a
+   reply naming the commit that addresses it.
+2. **Rejected with reason** — the thread carries a reply explaining why the
+   finding does not apply or is deliberately deferred, including where the
+   deferred work is tracked (issue number).
+
+In both cases the thread is then **resolved**. "Answered but left open" is not
+an end state; an unresolved thread on a merged pull request is
+indistinguishable from an ignored one.
+
+**Why this rule exists:** a thread that is open at merge time is never read
+again. The pull request leaves the review surface, no dashboard lists it, and no
+CI check covers it. The finding does not become less true — it becomes
+invisible. Measured on 2026-08-10 across the 60 pull requests merged on
+2026-08-09/10: 51 of them carry unresolved threads, 79 individual threads never
+received any reply, and 26 of those are P1. One of them (`issued_at` on #914)
+surfaced later only because someone happened to look.
+
+This applies to automated reviewers (Codex, Copilot) exactly as it applies to
+human ones. An automated finding that is wrong is cheap to reject in one
+sentence; an automated finding that is right and unread is the expensive case.
+
+**Before requesting or granting a merge-go, state explicitly:** how many review
+threads the pull request carries, and that all of them are resolved.
+
+---
+
 ## Acceptance Test Rules
 
 Each fix needs a specific acceptance checklist.
