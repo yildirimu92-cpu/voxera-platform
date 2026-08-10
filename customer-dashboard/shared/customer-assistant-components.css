@@ -951,9 +951,19 @@ body.vx-customer-design-foundation .vx-nav-voice-details[open] > summary::after 
    unter den Tag statt zu schrumpfen: zwei Zeitfelder nebeneinander sind auf
    390px nicht treffsicher bedienbar. */
 body.vx-customer-design-foundation .vx-ap-hours { display: grid; gap: var(--vx-space-2, 8px); margin-top: var(--vx-space-2, 8px); }
-body.vx-customer-design-foundation .vx-ap-hours-row { display: grid; grid-template-columns: 8.5rem 1fr auto; align-items: center; gap: var(--vx-space-3, 12px); }
+/* Klick-Test 10.08.: Die Zeitfelder standen in einer 1fr-Spalte, „geschlossen"
+   in der auto-Spalte ganz rechts — auf 1280px lagen zwischen Feld und Zustand
+   mehrere Zentimeter Leere. Die Felderspalte nimmt jetzt nur ihre Breite, die
+   Zustandsspalte den Rest, damit das Wort direkt neben der Zeile steht. */
+body.vx-customer-design-foundation .vx-ap-hours-row { display: grid; grid-template-columns: 8.5rem auto 1fr; align-items: center; gap: var(--vx-space-3, 12px); }
 body.vx-customer-design-foundation .vx-ap-hours-day { font-size: 13px; }
-body.vx-customer-design-foundation .vx-ap-hours-slots { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+body.vx-customer-design-foundation .vx-ap-hours-slots { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+
+/* Eine Zeitspanne haelt zusammen (6px), zwischen den Spannen steht das
+   Bindewort mit eigener Luft — vorher war beides derselbe Abstand und die
+   Zeile las sich als vier gleichrangige Felder. */
+body.vx-customer-design-foundation .vx-ap-hours-slot { display: inline-flex; align-items: center; gap: 6px; }
+body.vx-customer-design-foundation .vx-ap-hours-join { color: var(--vx-ui-meta-color); font-size: 12px; padding: 0 2px; }
 /* Der Klick-Test am 09.08. sah "pro Wochentag mehrere Zeitfelder untereinander
    mit Bindestrichen dazwischen". Das war nicht nur zu viel Raster, sondern ein
    Fehler: `.vx-ap-field :where(input, textarea) { width: 100% }` trifft auch
@@ -1021,7 +1031,7 @@ body.vx-customer-design-foundation .vx-ap-suggestion-body { font-size: 13px; whi
 /* Öffnungszeiten kompakt. Die Sammelzeile ist breiter beschriftet als eine
    Tageszeile ("Montag bis Freitag"), sonst bräche der Text auf dem Telefon
    mitten im Wort. Aufgeklappt gilt wieder das Raster aus J5. */
-body.vx-customer-design-foundation .vx-ap-hours--compact .vx-ap-hours-row { grid-template-columns: 11rem 1fr auto; }
+body.vx-customer-design-foundation .vx-ap-hours--compact .vx-ap-hours-row { grid-template-columns: 11rem auto 1fr; }
 body.vx-customer-design-foundation [data-vx-hours-toggle] { margin-top: var(--vx-space-2, 8px); justify-self: start; }
 @media (max-width: 560px) {
   body.vx-customer-design-foundation .vx-ap-hours--compact .vx-ap-hours-row { grid-template-columns: 1fr auto; }

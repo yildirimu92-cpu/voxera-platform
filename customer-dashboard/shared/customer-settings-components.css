@@ -347,6 +347,23 @@ body.vx-customer-design-foundation .vx-cal-field--checkbox {
   align-content: end;
 }
 
+/* Das Buchungsfenster ist eine Ablesezeile, kein Eingabefeld: es steht ueber
+   die volle Breite und traegt denselben Rahmen wie ein Feld, damit es als
+   Zustand und nicht als Beschriftung gelesen wird. */
+body.vx-customer-design-foundation .vx-cal-field--wide {
+  grid-column: 1 / -1;
+}
+
+body.vx-customer-design-foundation .vx-cal-readout {
+  padding: 10px 12px;
+  border: 1px solid var(--vx-line);
+  border-radius: var(--vx-radius-field, 10px);
+  background: var(--vx-surface-muted, #f7f9fc);
+  color: var(--vx-ink);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
 body.vx-customer-design-foundation .vx-cal-checkbox {
   display: flex;
   align-items: center;

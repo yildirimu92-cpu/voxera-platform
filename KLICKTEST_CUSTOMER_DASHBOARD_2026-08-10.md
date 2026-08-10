@@ -251,4 +251,33 @@ Damit die Abnahme weiss, was nicht mehr angefasst werden muss — jeweils im Bro
 4. **S3** — vorher eine fachliche Entscheidung nötig: eine Quelle oder zwei mit klarer Beschriftung.
 5. **S2**, **S4**, danach die kosmetische Liste.
 
-Keine dieser Stellen wurde angefasst. Für die Umsetzung braucht es je eine eigene Freigabe.
+---
+
+## 9. Umsetzung (10.08., nach Freigabe)
+
+Alle acht Funde aus Abschnitt 2 und 3 sind behoben; die kosmetische Liste (Abschnitt 4) und die
+Absichtsfragen (Abschnitt 5) bleiben offen. Zwei Grundsatzfragen wurden vor dem ersten Eingriff geklärt:
+
+**K2 — nicht der Speicherpfad, die Oberfläche.** `save_settings` ist serverseitig bewusst eine
+Vollzustands-Speicherung mit Querprüfungen (`feature_enabled` verlangt einen aktiven Anbieter; ein aktiver
+Anbieter verlangt eine verbundene Verbindung mit gewähltem Kalender, sonst 409). Nur geänderte Felder zu
+schicken würde diese Prüfungen unterlaufen, den gespeicherten Wert mitzuschicken würde am 409 scheitern.
+Der Speicherpfad blieb deshalb unangetastet: die Seite zeigt den gespeicherten Anbieter jetzt mitsamt
+seinem Zustand und sperrt in diesem Zustand das Speichern, statt still `null` zu schreiben.
+
+**K1 — kein neuer Navigationsweg.** Der Einstieg existierte bereits (`#vx-open-operational` im Band), war
+aber an den Zustand gebunden: `bandCard()` rendert nur, wenn schon eine Abweichung eingetragen ist. Wer nie
+eine Ferienregel angelegt hatte, kam nie hin. Der Weg wurde aus dieser Abhängigkeit gelöst — ein
+dauerhafter Drill-in-Knopf in der Karte „Was Ihr Assistent weiss", im Muster von „Geschäftsprofil
+bearbeiten". Kein Eintrag im Einstellungen-Menü: das wäre ein zweiter Weg zur selben Seite und kollidiert
+mit `verify-customer-navigation-unified`.
+
+**S3 ausdrücklich nur sichtbar gemacht.** Welche der beiden Zeitquellen führt, ist eine betriebliche
+Entscheidung mit Wirkung auf das tatsächliche Buchungsverhalten und wurde hier nicht getroffen. Die
+Kalenderseite zeigt das gespeicherte Buchungsfenster jetzt an und benennt seine Rolle; die offene Frage
+bleibt in Abschnitt 5 stehen.
+
+Geprüft: 16 Browser-Prüfungen auf 1280 px **und** 390 px, je gegen beide Zweige des Kalender-Zustands
+(verbunden / Neuanmeldung nötig), ohne einen einzigen JavaScript-Fehler. Von 61 `verify-`Skripten laufen
+59 grün; `verify-db-security-invariants` (braucht DB-Zugangsdaten) und `verify-prompt-builder-version-bump`
+(braucht eine gemeinsame Git-Basis) schlagen auch ohne diese Änderungen fehl.

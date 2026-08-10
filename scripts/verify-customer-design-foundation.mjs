@@ -80,7 +80,14 @@ assert.ok(lineCount(statusCss) <= 300, 'assistant status CSS exceeded its consol
 // klickbaren Flaechen im Abo-, Plan- und Hilfe-Bereich. Sie stehen bewusst
 // hier statt als Sammelregel im Fundament — die Herleitung dazu steht am
 // Block selbst. Budget behaelt denselben Spielraum wie zuvor.
-assert.ok(lineCount(settingsCss) <= 845, 'settings component CSS exceeded its consolidated size budget');
+// Klick-Test-Nachzug (2026-08-10): +17 Zeilen fuer die Ablesezeile des
+// Buchungsfensters im Kalender (.vx-cal-field--wide, .vx-cal-readout). Das
+// Fenster steuert, wann der Assistent buchen darf, kam im Kunden-Dashboard aber
+// an keiner Stelle vor — waehrend das Geschaeftsprofil fuer dieselben Tage
+// "geschlossen" anzeigte. Die Zeile macht den Zustand sichtbar; welche der
+// beiden Quellen kuenftig fuehrt, ist eine betriebliche Entscheidung und
+// bewusst offen. Budget behaelt denselben Spielraum wie zuvor.
+assert.ok(lineCount(settingsCss) <= 862, 'settings component CSS exceeded its consolidated size budget');
 assert.ok(lineCount(supportCss) <= 220, 'support component CSS exceeded its size budget');
 // Navigation Premium-Redesign (2026-08-09): +122 Zeilen. Der groessere Teil
 // ist der Gold-Icon-Chip als gemeinsamer Aktiv-Zustand von Seitenleiste und
