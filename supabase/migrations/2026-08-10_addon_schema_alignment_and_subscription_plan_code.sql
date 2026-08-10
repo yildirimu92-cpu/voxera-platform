@@ -148,8 +148,15 @@ as $$
   );
 $$;
 
-revoke all on function public.customer_has_addon(text, text) from public;
-grant execute on function public.customer_has_addon(text, text) to authenticated, service_role;
+-- Rechte: einzeln von public, anon und authenticated widerrufen, dann gezielt
+-- an service_role zurueckgeben. `revoke ... from public` alleine genuegt NICHT
+-- -- Supabase vergibt in `public` per ALTER DEFAULT PRIVILEGES namentliche
+-- EXECUTE-Grants an anon, authenticated und service_role, und die ueberleben
+-- ein PUBLIC-Revoke. Idiom nach 2026-07-28_p0_security_foundation.sql:14-17.
+revoke all privileges on function public.customer_has_addon(text, text) from public;
+revoke all privileges on function public.customer_has_addon(text, text) from anon;
+revoke all privileges on function public.customer_has_addon(text, text) from authenticated;
+grant execute on function public.customer_has_addon(text, text) to service_role;
 
 -- ---------------------------------------------------------------------------
 -- B1. `subscriptions.plan_code`.

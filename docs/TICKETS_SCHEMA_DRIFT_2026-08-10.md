@@ -137,6 +137,74 @@ Bei leerem Ergebnis kann der Index direkt angelegt werden.
 
 ---
 
+## Ticket 5 -- Default-Privilegien vererben EXECUTE an `anon`/`authenticated`
+
+**Eigener Strang, nicht Teil der Paketstruktur. Bearbeitung mit Opus 5,
+Effort Hoch. Der Wurzelfix wird separat freigegeben und NICHT mit einem
+Einzelentzug zusammengezogen.**
+
+**Symptom, an dem es aufgefallen ist:** Am 10.08. gingen zwei neu angelegte
+SECURITY-DEFINER-Funktionen (`activate_customer_addon_v1`,
+`customer_has_addon`) mit EXECUTE fuer `anon` und `authenticated` live,
+obwohl die Migrationen `revoke all ... from public` enthielten. Behoben in
+`2026-08-10_addon_functions_execute_revoke_hotfix.sql`.
+
+**Ursache:** Supabase konfiguriert im Schema `public`
+`ALTER DEFAULT PRIVILEGES ... GRANT EXECUTE ON FUNCTIONS TO anon,
+authenticated, service_role`. Jede neu angelegte Funktion erbt diese
+namentlichen Grants. `REVOKE ... FROM PUBLIC` entfernt nur das
+PUBLIC-Pseudorollen-Grant und laesst sie stehen. Das ist dieselbe Bauart von
+Problem wie die Default-Privilegien auf Tabellen, die am 09.08. behandelt
+wurden -- nur fuer Funktionen und bisher unbehandelt.
+
+Solange die Default-Privilegien stehen, erbt **jede kuenftige Funktion**
+dieselbe Oeffnung. Einzelne Entzuege behandeln Symptome.
+
+**Bekannte Treffer zum Zeitpunkt der Aufnahme** (SECURITY DEFINER **und**
+EXECUTE fuer `anon`/`authenticated`), beide vorbestehend und nicht geprueft:
+
+- `apply_offer_credit_to_invoice_v1`
+- `sync_ai_change_request_from_case`
+
+`is_customer_entitled` faellt in dieselbe Abfrage, wird aber vermutlich
+absichtlich aus RLS-Policies heraus als `authenticated` aufgerufen -- genau
+diese Unterscheidung ist der Kern der Aufgabe.
+
+**Auftrag, in dieser Reihenfolge:**
+
+1. **Vollstaendige Inventur.** Alle Funktionen in `public` mit
+   `SECURITY DEFINER` und EXECUTE fuer `anon` oder `authenticated`. Pro
+   Treffer dokumentieren: Aufrufer (Code, RLS-Policy, Trigger), ob der
+   Zugriff gewollt ist, was bei Entzug bricht.
+
+   ```sql
+   select p.proname, p.prosecdef,
+          has_function_privilege('anon', p.oid, 'EXECUTE') as anon_darf,
+          has_function_privilege('authenticated', p.oid, 'EXECUTE') as auth_darf
+   from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+   where n.nspname = 'public' and p.prokind = 'f'
+   order by (p.prosecdef and has_function_privilege('anon', p.oid, 'EXECUTE')) desc;
+   ```
+
+2. **Wurzelfix als Vorschlag mit Auswirkungsanalyse**, nicht blind anwenden:
+
+   ```sql
+   alter default privileges in schema public
+     revoke execute on functions from anon, authenticated;
+   ```
+
+   Legitime Dashboard-RPCs, die `authenticated` brauchen, muessen vorher
+   identifiziert und anschliessend gezielt zurueck-gegrantet werden. Ein
+   pauschaler Entzug ohne diese Liste legt das Kundenportal lahm.
+
+3. **Separate Freigabe** fuer den Wurzelfix.
+
+**Vorbild fuer das Idiom:** `2026-07-28_p0_security_foundation.sql:14-17` --
+einzeln von `public`, `anon`, `authenticated`, `service_role` widerrufen,
+dann gezielt zurueckgeben.
+
+---
+
 ## Nicht als Ticket gefuehrt
 
 **`2026-04-07_outbox_retry_worker_support.sql`** (`outbox_events.dead_lettered_at`

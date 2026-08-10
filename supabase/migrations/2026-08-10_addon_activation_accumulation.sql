@@ -33,6 +33,39 @@
 
 begin;
 
+-- ---------------------------------------------------------------------------
+-- SICHERHEITSMODELL DIESER FUNKTION -- bewusste Entscheidung, kein Versehen.
+-- ---------------------------------------------------------------------------
+-- Die Funktion nimmt `p_customer_id` entgegen und prueft ihn NICHT gegen
+-- `current_customer_id()`. Das sieht nach einer Luecke aus und ist keine --
+-- bitte nicht "reparieren", ohne den Admin-Pfad zu kennen:
+--
+--   * `admin-mutate.js` -> `addons.activate` aktiviert stellvertretend fuer
+--     einen fremden Kunden. Dort ist `current_customer_id()` nicht die
+--     Zielkundennummer, sondern die des handelnden Admins oder NULL. Eine
+--     Gleichheitspruefung in der Funktion wuerde diesen Pfad brechen.
+--
+--   * Die Mandantenbindung liegt deshalb im Kundenpfad:
+--     `customer-manage-addon.js` verifiziert das JWT, loest ueber
+--     `auth_user_id` die Kundennummer auf und reicht nur diese herein. Der
+--     Aufrufer kann sie nicht waehlen.
+--
+--   * Die alleinige Grenze ist damit der EXECUTE-Grant: ausschliesslich
+--     `service_role`. Beide Aufrufer arbeiten mit dem Service-Role-Schluessel,
+--     der den Browser nie erreicht. Dasselbe Modell benutzen
+--     `assign_twilio_number` und `admin_apply_invoice_financial_action_v1`.
+--
+-- Weil SECURITY DEFINER die RLS-Policies auf `customer_addons` umgeht, ist
+-- dieser Grant sicherheitskritisch. Am 10.08. stand die Funktion kurzzeitig
+-- fuer `anon` und `authenticated` offen, weil `revoke ... from public` die
+-- namentlichen Default-Privilege-Grants nicht entfernt -- siehe
+-- 2026-08-10_addon_functions_execute_revoke_hotfix.sql. Wer diese Funktion
+-- aendert, prueft danach:
+--   select has_function_privilege('anon',
+--     'public.activate_customer_addon_v1(text,text,integer)','EXECUTE');
+-- Erwartet: false.
+-- ---------------------------------------------------------------------------
+
 create or replace function public.activate_customer_addon_v1(
   p_customer_id text,
   p_addon_code  text,
@@ -127,7 +160,12 @@ $$;
 -- Berechtigung des Aufrufers vorher selbst geprueft. `authenticated` braucht
 -- die Funktion deshalb nicht -- sie wuerde sonst jedem eingeloggten Nutzer
 -- erlauben, sich Addons auf fremde Kundennummern zu schreiben.
-revoke all on function public.activate_customer_addon_v1(text, text, integer) from public;
+--
+-- Einzeln widerrufen, nicht nur von PUBLIC: die namentlichen Grants aus
+-- ALTER DEFAULT PRIVILEGES ueberleben ein PUBLIC-Revoke.
+revoke all privileges on function public.activate_customer_addon_v1(text, text, integer) from public;
+revoke all privileges on function public.activate_customer_addon_v1(text, text, integer) from anon;
+revoke all privileges on function public.activate_customer_addon_v1(text, text, integer) from authenticated;
 grant execute on function public.activate_customer_addon_v1(text, text, integer) to service_role;
 
 commit;
