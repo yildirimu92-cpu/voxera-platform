@@ -200,7 +200,15 @@ ist, die beiden Ausnahmelisten mitzuziehen, bevor die Dateien umziehen.
 
 Reihenfolge ist bindend: jede Etappe lässt die Checks grün zurück.
 
-### E1 — Ledger-Namensdrift schließen *(klein, unabhängig, sofort machbar)*
+### E1 — Ledger-Namensdrift schließen — **umgesetzt am 2026-08-10**
+
+> Freigegeben und umgesetzt: `ledgerAliases` in
+> `supabase/verification/db-security-baseline.json`, `checkLedger()` liest die
+> Zuordnung in beiden Richtungen und **prüft sie selbst** (Eintrag ohne
+> Repo-Datei oder ohne Ledger-Zeile = FAIL). Gegen den echten Produktions-Ledger
+> getestet: beide Richtungen grün, P0-Fehlermodus schlägt weiterhin an.
+> Der ursprüngliche Vorschlag steht unverändert darunter.
+
 
 **Problem:** 4 + 6 FAIL aus A.3, rein durch Namensunterschiede.
 

@@ -26390,9 +26390,14 @@ async function persistForwardingMode(mode) {
   }
 }
 
-function getForwardingCode(mode, voxeraNumber) {
-  return { code: "", label: "" };
-}
+/* getForwardingCode stand hier ein zweites Mal, als neutralisierter Stub
+   (`return { code: "", label: "" }`). Beide Deklarationen lagen auf oberster
+   Ebene desselben script-Blocks, also gewann ohnehin immer die spaetere in
+   Zeile ~28343 -- dieser Stub war unerreichbar. Er war zudem irrefuehrend: er
+   gab eine andere Form zurueck ({code,label}) als der Gewinner
+   ({activate,deactivate}), sodass beim Lesen von oben der Eindruck entstand,
+   die Weiterleitungscodes seien abgeschaltet. Sind sie nicht. Entfernt
+   2026-08-10; die gueltige Fassung bleibt unveraendert. */
 
 function getForwardingDisableCode(mode) {
   var codes = { always: '#21#', no_answer: '#61#', unreachable: '#62#', busy: '#67#' };
@@ -27615,14 +27620,14 @@ function finishSetup(){
   if(navEl) showTab('dashboard',navEl);
 }
 
-function copyVoxeraNumber(e){
-  if(e)e.stopPropagation();
-  var num = customerMeta.voxeraNumber || '';
-  if(!num){toast('Keine Nummer vorhanden', 'warning');return;}
-  navigator.clipboard.writeText(num)
-    .then(function(){ announceCopyFeedback('Nummer kopiert', 'success'); })
-    .catch(function(){ announceCopyFeedback('Kopieren fehlgeschlagen', 'error'); });
-}
+/* copyVoxeraNumber stand hier ein zweites Mal. Gleiche Ebene, gleicher
+   script-Block, also gewann immer die spaetere Fassung in Zeile ~28740 --
+   diese hier lief nie. Entfernt 2026-08-10, Verhalten unveraendert.
+
+   Getrennt davon: die verbleibende Fassung hat derzeit ueberhaupt keinen
+   Aufrufer mehr. Das ist ein eigener Fund (Diagnose vom 2026-08-10,
+   Abschnitt B.3) und wird hier bewusst NICHT mitgeloescht -- diese Aenderung
+   soll nur die Verschattung aufloesen. */
 
 async function saveSetupNotifications(){
   var recordId = document.getElementById('account-overlay').dataset.customerRecordId;

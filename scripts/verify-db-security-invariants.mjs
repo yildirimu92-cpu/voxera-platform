@@ -253,9 +253,21 @@ function checkLedger(baseline) {
 
   const tracked = files.filter((f) => !preLedger.has(f));
 
+  // Zuordnung fuer Migrationen, die unter einem anderen Namen -- oder in
+  // mehreren Schritten -- angewandt wurden. Begruendung je Eintrag steht in
+  // der Baseline. Ohne sie meldet der Check dieselbe Migration doppelt: einmal
+  // als "nicht angewandt", einmal als "Out-of-Band".
+  const aliasMap = baseline.ledgerAliases?.map || {};
+  const aliasOwner = new Map();
+  for (const [file, names] of Object.entries(aliasMap)) {
+    for (const ledgerName of names) aliasOwner.set(ledgerName, file);
+  }
+
   // Richtung 1 -- der P0-Fehlermodus: Migration liegt im Repo, wurde auf der DB
   // aber nie angewandt. Genau hier blieb der alte Check monatelang gruen.
-  const missing = tracked.filter((f) => !info.ledger.has(nameOf(f)));
+  const isApplied = (f) => info.ledger.has(nameOf(f))
+    || (aliasMap[f] || []).some((ledgerName) => info.ledger.has(ledgerName));
+  const missing = tracked.filter((f) => !isApplied(f));
   add(missing.length === 0 ? 'PASS' : 'FAIL', 'G-ledger',
     'jede Repo-Migration ab 2026-08-08 ist auf der DB angewandt',
     missing.length
@@ -281,12 +293,36 @@ function checkLedger(baseline) {
     : [];
   const repoNames = new Map([...tracked, ...sqlFiles].map((f) => [nameOf(f), f]));
 
-  const orphans = [...info.ledger.keys()].filter((n) => !repoNames.has(n));
+  const orphans = [...info.ledger.keys()]
+    .filter((n) => !repoNames.has(n) && !aliasOwner.has(n));
   add(orphans.length === 0 ? 'PASS' : 'FAIL', 'G-ledger',
     'keine DB-Migration ohne Repo-Datei',
     orphans.length
       ? `nur auf der DB: ${orphans.join(', ')} -- Out-of-Band-Aenderung, nachdokumentieren`
       : 'Repo und Ledger decken sich');
+
+  // Die Zuordnung prueft sich selbst. Sonst waere sie eine Ausnahmeliste, in
+  // der ein Befund dauerhaft ruhen kann: ein Eintrag auf eine geloeschte Datei
+  // oder auf einen Ledger-Namen, den es nicht gibt, wuerde beide Richtungen
+  // oben stillschweigend entschaerfen.
+  const knownFiles = new Set([...files, ...sqlFiles]);
+  const staleAliases = [];
+  for (const [file, names] of Object.entries(aliasMap)) {
+    if (!knownFiles.has(file)) {
+      staleAliases.push(`${file} (Repo-Datei fehlt)`);
+      continue;
+    }
+    for (const ledgerName of names) {
+      if (!info.ledger.has(ledgerName)) {
+        staleAliases.push(`${file} -> ${ledgerName} (nicht im Ledger)`);
+      }
+    }
+  }
+  add(staleAliases.length === 0 ? 'PASS' : 'FAIL', 'G-ledger',
+    'die Ledger-Zuordnung ist aktuell',
+    staleAliases.length
+      ? `veraltete Eintraege: ${staleAliases.join(', ')} -- ledgerAliases in der Baseline bereinigen`
+      : `${Object.keys(aliasMap).length} Datei(en) mit abweichendem Ledger-Namen zugeordnet`);
 
   const preTracked = files.filter((f) => preLedger.has(f));
   add('SKIP', 'G-ledger', 'Migrationen vor 2026-08-08 (kein Ledger vorhanden)',

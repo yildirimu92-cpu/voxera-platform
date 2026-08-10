@@ -379,5 +379,57 @@
       "2026-08-06_p0_rls_tenant_isolation_hardening.sql",
       "2026-08-07_customers_onboarding_completed_column_grant.sql"
     ]
+  },
+  "ledgerAliases": {
+    "$comment": [
+      "Eine Migration wurde auf der DB unter einem anderen Namen angewandt, als",
+      "ihre Repo-Datei traegt -- oder in mehreren Schritten. Der Vergleichs-",
+      "schluessel des Drift-Checks ist der Dateiname ohne Datumspraefix; wo der",
+      "Ledger-Name davon abweicht, meldet der Check in BEIDEN Richtungen einen",
+      "Fehler: die Repo-Datei gilt als 'nicht angewandt' und der Ledger-Eintrag",
+      "als 'Out-of-Band'. Beides ist dann falsch.",
+      "",
+      "Warum eine Zuordnung und nicht einfach umbenennen: 2026-08-09_core_field_",
+      "layer_j6.sql wurde in ZWEI Schritten eingespielt und hat zwei Ledger-",
+      "Zeilen. Eine Datei kann nicht zwei Namen tragen. Und eine Datei auf den",
+      "Ledger-Namen umzutaufen, damit ein Check schweigt, waere eine nachtraeg-",
+      "liche Behauptung ueber etwas, das anders angewandt wurde -- dieselbe",
+      "Sorte unbelegter Angleichung, die preLedgerMigrations oben ablehnt.",
+      "",
+      "Jeder Eintrag ist gegen Produktion nachgemessen, nicht angenommen:",
+      "Tabelle bzw. Spalten existieren, Grants sind zurueckgenommen (Nachweis",
+      "in AUFRAEUMEN_MIGRATIONEN_UND_TOTER_CODE_DIAGNOSE_2026-08-10.md, A.3).",
+      "",
+      "Diese Tabelle ist KEINE Ausnahmeliste, in der Befunde dauerhaft ruhen",
+      "koennen: checkLedger prueft sie selbst. Ein Eintrag ohne Repo-Datei oder",
+      "mit einem Ledger-Namen, den es nicht (mehr) gibt, ist ein FAIL. Damit",
+      "veraltet sie nicht still."
+    ],
+    "map": {
+      "2026-08-09_admin_notification_settings.sql": [
+        "admin_notification_settings_20260809"
+      ],
+      "2026-08-09_notification_mode_gating.sql": [
+        "notification_mode_gating_20260809",
+        "harden_customers_notification_backup_20260809"
+      ],
+      "2026-08-09_revoke_browser_grants_rls_no_policy.sql": [
+        "revoke_browser_grants_rls_no_policy_20260809"
+      ],
+      "2026-08-09_core_field_layer_j6.sql": [
+        "core_field_layer_j6_columns_and_checks",
+        "core_field_layer_j6_schema"
+      ]
+    },
+    "$comment_harden": [
+      "Zu harden_customers_notification_backup_20260809 (Ledger 17:36:58): die",
+      "Sicherungstabelle aus notification_mode_gating.sql wurde per CREATE TABLE",
+      "AS ohne Schutz angelegt und nachtraeglich gehaertet. Commit 7c33cfb8",
+      "(17:44:20 UTC, sieben Minuten nach dem Apply) traegt genau diesen",
+      "Haertungsblock in die Gating-Datei nach -- deshalb steht der Ledger-Name",
+      "dort. 2026-08-09_notification_backup_lockdown.sql setzt dieselbe Haertung",
+      "danach noch einmal idempotent und hat mit notification_backup_lockdown",
+      "eine eigene Ledger-Zeile."
+    ]
   }
 }
