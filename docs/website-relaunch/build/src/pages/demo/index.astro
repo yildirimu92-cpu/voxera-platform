@@ -1,16 +1,61 @@
 ---
 import Base from '../../layouts/Base.astro';
 import Platzhalter from '../../components/Platzhalter.astro';
+import { SITE } from '../../config/site';
 ---
 <Base
-  titel="Demo und kostenloses Erstgespräch | Voxera"
-  beschreibung="Hören Sie, wie Voxera ans Telefon geht, und buchen Sie ein 15-minütiges Erstgespräch – kostenlos und unverbindlich."
+  titel="Demo und Erstgespräch | Voxera"
+  beschreibung="15 Minuten, online, kostenlos: Wir zeigen das Dashboard und klären, ob ein KI-Telefonassistent zu Ihrem Betrieb passt."
 >
   <section class="sektion">
     <div class="wrap">
       <hr class="akzentlinie" />
-      <h1>Demo und Erstgespräch</h1>
-      <Platzhalter was="Demo-Aufnahme und Terminbuchung" wartetAuf="Einbindung der bestehenden Calendly-Strecke" />
+      <h1>15 Minuten, die zeigen, ob es passt</h1>
+      <p class="einstieg leise">
+        Kein Verkaufsgespräch mit Folien. Wir schauen uns gemeinsam an, wie viele Anrufe bei
+        Ihnen liegen bleiben, welcher Plan dazu passt, und Sie sehen das Dashboard live.
+      </p>
+
+      <ul role="list" class="punkte">
+        <li>Wie viele Anrufe Sie aktuell verpassen</li>
+        <li>Welcher Plan zu Ihrem Anrufaufkommen passt</li>
+        <li>Live-Blick ins Dashboard</li>
+        <li>Ihre Fragen – direkt beantwortet</li>
+      </ul>
+
+      <p class="aktionen">
+        {/* Bestehende Terminstrecke. Extern, deshalb bewusst als Link statt als
+            eingebettetes Skript: ein Drittanbieter-Widget im kritischen Pfad
+            wuerde das JS-Budget von 30 KB allein aufbrauchen. */}
+        <a class="knopf" href={SITE.calendly} rel="noopener">Termin wählen</a>
+        <a class="knopf knopf--sekundaer" href="/kontakt/">Lieber schreiben</a>
+      </p>
+      <p class="leise klein">Online per Video · auf Deutsch · kostenlos und unverbindlich</p>
+    </div>
+  </section>
+
+  <section class="sektion sektion--warm">
+    <div class="wrap">
+      <h2>Den Assistenten hören</h2>
+      <Platzhalter
+        was="Demo-Aufnahme eines echten Gesprächs"
+        wartetAuf="freigegebene Aufnahme (Einwilligung der Beteiligten vorausgesetzt)"
+      />
     </div>
   </section>
 </Base>
+
+<style>
+  .einstieg { font-size: var(--vx-text-lg); margin-top: var(--vx-gap-head-body); }
+  .punkte {
+    margin-top: 32px; padding: 0; list-style: none; display: grid; gap: 10px;
+    max-width: var(--vx-measure);
+  }
+  .punkte li { padding-left: 18px; position: relative; }
+  .punkte li::before {
+    content: ''; position: absolute; left: 0; top: .62em;
+    width: 7px; height: 2px; background: var(--vx-accent);
+  }
+  .aktionen { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 32px; }
+  .klein { font-size: 13px; margin-top: 14px; }
+</style>

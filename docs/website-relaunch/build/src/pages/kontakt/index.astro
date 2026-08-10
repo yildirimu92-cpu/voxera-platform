@@ -1,23 +1,134 @@
 ---
 import Base from '../../layouts/Base.astro';
-import Platzhalter from '../../components/Platzhalter.astro';
+import { SITE } from '../../config/site';
+import { PLAENE } from '../../config/preise';
+
+/**
+ * Kontaktformular über Netlify Forms.
+ *
+ * Die Feldnamen sind BEWUSST identisch mit denen der alten Seite
+ * (`vorname`, `nachname`, `firma`, `email`, `telefon`, `interesse`,
+ * `nachricht`), und das Formular heisst weiterhin `kontakt`. Sonst entsteht im
+ * Netlify-Dashboard eine zweite, leere Formularhistorie, und alte Eingänge
+ * lassen sich nicht mehr mit neuen vergleichen.
+ *
+ * `netlify-honeypot="bot-field"` und das versteckte `bot-field` gehören
+ * zusammen — fehlt eines, ist der Spamschutz wirkungslos.
+ *
+ * Ohne dieses Markup kommen still keine Anfragen mehr an: kein Fehler, keine
+ * Meldung, nur Stille. Deshalb steht es hier vollständig und nicht als
+ * Platzhalter.
+ */
 ---
 <Base
   titel="Kontakt | Voxera"
-  beschreibung="Fragen zu Voxera? Schreiben Sie uns oder rufen Sie an – wir antworten auf Deutsch, persönlich und innert 24 Stunden."
+  beschreibung="Fragen zu Voxera? Schreiben Sie uns oder rufen Sie an – wir antworten auf Deutsch, persönlich und in der Regel innert 24 Stunden."
 >
   <section class="sektion">
     <div class="wrap">
       <hr class="akzentlinie" />
       <h1>Direkt erreichbar</h1>
-      <Platzhalter
-        was="Kontaktformular"
-        wartetAuf="Netlify-Forms-Markup, damit Anfragen weiterhin ankommen"
-      />
-      <p class="leise" style="margin-top:20px;font-size:var(--vx-text-sm);">
-        Wichtig beim Umzug: Fehlt das <code>data-netlify</code>-Markup, kommen still keine
-        Anfragen mehr an – kein Fehler, keine Meldung, nur Stille.
+      <p class="leise">
+        Am schnellsten geht es telefonisch. Schriftlich antworten wir in der Regel innert
+        24 Stunden – auf Deutsch, persönlich.
       </p>
+
+      <div class="spalten">
+        <form
+          name="kontakt"
+          method="POST"
+          data-netlify="true"
+          netlify-honeypot="bot-field"
+          action="/kontakt/danke/"
+        >
+          <input type="hidden" name="form-name" value="kontakt" />
+          <p class="honeypot">
+            <label>Bitte leer lassen: <input name="bot-field" /></label>
+          </p>
+
+          <div class="zeile">
+            <p class="feld">
+              <label for="vorname">Vorname</label>
+              <input id="vorname" name="vorname" type="text" required autocomplete="given-name" />
+            </p>
+            <p class="feld">
+              <label for="nachname">Nachname</label>
+              <input id="nachname" name="nachname" type="text" autocomplete="family-name" />
+            </p>
+          </div>
+
+          <p class="feld">
+            <label for="firma">Firma</label>
+            <input id="firma" name="firma" type="text" autocomplete="organization" />
+          </p>
+
+          <div class="zeile">
+            <p class="feld">
+              <label for="email">E-Mail</label>
+              <input id="email" name="email" type="email" required autocomplete="email" />
+            </p>
+            <p class="feld">
+              <label for="telefon">Telefon</label>
+              <input id="telefon" name="telefon" type="tel" autocomplete="tel" />
+            </p>
+          </div>
+
+          <p class="feld">
+            <label for="interesse">Interesse</label>
+            <select id="interesse" name="interesse">
+              <option value="">Bitte auswählen …</option>
+              {PLAENE.map((p) => (
+                <option value={p.name}>{p.name} (CHF {p.monatlichChf}/Mt)</option>
+              ))}
+              <option value="Allgemeine Frage">Allgemeine Frage</option>
+            </select>
+          </p>
+
+          <p class="feld">
+            <label for="nachricht">Nachricht (optional)</label>
+            <textarea id="nachricht" name="nachricht" rows="5"></textarea>
+          </p>
+
+          <p><button class="knopf" type="submit">Anfrage senden</button></p>
+          <p class="leise klein">Keine Weitergabe an Dritte. Kein Newsletter.</p>
+        </form>
+
+        <aside>
+          <h2>Direkt</h2>
+          <ul role="list" class="direkt">
+            <li><a href={`mailto:${SITE.mail}`}>{SITE.mail}</a></li>
+            <li><a href={`tel:${SITE.telefon.replace(/\s/g, '')}`}>{SITE.telefon}</a></li>
+            <li class="leise">{SITE.ort}</li>
+          </ul>
+        </aside>
+      </div>
     </div>
   </section>
 </Base>
+
+<style>
+  .spalten {
+    display: grid; gap: 48px; margin-top: 40px;
+    grid-template-columns: minmax(0, 1.4fr) minmax(0, .6fr);
+  }
+  @media (max-width: 760px) { .spalten { grid-template-columns: 1fr; gap: 32px; } }
+  .honeypot { position: absolute; left: -9999px; }
+  .zeile { display: grid; gap: 16px; grid-template-columns: 1fr 1fr; }
+  @media (max-width: 560px) { .zeile { grid-template-columns: 1fr; } }
+  .feld { margin-bottom: 16px; max-width: none; }
+  label { display: block; font-size: var(--vx-text-sm); font-weight: 600; margin-bottom: 6px; }
+  input, select, textarea {
+    width: 100%; padding: 12px 14px;
+    font: inherit; font-size: var(--vx-text-sm);
+    color: var(--vx-text); background: var(--vx-ground);
+    border: 1.5px solid var(--vx-hairline-firm); border-radius: var(--vx-radius-sm);
+  }
+  input:focus, select:focus, textarea:focus {
+    outline: 2px solid var(--vx-text); outline-offset: 1px; border-color: var(--vx-text);
+  }
+  textarea { resize: vertical; }
+  .direkt { padding: 0; list-style: none; display: grid; gap: 10px; margin-top: 12px; font-size: var(--vx-text-sm); }
+  .direkt a { color: var(--vx-text); }
+  .klein { font-size: 13px; margin-top: 10px; }
+  h2 { font-size: var(--vx-text-base); }
+</style>

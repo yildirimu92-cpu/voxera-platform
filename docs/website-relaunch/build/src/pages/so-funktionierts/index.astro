@@ -1,25 +1,115 @@
 ---
 import Base from '../../layouts/Base.astro';
 import Platzhalter from '../../components/Platzhalter.astro';
+
+/**
+ * Die drei Schritte sind vom Produktivstand übernommen (index.html, Abschnitt
+ * „So funktioniert's") — sie beschreiben den bestehenden Ablauf und brauchen
+ * keine Zulieferung.
+ *
+ * NICHT übernommen: der Zusatz „Bei allen Anbietern" bei Schritt 2. Das ist
+ * eine Absolutaussage, die genau einmal falsch sein muss, um beim Onboarding
+ * zu platzen (Content-Audit C5). Sie steht als Platzhalter, bis die getesteten
+ * Anbieter bestätigt sind.
+ */
+const SCHRITTE = [
+  {
+    nr: '1',
+    titel: 'Schweizer Nummer aktivieren',
+    text: 'Sie erhalten eine Schweizer Nummer mit +41. Wir konfigurieren den Assistenten auf Ihren Betrieb: Begrüssung, Anliegen, Rückfragen, Notfallregeln.',
+    dauer: 'Rund 5 Minuten Ihrer Zeit',
+  },
+  {
+    nr: '2',
+    titel: 'Rufweiterleitung einrichten',
+    text: 'Ein kurzer Code auf Ihrem Telefon genügt. Ihre Kunden wählen weiterhin Ihre gewohnte Nummer — Voxera schaltet sich nur ein, wenn Sie nicht abnehmen. Sie legen fest, wann das gilt: sofort, nach einer Anzahl Klingelzeichen oder bei besetzt.',
+    dauer: 'Rund 5 Minuten, wir begleiten Sie dabei',
+  },
+  {
+    nr: '3',
+    titel: 'Dashboard öffnen – fertig',
+    text: 'Jeder Anruf erscheint strukturiert: Zusammenfassung, erfasste Angaben, Dringlichkeit und Status. Sie sehen auf einen Blick, was warten kann und was nicht.',
+    dauer: 'Ab dem ersten Anruf',
+  },
+];
 ---
 <Base
-  titel="So funktioniert Voxera in drei Schritten"
-  beschreibung="Schweizer Nummer aktivieren, Rufweiterleitung einrichten, Dashboard öffnen. Ohne Technikkenntnisse, ohne neue Hardware."
+  titel="So funktioniert Voxera – in drei Schritten"
+  beschreibung="Schweizer Nummer aktivieren, Rufweiterleitung einrichten, Dashboard öffnen. Ohne Technikkenntnisse und ohne neue Hardware."
 >
   <section class="sektion">
     <div class="wrap">
       <hr class="akzentlinie" />
       <h1>In drei Schritten eingerichtet</h1>
+      <p class="einstieg leise">
+        Keine neue Hardware, kein Anbieterwechsel, keine Technikkenntnisse. Ihre bestehende
+        Nummer bleibt, wie sie ist.
+      </p>
+
+      <ol class="schritte">
+        {SCHRITTE.map((s) => (
+          <li class="karte">
+            <span class="nr" aria-hidden="true">{s.nr}</span>
+            <h2>{s.titel}</h2>
+            <p class="leise">{s.text}</p>
+            <p class="dauer leise">{s.dauer}</p>
+          </li>
+        ))}
+      </ol>
+    </div>
+  </section>
+
+  <section class="sektion sektion--warm">
+    <div class="wrap">
+      <h2>Funktioniert das mit meinem Telefonanbieter?</h2>
       <Platzhalter
         was="Liste der tatsächlich getesteten Telefonanbieter"
         befund="C5"
         wartetAuf="Bestätigung, mit welchen Anbietern die Rufweiterleitung verifiziert ist"
       />
-      <p class="leise" style="margin-top:20px;font-size:var(--vx-text-sm);">
-        Die alte Seite versprach „funktioniert bei allen Anbietern". Eine Absolutaussage, die
-        genau einmal falsch sein muss, um beim Onboarding zu platzen. Hier stehen künftig die
-        Anbieter, die wirklich getestet sind.
+      <p class="leise klein">
+        Die Rufweiterleitung ist eine Standardfunktion Schweizer Anschlüsse. Welche Anbieter
+        wir tatsächlich geprüft haben, steht hier, sobald es bestätigt ist – statt eines
+        pauschalen „funktioniert überall".
+      </p>
+    </div>
+  </section>
+
+  <section class="sektion">
+    <div class="wrap">
+      <h2>Wie lange dauert die Einrichtung insgesamt?</h2>
+      <Platzhalter
+        was="Zusage zur Einrichtungsdauer"
+        befund="C8"
+        wartetAuf="belastbare interne Zusage mit definiertem Support-Prozess"
+      />
+      <p class="aktionen">
+        <a class="knopf" href="/demo/">Erstgespräch buchen</a>
+        <a class="knopf knopf--sekundaer" href="/branchen/">Branchen ansehen</a>
       </p>
     </div>
   </section>
 </Base>
+
+<style>
+  .einstieg { font-size: var(--vx-text-lg); margin-top: var(--vx-gap-head-body); }
+  .schritte {
+    margin-top: 40px; padding: 0; list-style: none;
+    display: grid; gap: 16px;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    counter-reset: schritt;
+  }
+  .schritte h2 { font-size: var(--vx-text-base); margin: 12px 0 8px; }
+  .schritte p { font-size: var(--vx-text-sm); }
+  .nr {
+    display: inline-grid; place-items: center;
+    width: 30px; height: 30px;
+    font-family: var(--vx-font-display); font-weight: 800; font-size: 14px;
+    /* Gold als Flaeche mit Night-Text darauf — nicht als Textfarbe. */
+    background: var(--vx-accent); color: var(--vx-text);
+    border-radius: 999px;
+  }
+  .dauer { margin-top: 12px; font-size: 13px; }
+  .aktionen { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 32px; }
+  .klein { font-size: 13px; margin-top: 16px; }
+</style>

@@ -17,6 +17,7 @@ export default defineConfig({
       // Zwei Gruppen:
       //  1. Transaktionsseiten (kein Marketing).
       //  2. Gesperrte Seiten aus src/config/site.ts (Feld `gesperrt`).
+      //  3. Bestaetigungsseiten, die nur nach einem Formularversand erscheinen.
       //
       // Diese Liste wird von scripts/verify-seo.mjs gegen die tatsaechlich
       // ausgelieferten noindex-Seiten geprueft: laeuft sie auseinander,
@@ -24,7 +25,8 @@ export default defineConfig({
       filter: (page) =>
         !page.includes('/offer-accept') &&
         !page.includes('/contract-signed') &&
-        !page.includes('/branchen/detailhandel-logistik/'),
+        !page.includes('/branchen/detailhandel-logistik/') &&
+        !page.includes('/kontakt/danke/'),
     }),
   ],
   // Kein Framework-Runtime im Auslieferungsstand. JS-Budget: 30 KB gzipped
