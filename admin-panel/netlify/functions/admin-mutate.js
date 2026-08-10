@@ -61,6 +61,25 @@ function sanitizePatch(input) {
   return { ...input };
 }
 
+// Spiegelbild zu customer-manage-addon.js. Beide Aktivierungspfade muessen
+// dieselbe Zeile identisch belegen -- ein Addon, das der Admin schaltet, darf
+// sich nicht anders verhalten als eines, das der Kunde selbst bucht. Die
+// Funktionen liegen doppelt vor, weil Kunden- und Admin-Portal getrennte
+// Netlify-Function-Verzeichnisse ohne gemeinsames _lib sind.
+function addonValidUntil(addonRef) {
+  if (String(addonRef.billing_type || '') !== 'onetime') return null;
+  if (!Number(addonRef.extra_minutes)) return null;
+  const now = new Date();
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0))
+    .toISOString().slice(0, 10);
+}
+
+function addonQuantity(raw) {
+  const n = parseInt(raw, 10);
+  if (!Number.isFinite(n) || n < 1) return 1;
+  return Math.min(n, 100);
+}
+
 function requireCapabilityOrFail(caller, capability) {
   if (hasCapability(caller.role, capability)) return null;
   return response(403, {
@@ -524,14 +543,18 @@ exports.handler = async (event) => {
       if (addonErr) return response(400, { error: addonErr.message });
       if (!addonRef) return response(400, { error: 'Add-on nicht verfügbar' });
 
+      const nowIso = new Date().toISOString();
       const { error } = await sbAdmin.from('customer_addons').upsert({
         customer_id: customerId,
         addon_code: addonCode,
         status: 'active',
         billing_cycle: addonRef.billing_type,
         price_chf: addonRef.price_monthly_chf || addonRef.price_onetime_chf,
-        starts_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+        quantity: addonQuantity(body.quantity),
+        valid_until: addonValidUntil(addonRef),
+        starts_at: nowIso,
+        cancelled_at: null,
+        updated_at: nowIso
       }, { onConflict: 'customer_id,addon_code' });
       if (error) return response(400, { error: error.message });
       return response(200, { ok: true });
