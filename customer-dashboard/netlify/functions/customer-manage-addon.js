@@ -2,19 +2,10 @@
 
 const { createClient } = require('@supabase/supabase-js');
 
-// Einmal-Addons mit Minutenkontingent gelten fuer den laufenden Monat. Das
-// Dashboard summiert `quantity x 50` nur ueber Zeilen, deren `valid_until`
-// noch nicht verstrichen ist (index.html:16869) -- ohne gesetztes Datum liefe
-// ein gekaufter Block nie ab. Monatliche Addons haben kein Ablaufdatum.
-function addonValidUntil(addonRef) {
-  if (String(addonRef.billing_type || '') !== 'onetime') return null;
-  if (!Number(addonRef.extra_minutes)) return null;
-  const now = new Date();
-  // Tag 0 des Folgemonats ist der letzte Tag des laufenden Monats.
-  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0))
-    .toISOString().slice(0, 10);
-}
-
+// Nur noch Eingangspruefung: welches Ablaufdatum ein Addon bekommt und ob
+// eine erneute Buchung addiert oder ueberschreibt, entscheidet
+// activate_customer_addon_v1 in der Datenbank -- dort ist der Vorzustand der
+// Zeile innerhalb derselben atomaren Anweisung sichtbar.
 function addonQuantity(raw) {
   const n = parseInt(raw, 10);
   if (!Number.isFinite(n) || n < 1) return 1;
@@ -44,34 +35,25 @@ exports.handler = async (event) => {
 
   if (action === 'activate') {
     if (!addonCode) return { statusCode: 400, body: JSON.stringify({ error: 'addon_code required' }) };
-    const { data: addonRef } = await supabase
-      .from('voxera_addons')
-      .select('*')
-      .eq('addon_code', addonCode)
-      .eq('coming_soon', false)
-      .maybeSingle();
 
-    if (!addonRef) return { statusCode: 400, body: JSON.stringify({ error: 'Add-on nicht verfügbar' }) };
+    // Verfuegbarkeitspruefung (coming_soon) und Preisuebernahme liegen in der
+    // Funktion. Ein unbekanntes oder noch nicht freigegebenes Add-on meldet
+    // sie als `addon_not_available`.
+    const { data, error } = await supabase.rpc('activate_customer_addon_v1', {
+      p_customer_id: customer.id,
+      p_addon_code: addonCode,
+      p_quantity: addonQuantity(body.quantity)
+    });
 
-    const nowIso = new Date().toISOString();
-    const { error } = await supabase.from('customer_addons').upsert({
-      customer_id: customer.id,
-      addon_code: addonCode,
-      status: 'active',
-      billing_cycle: addonRef.billing_type,
-      price_chf: addonRef.price_monthly_chf || addonRef.price_onetime_chf,
-      quantity: addonQuantity(body.quantity),
-      valid_until: addonValidUntil(addonRef),
-      starts_at: nowIso,
-      // Der Upsert trifft bei einer Reaktivierung dieselbe Zeile. Ohne das
-      // Zuruecksetzen bliebe der Stornozeitpunkt der vorherigen Kuendigung
-      // stehen und wuerde eine aktive Zeile als gekuendigt ausweisen.
-      cancelled_at: null,
-      updated_at: nowIso
-    }, { onConflict: 'customer_id,addon_code' });
-
-    if (error) return { statusCode: 500, body: JSON.stringify({ error: error.message }) };
-    return { statusCode: 200, body: JSON.stringify({ success: true }) };
+    if (error) {
+      if (String(error.message || '').includes('addon_not_available')) {
+        return { statusCode: 400, body: JSON.stringify({ error: 'Add-on nicht verfügbar' }) };
+      }
+      return { statusCode: 500, body: JSON.stringify({ error: error.message }) };
+    }
+    // Die Zeile wandert mit zurueck, damit der Aufrufer die aufaddierte Menge
+    // und die neue Laufzeit anzeigen kann statt nur ein "hat geklappt".
+    return { statusCode: 200, body: JSON.stringify({ success: true, addon: data }) };
   }
 
   if (action === 'cancel') {

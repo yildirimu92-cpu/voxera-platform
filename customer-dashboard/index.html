@@ -16863,12 +16863,17 @@ async function loadCustomerMeta() {
       .eq('customer_id', customerMeta.customerId);
     if (!addonsError && addons) {
       customerMeta.customerAddons = addons;
+      // valid_until ist einschliesslich: der genannte Tag zaehlt noch mit.
+      // Der frühere Vergleich `new Date(a.valid_until) >= new Date()` las das
+      // Datum als Mitternacht UTC und verglich es gegen den aktuellen
+      // Zeitpunkt -- der letzte Gültigkeitstag galt dadurch ab 00:00 Uhr schon
+      // als verstrichen, und ein am Monatsende gekauftes Minutenpaket verlor
+      // seinen letzten Tag. Der reine Datumsvergleich stimmt mit der Regel in
+      // customer_has_addon() überein (valid_until >= current_date).
+      const heuteIso = new Date().toISOString().slice(0, 10);
       const activeAddons = addons.filter(a => {
         if (!a.active) return false;
-        // Check valid_until for time-limited addons (extra minutes)
-        if (a.valid_until) {
-          return new Date(a.valid_until) >= new Date();
-        }
+        if (a.valid_until) return String(a.valid_until).slice(0, 10) >= heuteIso;
         return true;
       });
       const activeSet = new Set(activeAddons.map(a => a.addon_code));
