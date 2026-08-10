@@ -12,14 +12,28 @@ import { KONDITIONEN } from '../../config/preise';
  *  - „72 % sprechen keine Nachricht auf einen Anrufbeantworter" ist raus —
  *    die Zahl hat keine Quelle (C4). Das Argument trägt auch ohne sie.
  *  - Die alte Antwort „Die meisten Anrufer merken keinen Unterschied" ist
- *    ersetzt. Sie widersprach der eigenen Datenschutzerklärung, die in §11
- *    eine Ansage zu Beginn jedes Gesprächs zusichert (EU AI Act Art. 50).
+ *    GESPERRT, nicht ersetzt. Sie widerspricht der Datenschutzerklärung, die
+ *    in §11 eine Ansage zu Beginn jedes Gesprächs zusichert (EU AI Act
+ *    Art. 50) — aber ob diese Ansage tatsächlich ausgeliefert wird, ist
+ *    unbestätigt (C25); in den Prompt-Vorlagen liess sie sich nicht finden,
+ *    und im Fahrplan steht der Anrufer-Hinweis als offener Launch-Blocker.
+ *
+ *    Eine umgedrehte Antwort („Ja, wir sagen es") wäre damit genauso
+ *    ungedeckt wie die alte — nur in die andere Richtung. Bis zur Klärung
+ *    steht hier deshalb ein Platzhalter statt einer Formulierung.
+ *
+ * Gesperrte Fragen werden ausserdem NICHT ins FAQPage-Schema aufgenommen.
+ * Ein Platzhalter, der als acceptedAnswer in den Suchergebnissen landet, wäre
+ * schlimmer als gar kein Schema.
  */
 const FRAGEN = [
   {
     frage: 'Merken meine Kunden, dass eine KI drangeht?',
-    antwort:
-      'Ja — und zwar weil wir es sagen. Jedes Gespräch beginnt mit dem Hinweis, dass eine KI-Assistentin abnimmt und das Gespräch automatisch verarbeitet wird. Das ist Pflicht und richtig so. Der Unterschied liegt nicht darin, das zu verschleiern, sondern darin, dass das Gespräch danach natürlich verläuft: Lara stellt Rückfragen, erkennt das Anliegen und hält fest, worauf es ankommt.',
+    gesperrt: {
+      befund: 'C25',
+      wartetAuf:
+        'Bestätigung, dass der Hinweis zu Beginn des Gesprächs tatsächlich ausgeliefert wird (Datenschutzerklärung §11, EU AI Act Art. 50)',
+    },
   },
   {
     frage: 'Funktioniert Voxera mit meiner bestehenden Nummer?',
@@ -44,10 +58,12 @@ const FRAGEN = [
   },
 ];
 
+const beantwortet = FRAGEN.filter((f) => !('gesperrt' in f));
+
 const schema = {
   '@context': 'https://schema.org',
   '@type': 'FAQPage',
-  mainEntity: FRAGEN.map((f) => ({
+  mainEntity: beantwortet.map((f) => ({
     '@type': 'Question',
     name: f.frage,
     acceptedAnswer: { '@type': 'Answer', text: f.antwort },
@@ -69,8 +85,18 @@ const schema = {
           <div class="eintrag">
             <dt>{f.frage}</dt>
             <dd>
-              {f.antwort}
-              {f.link && <><br /><a href={f.link.href}>{f.link.text}</a></>}
+              {'gesperrt' in f ? (
+                <Platzhalter
+                  was="Antwort zur KI-Kennzeichnung am Gesprächsanfang"
+                  befund={f.gesperrt.befund}
+                  wartetAuf={f.gesperrt.wartetAuf}
+                />
+              ) : (
+                <>
+                  {f.antwort}
+                  {f.link && <><br /><a href={f.link.href}>{f.link.text}</a></>}
+                </>
+              )}
             </dd>
           </div>
         ))}

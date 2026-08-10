@@ -22,6 +22,7 @@ const JS_BUDGET_KB = 30;
 
 const fehler = [];
 const warnungen = [];
+const offeneStellen = [];
 
 async function htmlDateien(dir) {
   const out = [];
@@ -89,6 +90,19 @@ for (const datei of dateien) {
   if (/fonts\.(googleapis|gstatic)\.com/.test(s)) {
     fehler.push(`${seite}: laedt Schriften vom Google-CDN — Schriften werden selbst ausgeliefert`);
   }
+
+  // Ein Platzhalter darf nie in strukturierten Daten landen. Was dort steht,
+  // kann direkt in den Suchergebnissen erscheinen — eine unbestaetigte Aussage
+  // als acceptedAnswer waere schlimmer als gar kein Schema.
+  for (const m of s.matchAll(/<script[^>]+application\/ld\+json[^>]*>([\s\S]*?)<\/script>/gi)) {
+    if (/Platzhalter|Wartet auf/i.test(m[1])) {
+      fehler.push(`${seite}: Platzhalter-Text steht in JSON-LD — gesperrte Inhalte gehoeren nicht ins Schema`);
+    }
+  }
+
+  // Sichtbare Platzhalter zaehlen: vor dem Go-Live muss diese Zahl null sein.
+  const platzhalter = einmal(s, /data-platzhalter/g);
+  if (platzhalter > 0) offeneStellen.push(`${seite}: ${platzhalter}`);
 }
 
 // noindex und Sitemap muessen zusammenpassen. Eine Seite, die man Google per
@@ -133,5 +147,10 @@ if (jsKb > JS_BUDGET_KB * 3) {
 for (const w of warnungen) console.warn(`WARNUNG  ${w}`);
 for (const f of fehler) console.error(`FEHLER   ${f}`);
 
-console.log(`\n${dateien.length} Seiten geprueft — ${fehler.length} Fehler, ${warnungen.length} Warnungen.`);
+if (offeneStellen.length) {
+  console.log('\nOffene Stellen (Platzhalter je Seite) — vor dem Go-Live muss das leer sein:');
+  for (const o of offeneStellen) console.log(`  ${o}`);
+}
+
+console.log(`\n${dateien.length} Seiten geprueft — ${fehler.length} Fehler, ${warnungen.length} Warnungen, ${offeneStellen.length} Seiten mit Platzhaltern.`);
 if (fehler.length) process.exit(1);
