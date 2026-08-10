@@ -38,7 +38,7 @@
 //
 // Wirkt bei jedem Kunden, dessen Freitext Regelzeilen traegt -- also bei allen
 // mit Vorlagentext. Der Bump ist damit nicht nur formal noetig.
-const PROMPT_BUILDER_VERSION = '2.7';
+const PROMPT_BUILDER_VERSION = '2.8';
 const PROFILE_MARKER = 'PROMPT_V2';
 const WIZARD_MARKER = 'WIZARD';
 
@@ -324,26 +324,137 @@ function stripMasterMeta(value) {
   return (separator ? source.slice(separator.index + separator[0].length) : source).trim();
 }
 
+// Die Offenlegung am Gespraechsanfang.
+//
+// Bis 10.08.2026 legte die Begruessung nur die AUFZEICHNUNG offen ("Das
+// Gespraech wird zur Bearbeitung aufgezeichnet") und stellte die Assistentin
+// als "die Assistentin von X" vor -- fuer Anrufende nicht von einem Menschen
+// zu unterscheiden. Abschnitt 11 der veroeffentlichten Datenschutzerklaerung
+// sagt dagegen seit Version 2.0 vom 01.05.2026 zu, dass jeder Anrufer zu
+// Beginn erfaehrt, dass er nicht mit einem Menschen spricht. Zugesagt und
+// ausgeliefert lagen auseinander.
+//
+// Drei Bestandteile, in die Begruessung eingewoben statt als Warnhinweis
+// davorgesetzt:
+//   1. es ist ein digitaler Assistent, kein Mensch   (Art. 50 EU AI Act)
+//   2. das Gespraech wird aufgezeichnet
+//   3. Ausweg: auf Wunsch an einen Menschen
+//
+// Art. 50 verlangt klar erkennbar, nicht ausfuehrlich. Bestandteil 1 und 2
+// stehen deshalb in EINEM Satz mit der Vorstellung -- wer zuhoert, erfaehrt
+// beides, ohne dass es nach vorgelesenem Kleingedruckten klingt.
+//
+// Zur Wortwahl: "digitale Assistentin" statt "KI". Das ist eine bewusste
+// Entscheidung des Betreibers zugunsten der Natuerlichkeit und steht unter
+// juristischem Vorbehalt -- "digital" ist schwaecher als "KI", weil es auch
+// ein Sprachmenue meinen koennte. Wird die Formulierung geprueft und fuer zu
+// schwach befunden, ist `rolle` die einzige Stelle, die sich aendert.
+//
+// NICHT enthalten ist die Einwilligung durch Fortfuehren, die Abschnitt 11
+// ebenfalls nennt. Solange sie nicht gesprochen wird, muss Abschnitt 11
+// entsprechend angepasst werden -- sonst sagt die Datenschutzerklaerung
+// weiterhin etwas zu, das im Gespraech nicht vorkommt.
+// Kein Hinweis auf Weiterleitung an einen Menschen. Er stand hier bis zum
+// 10.08.2026 und ist entfernt, weil es die Faehigkeit nicht gibt: dem Agenten
+// wird als einziges Werkzeug das Kalender-Tool bereitgestellt (siehe
+// elevenlabs-sync.js, tool_ids), eine Transfer-Funktion existiert nirgends im
+// Repo. Ein gesprochenes "sagen Sie es mir jederzeit" waere ein Versprechen
+// ohne technische Grundlage gewesen -- dieselbe Fehlerklasse wie die
+// Offenlegung, die dieser Branch behebt, nur andersherum.
+//
+// Der Prompt selbst enthaelt diesen Widerspruch weiterhin an zwei Stellen
+// (UNKNOWN_HANDLING.human und der Block WEITERLEITUNGEN). Das ist ein eigener
+// Befund und gehoert nicht in diesen Branch.
+const OFFENLEGUNG = {
+  de: {
+    rolle: 'die digitale Assistentin',
+    aufzeichnung: 'das Gespräch wird aufgezeichnet',
+    frage: 'Wie kann ich Ihnen helfen?',
+    eigenstaendig: 'Sie sprechen mit einer digitalen Assistentin, das Gespräch wird aufgezeichnet.'
+  },
+  en: {
+    rolle: 'the digital assistant',
+    aufzeichnung: 'this call is recorded',
+    frage: 'How may I help you?',
+    eigenstaendig: 'You are speaking with a digital assistant, and this call is recorded.'
+  },
+  fr: {
+    rolle: "l'assistante numérique",
+    aufzeichnung: 'cet appel est enregistré',
+    frage: 'Comment puis-je vous aider?',
+    eigenstaendig: "Vous parlez avec une assistante numérique et cet appel est enregistré."
+  },
+  it: {
+    rolle: "l'assistente digitale",
+    aufzeichnung: 'questa chiamata viene registrata',
+    frage: 'Come posso aiutarla?',
+    eigenstaendig: "Sta parlando con un'assistente digitale e questa chiamata viene registrata."
+  }
+};
+
+// `ai_language` kennt auch Mischwerte wie de_en oder de_en_fr. Fuer die
+// Offenlegung zaehlt die Sprache, in der begruesst wird -- alles, was keine
+// eigene Fassung hat, laeuft auf Deutsch. Ein fehlender Schluessel darf hier
+// nie zu einer leeren Offenlegung fuehren.
+function offenlegungFuer(language) {
+  return OFFENLEGUNG[language] || OFFENLEGUNG.de;
+}
+
+// Setzt die Offenlegung an eine Begruessung, die von aussen kommt.
+//
+// Gilt fuer die kundeneigene `ai_greeting`: die war bisher ein vollstaendiger
+// Ersatz der erzeugten Begruessung und konnte die Offenlegung damit still
+// aushebeln -- ohne Pruefung, ohne Hinweis, ohne dass es jemandem auffiel.
+// Sie ersetzt jetzt nur noch den Begruessungsteil; die Offenlegung kommt in
+// jedem Fall dazu.
+//
+// Hier laesst sie sich nicht einweben -- der fremde Satz ist unbekannt --,
+// deshalb die eigenstaendige Fassung. Sie steht VORNE, nicht hinten: der
+// Agent laeuft mit `disable_first_message_interruptions: false`
+// (AGENT_TEMPLATE in elevenlabs-provision-agent.js), Anrufende koennen die
+// Begruessung also unterbrechen. Kundeneigene Begruessungen enden fast immer
+// auf eine Frage; wer darauf antwortet, spricht alles Nachfolgende zu. Eine
+// Offenlegung hinter der Frage waere im String vorhanden und im Gespraech nie
+// angekommen -- der Fehler haette wie behoben ausgesehen.
+//
+// Erkannt wird zur Vermeidung von Doppelungen nur der WOERTLICHE Text, keine
+// freie Umschreibung. Eine Heuristik, die "klingt irgendwie nach Assistent"
+// akzeptiert, wuerde genau den Fall durchlassen, den dieser Code verhindern
+// soll. Der Exakt-Vergleich deckt den realistischen Fall ab, dass jemand eine
+// bereits zusammengesetzte Begruessung zurueck ins Feld kopiert.
+function mitOffenlegung(greeting, language) {
+  const basis = text(greeting);
+  if (!basis) return '';
+  const { eigenstaendig } = offenlegungFuer(language);
+  if (basis.includes(eigenstaendig)) return basis;
+  return `${eigenstaendig} ${basis}`.replace(/\s+/g, ' ').trim();
+}
+
 function buildGreeting(name, type, personName, firmName, language) {
   const spokenName = type === 'company' ? firmName : (personName || firmName);
+  const { rolle, aufzeichnung, frage } = offenlegungFuer(language);
+  // Vorstellung, Rolle und Aufzeichnung in einem Satz, dann die Frage. Die
+  // Offenlegung steht damit vor der Schlussfrage -- sonst spricht sie zu, wer
+  // auf die Frage antwortet.
+  const schluss = frage;
   if (language === 'fr') {
-    if (type === 'company') return `Bonjour, ici ${name} de ${spokenName}. Cet appel est enregistré. Comment puis-je vous aider?`;
-    if (type === 'consultant') return `Bonjour, ici ${name}, l'assistante de ${spokenName} chez ${firmName}. Cet appel est enregistré. Comment puis-je vous aider?`;
-    return `Bonjour, ici ${name}, l'assistante de ${spokenName}. Cet appel est enregistré. Comment puis-je vous aider?`;
+    if (type === 'company') return `Bonjour, ici ${name}, ${rolle} de ${spokenName}, ${aufzeichnung}. ${schluss}`;
+    if (type === 'consultant') return `Bonjour, ici ${name}, ${rolle} de ${spokenName} chez ${firmName}, ${aufzeichnung}. ${schluss}`;
+    return `Bonjour, ici ${name}, ${rolle} de ${spokenName}, ${aufzeichnung}. ${schluss}`;
   }
   if (language === 'it') {
-    if (type === 'company') return `Buongiorno, sono ${name} di ${spokenName}. La chiamata viene registrata. Come posso aiutarla?`;
-    if (type === 'consultant') return `Buongiorno, sono ${name}, l'assistente di ${spokenName} presso ${firmName}. La chiamata viene registrata. Come posso aiutarla?`;
-    return `Buongiorno, sono ${name}, l'assistente di ${spokenName}. La chiamata viene registrata. Come posso aiutarla?`;
+    if (type === 'company') return `Buongiorno, sono ${name}, ${rolle} di ${spokenName}, ${aufzeichnung}. ${schluss}`;
+    if (type === 'consultant') return `Buongiorno, sono ${name}, ${rolle} di ${spokenName} presso ${firmName}, ${aufzeichnung}. ${schluss}`;
+    return `Buongiorno, sono ${name}, ${rolle} di ${spokenName}, ${aufzeichnung}. ${schluss}`;
   }
   if (language === 'en') {
-    if (type === 'company') return `Hello, this is ${name} from ${spokenName}. This call is being recorded. How may I help you?`;
-    if (type === 'consultant') return `Hello, this is ${name}, assistant to ${spokenName} at ${firmName}. This call is being recorded. How may I help you?`;
-    return `Hello, this is ${name}, assistant to ${spokenName}. This call is being recorded. How may I help you?`;
+    if (type === 'company') return `Hello, this is ${name}, ${rolle} of ${spokenName}, and ${aufzeichnung}. ${schluss}`;
+    if (type === 'consultant') return `Hello, this is ${name}, ${rolle} of ${spokenName} at ${firmName}, and ${aufzeichnung}. ${schluss}`;
+    return `Hello, this is ${name}, ${rolle} of ${spokenName}, and ${aufzeichnung}. ${schluss}`;
   }
-  if (type === 'company') return `Grüezi, hier ist ${name} von ${spokenName}. Das Gespräch wird zur Bearbeitung aufgezeichnet. Wie kann ich Ihnen helfen?`;
-  if (type === 'consultant') return `Grüezi, hier ist ${name}, die Assistentin von ${spokenName} bei ${firmName}. Das Gespräch wird zur Bearbeitung aufgezeichnet. Wie kann ich Ihnen helfen?`;
-  return `Grüezi, hier ist ${name}, die Assistentin von ${spokenName}. Das Gespräch wird zur Bearbeitung aufgezeichnet. Wie kann ich Ihnen helfen?`;
+  if (type === 'company') return `Grüezi, hier spricht ${name}, ${rolle} von ${spokenName}, ${aufzeichnung}. ${schluss}`;
+  if (type === 'consultant') return `Grüezi, hier spricht ${name}, ${rolle} von ${spokenName} bei ${firmName}, ${aufzeichnung}. ${schluss}`;
+  return `Grüezi, hier spricht ${name}, ${rolle} von ${spokenName}, ${aufzeichnung}. ${schluss}`;
 }
 
 function formatOperationalUpdates(updates) {
@@ -646,7 +757,12 @@ function buildPromptV2({ customer = {}, masterPrompt = '', industryPrompt = '', 
   const firmName = text(customer.customer_legal_name || customer.customer_name || customer.name);
   const displayName = text(customer.customer_display_name || customer.customer_name || customer.name || firmName);
   const isCompany = customerType === 'company';
-  const firstMessage = text(customer.ai_greeting) || buildGreeting(assistantName, customerType, personName, firmName, language);
+  // Eine kundeneigene Begruessung ersetzt den Begruessungsteil, nicht die
+  // Offenlegung -- siehe mitOffenlegung(). Vorher war `ai_greeting` ein
+  // vollstaendiger Ersatz und hebelte die Offenlegung ungeprueft aus.
+  const firstMessage = text(customer.ai_greeting)
+    ? mitOffenlegung(customer.ai_greeting, language)
+    : buildGreeting(assistantName, customerType, personName, firmName, language);
 
   const toneMap = {
     formal: 'konservativ-formell. Formuliere höflich, ruhig und ohne Umgangssprache.',
@@ -877,6 +993,9 @@ module.exports = {
   parsePromptProfile,
   buildPromptV2,
   buildGreeting,
+  OFFENLEGUNG,
+  offenlegungFuer,
+  mitOffenlegung,
   qualityReport,
   formatOperationalUpdates,
   neutralizePlaceholders

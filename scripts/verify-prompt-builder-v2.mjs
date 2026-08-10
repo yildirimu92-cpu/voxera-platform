@@ -817,6 +817,108 @@ check('wizard chrome is compact, sticky and free of duplicate controls', () => {
 check('admin preview requests the productive server prompt', () => assert.match(source.runtime, /callAdminFunction\('prompt-preview'/));
 check('runtime is loaded by admin bootstrap', () => assert.match(source.loader, /admin-runtime-prompt-builder-v2\.js\?v=20260801-4/));
 
+// --- Offenlegung am Gespraechsanfang ----------------------------------------
+//
+// Abschnitt 11 der Datenschutzerklaerung sagt zu, dass jeder Anrufer zu Beginn
+// erfaehrt, dass er nicht mit einem Menschen spricht. Bis 10.08.2026 gab die
+// Begruessung nur die Aufzeichnung preis -- und es fiel niemandem auf, weil es
+// keine Pruefung gab. Diese hier ist die Pruefung.
+const { OFFENLEGUNG, offenlegungFuer, mitOffenlegung, buildGreeting } =
+  require('../admin-panel/netlify/functions/_lib/prompt-builder-v2.js');
+
+const SPRACHEN = ['de', 'en', 'fr', 'it'];
+const TYPEN = ['company', 'consultant', 'private'];
+
+// Geprueft wird die Bedeutung ueber Markierungen, nicht der ganze Satz --
+// sonst vergleicht der Test nur seine eigene Kopie des Textes mit sich selbst.
+//
+// Die Einwilligung durch Fortfuehren wird bewusst NICHT gesprochen und
+// deshalb hier auch nicht geprueft; sie ist in Abschnitt 11 anzupassen.
+//
+// Ebenso fehlt der Hinweis auf Weiterleitung an einen Menschen: die
+// Faehigkeit gibt es nicht (dem Agenten wird nur das Kalender-Tool
+// bereitgestellt). Eine Pruefung darauf wuerde ein Versprechen festschreiben,
+// das das Produkt nicht einloesen kann.
+const BESTANDTEILE = {
+  de: { rolle:/digitale[nr]? Assistentin/i, aufzeichnung:/Gespräch wird aufgezeichnet/i },
+  en: { rolle:/digital assistant/i, aufzeichnung:/call is recorded/i },
+  fr: { rolle:/assistante numérique/i, aufzeichnung:/appel est enregistré/i },
+  it: { rolle:/assistente digitale/i, aufzeichnung:/chiamata viene registrata/i }
+};
+
+for (const sprache of SPRACHEN) {
+  for (const typ of TYPEN) {
+    const satz = buildGreeting('Lara', typ, 'Anna Muster', 'Muster AG', sprache);
+    for (const [teil, muster] of Object.entries(BESTANDTEILE[sprache])) {
+      check(`greeting ${sprache}/${typ} discloses: ${teil}`, () => assert.match(satz, muster));
+    }
+  }
+}
+
+// Mischsprachen wie de_en haben keine eigene Fassung. Sie duerfen nicht ohne
+// Offenlegung durchfallen, sondern muessen auf Deutsch zurueckfallen.
+for (const sprache of ['de_en', 'de_en_fr', '', 'xx']) {
+  check(`language "${sprache}" falls back to a disclosure`, () => {
+    assert.equal(offenlegungFuer(sprache), OFFENLEGUNG.de);
+    assert.match(buildGreeting('Lara', 'company', '', 'Muster AG', sprache), BESTANDTEILE.de.rolle);
+  });
+}
+
+// Der Kern: eine kundeneigene Begruessung darf die Offenlegung nicht
+// aushebeln. Genau das war vorher moeglich.
+check('custom greeting cannot bypass the disclosure', () => {
+  const eigen = 'Hoi, da isch d Muster AG. Was chani für Sie tue?';
+  const ergebnis = mitOffenlegung(eigen, 'de');
+  assert.ok(ergebnis.endsWith(eigen), 'die eigene Begruessung bleibt wortgleich erhalten');
+  for (const muster of Object.values(BESTANDTEILE.de)) assert.match(ergebnis, muster);
+});
+
+// Anrufende koennen die Begruessung unterbrechen. Steht die Offenlegung hinter
+// der Schlussfrage einer eigenen Begruessung, wird sie regelmaessig
+// zugesprochen -- im String vorhanden, im Gespraech nie angekommen.
+check('disclosure precedes a custom greeting, never trails its closing question', () => {
+  const eigen = 'Hoi, da isch d Muster AG. Was chani für Sie tue?';
+  const ergebnis = mitOffenlegung(eigen, 'de');
+  assert.ok(
+    ergebnis.indexOf('digitalen Assistentin') < ergebnis.indexOf('Was chani für Sie tue?'),
+    'die Offenlegung muss vor der Schlussfrage kommen'
+  );
+});
+
+// Bei der erzeugten Begruessung dieselbe Anforderung, andere Mechanik.
+check('generated greeting puts the disclosure before its closing question', () => {
+  const satz = buildGreeting('Lara', 'company', '', 'Muster AG', 'de');
+  assert.ok(satz.indexOf('digitale Assistentin') < satz.indexOf('Wie kann ich Ihnen helfen?'));
+});
+
+check('disclosure is not duplicated when already present', () => {
+  const einmal = mitOffenlegung('Hoi zäme.', 'de');
+  assert.equal(mitOffenlegung(einmal, 'de'), einmal);
+});
+
+check('empty custom greeting yields nothing to send', () => {
+  assert.equal(mitOffenlegung('', 'de'), '');
+  assert.equal(mitOffenlegung('   ', 'de'), '');
+});
+
+// Ausgeliefert wird firstMessage, nicht buildGreeting. Die Pruefung muss an
+// dem haengen, was tatsaechlich an ElevenLabs geht -- sonst deckt sie den Weg
+// ueber ai_greeting nicht ab.
+check('compiled firstMessage carries the disclosure', () => {
+  for (const muster of Object.values(BESTANDTEILE.de)) assert.match(result.firstMessage, muster);
+});
+
+check('compiled firstMessage carries the disclosure despite a custom greeting', () => {
+  const mitEigener = buildPromptV2({
+    customer: { ...customer, ai_greeting: 'Grüezi, Muster AG.' },
+    masterPrompt: 'Dokumentation\n---\n# IDENTITÄT\nDu bist {{ASSISTANT_NAME}}.',
+    industryPrompt: '## BRANCHE\nTest.'
+  });
+  assert.ok(mitEigener.firstMessage.endsWith('Grüezi, Muster AG.'), 'die eigene Begruessung bleibt wortgleich erhalten');
+  assert.ok(mitEigener.firstMessage.startsWith('Sie sprechen mit einer digitalen Assistentin'), 'die Offenlegung kommt zuerst');
+  for (const muster of Object.values(BESTANDTEILE.de)) assert.match(mitEigener.firstMessage, muster);
+});
+
 if (failed) {
   console.error(`Prompt Builder V2 verification failed: ${failed}`);
   process.exit(1);
