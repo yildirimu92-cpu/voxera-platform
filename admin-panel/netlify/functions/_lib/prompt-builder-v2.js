@@ -38,7 +38,7 @@
 //
 // Wirkt bei jedem Kunden, dessen Freitext Regelzeilen traegt -- also bei allen
 // mit Vorlagentext. Der Bump ist damit nicht nur formal noetig.
-const PROMPT_BUILDER_VERSION = '2.7';
+const PROMPT_BUILDER_VERSION = '2.8';
 const PROFILE_MARKER = 'PROMPT_V2';
 const WIZARD_MARKER = 'WIZARD';
 
@@ -324,26 +324,99 @@ function stripMasterMeta(value) {
   return (separator ? source.slice(separator.index + separator[0].length) : source).trim();
 }
 
+// Die KI-Offenlegung am Gespraechsanfang.
+//
+// Bis 10.08.2026 legte die Begruessung nur die AUFZEICHNUNG offen ("Das
+// Gespraech wird zur Bearbeitung aufgezeichnet") und stellte die Assistentin
+// als "die Assistentin von X" vor -- fuer Anrufende nicht von einem Menschen
+// zu unterscheiden. Abschnitt 11 der veroeffentlichten Datenschutzerklaerung
+// sagt dagegen seit Version 2.0 vom 01.05.2026 zu, dass jeder Anrufer zu
+// Beginn erfaehrt, dass er mit einer KI spricht, dass er durch Fortfuehren
+// einwilligt und dass er eine Weiterleitung an einen Menschen verlangen kann.
+// Zugesagt und ausgeliefert lagen also auseinander.
+//
+// Vier Bestandteile, alle vier aus der Zusage abgeleitet und keiner optional:
+//   1. es ist eine KI, kein Mensch          (Art. 50 EU AI Act)
+//   2. automatische Verarbeitung inkl. Aufzeichnung
+//   3. Einwilligung durch Fortfuehren
+//   4. Ausweg: aufhoeren oder an einen Menschen weiterleiten lassen
+//
+// Der Text ist bewusst laenger als die alte Ansage. Kuerzen hiesse, einen der
+// vier Bestandteile zu streichen -- und genau dieses Streichen hat die Luecke
+// erzeugt, die hier geschlossen wird.
+const KI_OFFENLEGUNG = {
+  de: 'Ich bin eine KI-Assistentin, kein Mensch. Dieses Gespräch wird zu Servicezwecken automatisch verarbeitet und aufgezeichnet; mit dem Fortführen erklären Sie sich damit einverstanden. Wenn Sie das nicht möchten, beenden Sie das Gespräch bitte oder sagen Sie mir, dass Sie an einen Menschen weitergeleitet werden möchten.',
+  en: 'I am an AI assistant, not a human. This call is processed and recorded automatically for service purposes; by continuing, you consent to this. If you would rather not, please end the call or tell me that you would like to be transferred to a person.',
+  fr: "Je suis une assistante IA, pas une personne. Cet appel est traité et enregistré automatiquement à des fins de service; en poursuivant, vous y consentez. Si vous ne le souhaitez pas, veuillez mettre fin à l'appel ou me dire que vous souhaitez être transféré à une personne.",
+  it: "Sono un'assistente IA, non una persona. Questa chiamata viene elaborata e registrata automaticamente per finalità di servizio; proseguendo, lei acconsente. Se non lo desidera, la preghiamo di terminare la chiamata o di dirmi che desidera essere trasferito a una persona."
+};
+
+// `ai_language` kennt auch Mischwerte wie de_en oder de_en_fr. Fuer die
+// Offenlegung zaehlt die Sprache, in der begruesst wird -- alles, was keine
+// eigene Fassung hat, laeuft auf Deutsch. Ein fehlender Schluessel darf hier
+// nie zu einer leeren Offenlegung fuehren.
+function offenlegungFuer(language) {
+  return KI_OFFENLEGUNG[language] || KI_OFFENLEGUNG.de;
+}
+
+// Setzt die Offenlegung an eine Begruessung, die von aussen kommt.
+//
+// Gilt fuer die kundeneigene `ai_greeting`: die war bisher ein vollstaendiger
+// Ersatz der erzeugten Begruessung und konnte die Offenlegung damit still
+// aushebeln -- ohne Pruefung, ohne Hinweis, ohne dass es jemandem auffiel.
+// Sie ersetzt jetzt nur noch den Begruessungsteil; die Offenlegung kommt in
+// jedem Fall dazu.
+//
+// Erkannt wird ausschliesslich der WOERTLICHE Offenlegungstext, keine freie
+// Umschreibung. Das ist Absicht: eine Heuristik, die "irgendwie nach KI
+// klingt" akzeptiert, wuerde genau den Fall durchlassen, den dieser Code
+// verhindern soll. Der Exakt-Vergleich deckt den realistischen Fall ab, dass
+// jemand eine bereits zusammengesetzte Begruessung zurueck ins Feld kopiert.
+//
+// Die Offenlegung steht VORNE, nicht hinten. Der Agent laeuft mit
+// `disable_first_message_interruptions: false` (AGENT_TEMPLATE in
+// elevenlabs-provision-agent.js) -- Anrufende koennen die Begruessung also
+// jederzeit unterbrechen. Kundeneigene Begruessungen enden fast immer auf
+// eine Frage ("Was kann ich fuer Sie tun?"); wer darauf antwortet, spricht
+// alles Nachfolgende zu. Eine Offenlegung hinter der Frage waere im String
+// vorhanden und im Gespraech trotzdem nie angekommen -- der Fehler haette
+// wie behoben ausgesehen.
+//
+// Bei der erzeugten Begruessung stellt sich die Frage nicht: dort steht die
+// Offenlegung ohnehin vor der Schlussfrage.
+function mitOffenlegung(greeting, language) {
+  const basis = text(greeting);
+  if (!basis) return '';
+  const offenlegung = offenlegungFuer(language);
+  if (basis.includes(offenlegung)) return basis;
+  return `${offenlegung} ${basis}`.replace(/\s+/g, ' ').trim();
+}
+
 function buildGreeting(name, type, personName, firmName, language) {
   const spokenName = type === 'company' ? firmName : (personName || firmName);
+  const offenlegung = offenlegungFuer(language);
   if (language === 'fr') {
-    if (type === 'company') return `Bonjour, ici ${name} de ${spokenName}. Cet appel est enregistré. Comment puis-je vous aider?`;
-    if (type === 'consultant') return `Bonjour, ici ${name}, l'assistante de ${spokenName} chez ${firmName}. Cet appel est enregistré. Comment puis-je vous aider?`;
-    return `Bonjour, ici ${name}, l'assistante de ${spokenName}. Cet appel est enregistré. Comment puis-je vous aider?`;
+    const frage = 'Comment puis-je vous aider?';
+    if (type === 'company') return `Bonjour, ici ${name} de ${spokenName}. ${offenlegung} ${frage}`;
+    if (type === 'consultant') return `Bonjour, ici ${name}, l'assistante de ${spokenName} chez ${firmName}. ${offenlegung} ${frage}`;
+    return `Bonjour, ici ${name}, l'assistante de ${spokenName}. ${offenlegung} ${frage}`;
   }
   if (language === 'it') {
-    if (type === 'company') return `Buongiorno, sono ${name} di ${spokenName}. La chiamata viene registrata. Come posso aiutarla?`;
-    if (type === 'consultant') return `Buongiorno, sono ${name}, l'assistente di ${spokenName} presso ${firmName}. La chiamata viene registrata. Come posso aiutarla?`;
-    return `Buongiorno, sono ${name}, l'assistente di ${spokenName}. La chiamata viene registrata. Come posso aiutarla?`;
+    const frage = 'Come posso aiutarla?';
+    if (type === 'company') return `Buongiorno, sono ${name} di ${spokenName}. ${offenlegung} ${frage}`;
+    if (type === 'consultant') return `Buongiorno, sono ${name}, l'assistente di ${spokenName} presso ${firmName}. ${offenlegung} ${frage}`;
+    return `Buongiorno, sono ${name}, l'assistente di ${spokenName}. ${offenlegung} ${frage}`;
   }
   if (language === 'en') {
-    if (type === 'company') return `Hello, this is ${name} from ${spokenName}. This call is being recorded. How may I help you?`;
-    if (type === 'consultant') return `Hello, this is ${name}, assistant to ${spokenName} at ${firmName}. This call is being recorded. How may I help you?`;
-    return `Hello, this is ${name}, assistant to ${spokenName}. This call is being recorded. How may I help you?`;
+    const frage = 'How may I help you?';
+    if (type === 'company') return `Hello, this is ${name} from ${spokenName}. ${offenlegung} ${frage}`;
+    if (type === 'consultant') return `Hello, this is ${name}, assistant to ${spokenName} at ${firmName}. ${offenlegung} ${frage}`;
+    return `Hello, this is ${name}, assistant to ${spokenName}. ${offenlegung} ${frage}`;
   }
-  if (type === 'company') return `Grüezi, hier ist ${name} von ${spokenName}. Das Gespräch wird zur Bearbeitung aufgezeichnet. Wie kann ich Ihnen helfen?`;
-  if (type === 'consultant') return `Grüezi, hier ist ${name}, die Assistentin von ${spokenName} bei ${firmName}. Das Gespräch wird zur Bearbeitung aufgezeichnet. Wie kann ich Ihnen helfen?`;
-  return `Grüezi, hier ist ${name}, die Assistentin von ${spokenName}. Das Gespräch wird zur Bearbeitung aufgezeichnet. Wie kann ich Ihnen helfen?`;
+  const frage = 'Wie kann ich Ihnen helfen?';
+  if (type === 'company') return `Grüezi, hier ist ${name} von ${spokenName}. ${offenlegung} ${frage}`;
+  if (type === 'consultant') return `Grüezi, hier ist ${name}, die Assistentin von ${spokenName} bei ${firmName}. ${offenlegung} ${frage}`;
+  return `Grüezi, hier ist ${name}, die Assistentin von ${spokenName}. ${offenlegung} ${frage}`;
 }
 
 function formatOperationalUpdates(updates) {
@@ -646,7 +719,12 @@ function buildPromptV2({ customer = {}, masterPrompt = '', industryPrompt = '', 
   const firmName = text(customer.customer_legal_name || customer.customer_name || customer.name);
   const displayName = text(customer.customer_display_name || customer.customer_name || customer.name || firmName);
   const isCompany = customerType === 'company';
-  const firstMessage = text(customer.ai_greeting) || buildGreeting(assistantName, customerType, personName, firmName, language);
+  // Eine kundeneigene Begruessung ersetzt den Begruessungsteil, nicht die
+  // Offenlegung -- siehe mitOffenlegung(). Vorher war `ai_greeting` ein
+  // vollstaendiger Ersatz und hebelte die Offenlegung ungeprueft aus.
+  const firstMessage = text(customer.ai_greeting)
+    ? mitOffenlegung(customer.ai_greeting, language)
+    : buildGreeting(assistantName, customerType, personName, firmName, language);
 
   const toneMap = {
     formal: 'konservativ-formell. Formuliere höflich, ruhig und ohne Umgangssprache.',
@@ -877,6 +955,9 @@ module.exports = {
   parsePromptProfile,
   buildPromptV2,
   buildGreeting,
+  KI_OFFENLEGUNG,
+  offenlegungFuer,
+  mitOffenlegung,
   qualityReport,
   formatOperationalUpdates,
   neutralizePlaceholders
