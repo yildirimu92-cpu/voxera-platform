@@ -55,6 +55,26 @@
   --vx-admin-danger-tint:   #FFF4F4;
   --vx-admin-danger-line:   #FFCACA;
 
+  /* ── Tinte auf getönten und dunklen Flächen (Welle 2 Teil 3) ───────────
+   *
+   * Eine Farbe ist nicht für sich lesbar, sondern nur gegen ihren Grund. Die
+   * Status-Abzeichen des Portals stehen auf getönten Flächen, die Karten des
+   * Kunden-Arbeitsplatzes auf Dunkelblau — dieselbe Tinte kann dort nicht
+   * beides erfüllen. Deshalb zwei Sätze mit gemessenen Verhältnissen statt
+   * eines Kompromisses, der auf beiden Gründen knapp verfehlt.
+   *
+   * Gemessen mit Abschnitt 3 von scripts/browser-check-admin-portal.mjs. Die
+   * Messung legt halbtransparente Flächen übereinander; ohne das wurden die
+   * Abzeichen gegen das Dunkelblau dahinter statt gegen ihre eigene Mischung
+   * verglichen, und eine Stelle mit 2.94:1 blieb unentdeckt. */
+  --vx-admin-ink-slate:     #556076;   /* 5.6:1 auf #EEF2F7, 6.0:1 auf #F7F8FC */
+  --vx-admin-ink-green:     #047857;   /* 5.2:1 auf #F7F8FC */
+  --vx-admin-ink-red:       #C62828;   /* 5.2:1 auf #FFF4F4 */
+
+  --vx-admin-on-navy-slate: #A8B6C8;   /* 8.0:1 auf #0D1F3C */
+  --vx-admin-on-navy-blue:  #4B9FFF;   /* 6.0:1 — dieselbe Farbe wie das Kürzel-Feld daneben */
+  --vx-admin-on-navy-green: #34D399;   /* 8.6:1 */
+
   /* ── Form ─────────────────────────────────────────────────────────────── */
   --vx-admin-radius:        18px;
   --vx-admin-radius-md:     14px;

@@ -1,0 +1,207 @@
+/*
+ * admin-screens.css — die Bildschirm-eigenen Regeln des Admin-Portals.
+ *
+ * Welle 2 Teil 3 des Zielbilds (docs/ADMIN_PORTAL_ZIELBILD_2026-08-10.md).
+ *
+ * Herkunft
+ * --------
+ * Diese Regeln standen bis heute in zehn Laufzeit-Dateien, jede mit einem
+ * eigenen document.createElement('style') und head.appendChild(). Weil ein so
+ * eingefuegtes Stylesheet immer ans Ende des Kopfes wandert, gewann es gegen
+ * die <style>-Bloecke von index.html -- aber nur zufaellig, naemlich weil es
+ * spaeter kam. Wer sich darauf nicht verlassen wollte, schrieb !important
+ * dazu: 170 Stueck allein in diesen zehn Dateien.
+ *
+ * Als echte Datei, eingebunden nach allen <style>-Bloecken und nach den
+ * uebrigen Stilschichten, steht dieselbe Reihenfolge fest im Dokument. Die
+ * !important sind damit gegenstandslos und entfernt. Ausnahmen -- Regeln, die
+ * gegen ein style="..."-Attribut im Markup ankommen muessen -- sind unten
+ * einzeln benannt.
+ *
+ * Die Abschnitte stehen in der frueheren Einfuegereihenfolge. Das ist kein
+ * Schoenheitsentscheid: Abschnitt 9 ueberschrieb Abschnitt 1, und das soll er
+ * weiterhin tun.
+ *
+ * Geprueft mit scripts/browser-style-snapshot-admin.mjs (Vergleich der
+ * berechneten Werte vor und nach der Verschiebung) und Abschnitt 5 von
+ * scripts/browser-check-admin-portal.mjs.
+ */
+
+/* ── 1 · Cockpit-Kennzahlen, Kundenkopf, Betriebsraster
+      aus shared/admin-runtime-ui.js ─────────────────────────────── */
+#overview-kpis,#onboarding-kpis,#finance-kpi-strip{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:0!important;border:1px solid var(--line)!important;border-radius:14px!important;overflow:hidden!important;margin-bottom:16px!important;background:#fff!important;box-shadow:0 1px 2px rgba(15,23,42,.04)!important}
+#overview-kpis>*,#onboarding-kpis>*,#finance-kpi-strip>*{min-width:0!important;padding:16px 18px!important;margin:0!important;border:0!important;border-radius:0!important;background:#fff!important;box-shadow:none!important}
+#overview-kpis>*+*,#onboarding-kpis>*+*,#finance-kpi-strip>*+*{border-left:1px solid var(--line)!important}
+#overview-kpis>:nth-child(1),#onboarding-kpis>:nth-child(1),#finance-kpi-strip>:nth-child(1){background:#ECFDF5!important}
+#overview-kpis>:nth-child(2),#onboarding-kpis>:nth-child(2),#finance-kpi-strip>:nth-child(2){background:#FFFBEB!important}
+#overview-kpis>:nth-child(3),#onboarding-kpis>:nth-child(3),#finance-kpi-strip>:nth-child(3){background:#EFF6FF!important}
+#overview-kpis .kpi-label,#onboarding-kpis .kpi-label,#finance-kpi-strip .bf-kpi-label{font-size:10px!important;font-weight:700!important;text-transform:uppercase!important;letter-spacing:.08em!important;color:#64748B!important;margin-bottom:7px!important}
+#overview-kpis .kpi-value,#onboarding-kpis .kpi-value,#finance-kpi-strip .bf-kpi-value{color:#0D1F3C!important;font-size:25px!important;font-weight:800!important;line-height:1.05!important;letter-spacing:-.035em!important}
+#overview-kpis .kpi-sub,#onboarding-kpis .kpi-sub,#finance-kpi-strip .bf-kpi-sub{font-size:11px!important;color:#64748B!important;margin-top:5px!important;line-height:1.35!important}
+
+/* Die Kopfzeilen-Regeln und die Klasse vox-dark-head sind mit Welle 2
+   entfallen. Sie stammten aus applyDarkHeaderContrast(): die Funktion
+   mass beim Start die Hintergrundfarbe jeder Kopfzeile und stempelte bei
+   "dunkel" weisse Schrift ein. Als design-system-v2/v3 den Grund spaeter
+   hell uebermalten, blieb die Schrift weiss -- 30 von 33 Ueberschriften
+   waren unsichtbar. Die Kopfzeile hat jetzt genau einen Eigentuemer:
+   shared/admin-components.css. */
+#cw-header{background:linear-gradient(135deg,#FFFFFF 0%,#F3F7FF 100%)!important;border:1px solid var(--line)!important;box-shadow:0 1px 3px rgba(15,23,42,.06)!important;padding:18px 20px!important}
+#cw-header #cw-avatar{background:#EAF2FF!important;color:#1558BA!important}
+#cw-header #cw-name{color:var(--ink)!important}
+#cw-header #cw-meta{color:var(--slate)!important}
+#cw-header #cw-actions .btn{background:#fff!important;color:var(--ink)!important;border:1px solid var(--line)!important}
+#cw-header #cw-actions .btn.btn-primary{background:var(--blue)!important;color:#fff!important;border-color:var(--blue)!important}
+#cw-header #cw-actions .btn:hover{border-color:var(--blue-mid)!important}
+
+#overview-activity-list{display:block!important;margin-top:12px}
+.vox-ops{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;padding:14px 16px 16px}
+.vox-op{border:1px solid var(--line);border-radius:12px;background:#F8FAFC;padding:13px 14px;text-align:left;cursor:pointer;font:inherit}
+.vox-op b{display:block;font-size:22px;color:#0D1F3C;margin:5px 0 4px}.vox-op span{font-size:10px;color:#64748B;text-transform:uppercase;letter-spacing:.07em;font-weight:700}.vox-op small{font-size:11px;color:#64748B}
+@media(max-width:900px){#overview-kpis,#onboarding-kpis,#finance-kpi-strip{grid-template-columns:1fr 1fr!important}#overview-kpis>:nth-child(3),#onboarding-kpis>:nth-child(3),#finance-kpi-strip>:nth-child(3){grid-column:1/-1;border-left:0!important;border-top:1px solid var(--line)!important}.vox-ops{grid-template-columns:1fr 1fr}}
+@media(max-width:560px){#overview-kpis,#onboarding-kpis,#finance-kpi-strip{grid-template-columns:1fr!important}#overview-kpis>*+*,#onboarding-kpis>*+*,#finance-kpi-strip>*+*{border-left:0!important;border-top:1px solid var(--line)!important}#overview-kpis>:nth-child(3),#onboarding-kpis>:nth-child(3),#finance-kpi-strip>:nth-child(3){grid-column:auto}.vox-ops{grid-template-columns:1fr}}
+
+/* ── 2 · Offerten-Arbeitsflaeche und Verkaufskopf
+      aus shared/admin-runtime-navigation.js ─────────────────────────────── */
+#offers-workspace .table-wrap{max-height:260px!important}
+#offer-detail-shell .offer-header-card{position:static!important;top:auto!important;z-index:auto!important;box-shadow:0 1px 3px rgba(15,23,42,.06)!important}
+#offer-detail-shell.vox-compact .vox-optional{display:none!important}
+#offer-detail-shell.vox-compact .offer-columns,#offer-detail-shell.vox-compact .offer-editor{display:grid!important;grid-template-columns:minmax(0,1fr)!important;gap:10px!important;width:100%!important}
+#offer-detail-shell.vox-compact .offer-card{margin-bottom:10px!important}
+#offer-detail-shell.vox-compact .offer-card .card-head{min-height:44px!important;padding:10px 14px!important}
+#offer-detail-shell.vox-compact .offer-card textarea{min-height:88px!important}
+#offer-detail-shell.vox-compact .offer-card [style*="grid-template-columns"]{grid-template-columns:minmax(0,1fr)!important}
+.vox-workspace-actions{display:flex;gap:8px;flex-wrap:wrap}
+.vox-customer-filter-note{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:9px 12px;border:1px solid #B9D4FF;border-radius:10px;background:#EFF6FF;color:#1558BA;font-size:12px;font-weight:600}
+.vox-customer-filter-note button{border:0;background:transparent;color:#1558BA;font:inherit;text-decoration:underline;cursor:pointer;padding:0}
+@media(max-width:900px){#offer-detail-shell .offer-header-card{position:static!important}.vox-customer-filter-note{width:100%}}
+
+/* ── 3 · Cases-Liste und ihre Kopfzeile
+      aus shared/admin-runtime-cases.js ─────────────────────────────── */
+#section-cases .card{overflow:hidden!important}
+#section-cases .section-head.vox-cases-head{
+  background:#fff!important;color:var(--ink)!important;
+  border-bottom:1px solid var(--line)!important;
+  border-radius:14px 14px 0 0!important;
+  margin:0!important;padding:16px 18px!important
+}
+#section-cases .section-head.vox-cases-head h2,
+#section-cases .section-head.vox-cases-head h3,
+#section-cases .section-head.vox-cases-head strong{color:var(--ink)!important}
+#section-cases .section-head.vox-cases-head .muted,
+#section-cases .section-head.vox-cases-head p{color:var(--slate)!important}
+#section-cases .toolbar{border:0!important;border-bottom:1px solid var(--line)!important;border-radius:0!important;box-shadow:none!important;margin:0!important}
+#section-cases .table-wrap{border:0!important;border-radius:0!important;box-shadow:none!important;margin:0!important}
+#section-cases .data-table td{vertical-align:top}
+#section-cases .case-source-note{font-size:10px;color:var(--slate2);margin-top:3px}
+@media(max-width:768px){
+  #section-cases .section-head.vox-cases-head{align-items:stretch!important}
+  #section-cases .section-head.vox-cases-head .inline-actions,
+  #section-cases .section-head.vox-cases-head button{width:100%!important}
+  #section-cases .toolbar{display:grid!important;grid-template-columns:1fr!important;padding:12px!important}
+  #section-cases .toolbar>*{width:100%!important;min-width:0!important}
+}
+
+/* ── 4 · Fall-Erfassung, Warteschlange, Faelligkeiten
+      aus shared/admin-runtime-operations-v3.js ─────────────────────────────── */
+#case-capture-modal .modal{max-width:620px!important;border-radius:18px!important;padding:0!important;overflow:hidden!important;border:1px solid var(--line)!important;box-shadow:0 24px 70px rgba(13,31,60,.22)!important}
+#case-capture-modal .modal-top{padding:18px 20px!important;margin:0!important;border-bottom:1px solid var(--line)!important;background:linear-gradient(180deg,#fff,#F8FAFC)!important}
+#case-capture-modal .modal-title{font-family:var(--font-display)!important;font-size:18px!important;color:var(--ink)!important}
+#case-capture-modal .modal-sub{color:var(--slate)!important;margin-top:3px!important}
+#case-capture-modal #case-capture-feedback{margin:14px 20px 0!important}
+#case-capture-modal form{padding:18px 20px 20px!important;display:grid!important;gap:14px!important}
+#case-capture-modal form>div{margin:0!important}
+#case-capture-modal label{display:block!important;font-size:11px!important;font-weight:700!important;letter-spacing:.055em!important;text-transform:uppercase!important;color:var(--slate2)!important;margin-bottom:6px!important}
+#case-capture-modal .input,#case-capture-modal .select,#case-capture-modal .textarea{width:100%!important;min-height:42px!important;border:1px solid var(--line)!important;border-radius:10px!important;background:#fff!important;padding:10px 12px!important;font:inherit!important;color:var(--ink)!important}
+#case-capture-modal .textarea{min-height:110px!important;resize:vertical!important}
+#case-capture-modal .input:focus,#case-capture-modal .select:focus,#case-capture-modal .textarea:focus,#reminder-modal-note:focus{outline:none!important;border-color:var(--blue)!important;box-shadow:0 0 0 3px rgba(26,111,232,.12)!important}
+.vox-case-due-grid{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:end}
+.vox-case-due-quick{display:flex;gap:6px;flex-wrap:wrap}.vox-case-due-quick button{min-height:42px}
+#reminder-modal .billing-dialog-field{background:#F8FAFC!important;border:1px solid var(--line)!important;border-radius:12px!important;padding:12px 14px!important}
+#reminder-modal-note{display:block!important;width:100%!important;min-height:96px!important;border:1px solid #D8DEE9!important;border-radius:10px!important;background:#fff!important;padding:11px 12px!important;font:inherit!important;line-height:1.45!important;color:var(--ink)!important;resize:vertical!important}
+.vox-case-due-cell{min-width:185px}.vox-case-due-cell input{width:100%;min-width:0}
+.vox-escalation-box{border:1px solid #F4C7C7;background:#FFF7F7;border-radius:12px;margin:10px 0;padding:12px 14px}
+.vox-escalation-row{display:flex;gap:12px;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #F8DADA}.vox-escalation-row:last-child{border-bottom:0}
+@media(max-width:768px){#case-capture-modal .modal{width:calc(100vw - 20px)!important;max-height:calc(100dvh - 20px)!important}.vox-case-due-grid{grid-template-columns:1fr}.vox-case-due-quick button{flex:1}.vox-escalation-row{align-items:stretch;flex-direction:column}}
+
+/* ── 5 · Storno- und Gutschrift-Dialog
+      aus shared/admin-runtime-invoice-adjustments.js ─────────────────────────────── */
+#invoice-adjustment-modal{z-index:420}
+#invoice-adjustment-modal .modal{max-width:720px;padding:0;overflow:hidden;display:flex;flex-direction:column;max-height:var(--modal-max-height)}
+.vox-fin-head{padding:22px 24px;background:linear-gradient(135deg,#081F3D,#0D315E);color:#fff;display:flex;justify-content:space-between;gap:16px;align-items:flex-start}
+.vox-fin-head .modal-title{color:#fff}.vox-fin-head .modal-sub{color:rgba(255,255,255,.68);margin-top:5px}
+.vox-fin-body{padding:20px 24px;overflow:auto;min-height:0}
+.vox-fin-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-bottom:16px}
+.vox-fin-kpi{padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--bg)}
+.vox-fin-kpi span{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--slate2);font-weight:700}
+.vox-fin-kpi strong{display:block;margin-top:4px;font-size:14px;color:var(--ink)}
+.vox-fin-action{border:1px solid var(--line);border-radius:14px;padding:15px;margin-top:12px;background:#fff}
+.vox-fin-action h4{font-size:13px;margin:0 0 5px}.vox-fin-action p{font-size:12px;color:var(--slate);margin:0 0 12px}
+.vox-fin-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.vox-fin-grid .full{grid-column:1/-1}
+.vox-fin-grid label{font-size:11px;font-weight:700;color:var(--slate);display:block;margin-bottom:5px}
+.vox-fin-grid input,.vox-fin-grid select,.vox-fin-grid textarea{width:100%;border:1px solid var(--line);border-radius:9px;padding:9px 10px;font:inherit;background:#fff;color:var(--ink)}
+.vox-fin-grid textarea{min-height:72px;resize:vertical}
+.vox-fin-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:12px}
+.vox-fin-history{margin-top:16px}.vox-fin-history-row{padding:9px 0;border-bottom:1px solid var(--line2);display:flex;justify-content:space-between;gap:12px;font-size:12px}
+.vox-fin-feedback{margin-top:12px;padding:10px 12px;border-radius:10px;font-size:12px;display:none}.vox-fin-feedback.error{display:block;background:var(--red-light);color:var(--red);border:1px solid var(--red-mid)}.vox-fin-feedback.ok{display:block;background:var(--green-light);color:var(--green-dark);border:1px solid var(--green-mid)}
+@media(max-width:680px){.vox-fin-summary{grid-template-columns:1fr 1fr}.vox-fin-grid{grid-template-columns:1fr}.vox-fin-grid .full{grid-column:auto}.vox-fin-head,.vox-fin-body{padding:18px}.vox-fin-actions .btn{flex:1}}
+
+/* ── 6 · Zahlungskonto-Raster auf schmalen Fenstern
+      aus shared/admin-runtime-payment-account.js ─────────────────────────────── */
+@media(max-width:768px){.vx-payment-setup-grid{grid-template-columns:1fr!important}}
+
+/* ── 7 · Stimmenkatalog im KI-Bereich
+      aus shared/admin-runtime-voices.js ─────────────────────────────── */
+#ai-panel-voices{display:none}
+.vx-voice-layout{display:grid;grid-template-columns:minmax(270px,.75fr) minmax(0,1.45fr);gap:16px;align-items:start}
+.vx-voice-list{display:grid;gap:8px;max-height:620px;overflow:auto;padding-right:2px}
+.vx-voice-row{width:100%;display:flex;align-items:center;gap:11px;text-align:left;border:1px solid var(--line);background:#fff;border-radius:12px;padding:11px 12px;cursor:pointer;font:inherit;color:var(--ink);transition:.15s ease}
+.vx-voice-row:hover{border-color:#B9D4FF;background:#F8FBFF}.vx-voice-row.active{border-color:#1A6FE8;box-shadow:0 0 0 1px #1A6FE8;background:#F7FAFF}
+.vx-voice-icon{width:38px;height:38px;border-radius:11px;background:#EEF4FF;color:#1A6FE8;display:flex;align-items:center;justify-content:center;flex:0 0 auto;font-size:17px}
+.vx-voice-row-main{min-width:0;flex:1}.vx-voice-row-name{font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.vx-voice-row-meta{font-size:11px;color:var(--slate2);margin-top:2px}
+.vx-voice-badges{display:flex;gap:5px;flex-wrap:wrap;margin-top:6px}.vx-voice-badge{display:inline-flex;align-items:center;padding:3px 7px;border-radius:999px;background:#F1F5F9;color:#64748B;font-size:10px;font-weight:700}.vx-voice-badge.green{background:#ECFDF5;color:#047857}.vx-voice-badge.amber{background:#FFF7ED;color:#9A3412}
+.vx-voice-editor{border:1px solid var(--line);border-radius:14px;background:#fff;padding:16px}.vx-voice-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.vx-voice-field{display:grid;gap:6px}.vx-voice-field.full{grid-column:1/-1}.vx-voice-field label{font-size:11px;font-weight:700;color:var(--slate2)}
+.vx-voice-field input,.vx-voice-field select,.vx-voice-field textarea{width:100%;border:1px solid var(--line);border-radius:9px;padding:9px 10px;font:500 13px inherit;color:var(--ink);background:#fff}.vx-voice-field textarea{min-height:92px;resize:vertical;line-height:1.5}.vx-voice-field input[readonly]{background:#F8FAFC;color:#64748B}
+.vx-voice-checks{display:flex;gap:18px;flex-wrap:wrap;margin:14px 0}.vx-voice-checks label{display:flex;align-items:center;gap:7px;font-size:12px;font-weight:600;color:var(--ink)}
+.vx-voice-preview-box{margin-top:14px;padding:13px;border-radius:12px;background:#F8FAFC;border:1px solid var(--line)}.vx-voice-preview-box audio{width:100%;margin-top:10px;height:36px}
+.vx-voice-preview-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}.vx-voice-preview-panel{padding:11px;border:1px solid var(--line);border-radius:10px;background:#fff}.vx-voice-preview-panel strong{font-size:11px;display:block}.vx-voice-preview-panel .muted{font-size:10.5px;margin-top:2px}
+.vx-voice-actions{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;margin-top:14px}.vx-voice-feedback{display:none;margin:0 0 12px;padding:10px 12px;border-radius:9px;font-size:12px}.vx-voice-feedback.show{display:block}.vx-voice-feedback.success{background:#ECFDF5;color:#047857}.vx-voice-feedback.error{background:#FEF2F2;color:#B91C1C}.vx-voice-feedback.loading{background:#EFF6FF;color:#1D4ED8}.vx-voice-warning{padding:10px 12px;border-radius:10px;background:#FFF7ED;color:#9A3412;font-size:12px;margin-top:12px}
+@media(max-width:900px){.vx-voice-layout{grid-template-columns:1fr}.vx-voice-list{max-height:330px}}@media(max-width:720px){.vx-voice-preview-grid{grid-template-columns:1fr}}@media(max-width:640px){.vx-voice-grid{grid-template-columns:1fr}.vx-voice-field.full{grid-column:auto}.vx-voice-actions .btn{flex:1 1 100%}}
+
+/* ── 8 · Ausblenden der Zahlungslink-Steuerung
+      aus shared/admin-runtime-invoice-only-ch.js ─────────────────────────────── */
+:is(.form-group,.field,label,tr,.settings-row,.setting-row):has([name*="stripe" i]),
+:is(.form-group,.field,label,tr,.settings-row,.setting-row):has([id*="stripe" i]),
+:is(.form-group,.field,label,tr,.settings-row,.setting-row):has([name*="payment_link" i]),
+:is(.form-group,.field,label,tr,.settings-row,.setting-row):has([id*="payment_link" i]),
+:is(.form-group,.field,label,tr,.settings-row,.setting-row):has([name="setup_fee_link"]){display:none!important;}
+
+/* ── 9 · Aktionsleiste und Menue in der Rechnungsliste
+      aus shared/admin-runtime-billing-ui-consolidated.js ─────────────────────────────── */
+#billing-finance .vx-billing-actionbar{display:flex;align-items:center;gap:8px;white-space:nowrap}
+#billing-finance .vx-billing-actionbar .vx-billing-menu-toggle{min-width:104px}
+.vx-billing-menu{position:relative;display:inline-flex}
+.vx-billing-menu-toggle{min-height:40px;padding:0 16px;border:1px solid var(--line,#e4e8f0);border-radius:10px;background:#fff;color:var(--ink,#1a1a2e);font:inherit;font-weight:700;cursor:pointer}
+.vx-billing-menu-panel{position:absolute;right:0;top:calc(100% + 8px);z-index:300;width:230px;padding:8px;background:#fff;border:1px solid var(--line,#e4e8f0);border-radius:12px;box-shadow:0 18px 44px rgba(13,31,60,.18);display:none}
+.vx-billing-menu.open .vx-billing-menu-panel{display:grid;gap:4px}
+.vx-billing-menu-panel button,.vx-billing-menu-panel a,.vx-billing-menu-panel .btn{width:100%;min-height:40px;display:flex;align-items:center;justify-content:flex-start;text-align:left;padding:9px 11px!important;border:0!important;border-radius:8px!important;background:transparent!important;color:var(--ink,#1a1a2e)!important;box-shadow:none!important}
+.vx-billing-menu-panel button:hover,.vx-billing-menu-panel a:hover,.vx-billing-menu-panel .btn:hover{background:#f1f5f9!important}
+#billing-finance table{table-layout:auto!important}
+#billing-finance td:last-child{min-width:220px;overflow:visible!important}
+.modal .vx-billing-modal-actions{display:flex;justify-content:flex-end;align-items:center;gap:10px;flex-wrap:wrap;width:100%}
+.modal .vx-billing-modal-actions .btn,.modal .vx-billing-modal-actions button,.modal .vx-billing-modal-actions a{min-height:42px}
+.vx-guided-reminder-note{margin:0 0 16px;padding:14px 16px;border:1px solid #bfdbfe;border-radius:12px;background:#eff6ff;color:#1e3a8a;font-size:14px;line-height:1.5}
+.vx-reminder-disabled{opacity:.45!important;pointer-events:none!important;filter:grayscale(.25)}
+.vx-resend-modal-clean .modal-content,.vx-resend-modal-clean>[role="dialog"]{max-width:720px!important}
+.vx-resend-modal-clean .vx-payment-link-row{display:none!important}
+@media(max-width:720px){
+  #billing-finance .vx-billing-actionbar{width:100%;display:grid;grid-template-columns:1fr 1fr}
+  #billing-finance .vx-billing-actionbar>*{width:100%}
+  .vx-billing-menu-panel{position:fixed;left:12px;right:12px;bottom:12px;top:auto;width:auto;z-index:9999}
+  .modal .vx-billing-modal-actions{display:grid;grid-template-columns:1fr 1fr}
+  .modal .vx-billing-modal-actions>*{width:100%}
+}
+
+/* ── 10 · Dialog zur Nummernzuweisung
+      aus shared/admin-runtime-twilio-number-assignment.js ─────────────────────────────── */
+.twilio-assign-backdrop{position:fixed;inset:0;z-index:13000;background:rgba(15,23,42,.5);display:flex;align-items:center;justify-content:center;padding:20px}.twilio-assign-card{position:relative;width:min(720px,100%);max-height:86vh;overflow:auto;background:#fff;border-radius:18px;box-shadow:0 24px 70px rgba(15,23,42,.25);padding:24px}.twilio-head,.twilio-row{display:flex;align-items:center;justify-content:space-between;gap:16px}.twilio-head{align-items:flex-start;margin-bottom:18px}.twilio-title{font-size:20px;font-weight:750;color:#0f172a}.twilio-sub{color:#64748b;margin-top:4px;font-size:13px}.twilio-search{width:100%;box-sizing:border-box;border:1px solid #dbe3ee;border-radius:12px;padding:11px 13px;margin-bottom:14px}.twilio-row{padding:13px 0;border-top:1px solid #edf1f6}.twilio-value{font-weight:700;color:#0f172a}.twilio-btn,.twilio-close{border:0;border-radius:10px;padding:9px 13px;font-weight:650;cursor:pointer}.twilio-btn{background:#0f172a;color:#fff}.twilio-btn[disabled]{opacity:.4}.twilio-close{background:#eef2f7;color:#334155}.twilio-pill{border-radius:999px;padding:3px 7px;background:#eef2ff;color:#3730a3;margin-left:6px;font-size:11px}.twilio-confirm{position:absolute;inset:0;z-index:2;display:none;align-items:center;justify-content:center;background:rgba(255,255,255,.96);padding:24px}.twilio-confirm-card{max-width:460px;text-align:center}.twilio-status{display:none;margin:0 0 14px;padding:10px 12px;border-radius:10px;font-size:13px}.twilio-status.loading{display:block;background:#eff6ff;color:#1d4ed8}.twilio-status.success{display:block;background:#ecfdf5;color:#047857}.twilio-status.error{display:block;background:#fef2f2;color:#b91c1c}.twilio-confirm-actions{display:flex;justify-content:center;gap:10px;margin-top:20px}

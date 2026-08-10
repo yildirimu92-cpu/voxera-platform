@@ -10,28 +10,12 @@
   let preserveBillingFilter = false;
   let preserveContractsFilter = false;
 
-  function css() {
-    if (document.getElementById('voxera-runtime-nav-css')) return;
-    const s = document.createElement('style'); s.id = 'voxera-runtime-nav-css';
-    s.textContent = `
-      #offers-workspace .table-wrap{max-height:260px!important}
-      #offer-detail-shell .offer-header-card{position:static!important;top:auto!important;z-index:auto!important;box-shadow:0 1px 3px rgba(15,23,42,.06)!important}
-      #offer-detail-shell.vox-compact .vox-optional{display:none!important}
-      #offer-detail-shell.vox-compact .offer-columns,#offer-detail-shell.vox-compact .offer-editor{display:grid!important;grid-template-columns:minmax(0,1fr)!important;gap:10px!important;width:100%!important}
-      #offer-detail-shell.vox-compact .offer-card{margin-bottom:10px!important}
-      #offer-detail-shell.vox-compact .offer-card .card-head{min-height:44px!important;padding:10px 14px!important}
-      #offer-detail-shell.vox-compact .offer-card textarea{min-height:88px!important}
-      #offer-detail-shell.vox-compact .offer-card [style*="grid-template-columns"]{grid-template-columns:minmax(0,1fr)!important}
-      .vox-workspace-actions{display:flex;gap:8px;flex-wrap:wrap}
-      .vox-customer-filter-note{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:9px 12px;border:1px solid #B9D4FF;border-radius:10px;background:#EFF6FF;color:#1558BA;font-size:12px;font-weight:600}
-      .vox-customer-filter-note button{border:0;background:transparent;color:#1558BA;font:inherit;text-decoration:underline;cursor:pointer;padding:0}
-      @media(max-width:900px){#offer-detail-shell .offer-header-card{position:static!important}.vox-customer-filter-note{width:100%}}
-    `;
-    document.head.appendChild(s);
-  }
+  // Die Stilregeln dieser Datei stehen seit Welle 2 Teil 3 in
+  // shared/admin-screens.css. Die Funktion css() und ihr Aufruf sind
+  // entfallen -- ein zur Laufzeit eingefuegtes Stylesheet gewann nur deshalb,
+  // weil es zuletzt kam, und brauchte dafuer !important.
 
   ready(() => {
-    css();
     const route = typeof setRoute === 'function' ? setRoute : null;
     if (!route) return;
 

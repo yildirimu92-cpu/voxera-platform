@@ -34,7 +34,7 @@
   --purple:#4F46E5;--purple-light:#EEF2FF;--purple-mid:#C7D2FE;
   /* Neutrals mapped to brand */
   --ink:var(--vx-ink);--ink2:#27334D;--ink3:#37415A;
-  --slate:var(--vx-muted);--slate2:#64748B; /* Welle 2: war #98A2B3 = 2.5:1 auf Weiss — unter jeder Lesbarkeitsschwelle */
+  --slate:var(--vx-admin-ink-slate);--slate2:var(--vx-admin-ink-slate); /* Welle 2: war #98A2B3 = 2.5:1 auf Weiss — unter jeder Lesbarkeitsschwelle */
   --line:var(--vx-line);--line2:#EEF2F7;
   --bg:var(--vx-bg);--surface:var(--vx-surface);--surface2:#F1F4F9;
   /* Typography */
@@ -823,7 +823,7 @@ body.app-booting .app,body.app-booting .sidebar-overlay,body.app-booting #toast{
 .bf-kpi-value{font-size:22px;font-weight:800;color:var(--ink);letter-spacing:-.02em;line-height:1.1;}
 .bf-kpi-sub{font-size:11px;color:var(--slate2);margin-top:3px;}
 .bf-tabs{display:flex;gap:2px;border-bottom:0.5px solid var(--line);margin-bottom:20px;}
-.bf-tab{padding:6px 16px;border-radius:8px;border:none;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;background:transparent;color:#64748B;transition:all .15s;}
+.bf-tab{padding:6px 16px;border-radius:8px;border:none;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;background:transparent;color:var(--vx-admin-ink-slate);transition:all .15s;}
 .bf-tab:hover{color:var(--ink);}
 .bf-tab.bf-tab-active{background:#fff;color:#0D1F3C;box-shadow:0 1px 3px rgba(0,0,0,.08);}
 .bf-tab-content{display:block;}
@@ -1603,7 +1603,7 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
 :root{
   --vx-bg:#F7F8FC;
   --vx-line:#E2E8F0;
-  --vx-muted:#64748B;
+  --vx-muted:var(--vx-admin-ink-slate);
   --vx-ink:#0F172A;
 }
 body,.main{background:#F7F8FC;}
@@ -2170,6 +2170,12 @@ body,.main{background:#F7F8FC;}
 <link rel="stylesheet" href="/shared/admin-components.css?v=20260810-2">
 <link rel="stylesheet" href="/shared/admin-layout.css?v=20260810-2">
 <link rel="stylesheet" href="/shared/admin-responsive.css?v=20260810-2">
+<!-- Zuletzt, und das ist Absicht: admin-screens.css enthaelt die Regeln der
+     zehn frueheren Laufzeit-Stylesheets. Die wurden per head.appendChild()
+     eingefuegt und landeten damit hinter allem anderen -- sie haben gegen die
+     Bloecke oben gewonnen. Diese Position haelt genau das fest, jetzt aber
+     nachlesbar statt als Nebenwirkung der Einfuegereihenfolge. -->
+<link rel="stylesheet" href="/shared/admin-screens.css?v=20260810-3">
 </head>
 <body class="app-booting">
 <!-- DB loading overlay -->
@@ -6391,7 +6397,8 @@ function renderCustomers(){
     const actionState=getCustomerQuickActionState(c,onboarding);
     const isLive=lifecycleStatus==='active'||lifecycleStatus==='live';
     const isOnboarding=lifecycleStatus==='onboarding'||lifecycleStatus==='access_sent';
-    const statusColor=isLive?'#059669':isOnboarding?'#D97706':'#64748B';
+    // Diese Karte liegt auf Dunkelblau: die Tinte muss hell sein, nicht dunkel.
+    const statusColor=isLive?'var(--vx-admin-on-navy-green)':isOnboarding?'#FBBF24':'var(--vx-admin-on-navy-slate)';
     const statusBg=isLive?'rgba(5,150,105,.1)':isOnboarding?'rgba(217,119,6,.1)':'rgba(148,163,184,.1)';
     const progressColor=setupProgress>=100?'#059669':setupProgress>=80?'#F59E0B':'#1A6FE8';
     const canSend=actionState.showSendAccess&&!actionState.sendAccessDisabled;
@@ -6410,7 +6417,7 @@ function renderCustomers(){
         </div>
         <div style="display:flex;align-items:center;gap:6px;">
           <span style="font-size:10px;font-weight:600;background:${statusBg};color:${statusColor};border-radius:99px;padding:3px 9px;">${esc(lifecycleLabel)}</span>
-          <span style="font-size:10px;font-weight:600;background:rgba(26,111,232,.1);color:#1A6FE8;border-radius:99px;padding:3px 9px;">${esc(planLabel(c.plan_code||c.plan)||'—')}</span>
+          <span style="font-size:10px;font-weight:600;background:rgba(26,111,232,.1);color:var(--vx-admin-on-navy-blue);border-radius:99px;padding:3px 9px;">${esc(planLabel(c.plan_code||c.plan)||'—')}</span>
         </div>
       </div>
       <div style="padding:12px 16px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;border-bottom:0.5px solid var(--line);">
@@ -6718,7 +6725,7 @@ function openOnboardingDetail(customerId,options={}){
       const isDone=!missingSet.has(step);
       const action=(!isDone||step==='Voxera number assigned')?getOnboardingStepAction(step,customerId):'';
       return `<div class="onboarding-checklist-item">
-        <span aria-hidden="true" style="font-size:15px;line-height:1;color:${isDone?'#059669':'#64748B'};">${isDone?'✔':'○'}</span>
+        <span aria-hidden="true" style="font-size:15px;line-height:1;color:${isDone?'var(--vx-admin-ink-green)':'var(--vx-admin-ink-slate)'};">${isDone?'✔':'○'}</span>
         <span style="font-size:13px;color:${isDone?'var(--slate)':'var(--ink)'};text-decoration:${isDone?'line-through':'none'};">${esc(checklistDisplayLabel(step))}</span>
         ${action}
       </div>`;

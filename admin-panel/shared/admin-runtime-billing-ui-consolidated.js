@@ -9,37 +9,10 @@
   const labelOf=el=>String(el?.textContent||el?.getAttribute?.('aria-label')||'').replace(/\s+/g,' ').trim();
   const keyOf=el=>labelOf(el).toLowerCase();
 
-  function installStyles(){
-    if(document.getElementById(STYLE_ID))return;
-    const style=document.createElement('style');
-    style.id=STYLE_ID;
-    style.textContent=`
-      #${ROOT_ID} .vx-billing-actionbar{display:flex;align-items:center;gap:8px;white-space:nowrap}
-      #${ROOT_ID} .vx-billing-actionbar .vx-billing-menu-toggle{min-width:104px}
-      .vx-billing-menu{position:relative;display:inline-flex}
-      .vx-billing-menu-toggle{min-height:40px;padding:0 16px;border:1px solid var(--line,#e4e8f0);border-radius:10px;background:#fff;color:var(--ink,#1a1a2e);font:inherit;font-weight:700;cursor:pointer}
-      .vx-billing-menu-panel{position:absolute;right:0;top:calc(100% + 8px);z-index:300;width:230px;padding:8px;background:#fff;border:1px solid var(--line,#e4e8f0);border-radius:12px;box-shadow:0 18px 44px rgba(13,31,60,.18);display:none}
-      .vx-billing-menu.open .vx-billing-menu-panel{display:grid;gap:4px}
-      .vx-billing-menu-panel button,.vx-billing-menu-panel a,.vx-billing-menu-panel .btn{width:100%;min-height:40px;display:flex;align-items:center;justify-content:flex-start;text-align:left;padding:9px 11px!important;border:0!important;border-radius:8px!important;background:transparent!important;color:var(--ink,#1a1a2e)!important;box-shadow:none!important}
-      .vx-billing-menu-panel button:hover,.vx-billing-menu-panel a:hover,.vx-billing-menu-panel .btn:hover{background:#f1f5f9!important}
-      #${ROOT_ID} table{table-layout:auto!important}
-      #${ROOT_ID} td:last-child{min-width:220px;overflow:visible!important}
-      .modal .vx-billing-modal-actions{display:flex;justify-content:flex-end;align-items:center;gap:10px;flex-wrap:wrap;width:100%}
-      .modal .vx-billing-modal-actions .btn,.modal .vx-billing-modal-actions button,.modal .vx-billing-modal-actions a{min-height:42px}
-      .vx-guided-reminder-note{margin:0 0 16px;padding:14px 16px;border:1px solid #bfdbfe;border-radius:12px;background:#eff6ff;color:#1e3a8a;font-size:14px;line-height:1.5}
-      .vx-reminder-disabled{opacity:.45!important;pointer-events:none!important;filter:grayscale(.25)}
-      .vx-resend-modal-clean .modal-content,.vx-resend-modal-clean>[role="dialog"]{max-width:720px!important}
-      .vx-resend-modal-clean .vx-payment-link-row{display:none!important}
-      @media(max-width:720px){
-        #${ROOT_ID} .vx-billing-actionbar{width:100%;display:grid;grid-template-columns:1fr 1fr}
-        #${ROOT_ID} .vx-billing-actionbar>*{width:100%}
-        .vx-billing-menu-panel{position:fixed;left:12px;right:12px;bottom:12px;top:auto;width:auto;z-index:9999}
-        .modal .vx-billing-modal-actions{display:grid;grid-template-columns:1fr 1fr}
-        .modal .vx-billing-modal-actions>*{width:100%}
-      }
-    `;
-    document.head.appendChild(style);
-  }
+  // Die Stilregeln dieser Datei stehen seit Welle 2 Teil 3 in
+  // shared/admin-screens.css. Die Funktion installStyles() und ihr Aufruf sind
+  // entfallen -- ein zur Laufzeit eingefuegtes Stylesheet gewann nur deshalb,
+  // weil es zuletzt kam, und brauchte dafuer !important.
 
   function dedupe(actions){
     const seen=new Set();
@@ -116,7 +89,6 @@
   }
   function schedule(){if(scheduled)return;scheduled=true;requestAnimationFrame(run);}
 
-  installStyles();
   document.addEventListener('click',event=>{
     const reminderButton=event.target.closest('button,a,.btn');
     if(reminderButton&&/mahnung/i.test(labelOf(reminderButton))){

@@ -514,3 +514,19 @@ textarea {
   .vx-subscription-search-toolbar{align-items:stretch;flex-direction:column}
   .vx-subscription-search-toolbar input{width:100%;min-width:0}
 }
+
+/* ── Lesbare Tinte auf getönten Flächen (Welle 2 Teil 3) ──────────────────
+ *
+ * Die Status-Abzeichen, die Reiter der Rechnungsliste und der Löschen-Knopf
+ * erbten ihre Schriftfarbe von Tokens, die für weissen Grund gewählt worden
+ * waren. Auf ihrer eigenen getönten Fläche kamen sie damit auf 4.2–4.5:1 und
+ * verfehlten die Schwelle für normalen Text.
+ *
+ * Diese Datei wird nach den <style>-Blöcken von index.html eingebunden und
+ * gewinnt deshalb ohne !important. */
+.badge-blue { color: var(--vx-admin-blue-ink); }
+.badge-gray,
+.chip,
+.bf-tab,
+.module-tab { color: var(--vx-admin-ink-slate); }
+.btn-danger { color: var(--vx-admin-ink-red); }
