@@ -60,6 +60,34 @@ function serialize(value) {
   return JSON.stringify(value);
 }
 
+// ZWEI NACHWEISE, NICHT EINER. Bitte vor dem naechsten Deploy-Nachweis lesen.
+//
+// Der Fingerprint belegt den CODE-STAND: welcher Builder mit welchen
+// gemeinsamen Vorlagen gerechnet hat. Er belegt NICHT, was der Anrufende
+// tatsaechlich hoert. Die Begruessung -- und damit auch die gesetzlich
+// vorgeschriebene Offenlegungsformel aus mitOffenlegung() -- ist bewusst
+// KEINE Eingabe dieser Funktion. Weder `greeting` noch `firstMessage` noch
+// `ai_greeting` tauchen unten auf.
+//
+// Konsequenz, an der sich am 2026-08-10 fast eine Fehlmessung entzuendet
+// haette: setzt ein Kunde eine eigene ai_greeting und wird neu synchronisiert,
+// aendert sich der ausgelieferte erste Satz vollstaendig -- der Fingerprint
+// bleibt Zeichen fuer Zeichen derselbe. Das ist korrekt und kein Fehlschlag.
+// Wer ihn als Beleg dafuer nimmt, dass "die neue Begruessung live ist",
+// misst die falsche Groesse und bekommt ein gruenes Ergebnis geschenkt.
+//
+// Die Aufteilung:
+//   Fingerprint (customers.prompt_fingerprint)  -> ist der neue CODE live?
+//   customers.ai_effective_greeting             -> welcher SATZ geht raus?
+//     (geschrieben in elevenlabs-sync.js aus compiled.firstMessage, also
+//      exakt der String, der als first_message an ElevenLabs geht)
+//   customers.elevenlabs_last_sync_at           -> hat der Sync ueberhaupt
+//                                                  stattgefunden?
+//
+// Ob die Offenlegungsformel zusaetzlich in den Fingerprint gehoert, ist
+// offen und bewusst nicht hier entschieden -- siehe Issue #927. Bis
+// dahin gilt: fuer Aussagen ueber den gesprochenen Satz ist diese Funktion
+// die falsche Quelle.
 function promptFingerprint({
   masterPrompt = '',
   industryPrompt = '',
