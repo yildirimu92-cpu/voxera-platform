@@ -60,7 +60,7 @@ const genericDispatch=fs.readFileSync('admin-panel/netlify/functions/mail-dispat
 const billingUpdate=fs.readFileSync('admin-panel/netlify/functions/customer-billing-update.js','utf8');
 const runner=fs.readFileSync('admin-panel/netlify/functions/daily-billing-runner.js','utf8');
 const operations=fs.readFileSync('admin-panel/shared/admin-runtime-operations-v3.js','utf8');
-const migration=fs.readFileSync('supabase/sql/2026-08-01_invoice_dunning_state_machine.sql','utf8');
+const migration=fs.readFileSync('supabase/migrations/2026-08-01_invoice_dunning_state_machine.sql','utf8');
 
 const checks=[
   ['preview enforces canonical eligibility',preview.includes('evaluateInvoiceDunning')&&preview.includes('step_failed:dunning.reason_code')],

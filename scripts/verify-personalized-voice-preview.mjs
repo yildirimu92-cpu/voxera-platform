@@ -16,7 +16,7 @@ import crypto from 'node:crypto';
 const files = {
   handler: 'customer-dashboard/netlify/functions/preview-voice.js',
   greeting: 'customer-dashboard/netlify/functions/_lib/assistant-greeting.js',
-  migration: 'supabase/migrations/2026-08-09_customer_voice_previews.sql'
+  migration: 'supabase/migrations/20260809155951_customer_voice_previews.sql'
 };
 
 const source = Object.fromEntries(

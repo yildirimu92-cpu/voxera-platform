@@ -4,7 +4,7 @@ import vm from 'node:vm';
 const paths = {
   endpoint:'admin-panel/netlify/functions/invoice-financial-action.js',
   runtime:'admin-panel/shared/admin-runtime-invoice-adjustments.js',
-  migration:'supabase/sql/2026-07-31_invoice_adjustments_credit_notes.sql',
+  migration:'supabase/migrations/2026-07-31_invoice_adjustments_credit_notes.sql',
   loader:'admin-panel/shared/offer-brand.js'
 };
 const src = Object.fromEntries(Object.entries(paths).map(([key,path])=>[key,fs.readFileSync(path,'utf8')]));

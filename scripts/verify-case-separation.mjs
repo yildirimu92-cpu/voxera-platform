@@ -5,7 +5,7 @@ const customerTasks = read('customer-dashboard/netlify/functions/cases-create.js
 const supportRequest = read('customer-dashboard/netlify/functions/support-request-create.js');
 const assistantRequest = read('customer-dashboard/netlify/functions/ai-change-request-create.js');
 const operationalHelper = read('customer-dashboard/netlify/functions/_lib/create-operational-case.js');
-const migration = read('supabase/sql/2026-07-31_operational_case_sources.sql');
+const migration = read('supabase/migrations/2026-07-31_operational_case_sources.sql');
 
 const checks = [
   ['Customer follow-ups remain customer_tasks', customerTasks.includes(".from('customer_tasks')") && !customerTasks.includes(".from('voxera_cases')")],

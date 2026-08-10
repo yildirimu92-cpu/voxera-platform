@@ -11,7 +11,7 @@ on:
       - 'customer-dashboard/tests/call-intake-resolver-contract.test.cjs'
       - 'customer-dashboard/tests/phone-normalize.test.cjs'
       - 'customer-dashboard/tests/postcall-lifecycle-no-downgrade.test.cjs'
-      - 'supabase/sql/2026-08-01_call_intake_idempotency.sql'
+      - 'supabase/migrations/2026-08-01_call_intake_idempotency.sql'
       - '.github/workflows/verify-call-intake.yml'
   push:
     branches:
@@ -25,7 +25,7 @@ on:
       - 'customer-dashboard/tests/call-intake-resolver-contract.test.cjs'
       - 'customer-dashboard/tests/phone-normalize.test.cjs'
       - 'customer-dashboard/tests/postcall-lifecycle-no-downgrade.test.cjs'
-      - 'supabase/sql/2026-08-01_call_intake_idempotency.sql'
+      - 'supabase/migrations/2026-08-01_call_intake_idempotency.sql'
 
 permissions:
   contents: read
@@ -60,6 +60,6 @@ jobs:
       - name: Verify call intake migration invariants
         shell: bash
         run: |
-          grep -q "uq_calls_elevenlabs_conversation_id" supabase/sql/2026-08-01_call_intake_idempotency.sql
-          grep -q "idx_calls_phone_pair_created_at" supabase/sql/2026-08-01_call_intake_idempotency.sql
-          grep -q "WHERE elevenlabs_conversation_id IS NOT NULL" supabase/sql/2026-08-01_call_intake_idempotency.sql
+          grep -q "uq_calls_elevenlabs_conversation_id" supabase/migrations/2026-08-01_call_intake_idempotency.sql
+          grep -q "idx_calls_phone_pair_created_at" supabase/migrations/2026-08-01_call_intake_idempotency.sql
+          grep -q "WHERE elevenlabs_conversation_id IS NOT NULL" supabase/migrations/2026-08-01_call_intake_idempotency.sql

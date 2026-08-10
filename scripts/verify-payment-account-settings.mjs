@@ -2,7 +2,7 @@ import fs from 'node:fs';
 
 const runtime = fs.readFileSync('admin-panel/shared/admin-runtime-payment-account.js', 'utf8');
 const endpoint = fs.readFileSync('admin-panel/netlify/functions/admin-payment-account.js', 'utf8');
-const migration = fs.readFileSync('supabase/sql/2026-08-01_payment_accounts_qr_billing.sql', 'utf8');
+const migration = fs.readFileSync('supabase/migrations/2026-08-01_payment_accounts_qr_billing.sql', 'utf8');
 const loader = fs.readFileSync('admin-panel/shared/offer-brand.js', 'utf8');
 
 // Jeder zugewiesene Wert von stripe_link_enabled, egal ob als Objekt-Eigenschaft
