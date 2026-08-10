@@ -282,3 +282,103 @@ Rechnung ist damit an der Realität geprüft und nicht nur aus dem Code gelesen.
 3. Testanruf mit der ausdrücklichen Frage **„Sind Sie ein Mensch?"**.
    Abnahmekriterium: **das erste Wort der Antwort beantwortet die Frage.**
    Kommt zuerst Name und Firma, ist es nicht abgenommen.
+
+---
+
+## Nachtrag 3 — Personenfragen, „weiterleiten", und was Testanrufe aufgedeckt haben
+
+Zwei weitere Runden am selben Abend, je ein Anruf dazwischen.
+
+### Runde 2: Auslösebedingung war zu breit
+
+`„egal wie sie fragt"` hob die Einschränkung wieder auf, die der Rest der
+Bedingung machte. Auf die Frage *„ich hab de Herr Hildring, isch er grad ome?"*
+— eine Frage nach einer **dritten Person** — antwortete der Agent mit der
+vollen Offenlegung.
+
+Nach der Verengung kam der Fehlalarm nicht mehr, dafür der Spiegelfall: auf
+*„ich hab den Patrick g'sucht"* antwortete er mit *„Wir können Sie nicht direkt
+mit Herrn Patrick verbinden"* — eine Absage auf eine Bitte, die niemand
+geäussert hatte. Dieselbe Wurzel: die Personenfrage wird als etwas anderes
+gedeutet, weil für sie keine Regel existiert.
+
+Endstand:
+
+```
+Du heisst {{ASSISTANT_NAME}}. Fragt eine anrufende Person, ob du ein Mensch oder eine Maschine bist — sinngemäss in jeder Formulierung, etwa „Sind Sie ein Bot?", „Sind Sie echt?", „Bin ich bei einem Automaten?", „Rede ich mit einem Computer?" — antwortest du ausdrücklich:
+
+„Nein, ich bin kein Mensch. Ich bin {{ASSISTANT_NAME}}, {{ASSISTANT_ROLE}} von {{CUSTOMER_DISPLAY_NAME}} — ein KI-System. Ich nehme Ihr Anliegen auf und wir melden uns bei Ihnen."
+
+Das gilt ausschliesslich für Fragen über dich selbst. Fragen nach einer anderen Person — ob jemand da, erreichbar oder im Haus ist, oder dass jemand gesucht wird — sind gewöhnliche Anliegen. Antworte darauf weder mit der Offenlegung noch mit einer Absage, um die niemand gebeten hat. Frage nach, worum es geht, und nimm das Anliegen auf.
+```
+
+Zwei bewusste Entscheidungen im Ausnahmesatz: „um die niemand gebeten hat"
+statt „Weiterleitungs-Absage", damit das Wort nicht erneut vorgesprochen wird;
+und ein Schlusssatz, der sagt was **stattdessen** zu tun ist — ohne den greift
+das Modell wieder zur nächstbesten Formulierung, und genau das war beide Male
+der Fehler.
+
+### „weiterleiten" an drei Stellen entfernt
+
+Aufgefallen an einem generierten Satz: *„Wir werden Ihr Anliegen an Herrn
+Hildirin weiterleiten."* Fachlich korrekt, aber es weckt genau die Erwartung,
+die mit `## CALL FORWARDING` abgeräumt wurde.
+
+| Ort | vorher | jetzt |
+|---|---|---|
+| L1 `## RÜCKRUF-HANDLING` | „…ankündigen, dass du es weiterleitest." | „…ankündigen, dass wir uns dazu melden." |
+| L1 Vermeiden-Liste | — | neue Zeile „weiterleiten" → „wir melden uns" |
+| L2 `it-support` | „…aufnehmen. Weiterleiten." | „…aufnehmen. Wir melden uns." |
+
+Die L1-Zeile stammte aus der Umformulierung von `[Anliegen]` weiter oben in
+diesem Dokument — das Wort wurde beim De-Skripten mitgenommen, statt bei der
+Gelegenheit zu verschwinden. Die `it-support`-Zeile ist dieselbe, die in
+`00_BESTANDSAUFNAHME.md` als „erfüllt die halbe Bedingungskette von CALL
+FORWARDING" markiert war.
+
+Erstmals ändern sich damit **zwei** Fingerprint-Bestandteile:
+
+```
+v3.2.9.3838eef544d7.a9810bac4966.b4b33bb6c6f0.4f53cda18c2b.31bf8d30bbdb
+       ^^ L1        ^^ it-support
+```
+
+Gegenprobe an einem nicht angefassten Bestandteil:
+`sha256(core_field_steps)[0:12]` = `b4b33bb6c6f0` = dritte Komponente des
+gespeicherten Fingerprints. Die Rechenmethode ist damit an einem Wert geprüft,
+der sich nicht ändern durfte.
+
+Verifiziert im Snapshot vom 20:12:34 (17 078 Zeichen): alte Bedingung `0`,
+`eiterleit` genau **1** Treffer (die Vermeiden-Zeile selbst), Klammern `0`,
+`Einen Moment` `0`, Fingerprint-Gleichheit `true`.
+
+### Offene Beobachtungen aus denselben Anrufen
+
+Keine davon ist eine Prompt-Sache; alle drei nur festgehalten.
+
+1. **Soft-Timeout bestätigt und abgeschaltet.** Die Gegenprobe kam aus dem
+   Anruf: „Einen Moment" nur noch zweimal, beide Male nach einer langen
+   Buchstabier-Passage, nie bei schnellen Antworten. Zeitschwelle, kein
+   Sprachverhalten. Quelle war `soft_timeout_config` im `AGENT_TEMPLATE`
+   (`timeout_seconds: 3`, `message: 'Einen Moment'`,
+   `use_llm_generated_message: false`) — nicht `## FILLER-VARIANZ`, das den
+   String nur ein zweites Mal führte.
+
+2. **Turn-Taking bricht Sätze ab** — Begrüssung startet neu, angefangene Sätze
+   werden verworfen, ein Anrufer legte mit „das ist nervig" auf. Verdächtig
+   sind `speculative_turn: true`, `turn_eagerness: 'eager'` und
+   `background_voice_detection: false`, zusammen mit
+   `disable_first_message_interruptions: false`. **Vermutlich verschärft durch
+   das Abschalten des Soft-Timeouts:** „Einen Moment" war auch ein
+   Zughaltesignal. Ohne es entstehen bei 3,1 s Latenz drei Sekunden Stille, der
+   Anrufer setzt neu an, und im selben Moment ist die Antwort fertig. Der
+   Filler kaschierte ein Latenzproblem; sein Wegfall hat es sichtbar gemacht.
+   Der Schluss daraus ist nicht, ihn zurückzuholen, sondern die Latenz zu
+   senken — Turn V3 und Scribe v2 sind in Erprobung.
+
+3. **„Grüezi HerrHildringen"**, ohne Leerzeichen. Vermutlich Kehrseite des
+   De-Skriptens: die alte Zeile zeigte „Grüezi, Herr/Frau [Nachname]." und
+   damit auch Komma und Abstand. Die Ersatzformulierung ist eine Aufzählung
+   ohne Zeichensetzung. Kandidat für eine isolierte Runde — Beschreibung **und**
+   Trennzeichenangabe, weiterhin ohne Slot. Ob die Lücke schon im Text fehlt
+   oder erst im Klang, entscheidet ein Blick ins Transkript.
