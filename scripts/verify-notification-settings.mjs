@@ -25,11 +25,11 @@ const paths = {
   settings: 'customer-dashboard/netlify/functions/customer-update-settings.js',
   callNotification: 'customer-dashboard/netlify/functions/_lib/call-notification.js',
   profile: 'customer-dashboard/netlify/functions/customer-assistant-profile.js',
-  migration: 'supabase/migrations/2026-08-09_notification_mode_gating.sql',
+  migration: 'supabase/migrations/20260809172815_notification_mode_gating.sql',
   adminEvents: 'admin-panel/netlify/functions/_lib/admin-notification-events.js',
   adminEventsCopy: 'customer-dashboard/netlify/functions/_lib/admin-notification-events.js',
   adminSettings: 'admin-panel/netlify/functions/admin-notification-settings.js',
-  adminMigration: 'supabase/migrations/2026-08-09_admin_notification_settings.sql',
+  adminMigration: 'supabase/migrations/20260809172215_admin_notification_settings.sql',
   adminPanel: 'admin-panel/index.html',
   notificationBridge: 'customer-dashboard/shared/customer-runtime-notifications.js',
   aiChangeRequest: 'customer-dashboard/netlify/functions/ai-change-request-create.js'

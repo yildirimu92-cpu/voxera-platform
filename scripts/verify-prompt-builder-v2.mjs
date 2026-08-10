@@ -322,7 +322,7 @@ check('unfilled bracket markers degrade to a do-not-mention instruction', () => 
 
 // ── J4 / Schicht A: generische Betriebsfelder ────────────────────────────────
 // Das Schema kommt im Betrieb aus system_config.core_field_steps. Diese Fixture
-// bildet die Migration 2026-08-09_core_field_layer.sql nach — als JSON-Text,
+// bildet die Migration 20260809145741_core_field_layer.sql nach — als JSON-Text,
 // weil system_config.value eine Textspalte ist.
 const CORE_STEPS_JSON = JSON.stringify([{
   id:'betrieb_kern',
@@ -435,7 +435,7 @@ check('J4: a broken schema degrades to the previous behaviour', () => {
 
 // ── J6: die restlichen Schicht-A-Felder ─────────────────────────────────────
 // Dieselbe Form wie das produktive Schema aus
-// supabase/migrations/2026-08-09_core_field_layer_j6.sql.
+// supabase/migrations/20260809172103_core_field_layer_j6.sql.
 const CORE_STEPS_J6 = JSON.stringify([
   JSON.parse(CORE_STEPS_JSON)[0],
   { id:'betrieb_profil', title:'Was Sie anbieten', fields:[

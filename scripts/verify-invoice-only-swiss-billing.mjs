@@ -7,7 +7,7 @@ const runtime = read('admin-panel/shared/admin-runtime-invoice-only-ch.js');
 const paymentSettings = read('admin-panel/shared/admin-runtime-payment-account.js');
 const qrPdf = read('admin-panel/netlify/functions/_lib/swiss-qr-bill.js');
 const bootstrap = read('admin-panel/shared/offer-brand.js');
-const migration = read('supabase/sql/2026-08-01_invoice_only_billing_disable_payment_links.sql');
+const migration = read('supabase/migrations/2026-08-01_invoice_only_billing_disable_payment_links.sql');
 
 // Die Payload-Pruefungen liefen ueber exakte Zeichenketten mit Leerzeichen nach
 // dem Doppelpunkt ("locale: 'de-CH'"). Am 2026-08-01 hat ea88fd47 die Datei

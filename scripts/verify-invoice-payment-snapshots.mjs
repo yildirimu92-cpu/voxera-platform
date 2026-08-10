@@ -2,7 +2,7 @@ import fs from 'node:fs';
 
 const service = fs.readFileSync('admin-panel/netlify/functions/_lib/invoice-payment-context.js', 'utf8');
 const activation = fs.readFileSync('admin-panel/netlify/functions/_lib/contract-activation-service.js', 'utf8');
-const migration = fs.readFileSync('supabase/sql/2026-08-01_invoice_engine_payment_snapshots.sql', 'utf8');
+const migration = fs.readFileSync('supabase/migrations/2026-08-01_invoice_engine_payment_snapshots.sql', 'utf8');
 
 const checks = [
   ['loads active payment account', service.includes(".from('payment_accounts')") && service.includes(".eq('is_active', true)")],

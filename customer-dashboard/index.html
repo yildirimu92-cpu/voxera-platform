@@ -1325,6 +1325,16 @@ body{
 .content{padding:var(--vx-screen-inset-y) var(--vx-screen-inset-x);flex:1;}
 .vx-page-wrap{max-width:860px;width:100%;}
 @media(max-width:768px){.vx-page-wrap{max-width:100%;}}
+/* Direkte Kinder von #tab-dashboard/#tab-anrufe/#tab-assistent/#tab-auswertung/
+   #tab-mehr bekommen ueber :where(...) > * in customer-design-system.css
+   max-width:100% (Spezifitaet body.vx-customer-design-foundation + Klasse,
+   0-1-1) — die Datei haengt zur Laufzeit ans <head>-Ende und gewinnt bei
+   gleicher Spezifitaet durch spaetere Deklaration (siehe Kommentar bei den
+   .vx-requests-panel-Regeln weiter unten). Der body-Praefix hebt die
+   Spezifitaet von .vx-page-wrap um eine Klasse an (0-2-1) und schlaegt den
+   Reset unabhaengig von der Ladereihenfolge. */
+body.vx-customer-design-foundation .vx-page-wrap{max-width:860px;width:100%;}
+@media(max-width:768px){body.vx-customer-design-foundation .vx-page-wrap{max-width:100%;}}
 
 /* ═══════════════════════════════════════════
    TABS — V1
@@ -7753,7 +7763,7 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
               </div>
             </div>
           </div>
-          <div id="dash-content" class="vx-ap-stack vx-report-stack" style="display:none">
+          <div id="dash-content" class="vx-ap-stack vx-report-stack vx-page-wrap" style="display:none">
             <div id="live-hero" data-state="" hidden style="display:none!important;" aria-hidden="true">
               <span id="live-hero-state-label"></span><span id="live-hero-title"></span><span id="live-hero-sub"></span><span id="live-hero-counter"></span><span id="live-hero-counter-label"></span>
             </div>
@@ -7961,7 +7971,7 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
                 <i class="ph-bold ph-tray" aria-hidden="true"></i>
                 <span>Wähle eine Anfrage aus, um Details zu sehen.</span>
               </div>
-              <div id="requests-detail-v2" class="vx-requests-detail" style="display:none;flex:1;overflow:auto;"></div>
+              <div id="requests-detail-v2" class="vx-requests-detail vx-page-wrap" style="display:none;flex:1;overflow:auto;"></div>
             </aside>
           </div>
         </div>
@@ -7969,7 +7979,7 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
         <!-- AUSWERTUNG TAB -->
         <div class="tab-page" id="tab-auswertung">
           <header class="vx-appbar"><h1 class="vx-appbar-title">Bericht</h1></header>
-          <div class="vx-report-stack">
+          <div class="vx-report-stack vx-page-wrap">
             <!-- The 7 Tage / 30 Tage / Gesamt switch left the header in
                  Etappe 2 and is the first card of the content area. -->
             <section class="vx-ui-card vx-screen-meta">
@@ -26575,9 +26585,14 @@ async function persistForwardingMode(mode) {
   }
 }
 
-function getForwardingCode(mode, voxeraNumber) {
-  return { code: "", label: "" };
-}
+/* getForwardingCode stand hier ein zweites Mal, als neutralisierter Stub
+   (`return { code: "", label: "" }`). Beide Deklarationen lagen auf oberster
+   Ebene desselben script-Blocks, also gewann ohnehin immer die spaetere in
+   Zeile ~28343 -- dieser Stub war unerreichbar. Er war zudem irrefuehrend: er
+   gab eine andere Form zurueck ({code,label}) als der Gewinner
+   ({activate,deactivate}), sodass beim Lesen von oben der Eindruck entstand,
+   die Weiterleitungscodes seien abgeschaltet. Sind sie nicht. Entfernt
+   2026-08-10; die gueltige Fassung bleibt unveraendert. */
 
 function getForwardingDisableCode(mode) {
   var codes = { always: '#21#', no_answer: '#61#', unreachable: '#62#', busy: '#67#' };
@@ -27800,14 +27815,14 @@ function finishSetup(){
   if(navEl) showTab('dashboard',navEl);
 }
 
-function copyVoxeraNumber(e){
-  if(e)e.stopPropagation();
-  var num = customerMeta.voxeraNumber || '';
-  if(!num){toast('Keine Nummer vorhanden', 'warning');return;}
-  navigator.clipboard.writeText(num)
-    .then(function(){ announceCopyFeedback('Nummer kopiert', 'success'); })
-    .catch(function(){ announceCopyFeedback('Kopieren fehlgeschlagen', 'error'); });
-}
+/* copyVoxeraNumber stand hier ein zweites Mal. Gleiche Ebene, gleicher
+   script-Block, also gewann immer die spaetere Fassung in Zeile ~28740 --
+   diese hier lief nie. Entfernt 2026-08-10, Verhalten unveraendert.
+
+   Getrennt davon: die verbleibende Fassung hat derzeit ueberhaupt keinen
+   Aufrufer mehr. Das ist ein eigener Fund (Diagnose vom 2026-08-10,
+   Abschnitt B.3) und wird hier bewusst NICHT mitgeloescht -- diese Aenderung
+   soll nur die Verschattung aufloesen. */
 
 async function saveSetupNotifications(){
   var recordId = document.getElementById('account-overlay').dataset.customerRecordId;
