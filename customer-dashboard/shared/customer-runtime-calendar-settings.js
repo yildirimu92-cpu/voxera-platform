@@ -144,6 +144,17 @@
   // lead: die fuehrende Karte des Screens traegt den Marken-Streifen
   // (--vx-ui-brand-rule ueber .vx-ui-brand-rule). Genau eine pro Screen und
   // zustandsunabhaengig — siehe customer-ui-components.css, Abschnitt 9.
+  //
+  // „Trennen" haengt an der *Existenz* der Verbindung, nicht an ihrem Status.
+  // Eine bestehende, aber nicht verbundene Verbindung (typisch
+  // `reauthorization_required`) muss abschaltbar bleiben: in genau diesem
+  // Zustand ist das Speichern gesperrt und die Anbieterauswahl deaktiviert
+  // (siehe render()), es gaebe sonst keinen Weg mehr aus der Integration
+  // heraus — `feature_enabled` bliebe gesetzt, waehrend calendar-tool.js jede
+  // Buchung mangels verbundenem Anbieter abweist. Serverseitig raeumt
+  // `disconnect` den Zustand vollstaendig auf (Verbindung geloescht,
+  // active_provider auf null, feature_enabled auf false) und verlangt dafuer
+  // keinen `connected`-Status.
   function providerCard(provider, lead) {
     const item = connection(provider);
     const configured = state?.provider_configured?.[provider] === true;
@@ -155,7 +166,8 @@
       '<div class="vx-cal-actions">' +
       (connected
         ? '<button type="button" class="btn vx-cal-btn secondary" data-calendar-test="' + provider + '"' + (busy ? ' disabled' : '') + '>Verbindung prüfen</button><button type="button" class="btn vx-cal-btn danger" data-calendar-disconnect="' + provider + '"' + (busy ? ' disabled' : '') + '>Trennen</button>'
-        : '<button type="button" class="btn vx-cal-btn" data-calendar-connect="' + provider + '"' + (disabled ? ' disabled' : '') + '>Verbinden</button>') +
+        : '<button type="button" class="btn vx-cal-btn" data-calendar-connect="' + provider + '"' + (disabled ? ' disabled' : '') + '>Verbinden</button>'
+          + (item ? '<button type="button" class="btn vx-cal-btn danger" data-calendar-disconnect="' + provider + '"' + (busy ? ' disabled' : '') + '>Trennen</button>' : '')) +
       '</div></div>';
   }
 
@@ -215,7 +227,7 @@
         + (storedNeedsAttention ? ' disabled' : '') + '><option value="">Nicht aktiv</option>' + activeOptions + '</select>'
         + (storedNeedsAttention
           ? '<div class="vx-cal-meta">' + esc(providerLabels[storedProvider] || storedProvider)
-            + ' ist weiterhin als aktiver Anbieter gespeichert. Solange die Verbindung nicht erneuert ist, bleiben die Buchungsregeln unverändert und können nicht gespeichert werden.</div>'
+            + ' ist weiterhin als aktiver Anbieter gespeichert. Solange die Verbindung nicht erneuert ist, bleiben die Buchungsregeln unverändert und können nicht gespeichert werden. Zum Erneuern „Verbinden" in der Anbieterkarte, zum Abschalten „Trennen" — das setzt den aktiven Anbieter zurück und deaktiviert die Buchungen.</div>'
           : '')
         + '</div>' +
       '<div class="vx-cal-field"><label>Zeitzone</label><select id="vx-cal-timezone"><option value="Europe/Zurich"' + (settings.timezone === 'Europe/Zurich' ? ' selected' : '') + '>Europe/Zurich</option><option value="UTC"' + (settings.timezone === 'UTC' ? ' selected' : '') + '>UTC</option></select></div>' +

@@ -10,6 +10,7 @@ on:
       - 'customer-dashboard/netlify/functions/calendar-oauth-callback.js'
       - 'customer-dashboard/netlify/functions/calendar-tool.js'
       - 'customer-dashboard/shared/customer-runtime-calendar-settings.js'
+      - 'customer-dashboard/tests/calendar-disconnect-availability.test.cjs'
       - 'customer-dashboard/shared/offer-brand.js'
       - 'supabase/migrations/2026-08-01_calendar_integrations_foundation.sql'
       - 'scripts/verify-calendar-integrations.mjs'
@@ -24,6 +25,7 @@ on:
       - 'customer-dashboard/netlify/functions/calendar-oauth-callback.js'
       - 'customer-dashboard/netlify/functions/calendar-tool.js'
       - 'customer-dashboard/shared/customer-runtime-calendar-settings.js'
+      - 'customer-dashboard/tests/calendar-disconnect-availability.test.cjs'
       - 'customer-dashboard/shared/offer-brand.js'
       - 'supabase/migrations/2026-08-01_calendar_integrations_foundation.sql'
       - 'scripts/verify-calendar-integrations.mjs'
@@ -50,3 +52,8 @@ jobs:
           node --check customer-dashboard/shared/customer-runtime-calendar-settings.js
       - name: Verify calendar security and provider contracts
         run: node scripts/verify-calendar-integrations.mjs
+      # Haelt fest, dass eine bestehende, aber nicht verbundene Verbindung
+      # abschaltbar bleibt, waehrend das Speichern gesperrt ist — sonst
+      # entsteht in genau diesem Zustand eine Sackgasse ohne Ausweg.
+      - name: Verify calendar disconnect stays reachable
+        run: node --test customer-dashboard/tests/calendar-disconnect-availability.test.cjs
