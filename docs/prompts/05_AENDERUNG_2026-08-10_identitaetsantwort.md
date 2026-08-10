@@ -67,20 +67,32 @@ Die Zeile „nie proaktiv ‚ich bin ein Bot' sagen" ist ersatzlos entfallen —
 widersprach seit #919 der Erstansage. Die Ersatzformulierung sagt stattdessen,
 was gemeint war: nicht ständig wiederholen, aber einer Nachfrage nie ausweichen.
 
-### 2. `## MEHRSPRACHIGKEIT` — EN und FR auf DE-Stand, IT ergänzt
+### 2. `## MEHRSPRACHIGKEIT` — vollständig entfernt
 
-Die alten Sätze legten nur die Aufzeichnung offen, nicht die digitale
-Assistentin — der Stand vor #919. Ersetzt durch den Wortlaut, den
-`buildGreeting()` aus `OFFENLEGUNG` erzeugt:
+**Dieser Punkt wurde im Verlauf zweimal umgesetzt.** Zuerst als Reparatur der
+Sätze, dann als ersatzlose Entfernung. Der zweite Stand gilt.
 
-```
-- Englisch: „Hello, this is {{ASSISTANT_NAME}}, the digital assistant of {{CUSTOMER_DISPLAY_NAME}}, and this call is recorded. How may I help you?"
-- Französisch: „Bonjour, ici {{ASSISTANT_NAME}}, l'assistante numérique de {{CUSTOMER_DISPLAY_NAME}}, cet appel est enregistré. Comment puis-je vous aider?"
-- Italienisch: „Buongiorno, sono {{ASSISTANT_NAME}}, l'assistente digitale di {{CUSTOMER_DISPLAY_NAME}}, questa chiamata viene registrata. Come posso aiutarla?"
-```
+Zwischenstand (verworfen): die EN/FR-Sätze legten nur die Aufzeichnung offen,
+nicht die digitale Assistentin — Stand vor #919. Sie wurden durch den Wortlaut
+aus `OFFENLEGUNG` ersetzt und um Italienisch ergänzt.
 
-Italienisch fehlte bisher ganz, obwohl `OFFENLEGUNG` es kennt und `languageMap`
-ein `de_fr_it_en` führt. Die Einleitung des Abschnitts nennt es jetzt mit.
+Warum das falsch war: **die ElevenLabs-Agentenkonfiguration führt nur Deutsch.**
+Mehrsprachigkeit ist gar nicht aktiv. Der Abschnitt wies also ein Verhalten an,
+das die Plattform nicht vorsieht — und die beobachteten Sprachwechsel kamen aus
+diesem Prompt, nicht aus der Spracherkennung. Die Sätze zu reparieren hiesse,
+eine Anweisung zu pflegen, die nicht greifen darf.
+
+Der Abschnitt ist deshalb ersatzlos entfernt, 661 Zeichen, wie
+`## CALL FORWARDING`.
+
+`{{SPRACHE}}` in `## PERSÖNLICHKEIT UND SPRACHE` bleibt und löst zu „Deutsch
+(Standard)" auf — es steht jetzt keine widersprechende Anweisung mehr daneben.
+
+**Wiedervorlage-Bedingung:** Der Abschnitt kommt zurück, sobald ein Kunde
+mehrsprachig konfiguriert ist — dann aber über `{{BEGRUESSUNG_EN}}` /
+`{{BEGRUESSUNG_FR}}` / `{{BEGRUESSUNG_IT}}` aus `buildGreeting()`, nicht als
+abgeschriebene Sätze. Dann entsteht die Doppelquelle gar nicht erst.
+Festgehalten in #929.
 
 ### 3. `## CALL FORWARDING (Tool: transfer_call)` — entfernt
 
@@ -125,26 +137,28 @@ Problem, gegen das `stripMasterMeta()` gebaut wurde, als 700 Zeichen
 Dokumentation bei jedem Sync an den Agenten gingen.
 
 Der Kopf erfüllt beide Anforderungen: wer `prompt_master_l1` öffnet, sieht ihn
-als Erstes, und ausgeliefert wird er nie. Verifiziert: Vermerk an Position 702,
-Trenner an Position 1865.
+als Erstes, und ausgeliefert wird er nie. Verifiziert: die Wörter
+`MEHRSPRACHIGKEIT`, `Englisch` und `Französisch` kommen nur noch an den
+Positionen 744, 796 und 810 vor — der Trenner steht bei 1864, sie liegen also
+alle im Kopf.
 
-Inhalt: dass die drei Sprachsätze eine Kopie mit bekanntem Verfallsdatum sind,
-wo das Original steht, dass `{{BEGRUESSUNG_EN/FR/IT}}` aus dem Builder die
-Auflösung wären (#929), dass `## CALL FORWARDING` am 2026-08-10 entfernt wurde
-und wo die Sicherung liegt.
+Inhalt: warum `## CALL FORWARDING` und `## MEHRSPRACHIGKEIT` entfernt wurden,
+unter welcher Bedingung Mehrsprachigkeit zurückkommt und in welcher Form, und
+wo die Sicherung liegt.
 
 ## Zahlen
 
 | | vorher | nachher |
 |---|---:|---:|
-| `prompt_master_l1` | 9 140 | 9 936 |
-| davon Dokumentationskopf (nicht ausgeliefert) | 701 | 1 864 |
-| ausgelieferter L1-Anteil (vor Variablenauflösung) | 8 439 | 8 072 |
-| `md5` | `ea9c01673610bebf29df38a44202e577` | `2ddf9afe20c9bc9a26e8311a1c8534ab` |
+| `prompt_master_l1` | 9 140 | 9 274 |
+| davon Dokumentationskopf (nicht ausgeliefert) | 701 | 1 863 |
+| ausgelieferter L1-Anteil (vor Variablenauflösung) | 8 439 | 7 404 |
+| `md5` | `ea9c01673610bebf29df38a44202e577` | `0d7508600ed4c56458febcd58af42b6d` |
 
-Der ausgelieferte Teil wird also kürzer, obwohl das Feld wächst — die 839
-Zeichen CALL FORWARDING fallen weg, die Erweiterungen sind kleiner, und der
-Zuwachs steckt fast vollständig im Kopf, der nie rausgeht.
+Der ausgelieferte Teil schrumpft um **1 035 Zeichen**, obwohl das Feld wächst:
+839 Zeichen `CALL FORWARDING` und 661 Zeichen `MEHRSPRACHIGKEIT` fallen weg,
+die Erweiterung der Identitätsantwort ist kleiner, und der Zuwachs steckt
+vollständig im Kopf, der nie rausgeht.
 
 ## Erwarteter Fingerprint nach dem Sync
 
@@ -152,7 +166,7 @@ Zuwachs steckt fast vollständig im Kopf, der nie rausgeht.
 
 ```
 vorher   v3.2.9.6bc4ec29b28f.fb37cc3bf171.b4b33bb6c6f0.4f53cda18c2b.31bf8d30bbdb
-nachher  v3.2.9.a23ee2d70e7e.fb37cc3bf171.b4b33bb6c6f0.4f53cda18c2b.31bf8d30bbdb
+nachher  v3.2.9.0e03fa528e4c.fb37cc3bf171.b4b33bb6c6f0.4f53cda18c2b.31bf8d30bbdb
 ```
 
 Der alte Wert `6bc4ec29b28f` stimmt mit `sha256(alter L1)[0:12]` überein — die
@@ -162,8 +176,8 @@ Rechnung ist damit an der Realität geprüft und nicht nur aus dem Code gelesen.
 
 1. Sync auslösen (braucht ein Nutzer-JWT).
 2. `prompt_snapshot` prüfen: `## CALL FORWARDING`, `transfer_call`,
-   `Rufweiterleitung` und `nie proaktiv` müssen `position() = 0` ergeben.
-   Nicht „sieht gut aus".
+   `Rufweiterleitung`, `nie proaktiv` und `## MEHRSPRACHIGKEIT` müssen
+   `position() = 0` ergeben. Nicht „sieht gut aus".
 3. Testanruf mit der ausdrücklichen Frage **„Sind Sie ein Mensch?"**.
    Abnahmekriterium: **das erste Wort der Antwort beantwortet die Frage.**
    Kommt zuerst Name und Firma, ist es nicht abgenommen.
