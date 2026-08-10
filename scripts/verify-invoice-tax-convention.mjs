@@ -61,7 +61,7 @@ const BEKANNTE_STELLEN = [
     muster: /-v_amount,0,-v_amount/
   },
   {
-    datei: 'supabase/sql/2026-07-31_invoice_adjustments_credit_notes.sql',
+    datei: 'supabase/migrations/2026-07-31_invoice_adjustments_credit_notes.sql',
     zweck: 'Gutschrift auf eine bestehende Rechnung',
     steuer: 'abgeleitet',
     muster: /v_credit_tax\s*:=/
@@ -88,7 +88,7 @@ const BEKANNTE_STELLEN = [
  */
 const KEINE_SCHREIBSTELLEN = [
   {
-    datei: 'supabase/sql/2026-08-06_invoice_items_title_tax_rate_drift_fix_verification_queries.sql',
+    datei: 'supabase/migrations/2026-08-06_invoice_items_title_tax_rate_drift_fix_verification_queries.sql',
     grund: 'Pruefabfragen zum Drift-Fix. Legt Testzeilen an und rollt sie zurueck, erzeugt keine echte Rechnung.'
   }
 ];

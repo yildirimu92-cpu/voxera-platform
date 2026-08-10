@@ -16,14 +16,6 @@
      bereit. Die Laufzeit-Dateien werden dynamisch nachgeladen und mussten ihre
      Existenz deshalb mit ready()-Wächtern und Wiederholungen absichern — genau
      das entfällt hier. -->
-<!-- Design-System des Admin-Portals (Welle 2 des Zielbilds).
-     Bewusst NACH den <style>-Bloecken dieses Dokuments eingebunden: dadurch
-     gewinnen die Regeln hier bei gleicher Spezifitaet von selbst, und es
-     braucht kein !important. -->
-<link rel="stylesheet" href="/shared/admin-design-tokens.css?v=20260810-1">
-<link rel="stylesheet" href="/shared/admin-components.css?v=20260810-1">
-<link rel="stylesheet" href="/shared/admin-layout.css?v=20260810-1">
-<link rel="stylesheet" href="/shared/admin-responsive.css?v=20260810-1">
 <script src="/shared/core/admin-format.js?v=20260810-1"></script>
 <script src="/shared/core/admin-feedback.js?v=20260810-1"></script>
 <script src="/shared/core/admin-lifecycle.js?v=20260810-1"></script>
@@ -2163,6 +2155,21 @@ body,.main{background:#F7F8FC;}
   .billing-dialog-actions{padding-top:12px;padding-bottom:12px;}
 }
 </style>
+
+<!-- Design-System des Admin-Portals (Welle 2 des Zielbilds).
+     Die Einbindung steht bewusst NACH allen <style>-Bloecken dieses Dokuments
+     und nicht oben im Kopf: bei gleicher Spezifitaet entscheidet die
+     Dokumentreihenfolge, die spaetere Regel gewinnt. Genau deshalb kommen die
+     Dateien hier ohne ein einziges !important aus, waehrend die abgeloesten
+     Laufzeit-Stylesheets 330 davon brauchten, um gegen dieselben Bloecke
+     anzukommen.
+     Wer eine dieser Zeilen nach oben verschiebt, dreht die Wirkung um, ohne
+     dass es sofort auffaellt -- shared/admin-layout.css waere dann still
+     unwirksam. scripts/verify-admin-design-system-v2.mjs prueft die Position. -->
+<link rel="stylesheet" href="/shared/admin-design-tokens.css?v=20260810-2">
+<link rel="stylesheet" href="/shared/admin-components.css?v=20260810-2">
+<link rel="stylesheet" href="/shared/admin-layout.css?v=20260810-2">
+<link rel="stylesheet" href="/shared/admin-responsive.css?v=20260810-2">
 </head>
 <body class="app-booting">
 <!-- DB loading overlay -->

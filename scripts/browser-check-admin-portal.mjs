@@ -22,7 +22,9 @@
  *   2. Rendern alle Screens, und wie viele Bedienelemente hat jeder?
  *   3. Kontrast: nichts unter 3:1 (Fehler), Rückstand zwischen 3:1 und 4.5:1.
  *   4. Endpunkt-Auflösung: geht jeder Aufruf an den erwarteten Endpunkt?
- *   5. Ablation: jeden Laufzeit-Patch einzeln blockieren — bricht etwas?
+ *   5. Stilschichten: sind die vier Stylesheets geladen — und stehen sie NACH
+ *      den <style>-Blöcken, ohne die sie wirkungslos wären?
+ *   6. Ablation: jeden Laufzeit-Patch einzeln blockieren — bricht etwas?
  *
  * Stand nach Welle 1: Punkt 3 schlägt fehl, und das ist beabsichtigt. Die 30
  * unlesbaren Kartenüberschriften sind Welle 2. Ein Skript, das ein kaputtes
@@ -237,7 +239,13 @@ const KONTRAST_MESSUNG = `(() => {
 
 /* ── Ablauf ───────────────────────────────────────────────────────────────── */
 
-const browser = await chromium.launch();
+// In Umgebungen mit vorinstalliertem Chromium (CI-Container, Remote-Sitzungen)
+// passt die Playwright-Build-Nummer selten zur ausgeliefertern. VOXERA_CHROMIUM
+// zeigt dann direkt auf die vorhandene Binärdatei; ohne die Variable bleibt es
+// beim normalen Verhalten.
+const browser = await chromium.launch(
+  process.env.VOXERA_CHROMIUM ? { executablePath: process.env.VOXERA_CHROMIUM } : {}
+);
 let fehlerhaft = 0;
 
 console.log('Browser-Pruefung Admin-Portal\n');
@@ -341,11 +349,80 @@ for (const z of aufloesung) {
   console.log(`   ${ok ? '✓' : '✗'} ${(z.name + ' / ' + z.action).padEnd(46)} → ${z.ist}${ok ? '' : `  (erwartet ${z.erwartet})`}`);
 }
 
+/* 5 — Stilschichten: geladen und an der richtigen Stelle
+
+   Welle 2 hat vier Stylesheets aus den Laufzeit-Patches herausgeloest. Der
+   ganze Grund, warum sie ohne !important auskommen, ist ihre Position: bei
+   gleicher Spezifitaet gewinnt die spaetere Regel. Steht die Einbindung
+   versehentlich VOR den <style>-Bloecken des Dokuments, sind die Dateien still
+   unwirksam -- die Seite sieht funktionierend aus, waehrend die alte Regel
+   gewinnt. Genau dieser Fehler ist beim Bauen passiert und ist einer Pruefung
+   auf Dateiebene entgangen, weil dort beides vorhanden war.
+
+   Deshalb wird hier im wirklich gebauten Dokument gemessen. */
+console.log('\n5) Stilschichten');
+const ERWARTETE_SCHICHTEN = ['admin-design-tokens.css', 'admin-components.css', 'admin-layout.css', 'admin-responsive.css'];
+
+// Wieviele <style>-Bloecke bringt das Dokument selbst im <head> mit? Alles, was
+// darueber hinaus zur Laufzeit im Kopf auftaucht, hat ein Patch per
+// head.appendChild() nachgeschoben -- das landet zwangslaeufig hinter den
+// <link>-Zeilen und ist deshalb eine andere Frage (Welle 2 Teil 3).
+// HTML-Kommentare zuerst weg: der Kommentar ueber den <link>-Zeilen erwaehnt
+// die <style>-Bloecke, und ohne diesen Schritt zaehlt die Erwaehnung mit.
+const kopfQuelle = readFileSync(join(ADMIN, 'index.html'), 'utf8').replace(/<!--[\s\S]*?-->/g, '');
+const eigeneBloecke = (kopfQuelle.slice(0, kopfQuelle.indexOf('</head>')).match(/<style[\s>]/g) || []).length;
+
+const schichten = await page.evaluate(() => {
+  const blaetter = [...document.styleSheets].filter((s) => s.ownerNode && s.ownerNode.closest('head'));
+  return blaetter.map((s) => ({
+    name: s.href ? new URL(s.href).pathname.split('/').pop().split('?')[0] : '<inline>',
+    regeln: (() => { try { return s.cssRules.length; } catch { return null; } })()
+  }));
+});
+
+// Position des letzten dokumenteigenen <style>-Blocks.
+let gezaehlt = 0;
+let letzterEigener = -1;
+schichten.forEach((s, i) => {
+  if (s.name !== '<inline>') return;
+  gezaehlt += 1;
+  if (gezaehlt <= eigeneBloecke) letzterEigener = i;
+});
+
+for (const datei of ERWARTETE_SCHICHTEN) {
+  const platz = schichten.findIndex((s) => s.name === datei);
+  if (platz < 0) {
+    fehlerhaft += 1;
+    console.log(`   ✗ ${datei.padEnd(26)} nicht geladen`);
+    continue;
+  }
+  const regeln = schichten[platz].regeln;
+  if (!regeln) {
+    fehlerhaft += 1;
+    console.log(`   ✗ ${datei.padEnd(26)} geladen, aber ohne Regeln (404 oder falscher MIME-Typ?)`);
+    continue;
+  }
+  if (platz < letzterEigener) {
+    fehlerhaft += 1;
+    console.log(`   ✗ ${datei.padEnd(26)} steht VOR den <style>-Bloecken des Dokuments und ist damit wirkungslos.`);
+    console.log('     Die <link>-Zeilen gehoeren ans Ende des <head>, nach allen <style>-Bloecken.');
+    continue;
+  }
+  console.log(`   ✓ ${datei.padEnd(26)} ${String(regeln).padStart(4)} Regeln, nach den ${eigeneBloecke} eigenen <style>-Bloecken`);
+}
+
+const nachgeschoben = schichten.slice(letzterEigener + 1).filter((s) => s.name === '<inline>');
+if (nachgeschoben.length) {
+  const regeln = nachgeschoben.reduce((summe, s) => summe + (s.regeln || 0), 0);
+  console.log(`   · ${nachgeschoben.length} zur Laufzeit nachgeschobene <style>-Bloecke (${regeln} Regeln) stehen dahinter`);
+  console.log('     und gewinnen deshalb weiter. Das ist der Rest von Welle 2 Teil 3, kein Fehler hier.');
+}
+
 await ctx.close();
 
-/* 5 — Ablation */
+/* 6 — Ablation */
 if (MIT_ABLATION) {
-  console.log('\n5) Ablation — jeden Laufzeit-Patch einzeln blockieren');
+  console.log('\n6) Ablation — jeden Laufzeit-Patch einzeln blockieren');
   const offerBrand = readFileSync(join(ADMIN, 'shared/offer-brand.js'), 'utf8');
   const patches = [...offerBrand.matchAll(/'\/shared\/(admin-runtime-[a-z0-9-]*\.js)/g)].map((m) => m[1]);
   for (const patch of patches) {
@@ -367,7 +444,7 @@ if (MIT_ABLATION) {
   }
   console.log('   („·" heisst: der Patch veraendert die Oberflaeche sichtbar. „✗": ohne ihn bricht der Start.)');
 } else {
-  console.log('\n5) Ablation uebersprungen — mit --ablation einschalten.');
+  console.log('\n6) Ablation uebersprungen — mit --ablation einschalten.');
 }
 
 await browser.close();

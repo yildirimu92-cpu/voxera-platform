@@ -28,6 +28,8 @@ on:
       - 'scripts/verify-invoice-tax-convention.mjs'
       - 'scripts/verify-admin-portal-structure.mjs'
       - 'scripts/verify-admin-entry-points.mjs'
+      - 'scripts/lib/admin-api-harness.mjs'
+      - 'scripts/browser-check-admin-portal.mjs'
       - '.github/workflows/verify-admin-portal-structure.yml'
   workflow_dispatch:
 

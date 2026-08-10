@@ -9,6 +9,8 @@ on:
       - 'customer-dashboard/netlify/functions/preview-voice.js'
       - 'supabase/migrations/2026-08-02_admin_voice_catalog_previews.sql'
       - 'scripts/verify-admin-voices.mjs'
+      - 'scripts/lib/admin-api-harness.mjs'
+      - 'admin-panel/shared/core/admin-api.js'
       - '.github/workflows/verify-admin-voices.yml'
   push:
     branches: [main]
@@ -19,6 +21,8 @@ on:
       - 'customer-dashboard/netlify/functions/preview-voice.js'
       - 'supabase/migrations/2026-08-02_admin_voice_catalog_previews.sql'
       - 'scripts/verify-admin-voices.mjs'
+      - 'scripts/lib/admin-api-harness.mjs'
+      - 'admin-panel/shared/core/admin-api.js'
       - '.github/workflows/verify-admin-voices.yml'
 
 permissions:
