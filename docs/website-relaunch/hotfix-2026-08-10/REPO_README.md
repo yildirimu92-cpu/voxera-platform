@@ -13,30 +13,21 @@ Bis der Relaunch live geht, laufen Korrekturen ausschliesslich hier.
 
 ---
 
-## ⚠️ Vor dem Verknüpfen mit Netlify lesen
+## Vor dem Verknüpfen mit Netlify
 
-**Dieses Repo ist noch keine vollständige Kopie des Deploys.** Der erste Commit enthält die
-acht Dateien, die am 10.08.2026 gesichert wurden. Es fehlen mindestens:
+Die Bild-Assets sind seit dem 10.08.2026 vollständig enthalten (`favicon.svg`, `favicon.ico`,
+`favicon.png`, `favicon_16.png`, `favicon_32.png`, `apple-touch-icon.png`, `og-image.png`) —
+vor dem Einbau auf Format und Masse geprüft. Ein Deploy aus diesem Repo veröffentlicht die
+Seite also nicht mehr ohne Favicon und ohne Social-Preview.
 
-```
-favicon.svg   favicon.ico   favicon.png   favicon_16.png   favicon_32.png
-apple-touch-icon.png        og-image.png
-```
+**Ein Punkt bleibt offen:** die **vollständige Dateiliste** des Deploys ist noch nicht
+gegengeprüft. Es kann Dateien geben, die niemandem bekannt sind — `offer-accept.html` war
+genau so ein Fall: sie tauchte in keiner Dokumentation auf und wurde erst bei der Sicherung
+entdeckt. Da `netlify.toml` mit `publish = "."` schlicht das Repo-Verzeichnis ausliefert,
+verschwindet alles, was hier fehlt, beim ersten Deploy von der Live-Seite.
 
-Alle sieben werden von den HTML-Dateien referenziert. Da `netlify.toml` mit `publish = "."`
-schlicht das Repo-Verzeichnis ausliefert, würde ein Deploy aus dem jetzigen Stand die Seite
-**ohne Favicon und ohne Social-Preview-Bild** veröffentlichen — eine sichtbare Verschlechterung
-gegenüber heute.
-
-**Deshalb vor dem Verknüpfen:**
-
-1. Die fehlenden Assets aus dem aktuellen Netlify-Deploy hierher übernehmen
-   (`Deploys → Download deploy`).
-2. Die **vollständige Dateiliste** des Deploys mit diesem Repo abgleichen. Es kann weitere
-   Dateien geben, die niemandem bekannt sind — `offer-accept.html` war genau so ein Fall:
-   sie tauchte in keiner Dokumentation auf und wurde erst bei der Sicherung entdeckt.
-3. Erst danach verknüpfen, und den ersten Deploy als **Deploy-Preview** prüfen, nicht direkt
-   auf Produktion.
+**Deshalb:** Dateiliste des aktuellen Deploys mit diesem Repo abgleichen, dann verknüpfen,
+und den ersten Deploy als **Deploy-Preview** prüfen — nicht direkt auf Produktion.
 
 ---
 
@@ -52,6 +43,9 @@ gegenüber heute.
 | `contract-signed.html` | **Transaktionsseite:** Ansicht des unterzeichneten Vertrags (`?token=…`) |
 | `netlify.toml` | Deploy-Konfiguration: Header, Rewrites, Catch-all |
 | `_redirects` | dupliziert die drei Rewrites aus `netlify.toml` — siehe unten |
+| `favicon.svg` `favicon.ico` `favicon.png` `favicon_16.png` `favicon_32.png` | Favicons in allen referenzierten Formaten |
+| `apple-touch-icon.png` | 180×180, für iOS-Startbildschirm |
+| `og-image.png` | 1200×630, Social-Preview |
 
 ## Was hier nicht kaputtgehen darf
 

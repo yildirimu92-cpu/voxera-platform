@@ -4,7 +4,14 @@ const pfad = Astro.url.pathname;
 ---
 <header class="kopf">
   <div class="wrap kopf-inner">
-    <a href="/" class="marke" aria-label="Voxera — Startseite">Voxera</a>
+    <a href="/" class="marke">
+      {/* Die Bildmarke trägt ihren eigenen Night-Grund — die weissen Bogen- und
+          V-Elemente wären auf hellem Kopf sonst unsichtbar. alt bleibt leer,
+          weil die Wortmarke daneben den Namen schon ansagt; sonst hörten
+          Screenreader „Voxera Voxera". */}
+      <img src="/favicon.svg" alt="" width="30" height="30" />
+      <span>Voxera</span>
+    </a>
     <nav aria-label="Hauptnavigation">
       <ul role="list" class="nav">
         {NAV.map((n) => (
@@ -37,6 +44,9 @@ const pfad = Astro.url.pathname;
     min-height: 68px;
   }
   .marke {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
     font-family: var(--vx-font-display);
     font-weight: 800;
     font-size: 20px;
@@ -44,6 +54,7 @@ const pfad = Astro.url.pathname;
     color: var(--vx-text);
     text-decoration: none;
   }
+  .marke img { display: block; border-radius: 7px; }
   .nav { display: flex; gap: 4px; list-style: none; margin: 0; padding: 0; }
   .nav a {
     display: block;

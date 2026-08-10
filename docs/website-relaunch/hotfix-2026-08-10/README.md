@@ -1,6 +1,8 @@
 # Hotfix 10.08.2026 — vier Content-Korrekturen an der Live-Seite
 
-**Status:** vorbereitet, **noch nicht gepusht.** Wartet auf das Repo `voxera-website-live`.
+**Status:** vorbereitet und vollständig, **noch nicht gepusht.** Wartet auf Push-Zugriff auf
+`voxera-website-live` — das Repo existiert laut Betreiber, ist dieser Session aber nicht
+zugeordnet (`add_repo` → `requires approval`).
 
 ## Warum das hier liegt
 
@@ -23,40 +25,32 @@ Commits als Patch hier, damit nichts verlorengeht, wenn die Session endet.
 | Commit | Inhalt |
 |---|---|
 | 1 — Basis | Der gesicherte Produktivstand, **unverändert**. Die bekannten Fehler bleiben absichtlich drin, damit der Ausgangszustand nachvollziehbar bleibt. |
-| 2 — Hotfix | Die vier Korrekturen. Liegt als [`0001-vier-content-korrekturen.patch`](0001-vier-content-korrekturen.patch) vor. |
+| 2 — Assets | Die sieben Bild-Assets, die im gesicherten Stand fehlten. |
+| 3 — Hotfix | Die vier Korrekturen. Liegt als [`0001-vier-content-korrekturen.patch`](0001-vier-content-korrekturen.patch) vor. |
 
-`REPO_README.md` ist die README, die in das neue Repo gehört — inklusive der Warnung zu den
-fehlenden Assets.
+`REPO_README.md` ist die README, die in das neue Repo gehört.
 
 ## Was zu tun ist
 
-1. **Leeres Repo `voxera-website-live` anlegen** (GitHub-Weboberfläche, wie damals bei
-   `voxera-website`). **Ohne** README/`.gitignore`-Initialisierung — der erste Commit soll der
-   Produktivstand sein. Empfehlung: **privat**; öffentlich machen geht später jederzeit,
-   umgekehrt nicht.
-2. Bescheid geben — dann pushe ich Basis-Commit und Hotfix-Branch und eröffne den PR.
+1. ~~Leeres Repo anlegen~~ — laut Betreiber erledigt.
+2. **Push-Zugriff freigeben.** Der Aufruf `add_repo` wird mit `requires approval`
+   abgewiesen; das ist ein Freigabe-Dialog auf Session-Ebene, keine GitHub-Einstellung.
+3. Danach pushe ich die drei Commits und eröffne den PR.
 
-## ⚠️ Vor dem Verknüpfen mit der produktiven Netlify-Seite
+## ✅ Assets sind drin — vor dem Verknüpfen bleibt ein Punkt
 
-**Der vorbereitete Stand ist keine vollständige Kopie des Deploys.** Es fehlen alle
-Bild-Assets:
+Die sieben Bild-Assets wurden am 10.08.2026 nachgeliefert und liegen jetzt im Basis-Stand
+(zweiter Commit). Vor dem Einbau geprüft: SVG gültig, ICO 16×16, apple-touch-icon 180×180,
+og-image 1200×630 — alles korrekte Masse. Ein Deploy aus diesem Repo veröffentlicht die Seite
+also **nicht mehr ohne Favicon und ohne Social-Preview**.
 
-```
-favicon.svg  favicon.ico  favicon.png  favicon_16.png  favicon_32.png
-apple-touch-icon.png      og-image.png
-```
+**Offen bleibt:** die **vollständige Dateiliste** des Deploys. `offer-accept.html` war der
+Beleg dafür, dass das kein theoretisches Risiko ist — die Seite tauchte in keiner
+Dokumentation auf und wurde erst bei der Sicherung entdeckt. Es kann weitere solche Dateien
+geben.
 
-Alle sieben werden von den HTML-Dateien referenziert. Da `netlify.toml` mit `publish = "."`
-das Repo-Verzeichnis ausliefert, würde ein Deploy aus diesem Stand die Seite **ohne Favicon
-und ohne Social-Preview-Bild** veröffentlichen — eine sichtbare Verschlechterung gegenüber
-heute.
-
-Dazu fehlt weiterhin die **vollständige Dateiliste** des Deploys. `offer-accept.html` war der
-Beleg dafür, dass das kein theoretisches Risiko ist: die Seite tauchte in keiner
-Dokumentation auf und wurde erst bei der Sicherung entdeckt.
-
-**Reihenfolge deshalb:** Repo anlegen → Commits pushen → **Assets und Dateiliste ergänzen** →
-erst dann verknüpfen → ersten Deploy als Preview prüfen, nicht direkt auf Produktion.
+**Reihenfolge deshalb:** Commits pushen → **Dateiliste gegenprüfen** → verknüpfen → ersten
+Deploy als Preview prüfen, nicht direkt auf Produktion.
 
 ## Was die vier Korrekturen ändern
 
