@@ -20,6 +20,8 @@
  *   - contracts.resume
  *   - contracts.cancel
  *   - plan-config.update
+ *   - credit-notes.create   ← NEU (freistehende Kulanzgutschrift ohne Bezugsrechnung)
+ *   - calls.setReviewed     ← NEU (Anruf als geprueft markieren / Markierung zuruecknehmen)
  *
  * customers.delete:
  *   Erlaubte Rollen: owner (exklusiv)
@@ -561,6 +563,77 @@ exports.handler = async (event) => {
       const { error } = await sbAdmin.from('plan_config').update(payload).eq('id', planId);
       if (error) return response(400, { error: error.message });
       return response(200, { ok: true });
+    }
+
+    // ── credit-notes.create ─────────────────────────────────────────────────
+    // Kulanzgutschrift OHNE Bezugsrechnung. Die Gutschrift AUF eine Rechnung
+    // laeuft weiterhin ueber invoice-financial-action (action create_credit) --
+    // beide teilen sich Nummernkreis, Ablage, Idempotenz und Pruefprotokoll,
+    // siehe supabase/migrations/2026-08-10_standalone_credit_notes.sql.
+    if (action === 'credit-notes.create') {
+      const denied = requireCapabilityOrFail(caller, 'billing:write');
+      if (denied) return denied;
+
+      const customerId = String(body.customer_id || '').trim();
+      const requestId = String(body.request_id || '').trim();
+      const reason = String(body.reason || '').trim();
+      const amount = Number(body.amount);
+
+      if (!customerId) return response(400, { error: 'customer_id ist erforderlich.' });
+      if (!requestId) return response(400, { error: 'request_id ist erforderlich.' });
+      if (!reason) return response(400, { error: 'Ein Grund für die Gutschrift ist erforderlich.' });
+      if (!Number.isFinite(amount) || amount <= 0) {
+        return response(400, { error: 'Der Betrag muss grösser als null sein.' });
+      }
+
+      const { data, error } = await sbAdmin.rpc('admin_create_standalone_credit_note_v1', {
+        p_customer_id: customerId,
+        p_amount: amount,
+        p_reason: reason,
+        p_issued_on: String(body.issued_on || '').trim() || null,
+        p_contract_id: String(body.contract_id || '').trim() || null,
+        p_actor_user_id: caller.userId,
+        p_actor_role: caller.role,
+        p_request_id: requestId
+      });
+
+      if (error) {
+        // 22023/23514 sind Eingabe- und Regelverstoesse aus der Funktion,
+        // P0002 ist "Kunde nicht gefunden". Alles davon ist ein Client-Fehler.
+        const clientCodes = new Set(['22023', '23514', 'P0002']);
+        const status = clientCodes.has(String(error.code || '')) ? 400 : 500;
+        return response(status, {
+          error: error.message || 'Gutschrift konnte nicht erstellt werden.',
+          error_code: error.code || null
+        });
+      }
+      return response(200, { ok: true, credit_note: data || null });
+    }
+
+    // ── calls.setReviewed ───────────────────────────────────────────────────
+    // Eigene Spalte, nicht read_at: read_at gehoert dem Kunden-Dashboard.
+    if (action === 'calls.setReviewed') {
+      const denied = requireCapabilityOrFail(caller, 'customer:write');
+      if (denied) return denied;
+
+      const callId = String(body.call_id || '').trim();
+      if (!callId) return response(400, { error: 'call_id ist erforderlich.' });
+      const reviewed = body.reviewed !== false;   // Vorgabe: markieren
+
+      const patch = reviewed
+        ? { reviewed_at: new Date().toISOString(), reviewed_by: caller.userId }
+        : { reviewed_at: null, reviewed_by: null };
+
+      const { data, error } = await sbAdmin
+        .from('calls')
+        .update(patch)
+        .eq('id', callId)
+        .select('id,reviewed_at,reviewed_by')
+        .maybeSingle();
+
+      if (error) return response(400, { error: error.message });
+      if (!data) return response(404, { error: 'Anruf nicht gefunden.' });
+      return response(200, { ok: true, call: data });
     }
 
     // ── Unbekannte Action ───────────────────────────────────────────────────

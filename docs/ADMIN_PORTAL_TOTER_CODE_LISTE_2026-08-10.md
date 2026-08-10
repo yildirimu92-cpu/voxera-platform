@@ -60,10 +60,10 @@ in Vorlagen-Zeichenketten und nicht aus den 29 Laufzeit-Patches.
 
 | Stufe | Funktion | Zeile | ≈ Z. | Anmerkung |
 |---|---|---|---|---|
-| **A** | `openCreditNoteModal` | 17045 | 15 | Siehe 4.2 — aeltere Generation ohne Server-Gegenstelle. |
+| ~~A~~ | ~~`openCreditNoteModal`~~ | 17045 | 15 | **Erledigt** — Einstieg gebaut, Server-Aktion nachgezogen, siehe 4.2. |
 | **B** | `renderOnboardingDetail` | 6764 | 29 | Schreibt in die versteckten Onboarding-Stubs (Diagnose 3.7). |
 | ~~B~~ | ~~`resendInvite`~~ | 16906 | 16 | **Erledigt** — Einstieg im Kunden-Workspace nachgeruestet, siehe 4.1. |
-| **A** | `markCallReviewed` | 14788 | 10 | Siehe 4.3 — schreibt nichts in die Datenbank. |
+| ~~A~~ | ~~`markCallReviewed`~~ | 14788 | 10 | **Erledigt** — echter Schreibpfad und Einstieg gebaut, siehe 4.3. |
 | **A** | `sendBillingPaymentLink` | 13326 | 5 | Zahlungslink-Versand. Gehört zur abgelösten Stripe-/Zahlungslink-Phase — dieselbe, deren Bedienelemente `v3-regression-fix` per CSS versteckt. |
 | **A** | `sendMonthlyBillingPaymentLink` | 13467 | 5 | dito |
 | **A** | `sendYearlyBillingPaymentLink` | 13472 | 5 | dito |
@@ -105,7 +105,20 @@ benutzt wird. Nichts fehlte ausser dem Aufruf.
 aber noch nicht aktiviert ist (`showInvitationSent`). Im Klick-Test erscheint der
 Knopf beim eingeladenen Kunden und bleibt bei allen anderen Zuständen aus.
 
-### 4.2 Gutschriften — **nicht nachrüsten: es gibt sie schon, und zwar besser**
+### 4.2 Gutschriften — **gebaut** · Freigabe vom 10.08.
+
+> **Nachtrag:** Umut hat entschieden, die freistehende Kulanzgutschrift zu bauen.
+> Umgesetzt als `credit-notes.create` in `admin-mutate` mit Capability
+> `billing:write`, dahinter die Datenbankfunktion
+> `admin_create_standalone_credit_note_v1` (Migration
+> `2026-08-10_standalone_credit_notes.sql`). Sie teilt sich Nummernkreis
+> (`VX-GS-JJJJ-NNNNNN`), Ablage, Idempotenz und Prüfprotokoll mit der
+> rechnungsgebundenen Gutschrift — es ist also **kein** zweites Gutschriftsystem
+> entstanden, sondern derselbe Apparat für den zweiten Fall. Einstieg im
+> Kunden-Workspace, Karte „Vertrag & Billing". Der Befund unten bleibt als
+> Begründung stehen, warum es so und nicht anders gebaut wurde.
+
+**Ursprünglicher Befund:**
 
 Das tote `#credit-note-modal` in `index.html` ist eine **ältere Generation** einer
 Funktion, die im Portal längst bedienbar ist.
@@ -139,7 +152,17 @@ neben dem funktionierenden schaffen — genau das Muster, das dieser Umbau aufl�
 ist das ein eigener kleiner Auftrag (Server-Aktion plus Einstieg). Wenn nein,
 kommt das Modal in Welle 7 weg.
 
-### 4.3 `markCallReviewed` — **nicht nachrüsten: der Knopf wäre eine Attrappe**
+### 4.3 `markCallReviewed` — **gebaut** · Freigabe vom 10.08.
+
+> **Nachtrag:** Umut hat entschieden, die Funktion fertigzustellen. Umgesetzt mit
+> eigener Spalte `calls.reviewed_at` / `reviewed_by` (Migration
+> `2026-08-10_calls_admin_review.sql`), Schreibpfad `calls.setReviewed` in
+> `admin-mutate` mit Capability `customer:write`. `read_at` bleibt unberührt beim
+> Kunden-Dashboard. Einstieg in der Aktivitätsliste — der Screen hatte vorher
+> null Bedienelemente. Der Befund unten bleibt als Begründung für die eigene
+> Spalte stehen.
+
+**Ursprünglicher Befund:**
 
 Die Funktion schreibt **nichts in die Datenbank**:
 
@@ -249,9 +272,10 @@ Admin-Thema QR-Rechnung. Vor dem Löschen kurz hineinsehen — falls dort etwas 
 
 | # | Frage |
 |---|---|
-| **1** | Fehlt dir die **freistehende Kulanzgutschrift** ohne Rechnungsbezug im Alltag? Die Gutschrift *auf eine Rechnung* gibt es bereits (siehe 4.2). |
-| **2** | Brauchst du **„Anruf als geprüft markieren"** im Admin-Portal? Heute schreibt die Funktion nichts (siehe 4.3). |
+| ~~1~~ | ~~Freistehende Kulanzgutschrift?~~ — **beantwortet: ja**, gebaut (4.2). |
+| ~~2~~ | ~~„Anruf als geprüft markieren"?~~ — **beantwortet: ja**, gebaut (4.3). |
 | **3** | Sollen die fünf `swiss-qr-*.txt` vor dem Löschen inhaltlich gesichtet werden, oder gehen sie ungelesen? |
+| **4** | **Beide Migrationen liegen als Datei im Repo, sind aber auf keiner Datenbank angewendet.** Bis das geschieht, antwortet die Gutschrift mit einem Fehler und der Prüf-Haken speichert nicht. Soll ich sie auf Staging und Produktion anwenden? |
 
 Alles andere in dieser Liste ist ohne Rückfrage löschbar, sobald das Zielbild freigegeben
 ist — mit der Reihenfolge aus Abschnitt 8.

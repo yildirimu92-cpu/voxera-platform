@@ -6292,9 +6292,15 @@ function renderCustomerWorkspace(id) {
       + '<div><div style="font-size:10px;color:#94A3B8;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;">Abrechnung</div><div style="font-size:13px;color:#475569;">' + esc(cu.subscription_billing_cycle_label||'—') + '</div></div>'
       + '<div><div style="font-size:10px;color:#94A3B8;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;">Zahlung</div><div style="font-size:13px;font-weight:600;color:' + (paymentPaid ? '#059669' : '#DC2626') + ';">' + (paymentPaid ? 'Bezahlt' : 'Ausstehend') + '</div></div>'
       + '<div><div style="font-size:10px;color:#94A3B8;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;">Verträge</div><div style="font-size:13px;color:#475569;">' + activeContracts.length + ' aktiv · ' + contracts.length + ' total</div></div>'
-      + '<div style="grid-column:1/-1;display:flex;gap:8px;margin-top:6px;">'
+      + '<div style="grid-column:1/-1;display:flex;gap:8px;margin-top:6px;flex-wrap:wrap;">'
       + '<button class="btn btn-quiet btn-sm" type="button" style="flex:1;font-size:11px;" onclick="setRoute(\'billing-finance\')">Billing</button>'
       + '<button class="btn btn-quiet btn-sm" type="button" style="flex:1;font-size:11px;" onclick="openContractCloseChooser&&openContractCloseChooser()">Vertrag abschliessen</button>'
+      // Kulanzgutschrift ohne Bezugsrechnung. Der dritte Knopf steht bewusst am
+      // Ende: admin-runtime-navigation.js greift die ersten beiden Knoepfe
+      // dieser Karte ueber ihren Positionsindex (btns[0], btns[1]) ab und
+      // benennt sie um. Waere dieser Knopf vorn, wuerde er umbenannt.
+      // Welle 3 loest diese Kopplung auf.
+      + '<button class="btn btn-quiet btn-sm" type="button" style="flex:1;font-size:11px;" title="Kulanzgutschrift ohne Bezug zu einer bestehenden Rechnung" onclick="openCreditNoteModal(\'' + jsStr(id) + '\')">Gutschrift</button>'
       + '</div>';
   }
 
@@ -8450,7 +8456,31 @@ function renderActivity(){
     el.innerHTML=arr.map(x=>`<div class="list-item"><div><div class="list-main">${esc(x[0])}</div><div class="list-sub">${esc(x[1])}</div></div><span class="chip">${esc(x[2]||'Event')}</span></div>`).join('')||'<div class="empty">Keine Einträge.</div>';
   }
   function custName(id){return customerById(id)?.name||'Unbekannt';}
-  safeMapList('activity-calls',state.calls.slice().sort((a,b)=>(b.time||'').localeCompare(a.time||'')).slice(0,6).map(c=>[`${custName(c.customerId)} · ${c.time||'—'}`,`${c.cat||'—'}${c.callback?' · Callback angefragt':''}`,c.failed?'Fehler':'Call']));
+  // Anrufliste mit Pruef-Aktion. Die uebrigen Listen bleiben Protokoll ohne
+  // Bedienelemente -- hier gibt es eine echte Handlung, deshalb ein eigener
+  // Renderer statt safeMapList.
+  const callsEl=document.getElementById('activity-calls');
+  if(callsEl){
+    const letzte=state.calls.slice().sort((a,b)=>(b.time||'').localeCompare(a.time||'')).slice(0,6);
+    callsEl.innerHTML=letzte.map(c=>{
+      const geprueft=Boolean(c.reviewedAt);
+      const zusatz=c.callback?' · Callback angefragt':'';
+      return `<div class="list-item">
+        <div>
+          <div class="list-main">${esc(custName(c.customerId))} · ${esc(c.time||'—')}</div>
+          <div class="list-sub">${esc(c.cat||'—')}${esc(zusatz)}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          ${geprueft
+            ? `<span class="chip chip-green" title="Geprüft am ${esc(VoxeraFormat.dateTime(c.reviewedAt))}">Geprüft</span>`
+            : `<span class="chip">${esc(c.failed?'Fehler':'Call')}</span>`}
+          <button class="btn btn-quiet btn-sm" type="button"
+            title="${geprueft?'Prüfung zurücknehmen':'Anruf als geprüft markieren'}"
+            onclick="markCallReviewed('${jsStr(c.id)}',${geprueft?'false':'true'})">${geprueft?'Zurücknehmen':'Geprüft'}</button>
+        </div>
+      </div>`;
+    }).join('')||'<div class="empty">Keine Einträge.</div>';
+  }
   safeMapList('activity-onboarding',state.onboarding.map(o=>[`${custName(o.customerId)} · ${ONBOARDING_STATUS_LABELS[normalizeOnboardingStatus(o.status)]||o.status}`,`Progress ${o.progress||0}% · Next: ${o.next||'—'}`,'Onboarding']));
   safeMapList('activity-customer-changes',state.customers.slice(0,4).map(c=>[`${c.name||'—'} · ${getCustomerLifecycleStatusLabel(c,onboardingForCustomer(c.id))}`,`Plan ${c.plan||'—'} · Setup ${getCustomerSetupProgress(c,onboardingForCustomer(c.id))}%`,'Customer']));
   safeMapList('activity-support',state.cases.slice(0,6).map(cs=>[`${custName(cs.customerId)} · ${cs.title||cs.type||'—'}`,`${caseStatusLabel(cs.status)}`,'Case']));
@@ -14716,14 +14746,35 @@ async function updateCase(caseId,field,value){
   }
 }
 
-function markCallReviewed(customerId,callIdx){
-  const call=state.calls.filter(c=>idsEq(c.customerId,customerId))[callIdx];
+// Anruf als geprueft markieren.
+//
+// Vorher schrieb diese Funktion ausschliesslich in den lokalen Zustand
+// (call.summary wurde um "(reviewed)" ergaenzt, call.callback auf false
+// gesetzt) und war ausserdem von keiner Stelle aus erreichbar. Beim naechsten
+// Laden war die Markierung weg. Jetzt liegt der Zustand in calls.reviewed_at
+// und wird serverseitig ueber admin-mutate geschrieben.
+async function markCallReviewed(callId, reviewed = true){
+  const call = state.calls.find(c => idsEq(c.id, callId));
   if(!call) return;
-  call.summary=`${call.summary} (reviewed)`;
-  call.callback=false;
-  state.events.unshift(`${nowStamp()} · ${customerById(customerId).name}: Call reviewed`);
+  const vorher = call.reviewedAt;
+  // Optimistisch anzeigen, aber nur bis zur Antwort: schlaegt der Aufruf fehl,
+  // wird der vorherige Zustand wiederhergestellt statt Erfolg vorzutaeuschen.
+  call.reviewedAt = reviewed ? new Date().toISOString() : null;
   renderActivity();
-  openCustomerProfile(customerId);
+  try{
+    const antwort = await callAdminFunction('admin-mutate', {
+      action: 'calls.setReviewed',
+      call_id: callId,
+      reviewed
+    });
+    call.reviewedAt = antwort?.call?.reviewed_at || null;
+    if(call.raw) call.raw.reviewed_at = call.reviewedAt;
+    showToast(reviewed ? 'Anruf als geprüft markiert.' : 'Prüfung zurückgenommen.', { tone:'success' });
+  }catch(error){
+    call.reviewedAt = vorher;
+    voxAlert({ title:'Fehler', message: error?.message || 'Der Anruf konnte nicht als geprüft markiert werden.' });
+  }
+  renderActivity();
 }
 
 async function toggleCustomerStatus(customerId){
@@ -15260,6 +15311,7 @@ function mapDbCallToUi(dbRow) {
     duration_seconds: Number(dbRow.duration_seconds || 0),
     id:         dbRow.id,
     failed:     isFailed,
+    reviewedAt: dbRow.reviewed_at || null,
     raw:        dbRow,
   };
 }
@@ -16978,8 +17030,10 @@ async function submitPlanChange() {
 
 // ─── Gutschrift erstellen ──────────────────────────────────────────────────
 var _creditNoteCustomerId = null;
+var _creditNoteRequestId = null;
 function openCreditNoteModal(customerId) {
   _creditNoteCustomerId = customerId;
+  _creditNoteRequestId = null;
   const c = customerById(customerId);
   const sub = document.getElementById('credit-note-sub');
   if (sub && c) sub.textContent = c.name || c.customer_name || customerId;
@@ -16996,6 +17050,7 @@ function openCreditNoteModal(customerId) {
 function closeCreditNoteModal() {
   document.getElementById('credit-note-modal').classList.remove('open');
   _creditNoteCustomerId = null;
+  _creditNoteRequestId = null;
 }
 async function submitCreditNote() {
   const btn = document.getElementById('credit-note-save-btn');
@@ -17012,21 +17067,29 @@ async function submitCreditNote() {
     return;
   }
   if (btn) { btn.disabled = true; btn.textContent = 'Erstelle Gutschrift…'; }
+  // request_id wird EINMAL pro Formular erzeugt und bei einem erneuten Versuch
+  // wiederverwendet. Damit erzeugt ein Doppelklick oder ein Wiederholen nach
+  // Netzfehler keine zweite Gutschrift — die Serverfunktion erkennt den Wert
+  // und gibt dasselbe Ergebnis zurück.
+  if (!_creditNoteRequestId) {
+    _creditNoteRequestId = 'credit-standalone-' + (window.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`);
+  }
   try {
     const contracts = state.contracts.filter(ct => idsEq(ct.customerId, _creditNoteCustomerId) && (ct.status === 'active' || ct.status === 'signed'));
-    await callAdminFunction('admin-mutate', {
-      action: 'invoices.create',
-      payload: {
-        customer_id: _creditNoteCustomerId,
-        contract_id: contracts[0]?.id || null,
-        invoice_type: 'credit_note',
-        total_amount: -Math.abs(amount),
-        description,
-        issued_at: date || new Date().toISOString().slice(0,10),
-        status: 'paid'
-      }
+    const antwort = await callAdminFunction('admin-mutate', {
+      action: 'credit-notes.create',
+      customer_id: _creditNoteCustomerId,
+      contract_id: contracts[0]?.id || null,
+      amount: Math.abs(amount),
+      reason: description,
+      issued_on: date || new Date().toISOString().slice(0,10),
+      request_id: _creditNoteRequestId
     });
-    showToast(`Gutschrift CHF ${amount.toFixed(2)} erstellt ✓`);
+    const nummer = antwort?.credit_note?.credit_note_number;
+    showToast(nummer
+      ? `Gutschrift ${nummer} über ${VoxeraFormat.chf(amount)} erstellt ✓`
+      : `Gutschrift über ${VoxeraFormat.chf(amount)} erstellt ✓`, { tone: 'success' });
+    _creditNoteRequestId = null;
     closeCreditNoteModal();
     await loadDataFromSupabase();
   } catch(e) {
