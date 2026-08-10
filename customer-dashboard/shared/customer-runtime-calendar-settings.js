@@ -100,14 +100,22 @@
     return presets.map(([minutes, label]) => '<option value="' + minutes + '"' + (minutes === selected ? ' selected' : '') + '>' + label + '</option>').join('');
   }
 
-  // Klick-Test 10.08.: `calendar_settings.business_hours` steuert, wann der
-  // Assistent ueberhaupt buchen darf — im Kunden-Dashboard kam es bisher an
-  // keiner Stelle vor. Beim geprueften Kunden standen dort Mo–Fr 08:00–17:00,
-  // waehrend das Geschaeftsprofil fuer dieselben Tage „geschlossen" anzeigte.
-  // Zwei Wahrheiten ueber dieselbe Sache, von denen der Kunde nur eine sehen
-  // konnte. Welche Quelle kuenftig fuehrt, ist eine betriebliche Entscheidung
-  // und wird hier ausdruecklich NICHT getroffen: das Fenster wird nur sichtbar
-  // gemacht und als das benannt, was es ist.
+  // Klick-Test 10.08.: Beim geprueften Kunden standen in
+  // `calendar_settings.business_hours` Mo–Fr 08:00–17:00, waehrend das
+  // Geschaeftsprofil fuer dieselben Tage „geschlossen" anzeigte — zwei
+  // Wahrheiten ueber dieselbe Sache, von denen der Kunde nur eine sehen konnte.
+  //
+  // Beim Nachpruefen zeigte sich, dass die zweite gar keine Wirkung hat:
+  // `business_hours` hat heute keinen Leser. calendar-tool.js verwendet aus
+  // calendar_settings nur active_provider, timezone, Termindauer, Puffer,
+  // Mindestvorlauf und Horizont — die Terminbuchung prueft ueberhaupt keine
+  // Oeffnungszeiten. Die Migration 2026-08-09_opening_hours.sql haelt das
+  // ausdruecklich fest ("ist definiert, hat denselben Zuschnitt und keinen
+  // Leser") und verweist auf F5/J3 als eigenen Auftrag.
+  //
+  // Die Zeile sagt deshalb genau das: ein hinterlegter Wert, der derzeit nichts
+  // bewirkt. Sie darf keine Wirkung behaupten, die es nicht gibt — und sie nimmt
+  // der offenen Entscheidung nichts vorweg, welche Quelle kuenftig fuehrt.
   const HOURS_DAY_LABELS = [
     ['mon', 'Mo'], ['tue', 'Di'], ['wed', 'Mi'], ['thu', 'Do'],
     ['fri', 'Fr'], ['sat', 'Sa'], ['sun', 'So']
@@ -125,12 +133,12 @@
         : '';
       return text ? label + ' ' + text : '';
     }).filter(Boolean);
-    const summary = parts.length ? parts.join(' · ') : 'Kein Zeitfenster hinterlegt — der Assistent bucht dann keine Termine.';
-    return '<div class="vx-cal-field vx-cal-field--wide"><label>Buchungsfenster</label>'
+    const summary = parts.length ? parts.join(' · ') : 'Kein Zeitfenster hinterlegt.';
+    return '<div class="vx-cal-field vx-cal-field--wide"><label>Hinterlegtes Zeitfenster</label>'
       + '<div class="vx-cal-readout">' + esc(summary) + '</div>'
-      + '<div class="vx-cal-meta">Nur in diesen Zeiten legt der Assistent Termine in den Kalender. '
-      + 'Die Öffnungszeiten im Geschäftsprofil sind davon unabhängig — sie bestimmen, was er am Telefon sagt. '
-      + 'Änderungen am Buchungsfenster nimmt der Support vor.</div></div>';
+      + '<div class="vx-cal-meta">Dieser Wert ist gespeichert, wird bei der Terminbuchung aber noch nicht ausgewertet: '
+      + 'der Assistent prüft derzeit keine Öffnungszeiten, sondern nur Mindestvorlauf, Puffer und Buchungshorizont. '
+      + 'Was er am Telefon zu Öffnungszeiten sagt, steht separat im Geschäftsprofil.</div></div>';
   }
 
   // lead: die fuehrende Karte des Screens traegt den Marken-Streifen

@@ -143,11 +143,20 @@ von zwei Stellen nicht angewendet wird. *Screenshot: `e4-bericht-Gesamt-desktop.
 | Assistent → Geschäftsprofil, „Reguläre Öffnungszeiten" (`customers.ai_opening_hours` = NULL) | Montag bis Freitag **geschlossen**, Samstag geschlossen, Sonntag geschlossen |
 | Einstellungen → Kalender, Buchungsregeln (`calendar_settings.business_hours`) | **Mo–Fr 08:00–17:00**, Sa/So leer |
 
-Beide Screens gehören demselben Kunden und demselben Assistenten. In der Konsequenz nennt der Assistent
-am Telefon „geschlossen" und bucht gleichzeitig Termine Mo–Fr 08–17. Ob die Trennung fachlich gewollt ist
-(Auskunft vs. Buchungsfenster), ist von aussen nicht entscheidbar — dass beide Werte unabgeglichen
-nebeneinanderstehen und einander widersprechen, ist es. *Screenshots: `e5-geschaeftsprofil2-desktop.png`,
-`e6-kalender-desktop.png`.*
+Beide Screens gehören demselben Kunden und demselben Assistenten.
+
+**Korrektur vom 10.08. (beim Umsetzen nachgeprüft):** Die ursprüngliche Fassung dieses Befundes schloss
+daraus, der Assistent nenne am Telefon „geschlossen" und buche gleichzeitig Mo–Fr 08–17. Das stimmt nicht.
+`calendar_settings.business_hours` hat **heute keinen Leser**: `calendar-tool.js` verwendet aus
+`calendar_settings` nur `active_provider`, `timezone`, Termindauer, Puffer, Mindestvorlauf und Horizont —
+die Terminbuchung prüft überhaupt keine Öffnungszeiten. Die Migration `2026-08-09_opening_hours.sql` hält
+das ausdrücklich fest („ist definiert, hat denselben Zuschnitt und keinen Leser") und verweist auf F5/J3
+als eigenen, später eingeplanten Auftrag.
+
+Der Befund bleibt damit bestehen, aber mit anderer Bedeutung: nicht zwei wirksame Quellen, die einander
+widersprechen, sondern **ein gepflegtes Feld und ein gespeicherter Wert ohne Wirkung** — beim geprüften
+Kunden sogar mit gegenläufigem Inhalt. Wer die Zahlen sieht, muss erkennen können, welche davon etwas tut.
+*Screenshots: `e5-geschaeftsprofil2-desktop.png`, `e6-kalender-desktop.png`.*
 
 ### S4 · Wochenraster: vier Zeitfelder pro Zeile ohne erkennbare Gruppierung
 Jede Zeile des Öffnungszeiten-Rasters enthält vier Zeitfelder und zwei Bindestriche in gleichmässigem
@@ -272,10 +281,11 @@ dauerhafter Drill-in-Knopf in der Karte „Was Ihr Assistent weiss", im Muster v
 bearbeiten". Kein Eintrag im Einstellungen-Menü: das wäre ein zweiter Weg zur selben Seite und kollidiert
 mit `verify-customer-navigation-unified`.
 
-**S3 ausdrücklich nur sichtbar gemacht.** Welche der beiden Zeitquellen führt, ist eine betriebliche
-Entscheidung mit Wirkung auf das tatsächliche Buchungsverhalten und wurde hier nicht getroffen. Die
-Kalenderseite zeigt das gespeicherte Buchungsfenster jetzt an und benennt seine Rolle; die offene Frage
-bleibt in Abschnitt 5 stehen.
+**S3 ausdrücklich nur sichtbar gemacht** — und beim Umsetzen selbst korrigiert. Die Nachprüfung ergab,
+dass `business_hours` heute gar keinen Leser hat (siehe Korrektur in Abschnitt 3). Die Kalenderseite zeigt
+den gespeicherten Wert deshalb als „Hinterlegtes Zeitfenster" und sagt dazu, dass er bei der Buchung noch
+nicht ausgewertet wird. Eine Wirkung zu behaupten, die es nicht gibt, wäre schlimmer als der ursprüngliche
+Zustand gewesen. Welche Quelle künftig führt, bleibt offen.
 
 Geprüft: 16 Browser-Prüfungen auf 1280 px **und** 390 px, je gegen beide Zweige des Kalender-Zustands
 (verbunden / Neuanmeldung nötig), ohne einen einzigen JavaScript-Fehler. Von 61 `verify-`Skripten laufen
