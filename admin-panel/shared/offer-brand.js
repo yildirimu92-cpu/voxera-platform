@@ -21,7 +21,7 @@
   // Die Kernmodule werden nicht hier nachgeladen, sondern stehen als normale
   // Skript-Tags im Kopf von index.html -- deterministisch statt im Rennen.
   [
-    '/shared/admin-runtime-ui.js?v=20260801-1',
+    '/shared/admin-runtime-ui.js?v=20260810-1',
     '/shared/admin-runtime-navigation.js?v=20260731-3',
     '/shared/admin-runtime-sync.js?v=20260731-4',
     '/shared/admin-runtime-cases.js?v=20260731-3',
@@ -34,13 +34,12 @@
     '/shared/admin-runtime-prompt-builder-v2.js?v=20260801-4',
     '/shared/admin-runtime-invoice-adjustments.js?v=20260810-1',
     '/shared/admin-runtime-design-system-v2.js?v=20260731-1',
-    '/shared/admin-runtime-payment-account.js?v=20260801-2',
+    '/shared/admin-runtime-payment-account.js?v=20260810-1',
     '/shared/admin-runtime-voices.js?v=20260802-2',
     '/shared/admin-runtime-billing-inline-qr.js?v=20260810-1',
     '/shared/admin-runtime-invoice-only-ch.js?v=20260810-1',
     '/shared/admin-runtime-admin-ui-cleanup.js?v=20260801-1',
-    '/shared/admin-runtime-design-system-v3.js?v=20260801-2',
-    '/shared/admin-runtime-v3-regression-fix.js?v=20260801-1',
+    '/shared/admin-runtime-v3-regression-fix.js?v=20260810-1',
     '/shared/admin-runtime-plan-input-cleanup.js?v=20260801-1',
     '/shared/admin-runtime-plan-input-render-fix.js?v=20260801-1',
     '/shared/admin-runtime-plan-placeholder-visibility.js?v=20260801-1',

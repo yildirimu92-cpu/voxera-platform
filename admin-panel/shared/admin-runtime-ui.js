@@ -119,13 +119,13 @@
       #overview-kpis .kpi-value,#onboarding-kpis .kpi-value,#finance-kpi-strip .bf-kpi-value{color:#0D1F3C!important;font-size:25px!important;font-weight:800!important;line-height:1.05!important;letter-spacing:-.035em!important}
       #overview-kpis .kpi-sub,#onboarding-kpis .kpi-sub,#finance-kpi-strip .bf-kpi-sub{font-size:11px!important;color:#64748B!important;margin-top:5px!important;line-height:1.35!important}
 
-      .main .card-head:not(.vox-dark-head) h1,.main .card-head:not(.vox-dark-head) h2,.main .card-head:not(.vox-dark-head) h3,
-      .main .section-head:not(.vox-dark-head) h1,.main .section-head:not(.vox-dark-head) h2,.main .section-head:not(.vox-dark-head) h3{color:var(--ink)!important}
-      .main .card-head:not(.vox-dark-head) .muted,.main .section-head:not(.vox-dark-head) .muted{color:var(--slate2)!important}
-      .main .vox-dark-head,.main [style*="background:#0D1F3C"],.main [style*="background: #0D1F3C"]{color:#fff!important}
-      .main .vox-dark-head h1,.main .vox-dark-head h2,.main .vox-dark-head h3,.main .vox-dark-head strong,.main [style*="background:#0D1F3C"] h1,.main [style*="background:#0D1F3C"] h2,.main [style*="background:#0D1F3C"] h3,.main [style*="background:#0D1F3C"] strong{color:#fff!important}
-      .main .vox-dark-head .muted,.main .vox-dark-head p,.main .vox-dark-head small{color:rgba(255,255,255,.72)!important}
-
+      /* Die Kopfzeilen-Regeln und die Klasse vox-dark-head sind mit Welle 2
+         entfallen. Sie stammten aus applyDarkHeaderContrast(): die Funktion
+         mass beim Start die Hintergrundfarbe jeder Kopfzeile und stempelte bei
+         "dunkel" weisse Schrift ein. Als design-system-v2/v3 den Grund spaeter
+         hell uebermalten, blieb die Schrift weiss -- 30 von 33 Ueberschriften
+         waren unsichtbar. Die Kopfzeile hat jetzt genau einen Eigentuemer:
+         shared/admin-components.css. */
       #cw-header{background:linear-gradient(135deg,#FFFFFF 0%,#F3F7FF 100%)!important;border:1px solid var(--line)!important;box-shadow:0 1px 3px rgba(15,23,42,.06)!important;padding:18px 20px!important}
       #cw-header #cw-avatar{background:#EAF2FF!important;color:#1558BA!important}
       #cw-header #cw-name{color:var(--ink)!important}
@@ -142,17 +142,6 @@
       @media(max-width:560px){#overview-kpis,#onboarding-kpis,#finance-kpi-strip{grid-template-columns:1fr!important}#overview-kpis>*+*,#onboarding-kpis>*+*,#finance-kpi-strip>*+*{border-left:0!important;border-top:1px solid var(--line)!important}#overview-kpis>:nth-child(3),#onboarding-kpis>:nth-child(3),#finance-kpi-strip>:nth-child(3){grid-column:auto}.vox-ops{grid-template-columns:1fr}}
     `;
     document.head.appendChild(style);
-  }
-
-  function applyDarkHeaderContrast(root = document) {
-    root.querySelectorAll('.card-head,.section-head').forEach(head => {
-      const bg = getComputedStyle(head).backgroundColor;
-      const match = bg.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/i);
-      if (!match) return;
-      const r = Number(match[1]), g = Number(match[2]), b = Number(match[3]);
-      const luminance = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
-      head.classList.toggle('vox-dark-head', luminance < 0.46);
-    });
   }
 
   function patchCockpit() {
@@ -240,7 +229,7 @@
 
   ready(() => {
     installOperationalOnboardingSemantics();
-    addCss(); applyDarkHeaderContrast();
+    addCss();
     const overview = typeof renderOverview === 'function' ? renderOverview : null;
     if (overview) renderOverview = function () { const r = overview.apply(this, arguments); patchCockpit(); return r; };
     const onboarding = typeof renderOnboarding === 'function' ? renderOnboarding : null;
@@ -252,13 +241,9 @@
       state.invoices = (original || []).map(inv => String(inv.status || '').toLowerCase() === 'draft' && evidence(inv) ? Object.assign({}, inv, { status: 'open' }) : inv);
       try { return today.apply(this, arguments); } finally { state.invoices = original; }
     };
-    patchCockpit(); billingKpis(); applyDarkHeaderContrast();
-    setTimeout(() => { patchCockpit(); billingKpis(); applyDarkHeaderContrast(); }, 1600);
-    const contrastObserver = new MutationObserver(records => {
-      records.forEach(record => record.addedNodes.forEach(node => {
-        if (node.nodeType === 1) applyDarkHeaderContrast(node.matches?.('.card-head,.section-head') ? node.parentElement || node : node);
-      }));
-    });
-    contrastObserver.observe(document.querySelector('.main') || document.body, { childList: true, subtree: true });
+    patchCockpit(); billingKpis();
+    setTimeout(() => { patchCockpit(); billingKpis(); }, 1600);
+    // Der Beobachter, der neue Kopfzeilen nachvermessen hat, ist mit der
+    // Kontrast-Heuristik entfallen (Welle 2).
   });
 })(typeof globalThis !== 'undefined' ? globalThis : this);

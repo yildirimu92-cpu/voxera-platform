@@ -1,0 +1,108 @@
+/*
+ * admin-design-tokens.css — die Farbrollen, Abstände und Radien des Admin-Portals.
+ *
+ * Welle 2 des Admin-Zielbilds, Regel R3.
+ *
+ * Ausgangslage
+ * ------------
+ * Das Portal hatte drei konkurrierende Token-Sätze nebeneinander:
+ *
+ *   --vx-*        in der ersten <style>-Generation von index.html
+ *   --admin-*     in der zweiten <style>-Generation ("Admin Component Foundation")
+ *   --vx-admin-*  aus admin-runtime-design-system-v2.js (per JavaScript injiziert)
+ *   --vx3-*       aus admin-runtime-design-system-v3.js (per JavaScript injiziert)
+ *
+ * Dazu 156 verschiedene Hex-Farben. Welcher Wert galt, entschied die
+ * Ladereihenfolge von 29 Skripten.
+ *
+ * Diese Datei ist ab sofort die einzige Quelle. Sie definiert die Werte unter
+ * den kanonischen `--vx-admin-*`-Namen; die eingeführten Namen der anderen drei
+ * Sätze bleiben als Verweise darauf bestehen. So ändert sich an keiner
+ * Aufrufstelle etwas, aber es gibt nur noch einen Ort, an dem ein Wert steht.
+ *
+ * Die Werte selbst stammen aus design-system-v3 — das war der zuletzt
+ * ausgelieferte Zustand. Welle 2 ändert die Architektur, nicht das Aussehen.
+ */
+
+:root {
+  /* ── Flächen ──────────────────────────────────────────────────────────── */
+  --vx-admin-bg:            #F4F7FB;
+  --vx-admin-surface:       #FFFFFF;
+  --vx-admin-surface-soft:  #F8FAFD;
+  --vx-admin-surface-sunk:  #EAF0F7;
+
+  /* ── Linien ───────────────────────────────────────────────────────────── */
+  --vx-admin-line:          #E5EAF2;
+  --vx-admin-line-strong:   #D6DEEA;
+  --vx-admin-line-soft:     #EDF1F6;
+
+  /* ── Schrift ──────────────────────────────────────────────────────────── */
+  --vx-admin-ink:           #10213D;
+  --vx-admin-ink-soft:      #4A5A70;
+  --vx-admin-muted:         #6D7C91;
+  --vx-admin-label:         #5D6B80;   /* 4.6:1 auf #F6F8FC — Tabellenkoepfe und Feldbeschriftungen */
+  --vx-admin-on-dark:       #FFFFFF;
+
+  /* ── Signalfarben ─────────────────────────────────────────────────────── */
+  --vx-admin-blue:          #2167E8;
+  --vx-admin-blue-ink:      #1A56C4;   /* Blau auf hellblauem Grund: 5.9:1 statt 4.5:1 knapp verfehlt */
+  --vx-admin-blue-soft:     #79A7F5;
+  --vx-admin-blue-tint:     #EAF2FF;
+  --vx-admin-navy:          #10264A;
+  --vx-admin-success:       #0F9F6E;
+  --vx-admin-warning:       #D38A00;
+  --vx-admin-danger:        #D83A3A;
+  --vx-admin-danger-tint:   #FFF4F4;
+  --vx-admin-danger-line:   #FFCACA;
+
+  /* ── Form ─────────────────────────────────────────────────────────────── */
+  --vx-admin-radius:        18px;
+  --vx-admin-radius-md:     14px;
+  --vx-admin-radius-sm:     12px;
+  --vx-admin-radius-xs:     11px;
+  --vx-admin-radius-pill:   999px;
+
+  --vx-admin-shadow:        0 1px 2px rgba(16,33,61,.03), 0 12px 34px rgba(16,33,61,.055);
+  --vx-admin-shadow-hover:  0 16px 42px rgba(16,33,61,.09);
+  --vx-admin-shadow-raised: 0 8px 24px rgba(16,33,61,.045);
+  --vx-admin-focus-ring:    0 0 0 4px rgba(33,103,232,.10);
+
+  /* ── Masse ────────────────────────────────────────────────────────────── */
+  --vx-admin-control-height: 42px;
+  --vx-admin-field-height:   44px;
+  --vx-admin-head-height:    64px;
+  --vx-admin-content-max:    1480px;
+
+  /* ── Eingeführte Namen, die weiterhin gelten ──────────────────────────────
+     Sie zeigen jetzt hierher, statt eigene Werte zu tragen. Wer einen Wert
+     ändern will, ändert ihn oben — nicht an vier Stellen.                    */
+  --vx3-bg:           var(--vx-admin-bg);
+  --vx3-surface:      var(--vx-admin-surface);
+  --vx3-surface-soft: var(--vx-admin-surface-soft);
+  --vx3-line:         var(--vx-admin-line);
+  --vx3-line-strong:  var(--vx-admin-line-strong);
+  --vx3-ink:          var(--vx-admin-ink);
+  --vx3-muted:        var(--vx-admin-muted);
+  --vx3-blue:         var(--vx-admin-blue);
+  --vx3-navy:         var(--vx-admin-navy);
+  --vx3-success:      var(--vx-admin-success);
+  --vx3-warning:      var(--vx-admin-warning);
+  --vx3-danger:       var(--vx-admin-danger);
+  --vx3-radius:       var(--vx-admin-radius);
+  --vx3-radius-sm:    var(--vx-admin-radius-sm);
+  --vx3-shadow:       var(--vx-admin-shadow);
+  --vx3-shadow-hover: var(--vx-admin-shadow-hover);
+
+  --admin-surface:      var(--vx-admin-surface);
+  --admin-surface-soft: var(--vx-admin-surface-soft);
+  --admin-radius-sm:    var(--vx-admin-radius-sm);
+  --admin-radius-md:    var(--vx-admin-radius-md);
+  --admin-radius-lg:    var(--vx-admin-radius);
+}
+
+@media (max-width: 760px) {
+  :root {
+    --vx-admin-radius:     var(--vx-admin-radius-md);
+    --vx-admin-head-height: 56px;
+  }
+}

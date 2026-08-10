@@ -1,3 +1,16 @@
+/**
+ * Design-System v2 — Rest nach Welle 2.
+ *
+ * Der Kartenkopf, die Karte selbst, Formularfelder, Knoepfe, Reiter und
+ * Tabellen sind nach shared/admin-components.css gewandert; die Farbwerte
+ * stehen in shared/admin-design-tokens.css. Was hier noch steht, sind
+ * Regeln fuer Bereiche, die Welle 3 bis 5 ohnehin anfassen (Reiterleisten,
+ * Leerzustaende, KPI-Streifen, Bildschirmhoehe).
+ *
+ * Aenderung in Welle 2: die Beschriftungsfarbe #718096 lag bei 3.6:1 auf
+ * hellem Grund und damit unter der Lesbarkeitsschwelle. Sie ist auf #5D6B80
+ * angehoben — derselbe Wert wie --vx-admin-label.
+ */
 (function (w) {
   'use strict';
   if (!w || typeof document === 'undefined') return;
@@ -86,7 +99,7 @@
       .module-tab,.bf-tab,.profile-tab,.vx-module-tab,
       .vx-module-tabs>button,.segmented>button,.tab-bar>button{
         min-height:34px!important;padding:7px 13px!important;border:0!important;border-radius:8px!important;
-        background:transparent!important;color:#718096!important;
+        background:transparent!important;color:#5D6B80!important;
         font-size:12px!important;font-weight:650!important;line-height:1.2!important;
         white-space:nowrap!important;margin:0!important;box-shadow:none!important;
       }
@@ -122,7 +135,7 @@
       .btn-primary,button.btn-primary{box-shadow:0 4px 12px rgba(26,111,232,.16)!important}
 
       .data-table thead th,.bf-invoice-table thead th{
-        background:#F7F9FC!important;color:#718096!important;
+        background:#F7F9FC!important;color:#5D6B80!important;
         font-size:10px!important;font-weight:750!important;letter-spacing:.055em!important;
         border-bottom:1px solid var(--vx-admin-border)!important;
       }

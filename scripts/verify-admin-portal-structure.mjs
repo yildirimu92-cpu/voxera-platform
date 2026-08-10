@@ -21,7 +21,7 @@
  * Aufruf:  node scripts/verify-admin-portal-structure.mjs
  */
 
-import { readFileSync, readdirSync } from 'node:fs';
+import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
@@ -52,7 +52,7 @@ const RATSCHEN = [
   {
     name: 'Laufzeit-Patches, die nachgeladen werden',
     ist: geladenePatches.length,
-    max: 25,
+    max: 24,
     ziel: 0,
     hinweis: 'Regel R1: eine Quelle pro Bildschirm.'
   },
@@ -74,28 +74,28 @@ const RATSCHEN = [
   {
     name: 'Zur Laufzeit per JavaScript eingefuegte Stylesheets',
     ist: patchDateien.filter((name) => /createElement\(['"]style['"]\)/.test(lies(`shared/${name}`))).length,
-    max: 17,
+    max: 15,
     ziel: 0,
-    hinweis: 'Regel R3: CSS gehoert in eine Datei. → Welle 2.'
+    hinweis: 'Regel R3: CSS gehoert in eine Datei. → Welle 2 laeuft.'
   },
   {
     name: 'Dauer-Timer (setInterval) in geladenen Patches',
     ist: zaehle(patchQuelltext, /setInterval\s*\(/g),
-    max: 6,
+    max: 5,
     ziel: 0,
     hinweis: 'Regel R6: wer auf Aenderungen reagieren muss, wird gerufen.'
   },
   {
     name: 'MutationObserver in geladenen Patches',
     ist: zaehle(patchQuelltext, /new MutationObserver/g),
-    max: 12,
+    max: 11,
     ziel: 0,
     hinweis: 'Regel R6.'
   },
   {
     name: '!important in index.html und allen Laufzeit-Dateien',
     ist: zaehle(indexHtml, /!important/g) + zaehle(allePatchQuelltexte, /!important/g),
-    max: 868,
+    max: 718,
     ziel: 50,
     hinweis: 'Regel R3. → Welle 2 loest den grossen Teil davon auf.'
   }
@@ -119,6 +119,22 @@ const ZUSICHERUNGEN = [
     name: 'Kein Patch definiert showToast, voxAlert, voxConfirm oder voxPrompt neu',
     erfuellt: !/(?:w|root|window)\.(?:showToast|voxAlert|voxConfirm|voxPrompt)\s*=\s*[^=]/.test(allePatchQuelltexte),
     hinweis: 'Regel R4: eine Tonalitaet.'
+  },
+  {
+    name: 'Die Kopfzeile hat genau einen Eigentuemer',
+    erfuellt: !/\.card-head\s*\{[^}]*background\s*:/.test(indexHtml)
+      && !/vox-dark-head/.test(allePatchQuelltexte.replace(/\/\*[\s\S]*?\*\//g, ''))
+      && /\.card-head,/.test(readFileSync(join(ADMIN, 'shared/admin-components.css'), 'utf8')),
+    hinweis: 'Kopfzeilen-Regeln gehoeren ausschliesslich in shared/admin-components.css. '
+      + 'Die Kontrastmessung applyDarkHeaderContrast() darf nicht zurueckkehren -- sie war die '
+      + 'Alleinursache der 30 unlesbaren Ueberschriften.'
+  },
+  {
+    name: 'Die Farbwerte stehen in der Token-Datei, nicht in JavaScript',
+    erfuellt: existsSync(join(ADMIN, 'shared/admin-design-tokens.css'))
+      && indexHtml.includes('/shared/admin-design-tokens.css')
+      && indexHtml.includes('/shared/admin-components.css'),
+    hinweis: 'Beide Dateien muessen NACH den <style>-Bloecken eingebunden sein, sonst braucht es wieder !important.'
   },
   {
     name: 'Jede Datei in shared/ ohne admin-runtime-Praefix wird auch geladen',

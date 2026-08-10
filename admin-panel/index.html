@@ -16,6 +16,12 @@
      bereit. Die Laufzeit-Dateien werden dynamisch nachgeladen und mussten ihre
      Existenz deshalb mit ready()-Wächtern und Wiederholungen absichern — genau
      das entfällt hier. -->
+<!-- Design-System des Admin-Portals (Welle 2 des Zielbilds).
+     Bewusst NACH den <style>-Bloecken dieses Dokuments eingebunden: dadurch
+     gewinnen die Regeln hier bei gleicher Spezifitaet von selbst, und es
+     braucht kein !important. -->
+<link rel="stylesheet" href="/shared/admin-design-tokens.css?v=20260810-1">
+<link rel="stylesheet" href="/shared/admin-components.css?v=20260810-1">
 <script src="/shared/core/admin-format.js?v=20260810-1"></script>
 <script src="/shared/core/admin-feedback.js?v=20260810-1"></script>
 <script src="/shared/core/admin-lifecycle.js?v=20260810-1"></script>
@@ -34,7 +40,7 @@
   --purple:#4F46E5;--purple-light:#EEF2FF;--purple-mid:#C7D2FE;
   /* Neutrals mapped to brand */
   --ink:var(--vx-ink);--ink2:#27334D;--ink3:#37415A;
-  --slate:var(--vx-muted);--slate2:#98A2B3;
+  --slate:var(--vx-muted);--slate2:#64748B; /* Welle 2: war #98A2B3 = 2.5:1 auf Weiss — unter jeder Lesbarkeitsschwelle */
   --line:var(--vx-line);--line2:#EEF2F7;
   --bg:var(--vx-bg);--surface:var(--vx-surface);--surface2:#F1F4F9;
   /* Typography */
@@ -90,7 +96,7 @@ body.app-booting .app,body.app-booting .sidebar-overlay,body.app-booting #toast{
   letter-spacing:-.05em;font-family:var(--font-display);
 }
 .splash-tagline{
-  font-size:13px;color:#9CA3AF;font-weight:400;
+  font-size:13px;color:#64748B;font-weight:400;
   letter-spacing:.02em;font-family:var(--font-display);
 }
 .splash-bar-wrap{
@@ -249,7 +255,7 @@ body.app-booting .app,body.app-booting .sidebar-overlay,body.app-booting #toast{
 /* ─── Tables ─────────────────────────────────────────────────── */
 .table-wrap{overflow:auto;border:0.5px solid var(--line);border-radius:var(--radius-lg);background:rgba(255,255,255,0.85);box-shadow:var(--shadow-card);}
 .data-table{width:100%;border-collapse:collapse;font-size:13px;}
-.data-table thead th{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#94A3B8;padding:8px 14px;border-bottom:0.5px solid #E4E8F0;background:#F8FAFC;text-align:left;}
+.data-table thead th{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#64748B;padding:8px 14px;border-bottom:0.5px solid #E4E8F0;background:#F8FAFC;text-align:left;}
 .data-table tbody td{padding:12px 14px;font-size:13px;color:#1A1A2E;border-bottom:0.5px solid #F1F4F9;vertical-align:middle;}
 .data-table tbody tr:last-child td{border-bottom:none;}
 .data-table tbody tr:hover td{background:#F8FAFC;}
@@ -386,7 +392,7 @@ body.app-booting .app,body.app-booting .sidebar-overlay,body.app-booting #toast{
 .profile-health-label{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:rgba(255,255,255,.4);}
 .profile-health-value{margin-top:4px;font-size:13px;font-weight:600;color:#fff;}
 .profile-tabs{display:flex;gap:2px;background:#F1F5F9;padding:3px;margin:12px 16px 0;border-radius:10px;width:fit-content;}
-.profile-tab{padding:6px 14px;border:none;border-radius:8px;background:transparent;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;color:#94A3B8;white-space:nowrap;}
+.profile-tab{padding:6px 14px;border:none;border-radius:8px;background:transparent;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;color:#64748B;white-space:nowrap;}
 .profile-tab.active{background:#fff;color:#0D1F3C;box-shadow:0 1px 3px rgba(0,0,0,.08);}
 .profile-panel{display:none;padding:16px 16px 8px;}
 .profile-panel.active{display:block;}
@@ -805,7 +811,7 @@ body.app-booting .app,body.app-booting .sidebar-overlay,body.app-booting #toast{
 .sub-timeline-icon.sent{background:#DBEAFE;color:#1E40AF;}
 .sub-timeline-icon.draft{background:#FEF3C7;color:#92400E;}
 .sub-timeline-icon.overdue{background:#FEE2E2;color:#991B1B;}
-.sub-timeline-icon.future{background:#F1F5F9;color:#94A3B8;border:1.5px dashed #CBD5E1;}
+.sub-timeline-icon.future{background:#F1F5F9;color:#64748B;border:1.5px dashed #CBD5E1;}
 .sub-timeline-num{font-weight:600;color:var(--ink);min-width:130px;}
 .sub-timeline-period{color:var(--slate2);font-size:12px;}
 .sub-timeline-amt{font-weight:600;color:var(--ink);min-width:90px;text-align:right;}
@@ -823,7 +829,7 @@ body.app-booting .app,body.app-booting .sidebar-overlay,body.app-booting #toast{
 .bf-kpi-value{font-size:22px;font-weight:800;color:var(--ink);letter-spacing:-.02em;line-height:1.1;}
 .bf-kpi-sub{font-size:11px;color:var(--slate2);margin-top:3px;}
 .bf-tabs{display:flex;gap:2px;border-bottom:0.5px solid var(--line);margin-bottom:20px;}
-.bf-tab{padding:6px 16px;border-radius:8px;border:none;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;background:transparent;color:#94A3B8;transition:all .15s;}
+.bf-tab{padding:6px 16px;border-radius:8px;border:none;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;background:transparent;color:#64748B;transition:all .15s;}
 .bf-tab:hover{color:var(--ink);}
 .bf-tab.bf-tab-active{background:#fff;color:#0D1F3C;box-shadow:0 1px 3px rgba(0,0,0,.08);}
 .bf-tab-content{display:block;}
@@ -868,9 +874,9 @@ body.app-booting .app,body.app-booting .sidebar-overlay,body.app-booting #toast{
 .bf-status-badge.open{background:#EFF6FF;color:#1D4ED8;}
 .bf-status-badge.overdue{background:#FEF2F2;color:#B91C1C;}
 .bf-status-badge.paid{background:#ECFDF5;color:#059669;}
-.bf-status-badge.cancelled{background:#F8FAFC;color:#94A3B8;}
+.bf-status-badge.cancelled{background:#F8FAFC;color:#64748B;}
 .bf-reminder-badge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:99px;font-size:11px;font-weight:700;white-space:nowrap;}
-.bf-reminder-badge.none{background:#F1F5F9;color:#94A3B8;}
+.bf-reminder-badge.none{background:#F1F5F9;color:#64748B;}
 @media(max-width:600px){.overview-task-item{overflow-wrap:anywhere;}}
 .bf-reminder-badge.l1{background:#FFFBEB;color:#92400E;}
 .bf-reminder-badge.l2{background:#FEF2F2;color:#B91C1C;}
@@ -1603,7 +1609,7 @@ label.muted{display:block;font-size:11.5px;font-weight:600;color:var(--slate);ma
 :root{
   --vx-bg:#F7F8FC;
   --vx-line:#E2E8F0;
-  --vx-muted:#94A3B8;
+  --vx-muted:#64748B;
   --vx-ink:#0F172A;
 }
 body,.main{background:#F7F8FC;}
@@ -1718,7 +1724,7 @@ body,.main{background:#F7F8FC;}
 }
 .page-sub, #page-sub {
   font-size: 12px;
-  color: #94A3B8;
+  color: #64748B;
   margin-top: 2px;
 }
 .status-pill{
@@ -1738,29 +1744,11 @@ body,.main{background:#F7F8FC;}
   box-shadow: 0 1px 3px rgba(0,0,0,0.05);
   margin-bottom: 12px;
 }
-.card-head {
-  background: #0D1F3C;
-  padding: 11px 16px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 8px;
-}
-.card-head h3 {
-  font-size: 13px;
-  font-weight: 700;
-  color: #fff;
-  letter-spacing: -0.01em;
-}
-.card-head .badge {
-  font-size: 10px;
-  font-weight: 700;
-  padding: 2px 8px;
-  border-radius: 999px;
-  background: rgba(255,255,255,0.15);
-  color: rgba(255,255,255,0.85);
-  border: none;
-}
+/* .card-head, .card-head h3 und .card-head .badge stehen seit Welle 2 in
+   shared/admin-components.css. Hier standen sie in zwei Generationen zugleich:
+   navyer Grund mit weisser Schrift, darunter eine hellere Fassung ohne Grund.
+   Zusammen mit der Kontrastmessung aus admin-runtime-ui.js ergab das 30
+   unlesbare Kartenueberschriften. */
 .card > *:not(.card-head):not(.toolbar):not(.table-wrap) {
   padding: 14px 16px;
 }
@@ -1788,7 +1776,7 @@ body,.main{background:#F7F8FC;}
   font-size:9px;
   text-transform:uppercase;
   letter-spacing:.08em;
-  color:#94A3B8;
+  color:#64748B;
   font-weight:700;
   margin-bottom:8px;
 }
@@ -1802,7 +1790,7 @@ body,.main{background:#F7F8FC;}
 .kpi-grid .kpi:nth-child(2) .kpi-value{color:#059669;}
 .kpi-grid .kpi:nth-child(3) .kpi-value{color:#1A6FE8;}
 .kpi-grid .kpi:nth-child(4) .kpi-value{color:#DC2626;}
-.kpi-sub{font-size:10px;color:#94A3B8;margin-top:6px;}
+.kpi-sub{font-size:10px;color:#64748B;margin-top:6px;}
 .table-wrap{
   background:#FFFFFF;
   border:1px solid #E2E8F0;
@@ -1815,7 +1803,7 @@ body,.main{background:#F7F8FC;}
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: #94A3B8;
+  color: #64748B;
   padding: 8px 12px;
   border-bottom: 0.5px solid #E4E8F0;
   background: #F8FAFC;
@@ -2071,26 +2059,8 @@ body,.main{background:#F7F8FC;}
     background:var(--admin-surface);
     box-shadow:var(--admin-shadow-sm);
   }
-  .main .card-head,
-  .main .section-head,
-  .main .bf-panel-head{
-    min-height:52px;
-    padding:14px 18px;
-    border-bottom:1px solid var(--line);
-    border-radius:var(--admin-radius-md) var(--admin-radius-md) 0 0;
-  }
-  .main .card-head h2,
-  .main .card-head h3,
-  .main .section-head h2,
-  .main .section-head h3,
-  .main .bf-panel-head h2,
-  .main .bf-panel-head h3{
-    margin:0;
-    color:var(--ink);
-    font-size:14px;
-    font-weight:700;
-    line-height:1.25;
-  }
+  /* Kopfzeilen-Regeln → shared/admin-components.css (Welle 2). */
+
 
   /* Shared filter and control surfaces */
   .main .toolbar,
@@ -2165,12 +2135,7 @@ body,.main{background:#F7F8FC;}
     .main .table-wrap,
     .main .bf-panel,
     .main .customer-section-shell{border-radius:var(--admin-radius-md);}
-    .main .card-head,
-    .main .section-head,
-    .main .bf-panel-head{
-      min-height:48px;
-      padding:12px 14px;
-    }
+    /* schmale Fenster: Kopfzeile → shared/admin-components.css */
     .main .toolbar,
     .main .bf-toolbar{
       display:grid;
@@ -2332,9 +2297,9 @@ body,.main{background:#F7F8FC;}
         <!-- Pipeline Strip -->
         <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0;border:0.5px solid var(--line);border-radius:14px;overflow:hidden;margin-bottom:12px;background:#fff;">
           <div style="padding:14px 16px;border-right:0.5px solid var(--line);">
-            <div style="font-size:10px;color:#94A3B8;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;">Offerte</div>
+            <div style="font-size:10px;color:#64748B;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;">Offerte</div>
             <div id="pipeline-offers-count" style="font-size:22px;font-weight:700;color:#0D1F3C;letter-spacing:-.03em;">—</div>
-            <div id="pipeline-offers-sub" style="font-size:11px;color:#94A3B8;margin-top:2px;">wird geladen</div>
+            <div id="pipeline-offers-sub" style="font-size:11px;color:#64748B;margin-top:2px;">wird geladen</div>
           </div>
           <div style="padding:14px 16px;border-right:0.5px solid var(--line);background:#FFFBEB;">
             <div style="font-size:10px;color:#B45309;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;">Onboarding</div>
@@ -2992,7 +2957,7 @@ body,.main{background:#F7F8FC;}
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10 3L5 8l5 5"/></svg>
             Zurück zu Kunden
           </button>
-          <div id="cw-breadcrumb" style="font-size:13px;color:#94A3B8;"></div>
+          <div id="cw-breadcrumb" style="font-size:13px;color:#64748B;"></div>
         </div>
 
         <!-- Header Card -->
@@ -6219,24 +6184,24 @@ function renderCustomerWorkspace(id) {
   if (g('cw-kpis')) {
     g('cw-kpis').innerHTML =
       '<div style="background:#fff;border:0.5px solid var(--line);border-radius:12px;padding:14px 16px;">'
-      + '<div style="font-size:10px;color:#94A3B8;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;">Setup</div>'
+      + '<div style="font-size:10px;color:#64748B;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;">Setup</div>'
       + '<div style="font-size:22px;font-weight:700;color:#0D1F3C;">' + setupProgress + '%</div>'
       + '<div style="height:3px;background:#F1F5F9;border-radius:2px;margin-top:6px;overflow:hidden;"><div style="width:' + setupProgress + '%;height:100%;background:' + progressColor + ';border-radius:2px;"></div></div>'
       + '</div>'
       + '<div style="background:#fff;border:0.5px solid var(--line);border-radius:12px;padding:14px 16px;">'
-      + '<div style="font-size:10px;color:#94A3B8;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;">Plan</div>'
+      + '<div style="font-size:10px;color:#64748B;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;">Plan</div>'
       + '<div style="font-size:22px;font-weight:700;color:#0D1F3C;">' + esc(planLabel(cu.plan_code||cu.plan)||'—') + '</div>'
-      + '<div style="font-size:11px;color:#94A3B8;margin-top:3px;">' + esc(cu.subscription_billing_cycle_label||'—') + '</div>'
+      + '<div style="font-size:11px;color:#64748B;margin-top:3px;">' + esc(cu.subscription_billing_cycle_label||'—') + '</div>'
       + '</div>'
       + '<div style="background:#fff;border:0.5px solid var(--line);border-radius:12px;padding:14px 16px;">'
-      + '<div style="font-size:10px;color:#94A3B8;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;">Zahlung</div>'
+      + '<div style="font-size:10px;color:#64748B;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;">Zahlung</div>'
       + '<div style="font-size:22px;font-weight:700;color:' + (paymentPaid ? '#059669' : '#DC2626') + ';">' + (paymentPaid ? 'OK' : 'Offen') + '</div>'
-      + '<div style="font-size:11px;color:#94A3B8;margin-top:3px;">' + (paymentPaid ? 'Setup bezahlt' : 'ausstehend') + '</div>'
+      + '<div style="font-size:11px;color:#64748B;margin-top:3px;">' + (paymentPaid ? 'Setup bezahlt' : 'ausstehend') + '</div>'
       + '</div>'
       + '<div style="background:#fff;border:0.5px solid var(--line);border-radius:12px;padding:14px 16px;">'
-      + '<div style="font-size:10px;color:#94A3B8;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;">Cases</div>'
+      + '<div style="font-size:10px;color:#64748B;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;">Cases</div>'
       + '<div style="font-size:22px;font-weight:700;color:' + (openCases > 0 ? '#DC2626' : '#059669') + ';">' + openCases + '</div>'
-      + '<div style="font-size:11px;color:#94A3B8;margin-top:3px;">offen</div>'
+      + '<div style="font-size:11px;color:#64748B;margin-top:3px;">offen</div>'
       + '</div>';
   }
 
@@ -6244,7 +6209,7 @@ function renderCustomerWorkspace(id) {
   if (g('cw-contact')) {
     var field = function(label, value, full) {
       return '<div' + (full ? ' style="grid-column:1/-1;"' : '') + '>'
-        + '<div style="font-size:10px;color:#94A3B8;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;">' + label + '</div>'
+        + '<div style="font-size:10px;color:#64748B;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;">' + label + '</div>'
         + '<div style="font-size:13px;font-weight:500;color:#0D1F3C;">' + esc(value||'—') + '</div>'
         + '</div>';
     };
@@ -6271,10 +6236,10 @@ function renderCustomerWorkspace(id) {
       ? new Date(cu.elevenlabs_last_sync_at).toLocaleString('de-CH',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})
       : '—';
     g('cw-assistant').innerHTML =
-      '<div><div style="font-size:10px;color:#94A3B8;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;">Name</div><div style="font-size:13px;font-weight:600;color:#0D1F3C;">' + esc(cu.assistant_name||'Lara') + '</div></div>'
-      + '<div><div style="font-size:10px;color:#94A3B8;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;">Sprache</div><div style="font-size:13px;color:#475569;">' + esc(cu.ai_language||'Deutsch') + '</div></div>'
-      + '<div><div style="font-size:10px;color:#94A3B8;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;">Ton</div><div style="font-size:13px;color:#475569;">' + esc(cu.ai_tone||'—') + '</div></div>'
-      + '<div><div style="font-size:10px;color:#94A3B8;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;">Letzter Sync</div><div style="font-size:13px;color:#475569;">' + lastSync + '</div></div>'
+      '<div><div style="font-size:10px;color:#64748B;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;">Name</div><div style="font-size:13px;font-weight:600;color:#0D1F3C;">' + esc(cu.assistant_name||'Lara') + '</div></div>'
+      + '<div><div style="font-size:10px;color:#64748B;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;">Sprache</div><div style="font-size:13px;color:#475569;">' + esc(cu.ai_language||'Deutsch') + '</div></div>'
+      + '<div><div style="font-size:10px;color:#64748B;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;">Ton</div><div style="font-size:13px;color:#475569;">' + esc(cu.ai_tone||'—') + '</div></div>'
+      + '<div><div style="font-size:10px;color:#64748B;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;">Letzter Sync</div><div style="font-size:13px;color:#475569;">' + lastSync + '</div></div>'
       + '<div style="grid-column:1/-1;display:flex;gap:8px;margin-top:6px;">'
       + '<button class="btn btn-quiet btn-sm" type="button" style="flex:1;font-size:11px;" onclick="openAiWizard(\'' + jsStr(id) + '\')">AI bearbeiten</button>'
       + '</div>';
@@ -6288,10 +6253,10 @@ function renderCustomerWorkspace(id) {
   }
   if (g('cw-billing')) {
     g('cw-billing').innerHTML =
-      '<div><div style="font-size:10px;color:#94A3B8;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;">Plan</div><div style="font-size:13px;font-weight:600;color:#0D1F3C;">' + esc(planLabel(cu.plan_code||cu.plan)||'—') + '</div></div>'
-      + '<div><div style="font-size:10px;color:#94A3B8;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;">Abrechnung</div><div style="font-size:13px;color:#475569;">' + esc(cu.subscription_billing_cycle_label||'—') + '</div></div>'
-      + '<div><div style="font-size:10px;color:#94A3B8;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;">Zahlung</div><div style="font-size:13px;font-weight:600;color:' + (paymentPaid ? '#059669' : '#DC2626') + ';">' + (paymentPaid ? 'Bezahlt' : 'Ausstehend') + '</div></div>'
-      + '<div><div style="font-size:10px;color:#94A3B8;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;">Verträge</div><div style="font-size:13px;color:#475569;">' + activeContracts.length + ' aktiv · ' + contracts.length + ' total</div></div>'
+      '<div><div style="font-size:10px;color:#64748B;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;">Plan</div><div style="font-size:13px;font-weight:600;color:#0D1F3C;">' + esc(planLabel(cu.plan_code||cu.plan)||'—') + '</div></div>'
+      + '<div><div style="font-size:10px;color:#64748B;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;">Abrechnung</div><div style="font-size:13px;color:#475569;">' + esc(cu.subscription_billing_cycle_label||'—') + '</div></div>'
+      + '<div><div style="font-size:10px;color:#64748B;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;">Zahlung</div><div style="font-size:13px;font-weight:600;color:' + (paymentPaid ? '#059669' : '#DC2626') + ';">' + (paymentPaid ? 'Bezahlt' : 'Ausstehend') + '</div></div>'
+      + '<div><div style="font-size:10px;color:#64748B;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;">Verträge</div><div style="font-size:13px;color:#475569;">' + activeContracts.length + ' aktiv · ' + contracts.length + ' total</div></div>'
       + '<div style="grid-column:1/-1;display:flex;gap:8px;margin-top:6px;flex-wrap:wrap;">'
       + '<button class="btn btn-quiet btn-sm" type="button" style="flex:1;font-size:11px;" onclick="setRoute(\'billing-finance\')">Billing</button>'
       + '<button class="btn btn-quiet btn-sm" type="button" style="flex:1;font-size:11px;" onclick="openContractCloseChooser&&openContractCloseChooser()">Vertrag abschliessen</button>'
@@ -6315,10 +6280,10 @@ function renderCustomerWorkspace(id) {
       '<div style="height:4px;background:#F1F5F9;border-radius:2px;overflow:hidden;margin-bottom:12px;">'
       + '<div style="width:' + setupProgress + '%;height:100%;background:' + progressColor + ';border-radius:2px;transition:width .3s;"></div>'
       + '</div>'
-      + '<div style="font-size:11px;color:#94A3B8;margin-bottom:4px;">Nächster Schritt</div>'
+      + '<div style="font-size:11px;color:#64748B;margin-bottom:4px;">Nächster Schritt</div>'
       + '<div style="font-size:13px;font-weight:600;color:#0D1F3C;margin-bottom:' + (snapshot&&snapshot.blocker ? '8px' : '12px') + ';">' + esc(nextStep||'—') + '</div>'
       + (snapshot && snapshot.blocker ? '<div style="font-size:12px;color:#DC2626;background:#FEF2F2;border-radius:8px;padding:8px 12px;margin-bottom:12px;">Blocker: ' + esc(snapshot.blocker) + '</div>' : '')
-      + '<div style="font-size:11px;color:#94A3B8;">Lifecycle: ' + esc(lifecycleLabel) + '</div>';
+      + '<div style="font-size:11px;color:#64748B;">Lifecycle: ' + esc(lifecycleLabel) + '</div>';
   }
 
   // Cases card
@@ -6337,7 +6302,7 @@ function renderCustomerWorkspace(id) {
         .map(function(ca) {
           return '<div style="padding:8px 0;border-bottom:0.5px solid var(--line);font-size:12px;">'
             + '<div style="font-weight:600;color:#0D1F3C;">' + esc(ca.title||'—') + '</div>'
-            + '<div style="color:#94A3B8;margin-top:2px;">' + esc(ca.status||'—') + '</div>'
+            + '<div style="color:#64748B;margin-top:2px;">' + esc(ca.status||'—') + '</div>'
             + '</div>';
         }).join('');
       g('cw-cases').innerHTML = caseHtml
@@ -6417,7 +6382,7 @@ function renderCustomers(){
     const actionState=getCustomerQuickActionState(c,onboarding);
     const isLive=lifecycleStatus==='active'||lifecycleStatus==='live';
     const isOnboarding=lifecycleStatus==='onboarding'||lifecycleStatus==='access_sent';
-    const statusColor=isLive?'#059669':isOnboarding?'#D97706':'#94A3B8';
+    const statusColor=isLive?'#059669':isOnboarding?'#D97706':'#64748B';
     const statusBg=isLive?'rgba(5,150,105,.1)':isOnboarding?'rgba(217,119,6,.1)':'rgba(148,163,184,.1)';
     const progressColor=setupProgress>=100?'#059669':setupProgress>=80?'#F59E0B':'#1A6FE8';
     const canSend=actionState.showSendAccess&&!actionState.sendAccessDisabled;
@@ -6441,16 +6406,16 @@ function renderCustomers(){
       </div>
       <div style="padding:12px 16px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;border-bottom:0.5px solid var(--line);">
         <div>
-          <div style="font-size:10px;color:#94A3B8;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;">Setup</div>
+          <div style="font-size:10px;color:#64748B;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;">Setup</div>
           <div style="font-size:13px;font-weight:600;color:#0D1F3C;">${setupProgress}%</div>
           <div style="height:3px;background:#F1F5F9;border-radius:2px;margin-top:5px;overflow:hidden;"><div style="width:${setupProgress}%;height:100%;background:${progressColor};border-radius:2px;"></div></div>
         </div>
         <div>
-          <div style="font-size:10px;color:#94A3B8;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;">Nächster Schritt</div>
+          <div style="font-size:10px;color:#64748B;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;">Nächster Schritt</div>
           <div style="font-size:12px;color:#475569;line-height:1.3;">${esc(nextStepLabel||'—')}</div>
         </div>
         <div>
-          <div style="font-size:10px;color:#94A3B8;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;">Letzte Aktivität</div>
+          <div style="font-size:10px;color:#64748B;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;">Letzte Aktivität</div>
           <div style="font-size:12px;color:#475569;">${esc(c.latest||'—')}</div>
         </div>
       </div>
@@ -6463,7 +6428,7 @@ function renderCustomers(){
         </div>
       </div>
     </div>`;
-  }).join('')||'<div class="empty" style="padding:24px;text-align:center;color:#94A3B8;">Keine Kunden für aktuelle Filter.</div>';
+  }).join('')||'<div class="empty" style="padding:24px;text-align:center;color:#64748B;">Keine Kunden für aktuelle Filter.</div>';
   document.getElementById('customers-card-list').innerHTML=cardsHtml;
   updatePipelineStrip();
 }
@@ -6744,7 +6709,7 @@ function openOnboardingDetail(customerId,options={}){
       const isDone=!missingSet.has(step);
       const action=(!isDone||step==='Voxera number assigned')?getOnboardingStepAction(step,customerId):'';
       return `<div class="onboarding-checklist-item">
-        <span aria-hidden="true" style="font-size:15px;line-height:1;color:${isDone?'#059669':'#9CA3AF'};">${isDone?'✔':'○'}</span>
+        <span aria-hidden="true" style="font-size:15px;line-height:1;color:${isDone?'#059669':'#64748B'};">${isDone?'✔':'○'}</span>
         <span style="font-size:13px;color:${isDone?'var(--slate)':'var(--ink)'};text-decoration:${isDone?'line-through':'none'};">${esc(checklistDisplayLabel(step))}</span>
         ${action}
       </div>`;
@@ -12332,14 +12297,14 @@ function openCustomerProfile(id){
           <button class="btn btn-quiet btn-sm" style="font-size:10px;padding:3px 8px;background:rgba(255,255,255,.12);border:none;color:rgba(255,255,255,.8);" onclick="closeCustomerProfile();navigateTo('customers')">Bearbeiten</button>
         </div>
         <div style="padding:14px 16px;display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-          <div><div style="font-size:10px;color:#94A3B8;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;">Firma</div><div style="font-size:13px;font-weight:600;color:#0D1F3C;">${esc(c.name||'—')}</div></div>
-          <div><div style="font-size:10px;color:#94A3B8;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;">Kontakt</div><div style="font-size:13px;color:var(--ink);">${esc(contactDisplay(c)||'—')}</div></div>
-          <div><div style="font-size:10px;color:#94A3B8;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;">E-Mail</div><div style="font-size:13px;color:#1A6FE8;">${esc(c.email||'—')}</div></div>
-          <div><div style="font-size:10px;color:#94A3B8;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;">Telefon</div><div style="font-size:13px;color:var(--ink);">${esc(c.tel_nr||'—')}</div></div>
-          <div style="grid-column:1/-1"><div style="font-size:10px;color:#94A3B8;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;">Adresse</div><div style="font-size:13px;color:var(--ink);">${esc([c.address,c.zip,c.city].filter(Boolean).join(', ')||'—')}</div></div>
-          <div><div style="font-size:10px;color:#94A3B8;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;">Voxera-Nr.</div><div style="font-size:13px;font-weight:600;color:#1A6FE8;">${esc(c.voxera||'—')}</div></div>
-          <div><div style="font-size:10px;color:#94A3B8;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;">Branche</div><div style="font-size:13px;color:var(--ink);">${esc(c.industry||c.ai_industry||'—')}</div></div>
-          ${c.internal_note?`<div style="grid-column:1/-1"><div style="font-size:10px;color:#94A3B8;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;">Interne Notiz</div><div style="font-size:12px;color:#94A3B8;font-style:italic;">${esc(c.internal_note)}</div></div>`:''}
+          <div><div style="font-size:10px;color:#64748B;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;">Firma</div><div style="font-size:13px;font-weight:600;color:#0D1F3C;">${esc(c.name||'—')}</div></div>
+          <div><div style="font-size:10px;color:#64748B;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;">Kontakt</div><div style="font-size:13px;color:var(--ink);">${esc(contactDisplay(c)||'—')}</div></div>
+          <div><div style="font-size:10px;color:#64748B;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;">E-Mail</div><div style="font-size:13px;color:#1A6FE8;">${esc(c.email||'—')}</div></div>
+          <div><div style="font-size:10px;color:#64748B;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;">Telefon</div><div style="font-size:13px;color:var(--ink);">${esc(c.tel_nr||'—')}</div></div>
+          <div style="grid-column:1/-1"><div style="font-size:10px;color:#64748B;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;">Adresse</div><div style="font-size:13px;color:var(--ink);">${esc([c.address,c.zip,c.city].filter(Boolean).join(', ')||'—')}</div></div>
+          <div><div style="font-size:10px;color:#64748B;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;">Voxera-Nr.</div><div style="font-size:13px;font-weight:600;color:#1A6FE8;">${esc(c.voxera||'—')}</div></div>
+          <div><div style="font-size:10px;color:#64748B;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;">Branche</div><div style="font-size:13px;color:var(--ink);">${esc(c.industry||c.ai_industry||'—')}</div></div>
+          ${c.internal_note?`<div style="grid-column:1/-1"><div style="font-size:10px;color:#64748B;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;">Interne Notiz</div><div style="font-size:12px;color:#64748B;font-style:italic;">${esc(c.internal_note)}</div></div>`:''}
         </div>
       </div>
 
@@ -12351,10 +12316,10 @@ function openCustomerProfile(id){
             <span style="font-size:10px;background:rgba(52,211,153,.2);color:#34D399;border-radius:99px;padding:2px 8px;font-weight:600;">${c.elevenlabs_sync_status==='success'?'Sync OK':c.elevenlabs_sync_status==='error'?'Sync Fehler':'—'}</span>
           </div>
           <div style="padding:12px 16px;display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-            <div><div style="font-size:10px;color:#94A3B8;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;">Name</div><div style="font-size:13px;font-weight:600;color:#0D1F3C;">${esc(c.assistant_name||'Lara')}</div></div>
-            <div><div style="font-size:10px;color:#94A3B8;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;">Sprache</div><div style="font-size:13px;color:var(--ink);">${esc(c.ai_language||'Deutsch')}</div></div>
-            <div><div style="font-size:10px;color:#94A3B8;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;">Ton</div><div style="font-size:13px;color:var(--ink);">${esc(c.ai_tone||'—')}</div></div>
-            <div><div style="font-size:10px;color:#94A3B8;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;">Letzter Sync</div><div style="font-size:13px;color:var(--ink);">${esc(c.elevenlabs_last_sync_at?new Date(c.elevenlabs_last_sync_at).toLocaleString('de-CH',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'—')}</div></div>
+            <div><div style="font-size:10px;color:#64748B;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;">Name</div><div style="font-size:13px;font-weight:600;color:#0D1F3C;">${esc(c.assistant_name||'Lara')}</div></div>
+            <div><div style="font-size:10px;color:#64748B;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;">Sprache</div><div style="font-size:13px;color:var(--ink);">${esc(c.ai_language||'Deutsch')}</div></div>
+            <div><div style="font-size:10px;color:#64748B;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;">Ton</div><div style="font-size:13px;color:var(--ink);">${esc(c.ai_tone||'—')}</div></div>
+            <div><div style="font-size:10px;color:#64748B;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;">Letzter Sync</div><div style="font-size:13px;color:var(--ink);">${esc(c.elevenlabs_last_sync_at?new Date(c.elevenlabs_last_sync_at).toLocaleString('de-CH',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'—')}</div></div>
             <div style="grid-column:1/-1;display:flex;gap:8px;margin-top:4px;">
               <button class="btn btn-quiet btn-sm" style="flex:1;font-size:11px;" onclick="closeCustomerProfile();setTimeout(()=>{selectAiCustomer&&selectAiCustomer('${jsStr(c.id)}');navigateTo('ai-setup');},100)">AI bearbeiten</button>
             </div>
@@ -12367,10 +12332,10 @@ function openCustomerProfile(id){
             <span style="font-size:10px;background:${activeContractCount>0?'rgba(52,211,153,.2)':'rgba(255,255,255,.1)'};color:${activeContractCount>0?'#34D399':'rgba(255,255,255,.5)'};border-radius:99px;padding:2px 8px;font-weight:600;">${activeContractCount>0?'Aktiv':'Kein Vertrag'}</span>
           </div>
           <div style="padding:12px 16px;display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-            <div><div style="font-size:10px;color:#94A3B8;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;">Plan</div><div style="font-size:13px;font-weight:600;color:#0D1F3C;">${esc(planLabel(c.plan_code||c.plan))}</div></div>
-            <div><div style="font-size:10px;color:#94A3B8;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;">Zahlung</div><div style="font-size:13px;font-weight:600;color:${paymentPaid?'#059669':'#DC2626'};">${paymentPaid?'Bezahlt':'Ausstehend'}</div></div>
-            <div><div style="font-size:10px;color:#94A3B8;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;">Abrechnung</div><div style="font-size:13px;color:var(--ink);">${esc(c.subscription_billing_cycle_label||'—')}</div></div>
-            <div><div style="font-size:10px;color:#94A3B8;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;">Verträge</div><div style="font-size:13px;color:var(--ink);">${activeContractCount} aktiv</div></div>
+            <div><div style="font-size:10px;color:#64748B;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;">Plan</div><div style="font-size:13px;font-weight:600;color:#0D1F3C;">${esc(planLabel(c.plan_code||c.plan))}</div></div>
+            <div><div style="font-size:10px;color:#64748B;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;">Zahlung</div><div style="font-size:13px;font-weight:600;color:${paymentPaid?'#059669':'#DC2626'};">${paymentPaid?'Bezahlt':'Ausstehend'}</div></div>
+            <div><div style="font-size:10px;color:#64748B;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;">Abrechnung</div><div style="font-size:13px;color:var(--ink);">${esc(c.subscription_billing_cycle_label||'—')}</div></div>
+            <div><div style="font-size:10px;color:#64748B;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;">Verträge</div><div style="font-size:13px;color:var(--ink);">${activeContractCount} aktiv</div></div>
           </div>
         </div>
 
@@ -12388,10 +12353,10 @@ function openCustomerProfile(id){
           <div style="height:4px;background:#F1F5F9;border-radius:2px;overflow:hidden;margin-bottom:12px;">
             <div style="width:${setupProgress}%;height:100%;background:${setupProgress>=100?'#059669':setupProgress>=80?'#F59E0B':'#1A6FE8'};border-radius:2px;transition:width .3s;"></div>
           </div>
-          <div style="font-size:12px;color:#94A3B8;margin-bottom:6px;">Nächster Schritt</div>
+          <div style="font-size:12px;color:#64748B;margin-bottom:6px;">Nächster Schritt</div>
           <div style="font-size:13px;font-weight:600;color:#0D1F3C;margin-bottom:10px;">${esc(nextStep||'—')}</div>
           ${onboard?.blocker?`<div style="font-size:12px;color:#DC2626;background:#FEF2F2;border-radius:8px;padding:8px 12px;margin-bottom:10px;">⚠ Blocker: ${esc(onboard.blocker)}</div>`:''}
-          <div style="font-size:11px;color:#94A3B8;">Lifecycle: ${esc(lifecycleLabel)}</div>
+          <div style="font-size:11px;color:#64748B;">Lifecycle: ${esc(lifecycleLabel)}</div>
         </div>
       </div>
 
@@ -12404,9 +12369,9 @@ function openCustomerProfile(id){
             <div style="font-size:13px;color:var(--ink);">Offene Cases</div>
             <div style="font-size:22px;font-weight:700;color:${openCases>0?'#DC2626':'#059669'};">${openCases}</div>
           </div>
-          <div style="font-size:12px;color:#94A3B8;margin-bottom:4px;">Letzte Aktivität</div>
+          <div style="font-size:12px;color:#64748B;margin-bottom:4px;">Letzte Aktivität</div>
           <div style="font-size:13px;color:var(--ink);margin-bottom:10px;">${esc(c.latest||'—')}</div>
-          <div style="font-size:12px;color:#94A3B8;">Kunde seit ${esc(c.created_at?new Date(c.created_at).toLocaleDateString('de-CH'):'—')}</div>
+          <div style="font-size:12px;color:#64748B;">Kunde seit ${esc(c.created_at?new Date(c.created_at).toLocaleDateString('de-CH'):'—')}</div>
         </div>
       </div>
 
@@ -12463,7 +12428,7 @@ function openCustomerProfile(id){
     const checklistHtml=state.checklist.map(step=>{
       const isDone=!missingSetProfile.has(step);
       const svgDone='<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="8" fill="#059669"/><path d="M4.5 8.5l2.5 2.5 4.5-5" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-      const svgOpen='<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7.5" stroke="#9CA3AF" stroke-width="1"/></svg>';
+      const svgOpen='<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7.5" stroke="#64748B" stroke-width="1"/></svg>';
       const stepAction=(!isDone||step==='Voxera number assigned')?getOnboardingStepAction(step,id):'';
       return `<div class="list-item" style="opacity:${isDone?1:0.7};">
         <span style="margin-right:8px;">${isDone?svgDone:svgOpen}</span>

@@ -25,7 +25,10 @@
     if (!settings || shell()) return shell();
     const card = document.createElement('section');
     card.id = 'vx-payment-account-settings';
-    card.className = 'card';
+    // vx-payment-account-card wurde bis Welle 2 von design-system-v3.js
+    // nachtraeglich anhand des Ueberschriftentexts angehaengt. Die Karte weiss
+    // selbst am besten, was sie ist.
+    card.className = 'card vx-payment-account-card';
     card.style.marginTop = '16px';
     card.innerHTML = `
       <div class="vx-unified-head">
