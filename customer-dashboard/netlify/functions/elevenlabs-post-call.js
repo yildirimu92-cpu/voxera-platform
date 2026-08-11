@@ -2,6 +2,11 @@ const crypto = require('crypto');
 const { createClient } = require('@supabase/supabase-js');
 const { normalizePhoneE164 } = require('./_lib/phone-normalize'); // [PATCH 2a] Import hinzugefügt
 const { sendCallNotification } = require('./_lib/call-notification');
+// Zweiter Kanal, eigener Strang: gleiche Ausloesestelle, aber eigene
+// Empfaenger, eigenes Gating und eigener Fehlerfall. sendCallSms() wirft nie
+// und liefert Zaehler zurueck -- ein misslungener SMS-Versand darf weder die
+// Anrufaufnahme noch die E-Mail beeintraechtigen.
+const { sendCallSms } = require('./_lib/call-sms');
 
 const WEBHOOK_SECRET = process.env.ELEVENLABS_WEBHOOK_SECRET || '';
 // Die Anruf-Benachrichtigung geht seit dem 09.08.2026 ueber
@@ -539,6 +544,24 @@ async function handleToolCall(body, event) {
     }
   });
 
+  // SMS nach der Mail, nicht davor: Der Mailversand ist der erprobte Pfad, und
+  // der neue Kanal darf ihn nicht verzoegern. Beide sind unabhaengig -- faellt
+  // die SMS aus, geht die Mail trotzdem raus, und umgekehrt.
+  await sendCallSms(sbAdmin, {
+    callRowId: matchedId,
+    customerId: notifCustomerId,
+    call: {
+      caller_name: updatePayload.caller_name,
+      caller_phone: callerPhone,
+      call_summary: updatePayload.call_summary,
+      call_summary_short: updatePayload.call_summary_short,
+      callback_requested: updatePayload.callback_requested === true,
+      category: updatePayload.category,
+      urgency: updatePayload.urgency,
+      elevenlabs_conversation_id: elevenLabsConvId
+    }
+  });
+
   return response(200, { success: true, message: 'Das Anliegen wurde erfolgreich aufgenommen.' });
 }
 // ─── End Tool-Call Handler ───────────────────────────────────────────────────
@@ -1065,6 +1088,28 @@ exports.handler = async (event) => {
           next_action: finalPayload.next_action,
           priority: finalPayload.priority,
           duration_seconds: finalPayload.duration_seconds,
+          elevenlabs_conversation_id: elevenLabsConvId
+        }
+      });
+
+      // SMS nach der Mail, nicht davor: Der Mailversand ist der erprobte Pfad,
+      // und der neue Kanal darf ihn nicht verzoegern. Beide sind unabhaengig --
+      // faellt die SMS aus, geht die Mail trotzdem raus, und umgekehrt.
+      //
+      // Der Doppelversand-Schutz sitzt in der Outbox (dedupe_key je Anruf UND
+      // Empfaenger): Tool-Call-Pfad und Post-Call-Pfad treffen fuer dasselbe
+      // Gespraech dieselbe Zeile und erzeugen damit denselben Schluessel.
+      await sendCallSms(sbAdmin, {
+        callRowId: recordId,
+        customerId: callRec?.customer_id || null,
+        call: {
+          caller_name: finalPayload.caller_name,
+          caller_phone: callerPhone || callRec?.caller_phone,
+          call_summary: finalPayload.call_summary,
+          call_summary_short: finalPayload.call_summary_short,
+          callback_requested: finalPayload.callback_requested === true,
+          category: finalPayload.category,
+          urgency: finalPayload.urgency,
           elevenlabs_conversation_id: elevenLabsConvId
         }
       });
