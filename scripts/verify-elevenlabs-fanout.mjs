@@ -155,6 +155,39 @@ const CURRENT = promptFingerprint({
     byId.get('c_aktiv')?.reason === 'fingerprint_stale');
 }
 
+// ── 1c. Zweite Verteidigungslinie vor dem Sync ──────────────────────────────
+// Der Filter in findStaleCustomers() greift zur Planungszeit. Zeilen warten
+// aber in der Warteschlange -- hinter dem Canary, oder als Wiederholung nach
+// einem Fehlschlag. Wird der Kunde in dieser Zeit gekuendigt, traegt die Zeile
+// seine IDs unveraendert weiter. syncBlockedReason() liest deshalb direkt an
+// der Quelle nach, statt der eingefrorenen Zeile zu glauben.
+{
+  const sb = makeSb({
+    customers: [
+      { id: 'c_aktiv', operational_status: 'active' },
+      { id: 'c_gekuendigt', operational_status: 'terminated' }
+    ]
+  });
+
+  check('aktiver Kunde wird durchgelassen',
+    (await fanout.syncBlockedReason(sb, 'c_aktiv')) === null);
+  check('nach der Einplanung gekuendigter Kunde wird geblockt',
+    (await fanout.syncBlockedReason(sb, 'c_gekuendigt')) === 'customer_terminated');
+  check('geloeschter Kunde wird geblockt',
+    (await fanout.syncBlockedReason(sb, 'c_weg')) === 'customer_missing');
+
+  // Ein Lesefehler darf nicht als "darf syncen" durchgehen. Die Zeile soll in
+  // den Wiederholungspfad, nicht ungeprueft zu ElevenLabs.
+  const sbBroken = {
+    from: () => ({
+      select: () => ({ eq: () => ({ maybeSingle: () => Promise.resolve({ data: null, error: { message: 'boom' } }) }) })
+    })
+  };
+  let threw = false;
+  try { await fanout.syncBlockedReason(sbBroken, 'c_aktiv'); } catch { threw = true; }
+  check('Lesefehler wird geworfen statt als unbedenklich gewertet', threw);
+}
+
 // ── 1b. S3: abgelaufene Betriebsinformationen ───────────────────────────────
 // Der Fingerprint sieht Zeit nicht. "Ferien bis 8. August" bleibt nach dem
 // 8. August im eingefrorenen Prompt stehen, obwohl Vorlagen und Builder

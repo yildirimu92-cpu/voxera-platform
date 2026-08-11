@@ -25,7 +25,7 @@ const { createClient } = require('@supabase/supabase-js');
 const { syncCustomerToElevenLabs } = require('./_lib/elevenlabs-sync');
 // Canary und Abbruchkriterium liegen in der Fan-out-Lib: sie sind Politik,
 // nicht Transport, und dort ohne Supabase-Client pruefbar.
-const { waveIsClear, abortIfFailing } = require('./_lib/elevenlabs-fanout');
+const { waveIsClear, abortIfFailing, syncBlockedReason } = require('./_lib/elevenlabs-fanout');
 
 const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
 const SUPABASE_URL = process.env.SUPABASE_URL;
@@ -53,6 +53,12 @@ function floatEnv(name, fallback) {
 // 'running' zuruecklassen, die niemand mehr anfasst.
 const WALL_CLOCK_BUDGET_MS = 20_000;
 const PER_CUSTOMER_RESERVE_MS = 6_000;
+
+// Gruende, aus denen eine geclaimte Zeile ueberholt ist statt fehlgeschlagen.
+const OBSOLETE_MESSAGES = Object.freeze({
+  customer_terminated: 'Kunde wurde nach der Einplanung gekuendigt.',
+  customer_missing: 'Kunde existiert nicht mehr.'
+});
 
 async function claim(sb, row) {
   const { data, error } = await sb.from('elevenlabs_sync_queue')
@@ -148,6 +154,7 @@ exports.handler = async () => {
   let processed = 0;
   let succeeded = 0;
   let failed = 0;
+  let obsolete = 0;
   let held = 0;
   let statePersistFailures = 0;
   const abortedRuns = new Set();
@@ -175,6 +182,38 @@ exports.handler = async () => {
       // Das ist kein Fehlschlag des Syncs, sondern eine ueberholte Zeile.
       await finish(sb, claimed.id, { status: 'dead', error_message: 'Kein ElevenLabs-Agent hinterlegt.' });
       failed += 1;
+      continue;
+    }
+
+    // Der Zustand wird an der Quelle nachgelesen, nicht der eingefrorenen
+    // Warteschlangenzeile geglaubt: zwischen Einplanung und hier kann der Kunde
+    // gekuendigt worden sein. Siehe syncBlockedReason().
+    let blockedReason = null;
+    try {
+      blockedReason = await syncBlockedReason(sb, claimed.customer_id);
+    } catch (error) {
+      // Lesefehler ist kein Freibrief. Die Zeile geht zurueck in den normalen
+      // Wiederholungspfad, statt ungeprueft zu syncen oder totgeschrieben zu
+      // werden.
+      const message = `Kundenzustand nicht lesbar: ${String(error?.message || error).slice(0, 300)}`;
+      const exhausted = claimed.attempts >= maxAttempts;
+      await finish(sb, claimed.id, { status: exhausted ? 'dead' : 'failed', error_message: message });
+      failed += 1;
+      log('warn', 'state_check_failed', { run_id: claimed.run_id, customer_id: claimed.customer_id, exhausted });
+      continue;
+    }
+
+    if (blockedReason) {
+      // Wie beim fehlenden Agenten: eine ueberholte Zeile, kein Fehlschlag.
+      // Bewusst NICHT als failed gezaehlt -- sonst treibt eine Kuendigungswelle
+      // die Fehlerquote hoch und abortIfFailing() bricht einen gesunden Lauf ab.
+      obsolete += 1;
+      await finish(sb, claimed.id, { status: 'dead', error_message: OBSOLETE_MESSAGES[blockedReason] });
+      log('info', 'sync_skipped_obsolete', {
+        run_id: claimed.run_id,
+        customer_id: claimed.customer_id,
+        reason: blockedReason
+      });
       continue;
     }
 
@@ -239,6 +278,7 @@ exports.handler = async () => {
     processed,
     succeeded,
     failed,
+    obsolete,
     held_for_canary: held,
     state_persist_failures: statePersistFailures,
     aborted_runs: [...abortedRuns],

@@ -86,6 +86,36 @@ async function findStaleCustomers(sb) {
   return stale;
 }
 
+/**
+ * Zweite Verteidigungslinie, unmittelbar vor dem Sync.
+ *
+ * findStaleCustomers() filtert zur PLANUNGSZEIT. Zwischen Einplanung und
+ * Ausfuehrung liegt aber eine Luecke: Zeilen warten in `elevenlabs_sync_queue`,
+ * Welle 2 haengt hinter dem Canary, fehlgeschlagene Zeilen werden bis
+ * FANOUT_MAX_ATTEMPTS erneut versucht. Wird ein Kunde in dieser Zeit
+ * gekuendigt, traegt die Warteschlange seine customer_id und agent_id
+ * unveraendert weiter -- der Worker wuerde sein Geschaeftsprofil dann doch noch
+ * in die USA schreiben.
+ *
+ * Deshalb wird der Zustand hier direkt an der Quelle nachgelesen, statt der
+ * eingefrorenen Zeile zu glauben.
+ *
+ * Rueckgabe: ein Grund als Zeichenkette, wenn NICHT synchronisiert werden darf,
+ * sonst null. Ein Lesefehler wird geworfen und NICHT als "darf syncen"
+ * gewertet -- im Zweifel wartet die Zeile auf den naechsten Versuch, statt die
+ * Pruefung stillschweigend zu ueberspringen.
+ */
+async function syncBlockedReason(sb, customerId) {
+  const { data, error } = await sb.from('customers')
+    .select('operational_status')
+    .eq('id', customerId)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) return 'customer_missing';
+  if (String(data.operational_status || '') === 'terminated') return 'customer_terminated';
+  return null;
+}
+
 // S3: Betriebsinformationen, die seit dem letzten Sync abgelaufen sind, stehen
 // im Agenten noch drin. Der Fingerprint sieht das nicht -- er kennt nur die
 // gemeinsamen Vorlagen, nicht die Zeit.
@@ -279,6 +309,7 @@ module.exports = {
   CANARY_WAVE_SIZE,
   REASON_LABELS,
   findStaleCustomers,
+  syncBlockedReason,
   findExpiredOperationalUpdates,
   enqueueFanout,
   runSummary,
