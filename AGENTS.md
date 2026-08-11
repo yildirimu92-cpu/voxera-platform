@@ -338,6 +338,50 @@ threads the pull request carries, and that all of them are resolved.
 
 ---
 
+## Account-Bound State Rules
+
+**A fix to account-bound state must answer two questions, not one: "is it
+reset" and "what's still in flight".**
+
+Resetting a module-global cache on account switch closes the case where the
+cache is simply never cleared. It does not close the case where a request
+against the *previous* account was already in flight when the switch
+happened, and completes *after* the reset — writing the old account's data
+back into the cache the reset just emptied. The reset alone cannot see that
+request; it has no handle on it.
+
+**Measured on PR #945** (customer-dashboard account-switch cache isolation,
+2026-08-11): three independent review passes, three confirmed P1s, in this
+order:
+
+1. The original finding — a cache never reset at all across the general
+   `SIGNED_OUT` path.
+2. Same pass, broader: a second cache (`customerMeta`) missed by the reset
+   itself, via a stale-value fallback.
+3. A second, independent review pass on the fix's own diff: an in-flight
+   request from the previous account, completing after the reset, writing
+   its result back unconditionally.
+
+This is not a quality problem specific to that PR. It is the shape of
+concurrency bugs: the synchronous case gets fixed because it is visible in a
+diff; the time-shifted case does not, because nothing in a diff shows a
+request that is still on the wire.
+
+**When touching a cache, flag, or object bound to a customer/account/tenant
+identity:**
+
+- Reset it on every path that changes identity (login, logout, session
+  termination, token expiry) — not just the explicit user-initiated one. See
+  Merge Rules above for why an unreset general path is worse than a missing
+  feature.
+- Then ask separately: can a request that reads or writes this state still be
+  in flight when identity changes? If yes, tag the request with an
+  identity/generation marker at request start, and discard its result at
+  completion if the marker is stale. A reset that only clears state and never
+  asks this second question is half a fix.
+
+---
+
 ## Acceptance Test Rules
 
 Each fix needs a specific acceptance checklist.
