@@ -61,6 +61,14 @@ const BEKANNTE_STELLEN = [
     muster: /-v_amount,0,-v_amount/
   },
   {
+    datei: 'supabase/migrations/20260811210000_standalone_credit_note_issued_at.sql',
+    zweck: 'freistehende Kulanzgutschrift (Korrektur: issued_at statt now())',
+    steuer: 'null',
+    // create or replace derselben Funktion wie oben, unveraendert bis auf den
+    // issued_at-Wert im insert -- dieselbe Spaltenreihenfolge, dasselbe Muster.
+    muster: /-v_amount,0,-v_amount/
+  },
+  {
     datei: 'supabase/migrations/2026-07-31_invoice_adjustments_credit_notes.sql',
     zweck: 'Gutschrift auf eine bestehende Rechnung',
     steuer: 'abgeleitet',
