@@ -27,6 +27,7 @@ Zug fallen sollten, weil sie dieselbe Ursache haben.
 | 4 | §5, Zeile „KI-Sprachdienste" | Zweck nennt nur Anrufinhalte, nicht die Konfiguration | 🟠 Lücke |
 | 5 | §5, Zeile „Web-Hosting" | „EU / USA" — wird nach Frankfurt-Umstellung zu „EU" | 🔵 erst danach |
 | 6 | §6 | nennt nur Sprachverarbeitung und Telefonie als Übermittlungsgrund | 🟠 Lücke |
+| 7 | §6 | **kein Satz trennt Aufbewahrungsdauer von Verarbeitungsort** — wer §7 liest, kann schliessen, nach 90 Tagen entfalle der USA-Bezug (4.2b) | 🟠 **neu, 11.08.** |
 
 Die Punkte 1 und 2 sind der Auftrag. Die Punkte 3, 4 und 6 sind dieselbe Lücke aus drei Blickwinkeln
 und sollten mit, weil sie sonst beim nächsten Durchgang wieder auffallen. Punkt 5 kommt **nach**
@@ -185,6 +186,35 @@ gehoben. Das ist der eigentliche Zielzustand; Variante B ist der ehrliche Zwisch
 > Gesprächsinhalten auch die Konfiguration Ihres Assistenten, die beim KI-Sprachdienstleister
 > hinterlegt ist.**"
 
+### 4.2b §6 — der Satz, der Aufbewahrung und Standort trennt ⭐ neu
+
+Übernommen aus B.1 der Diagnose auf Entscheidung vom 11.08.2026. **Er schliesst ein Missverständnis,
+das sonst jede Diskussion über Aufbewahrungsfristen begleitet** — die Annahme, kürzere Speicherung
+sei eine Antwort auf die Standortfrage.
+
+**Anzufügen an §6, nach der Aufzählung der Absicherungsmassnahmen:**
+
+> **Aufbewahrungsdauer und Verarbeitungsort sind zwei verschiedene Dinge.** Die
+> Aufbewahrungseinstellungen unseres KI-Sprachdienstleisters steuern, **wie lange** Daten dort
+> gespeichert bleiben — nicht, **wo** sie verarbeitet werden. Die Übermittlung in die USA erfolgt
+> bereits mit dem Aufbau der Gesprächsverbindung und ist unabhängig davon, ob und wie lange die
+> Daten anschliessend gespeichert werden. Auch eine Einstellung, bei der nach dem Gespräch nichts
+> gespeichert wird, ändert daran nichts.
+
+**Warum das ins Rechtsdokument gehört und nicht nur in die interne Dokumentation:**
+
+- Es ist die **ehrlichste Stelle des ganzen Dokuments**. Ein Leser, der §7 sieht („90 Tage"), kann
+  sonst schliessen, nach 90 Tagen sei die Sache erledigt und der USA-Bezug entfalle. Er entfällt
+  nicht.
+- Es macht klar, dass „Modus ohne Speicherung" **keine Antwort auf die Standortfrage** ist — weder
+  für uns intern noch für einen Kunden, der danach fragt.
+- Es stützt die Aussage auf der Website: Genau weil Aufbewahrung und Standort getrennt sind, bleibt
+  „gespeichert in der Schweiz, verarbeitet auch im Ausland" richtig und wird nicht durch eine
+  kürzere Frist gegenstandslos.
+
+**Sprachlich bewusst ohne Fachbegriffe:** Weder „Zero Retention Mode" noch „Datenresidenz" tauchen
+auf. Der Satz muss für einen Praxisinhaber lesbar sein, nicht für einen Datenschutzbeauftragten.
+
 ### 4.3 §5, Zeile „Web-Hosting" — erst nach Frankfurt
 
 **Heute:** `EU / USA` → **nach der Umstellung:** `EU`
@@ -219,7 +249,7 @@ Zu ändern sind sechs Zeilen, nicht das Dokument.
 | 2 | ~~ElevenLabs auf 30 Tage Audio stellen~~ | ❌ **entfällt** — die Einstellung existiert nicht (2.1) |
 | 3 | Weg A aus dem Transkript-Ticket umsetzen: §7 auf 90/180 (2.1–2.2) | **bereit** — keine Vorbedingung mehr |
 | 4 | **Export überhaupt erreichbar machen** — `TICKET_DATENEXPORT_2026-08-11.md`, 4.1 | offen, unabhängig |
-| 5 | §7 (2.1–2.3), §5 (4.1) und §6 (4.2) **gemeinsam mit dem neuen Startseiten-Text** veröffentlichen | wartet auf 3 |
+| 5 | §7 (2.1–2.3), §5 (4.1) und §6 (4.2 **und 4.2b**) **gemeinsam mit dem neuen Startseiten-Text** veröffentlichen | wartet auf 3 |
 | 6 | Version auf **2.1** heben, Stand-Datum aktualisieren, wesentliche Änderung den Vertragskunden mitteilen (§13 sieht das vor) | mit Schritt 5 |
 | 7 | **Nach** der Netlify-Umstellung: §5 Web-Hosting auf „EU" (4.3) | wartet auf Website-Ausfall |
 | 8 | Sobald der Offboarding-Löschprozess steht: Variante B → Variante A (Abschnitt 3) | wartet auf Ticket |

@@ -7,6 +7,24 @@
 
 ---
 
+> ## ⚠️ Zuerst lesen: Die 90 Tage sind keine Teilentwarnung
+>
+> Prüfpunkt G.1 hat ergeben, dass ElevenLabs Gesprächsdaten **90 Tage** aufbewahrt und nicht die
+> zwei Jahre des Anbieter-Defaults. Das ist eine gute Nachricht — **aber sie betrifft dieses Ticket
+> nicht.**
+>
+> | | Frist | Betroffen von diesem Ticket |
+> |---|---|---|
+> | Gesprächsdaten: Audio, Transkript, Metadaten | **90 Tage**, automatisch | nein — regelt sich von selbst |
+> | **Agent mit den Stammdaten**: Firma, Adresse, Öffnungszeiten, Leistungen, Notfallnummer | **keine Frist** | **ja — genau darum geht es hier** |
+>
+> Der Agent ist kein Gesprächsdatum. Er ist eine Konfiguration, und Konfigurationen laufen nicht ab.
+> Er bleibt nach der Kündigung **unbefristet** in den USA stehen, bis ihn jemand löscht — und
+> gelöscht wird er heute von niemandem.
+>
+> **Wer die 90 Tage als „dann erledigt sich das ja" liest, macht einen Kurzschluss.** Genau
+> deshalb steht dieser Kasten hier oben und nicht in den offenen Fragen.
+
 ## 1. Der Befund
 
 **Es gibt im gesamten Repository keinen einzigen `DELETE`-Aufruf an ElevenLabs.** Der einzige

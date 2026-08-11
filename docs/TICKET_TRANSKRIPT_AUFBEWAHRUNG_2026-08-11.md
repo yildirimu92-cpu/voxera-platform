@@ -132,6 +132,36 @@ Weder A noch B, sondern: **Die Frist wird konfigurierbar und Teil des Plans.**
 Dazu in §7: „Transkripte: entsprechend der im gebuchten Plan vereinbarten Aufbewahrungsfrist
 (90 Tage bis 24 Monate), längstens bis 30 Tage nach Vertragsende."
 
+> ### ⚠️ Was „Verlauf" bei einer Staffelung heissen darf — und was nicht
+>
+> **Die Audiofrist ist nicht mitstaffelbar.** ElevenLabs kennt genau einen Aufbewahrungswert für
+> Gesprächsdaten und Audio gemeinsam (G.1, 90 Tage), und die Aufnahme liegt ausschliesslich dort —
+> Voxera hat keine eigene Kopie (Diagnose B.3). Was Voxera verlängern kann, ist deshalb **nur, was
+> in Zürich liegt: Transkript, Zusammenfassung und Metadaten.**
+>
+> | Was ein Kunde bekommt | 90 Tage | danach |
+> |---|---|---|
+> | Aufnahme anhören | ✅ | ❌ **weg, endgültig** |
+> | Transkript lesen | ✅ | ✅ solange die gebuchte Frist läuft |
+> | Zusammenfassung, Metadaten | ✅ | ✅ dito |
+>
+> **Und es ist nicht nachträglich reparierbar.** Wer nach vier Monaten merkt, dass er die Aufnahme
+> gebraucht hätte, kann sie nicht zurückholen — auch nicht durch ein Upgrade. Eine höhere
+> Aufbewahrungsstufe wirkt immer nur nach vorne.
+>
+> **Folge für den Verkaufstext:** „12 Monate Verlauf" muss ausgeschrieben werden als **12 Monate
+> Transkript und Zusammenfassung, 90 Tage Aufnahme.** Ein Kunde, der „Verlauf" hört, denkt an das
+> Gespräch — und meint damit im Zweifel das Anhörbare.
+>
+> Das ist derselbe Fehlertyp, den dieser ganze Strang aufräumt: etwas verkaufen, das anders
+> geliefert wird, als es verstanden wurde. Er gehört an **drei** Stellen gleich formuliert —
+> Preistabelle, §7 und die Beschreibung im Dashboard —, nicht nur ins Kleingedruckte.
+>
+> **Ein Nebeneffekt, der für die Staffelung spricht:** Die 90-Tage-Aufnahme ist bei *jedem* Plan
+> gleich. Die Staffelung verkauft also nicht „mehr Gespräch", sondern **mehr Nachvollziehbarkeit** —
+> und das ist gegenüber datenschutzsensiblen Branchen sogar das bessere Argument, weil die
+> Aufnahme, das heikelste Datum, in allen Plänen gleich kurz liegt.
+
 **Warum das die bessere Antwort ist:**
 
 - Es beantwortet die Frage „wie lange ist ein Gespräch etwas wert?" **nicht pauschal**, sondern
