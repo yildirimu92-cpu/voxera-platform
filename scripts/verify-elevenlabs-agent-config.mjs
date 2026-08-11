@@ -103,6 +103,37 @@ check('keine Audio-Tags',
   && sent.conversation_config.tts.suggested_audio_tags.length === 0
 );
 
+// ── Der Dateikopf ist selbst eine Zusicherung ────────────────────────────────
+//
+// Uebernommen aus #964 (geschlossen zugunsten dieses PRs), weil die beiden
+// Pruefungen dort das einzige waren, was hier fehlte.
+//
+// Beide Aussagen im Kopf sind Arbeitsergebnisse, keine Prosa: Ohne die
+// Herkunftslegende wird ein Messwert fuer eine Entscheidung gehalten, und ohne
+// den Offen-Vermerk gilt der Vorfall vom 10.08. als abgeschlossen. Ein
+// Kommentar, den kein Test haelt, verschwindet beim naechsten Aufraeumen --
+// genau die Sorte Verlust, gegen die die Legende gebaut ist.
+const configSource = fs.readFileSync(configPath, 'utf8');
+
+// Alle DREI Klassen, nicht nur zwei. Die unmarkierte ist die groesste, und sie
+// nicht auszuweisen ist Absicht -- verschwaende der Kopf sie, waere jeder
+// ungeprueft uebernommene Template-Wert stillschweigend eine Entscheidung.
+check('Kopf fuehrt [E] entschieden',
+  /\[E\]\s+ENTSCHIEDEN/.test(configSource));
+check('Kopf fuehrt [M] gemessen',
+  /\[M\]\s+GEMESSEN/.test(configSource));
+check('Kopf weist die unmarkierte dritte Klasse aus',
+  /Ohne Markierung/.test(configSource) && /dritte Klasse/.test(configSource));
+
+// Der widerlegte Befund darf nicht als Tatsache im Kopf stehenbleiben -- und
+// die Beobachtung darf nicht als miterledigt gelten.
+check('Kopf nennt die Ersetzungs-Annahme widerlegt, mit Beleg',
+  /widerlegt/i.test(configSource) && /ZUSAMMEN/.test(configSource)
+    && /temperature: 0\.19|`0\.19`/.test(configSource));
+check('Kopf fuehrt den Vorfall vom 10.08. weiterhin als offen',
+  /IST WEITERHIN OFFEN/.test(configSource)
+    && /Widerlegt ist die Erklaerung, nicht die Beobachtung/.test(configSource));
+
 // ── 2. Kundenspezifisch bleibt kundenspezifisch ──────────────────────────────
 
 check('Prompt wird uebernommen', sent.conversation_config.agent.prompt.prompt === 'PROMPT');
