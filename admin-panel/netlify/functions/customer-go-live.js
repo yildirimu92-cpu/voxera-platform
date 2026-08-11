@@ -133,8 +133,31 @@ function syncEvidence(context) {
   // gesendet wurde) faelschlich als Abweichung gelten, blockierte das
   // Kundenstarts -- ein teurer Fehlschlag fuer einen Vergleich, der sich erst
   // noch bewaehren muss. Die Abweichung ist ueber `latest_config_drift` sichtbar
-  // und steht im Sync-Log; wenn sich der Vergleich als treffsicher erweist,
-  // genuegt hier eine Zeile, um daraus doch eine Sperre zu machen.
+  // und steht im Sync-Log.
+  //
+  // ── Wann wird umgeschaltet ───────────────────────────────────────────────────
+  //
+  // Ein "spaeter mal" bleibt fuer immer aus, deshalb hier die Bedingung, an der
+  // es zu entscheiden ist. Umgeschaltet wird, sobald ueber mindestens vier
+  // Wochen produktiven Betriebs JEDE aufgetretene Abweichung eine echte war --
+  // also keine, bei der Soll- und Ist-Wert dasselbe bedeuten und sich nur in der
+  // Darstellung unterscheiden.
+  //
+  //   select created_at, customer_id, status,
+  //          jsonb_array_elements(config_drift->'deviations') as deviation
+  //     from public.elevenlabs_sync_log
+  //    where config_drift is not null
+  //      and config_drift->'deviations' <> '[]'::jsonb
+  //    order by created_at desc;
+  //
+  // Ergibt das ueber den Zeitraum keine Zeile, deren `expected` und `actual`
+  // denselben Wert in anderer Schreibweise zeigen, ist der Vergleich
+  // treffsicher: dann 'drift' aus SYNC_REACHED_AGENT entfernen -- eine Zeile --
+  // und der Start ist gesperrt, solange ein Agent vom Sollzustand abweicht.
+  //
+  // Taucht stattdessen eine solche Zeile auf, gehoert der Fall in
+  // valuesMatch() in _lib/elevenlabs-agent-config.js, nicht in eine Ausnahme
+  // hier.
   const SYNC_REACHED_AGENT = new Set(['success', 'drift']);
   const success = Boolean(
     currentAgentId &&
