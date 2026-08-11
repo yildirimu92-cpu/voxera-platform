@@ -32,8 +32,10 @@ const provisionPath = 'admin-panel/netlify/functions/elevenlabs-provision-agent.
 const {
   AGENT_DEFINITION,
   buildAgentConfig,
+  buildSyncPatch,
   expectedLeaves,
-  compareAgentState
+  compareAgentState,
+  observeAgentState
 } = require(`../${configPath}`);
 
 const syncSource = fs.readFileSync(syncPath, 'utf8');
@@ -200,9 +202,13 @@ check(
 
 // ── 5. Beide Schreibpfade benutzen die geteilte Definition ───────────────────
 
+// Seit dem 11.08. sendet der Sync WIEDER den Ausschnitt, nicht den
+// vollstaendigen Sollzustand -- die Ersetzungs-Semantik, auf der #932 beruhte,
+// ist unbelegt (acht Gegenbeobachtungen), und die Definition traegt Werte von
+// vor der Abstimmung vom 10.08. Der Guard haelt genau diese Trennung fest.
 check(
-  'Sync benutzt buildAgentConfig',
-  /require\('\.\/elevenlabs-agent-config'\)/.test(syncSource) && /buildAgentConfig\(/.test(syncSource)
+  'Sync benutzt buildSyncPatch, nicht die volle Definition',
+  /buildSyncPatch\(/.test(syncSource) && !/buildAgentConfig\(/.test(syncSource)
 );
 check(
   'Provisionierung benutzt buildAgentConfig',
@@ -215,13 +221,61 @@ check(
 // Der Kern des Befunds: der Sync darf nirgends mehr ein prompt-Objekt aus nur
 // prompt/tool_ids bauen.
 check(
-  'Sync baut kein Teil-prompt-Objekt mehr',
-  !/const\s+promptPatch\s*=/.test(syncSource)
+  'Der Sync-Koerper enthaelt genau die Felder von vor #932',
+  (() => {
+    const body = buildSyncPatch({ customer: { voice_id: 'v' }, prompt: 'P', firstMessage: 'G', toolIds: ['t'] });
+    const paths = [...expectedLeaves(body).keys()].sort();
+    return JSON.stringify(paths) === JSON.stringify([
+      'conversation_config.agent.first_message',
+      'conversation_config.agent.prompt.prompt',
+      'conversation_config.agent.prompt.tool_ids',
+      'conversation_config.tts.voice_id',
+      'platform_settings.privacy.record_voice',
+      'platform_settings.privacy.retention_days',
+      'platform_settings.privacy.zero_retention_mode'
+    ].sort());
+  })()
 );
+// Der eigentliche Regressionsschutz dieses Umbaus: Kein Feld aus der
+// Definition, das nicht schon vor #932 gesendet wurde, darf in den
+// Sync-Koerper geraten -- sonst stellt der naechste Kundensync die
+// Handabstimmung vom 10.08. zurueck.
+for (const verboten of ['thinking_budget', 'turn_model', 'expressive_mode', 'suggested_audio_tags', 'temperature', 'timezone']) {
+  const body = JSON.stringify(buildSyncPatch({ customer: { voice_id: 'v' }, prompt: 'P', firstMessage: 'G', toolIds: ['t'] }));
+  check(`Sync sendet ${verboten} NICHT`, !body.includes(verboten));
+}
 check(
   'Rollback sendet nicht mehr nur den Prompt',
   !/conversation_config:\s*\{\s*agent:\s*\{\s*prompt:\s*\{\s*prompt\s*\}\s*\}\s*\}/.test(syncSource)
 );
+
+// ── Die Beobachtung: der Teil von #932, der Bestand hat ─────────────────────
+const beobachtet = observeAgentState({
+  conversation_config: {
+    agent: { language: 'de', prompt: { prompt: 'x'.repeat(9000), tool_ids: ['t'], timezone: 'Europe/Zurich', thinking_budget: 0 } },
+    turn: { turn_model: 'turn_v3', soft_timeout_config: null },
+    tts: { expressive_mode: false, suggested_audio_tags: [] },
+    asr: { provider: 'scribe_realtime' },
+    default_personality: { enabled: true }
+  },
+  platform_settings: { privacy: {} }
+});
+check('Beobachtung erfasst timezone (der Unterscheider)',
+  beobachtet.agent_prompt.timezone === 'Europe/Zurich');
+check('Beobachtung erfasst thinking_budget',
+  beobachtet.agent_prompt.thinking_budget === 0);
+check('Beobachtung erfasst turn_model und soft_timeout_config',
+  beobachtet.turn.turn_model === 'turn_v3' && 'soft_timeout_config' in beobachtet.turn);
+check('Beobachtung erfasst tts-Felder',
+  beobachtet.tts.expressive_mode === false && Array.isArray(beobachtet.tts.suggested_audio_tags));
+check('Schluesselinventar macht unbekannte Felder sichtbar',
+  beobachtet._keys.conversation_config.includes('default_personality'));
+check('Beobachtung traegt den Prompt NICHT (Log-Groesse)',
+  !JSON.stringify(beobachtet).includes('xxxxx') && JSON.stringify(beobachtet).length < 2000);
+check('Beobachtung landet in der Log-Zeile',
+  /observed: observedState/.test(syncSource));
+check('Beobachtung loest KEIN drift aus',
+  /if \(syncStatus === 'success' && configDrift\.length\)/.test(syncSource));
 
 // ── 6. Die Abweichung laesst 'success' nicht unwidersprochen ─────────────────
 

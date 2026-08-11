@@ -349,14 +349,115 @@ function looksLikeAgentState(payload) {
   return Boolean(payload && typeof payload === 'object' && payload.conversation_config);
 }
 
+// ── Der Sync-Koerper ────────────────────────────────────────────────────────
+//
+// ACHTUNG: Der Sync sendet bewusst NICHT den vollstaendigen Sollzustand.
+//
+// #932 ging davon aus, ElevenLabs ersetze `conversation_config.agent.prompt`,
+// statt es zusammenzufuehren. Diese Annahme stuetzte sich auf eine einzige
+// Beobachtung vom 10.08. (Denkbudget von Hand aus, nach dem naechsten Sync
+// wieder an). Am 11.08. standen ihr acht Gegenbeobachtungen gegenueber: acht
+// nachweislich erfolgreich gepatchte Syncs, ueber die ein erneut
+// ausgeschaltetes Denkbudget hinweg bestehen blieb.
+//
+// Solange das nicht entschieden ist, waere der vollstaendige Sollzustand ein
+// Risiko ohne Gegenwert: Die Definition traegt Werte von VOR der Abstimmung vom
+// 10.08. und wuerde Turn V3, das ausgeschaltete Denkbudget, die entfernten
+// Audio-Tags und die Wartefloskel zurueckstellen -- ausgeloest schon durch eine
+// Kundenaenderung im Dashboard (`customer_self_edit`).
+//
+// Deshalb sendet der Sync wieder genau das, was er vor #932 sendete. Was aus
+// #932 BLEIBT, ist die Rueckleseprüfung: siehe observeAgentState() unten.
+function buildSyncPatch({ customer = {}, prompt = '', firstMessage = null, toolIds = null } = {}) {
+  const promptPatch = { prompt };
+  if (Array.isArray(toolIds)) promptPatch.tool_ids = toolIds;
+
+  const agent = { prompt: promptPatch };
+  if (firstMessage !== null && firstMessage !== undefined) agent.first_message = firstMessage;
+
+  return {
+    conversation_config: {
+      agent,
+      tts: customer.voice_id ? { voice_id: customer.voice_id } : undefined
+    },
+    platform_settings: {
+      privacy: {
+        record_voice: true,
+        retention_days: AUDIO_TRANSCRIPT_RETENTION_DAYS,
+        zero_retention_mode: false
+      }
+    }
+  };
+}
+
+// ── Beobachtung ohne Zusicherung ────────────────────────────────────────────
+//
+// Das ist der Teil von #932, der ueberlebt -- und der Grund, warum ein
+// vollstaendiger Revert die schlechtere Wahl waere.
+//
+// Die Rueckleseprüfung vergleicht weiterhin, was wir GESENDET haben. Zusaetzlich
+// haelt sie hier fest, was der Agent bei den Feldern traegt, die wir NICHT
+// senden. Das ist keine Zusicherung: Weicht etwas ab, ist das kein Befund,
+// sondern eine Messung.
+//
+// Zweck: Genau diese Felder entscheiden die offene Frage, ob ElevenLabs
+// `agent.prompt` ersetzt oder zusammenfuehrt. `timezone` ist der sauberste
+// Unterscheider -- es liegt in `agent.prompt`, wird vom Sync nie gesendet, und
+// `Europe/Zurich` ist kein plausibler Anbieter-Standard. Traegt der Agent es
+// nach einem Sync weiterhin, ist die Ersetzung widerlegt.
+//
+// Die Schluessellisten beantworten nebenbei eine zweite offene Frage: ob die
+// neue Oberflaechen-Einstellung "Standardpersoenlichkeit" ueberhaupt ein Feld
+// im Koerper ist. Steht sie in `_keys`, ist sie eins.
+const OBSERVED_TURN_FIELDS = ['turn_model', 'turn_timeout', 'turn_eagerness', 'speculative_turn', 'soft_timeout_config'];
+const OBSERVED_TTS_FIELDS = ['model_id', 'expressive_mode', 'suggested_audio_tags', 'stability', 'speed', 'similarity_boost', 'text_normalisation_type'];
+
+function observeAgentState(agentState) {
+  const cc = agentState?.conversation_config;
+  if (!cc || typeof cc !== 'object') return null;
+
+  const promptObj = cc.agent?.prompt || {};
+  // Der Prompt selbst ist mehrere Kilobyte gross und steht ohnehin in
+  // prompt_snapshot. Hier interessieren nur die Nachbarfelder.
+  const promptFields = {};
+  for (const [key, value] of Object.entries(promptObj)) {
+    if (key === 'prompt' || key === 'tool_ids') continue;
+    promptFields[key] = value;
+  }
+
+  const pick = (source, keys) => {
+    const out = {};
+    for (const key of keys) if (source && key in source) out[key] = source[key];
+    return out;
+  };
+
+  return {
+    agent_prompt: promptFields,
+    agent_language: cc.agent?.language ?? null,
+    turn: pick(cc.turn, OBSERVED_TURN_FIELDS),
+    tts: pick(cc.tts, OBSERVED_TTS_FIELDS),
+    asr_provider: cc.asr?.provider ?? null,
+    // Schluesselinventar: zeigt Felder, die wir gar nicht kennen.
+    _keys: {
+      conversation_config: Object.keys(cc).sort(),
+      agent: Object.keys(cc.agent || {}).sort(),
+      platform_settings: Object.keys(agentState.platform_settings || {}).sort()
+    }
+  };
+}
+
 module.exports = {
   AGENT_DEFINITION,
   AUDIO_TRANSCRIPT_RETENTION_DAYS,
   DEFAULT_VOICE_ID,
   DEFAULT_LANGUAGE,
   CUSTOMER_SPECIFIC_PATHS,
+  // Nur die Provisionierung: der vollstaendige Sollzustand beim ANLEGEN eines
+  // Agenten. Der Sync benutzt buildSyncPatch() -- die Begruendung steht dort.
   buildAgentConfig,
+  buildSyncPatch,
   expectedLeaves,
   compareAgentState,
+  observeAgentState,
   looksLikeAgentState
 };
