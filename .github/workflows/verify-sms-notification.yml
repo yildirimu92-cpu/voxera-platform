@@ -1,0 +1,49 @@
+name: Verify SMS notification
+
+# Die SMS-Benachrichtigung an Team und Anrufer. Vier Zusagen haengen daran,
+# und jede einzelne kostet beim Bruch mehr als der Test:
+#
+#   1. Eine Nachricht bleibt EIN Segment. Bei vier bis fuenf Team-Empfaengern
+#      kostet ein zweites Segment fuenffach -- und ein einziges typografisches
+#      Zeichen aus einer Modell-Zusammenfassung genuegt, um es auszuloesen.
+#   2. Ein Fehlschlag bei einem Empfaenger reisst die uebrigen NICHT mit. Ein
+#      Versand, der bei der zweiten von fuenf Nummern abbricht, ist schlimmer
+#      als gar keiner: das Team glaubt sich informiert.
+#   3. Der Anrufer bekommt KEINE Bestaetigung, wenn das Team nichts bekommen
+#      hat. Wer am Strassenrand eine schriftliche Zusage liest, hinter der
+#      niemand steht, sucht keine andere Hilfe mehr.
+#   4. Ein Festnetzanrufer (Twilio 21614) wird uebersprungen, nicht als
+#      Fehlschlag behandelt -- er ist der Regelfall, nicht die Ausnahme.
+#
+# Zusaetzlich geprueft: sms-transport.js liegt byte-identisch in beiden
+# Funktionsverzeichnissen (Netlify bundelt je Site einzeln), und der
+# Retry-Worker kennt beide SMS-Ereignistypen. Faellt eines davon aus, bleiben
+# Outbox-Zeilen stillschweigend liegen.
+
+on:
+  pull_request:
+    paths:
+      - 'customer-dashboard/netlify/functions/_lib/sms-templates.js'
+      - 'customer-dashboard/netlify/functions/_lib/sms-transport.js'
+      - 'customer-dashboard/netlify/functions/_lib/sms-delivery.js'
+      - 'customer-dashboard/netlify/functions/_lib/call-sms.js'
+      - 'customer-dashboard/netlify/functions/elevenlabs-post-call.js'
+      - 'admin-panel/netlify/functions/_lib/sms-transport.js'
+      - 'admin-panel/netlify/functions/outbox-retry-worker.js'
+      - 'customer-dashboard/tests/sms-notification.test.cjs'
+      - '.github/workflows/verify-sms-notification.yml'
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: node --test customer-dashboard/tests/sms-notification.test.cjs
+
+      # Der Post-Call-Webhook ist die Ausloesestelle beider Kanaele. Wer dort
+      # etwas verschiebt, faellt hier auf, bevor es die Anrufaufnahme trifft.
+      - run: node --test customer-dashboard/tests/postcall-lifecycle-no-downgrade.test.cjs

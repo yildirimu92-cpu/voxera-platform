@@ -16956,6 +16956,29 @@ async function loadCustomerMeta(forceReload) {
         return true;
       });
       const activeSet = new Set(activeAddons.map(a => a.addon_code));
+      // ACHTUNG -- diese beiden Codes sind falsch, und das ist derzeit das
+      // einzige, was uns vor einer Falschaussage schuetzt.
+      //
+      // Im Katalog (voxera_addons, Produktion) heissen die Addons
+      // 'sms_notify' und 'sms_endkunde'. 'sms_notify_kunde' und
+      // 'sms_confirm_caller' existieren dort nicht, die Pruefung kann also
+      // nie zutreffen -- beide Flags sind konstant false.
+      //
+      // Wer die Codes hier korrigiert, ohne den SMS-Versand zu bauen, schaltet
+      // damit die Anzeige weiter unten scharf: die Anfragenliste rendert ein
+      // gruenes "✓ SMS" je Anruf, gesteuert von smsCallerAddon (Suchbegriff:
+      // call-meta-item mit ✓ SMS). Das Dashboard behauptet dann gegenueber dem
+      // Kunden, der Anrufer habe eine Bestaetigung per SMS erhalten -- fuer
+      // einen Versand, den es nicht gibt. Bei einem Abschleppdienst heisst das:
+      // jemand am Strassenrand gilt als benachrichtigt, ohne es zu sein.
+      //
+      // Belegt: die Twilio-Messages-API wird im Repository nirgends aufgerufen,
+      // calls.sms_sent ist auf allen Produktionszeilen false, outbox_events
+      // kennt ausschliesslich E-Mail-Ereignistypen.
+      //
+      // REGEL: Codes und Anzeige erst zusammen mit dem Versand korrigieren.
+      // Nicht vorher, auch nicht "schon mal vorbereitend".
+      // Siehe docs/SMS_BENACHRICHTIGUNG_DIAGNOSE_2026-08-11.md
       customerMeta.smsNotifyAddon = activeSet.has('sms_notify_kunde');
       customerMeta.smsCallerAddon = activeSet.has('sms_confirm_caller');
       // Zusatzminuten: aktive minutes_block Add-ons × quantity (gültig diesen Monat)
@@ -22654,6 +22677,23 @@ function renderList(containerId, records, opts) {
           ${displayPhone?`<span class="call-meta-item call-meta-phone">${escHtml(displayPhone)}</span>`:''}
           ${(categoryLabel && !isDashLikePlaceholder(categoryLabel))?`<span class="call-meta-item">${escHtml(categoryLabel)}</span>`:''}
           ${durationLabel && durationLabel !== '–' ? `<span class="call-meta-item">⏱ ${escHtml(durationLabel)}</span>` : ''}
+          ${/* ACHTUNG -- dieses Abzeichen behauptet einen Versand, den es nicht gibt.
+                Es haengt an customerMeta.smsCallerAddon, und das ist heute nur deshalb
+                konstant false, weil der Addon-Code oben falsch geschrieben ist
+                ('sms_confirm_caller' statt 'sms_endkunde'). Das Abzeichen ist also
+                unsichtbar -- aus Versehen, nicht aus Absicht.
+
+                Zweiter Fehler, unabhaengig vom ersten: das Abzeichen liest ein
+                ADDON, keinen ZUSTELLBELEG. Selbst mit gebautem Versand saehe der
+                Kunde "✓ SMS" an jedem Anruf, sobald das Addon gebucht ist -- auch
+                bei unterdrueckter Rufnummer (dann gibt es keinen Empfaenger), auch
+                bei fehlgeschlagenem Versand. Der Beleg je Anruf muesste aus dem
+                tatsaechlichen Versandergebnis kommen; calls.sms_sent taugt dafuer
+                ebenfalls nicht, weil es ein einzelnes Boolean fuer bis zu sechs
+                Empfaenger ist (5x Team + 1x Anrufer).
+
+                REGEL: nicht scharfschalten, bevor Versand UND Zustellbeleg stehen.
+                Siehe docs/SMS_BENACHRICHTIGUNG_DIAGNOSE_2026-08-11.md */''}
           ${(!isManualTaskRecord(r) && customerMeta && customerMeta.smsCallerAddon) ? '<span class="call-meta-item" style="color:#059669;font-weight:600;">✓ SMS</span>' : ''}
         </div>
         ${taskDueLabel?`<div class="task-due-pill ${taskDueClass}" style="margin-top:6px;">${escHtml(taskDueLabel)}</div>`:''}
