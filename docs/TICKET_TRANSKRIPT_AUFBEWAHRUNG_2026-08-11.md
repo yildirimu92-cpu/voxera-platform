@@ -2,7 +2,7 @@
 
 **Datum:** 11.08.2026 · **Typ:** Produktentscheidung mit Rechtsfolge ·
 **Status:** ✅ **entschieden am 11.08.2026 — Weg C, mit Weg A als Sofortmassnahme** ·
-**Frist:** **2. November 2026** (siehe Abschnitt 2) ·
+**Start: 15. September 2026** · **Frist: 2. November 2026** (siehe Abschnitt 2) ·
 **Grundlage:** `DATENRESIDENZ_DIAGNOSE_2026-08-11.md`, F.2
 
 ---
@@ -56,9 +56,47 @@ gebrochenes Versprechen, ein Supportfall und ein Produktmangel.
 | + 90 Tage → **erste Transkript-Löschung** | **02.11.2026** |
 | + 180 Tage → erste Anrufsatz-Löschung | 31.01.2027 |
 
-Der Job läuft täglich um 03:17. **Es bleiben rund zwölf Wochen** — genug, um in Ruhe zu
-entscheiden, und zu wenig, um es zu vergessen. Nach dem 2. November ist die Entscheidung
-unwiderruflich für alle bis dahin gelöschten Transkripte.
+Der Job läuft täglich um 03:17. Nach dem 2. November ist die Entscheidung unwiderruflich für alle
+bis dahin gelöschten Transkripte.
+
+### 2.1 Startdatum: 15. September 2026
+
+**Die Frist ist der 2. November, der Termin ist der 15. September.** Das sind zwei verschiedene
+Daten, und nur das zweite steht in einem Kalender.
+
+| | Datum | |
+|---|---|---|
+| **Start** | **Di, 15.09.2026** | Arbeitsbeginn |
+| Puffer | 48 Tage | |
+| Frist | Mo, 02.11.2026 | erste Transkript-Löschung, 03:17 |
+
+**Warum nicht später:** Die §7-Textänderung ist eine Stunde. Der Export ist **geschätzt** eine
+Stunde — und die Schätzung ist die unsicherste Zahl im ganzen Strang. Zum Zeitpunkt der Schätzung
+war noch nicht bekannt, dass gar kein erreichbarer Export existiert und dass die Markup-Frage aus
+`TICKET_DATENEXPORT_2026-08-11.md`, 2.5 offen ist. Wird daraus statt einer Spalte eine
+Oberflächenarbeit, sind 48 Tage angemessen und ein Start am 1. November wäre fahrlässig.
+
+**Warum nicht früher:** Vor Mitte September liegen der Website-Ausfall und die Netlify-Umstellung.
+Beide berühren dieselben Dateien und denselben Kopf; parallel geführt würde eines von beiden
+schlecht.
+
+**Was am 15. September zuerst zu tun ist:** nicht die Textänderung, sondern die halbe Stunde aus
+`TICKET_DATENEXPORT_2026-08-11.md`, 2.5 — wo die Archiv-Ansicht ihr Markup herbekommt. Diese eine
+Antwort entscheidet, ob der Rest ein Nachmittag ist oder eine Woche. **Sie zuerst, dann planen.**
+
+### 2.2 Wiedervorlage — nicht auf Gedächtnis gebaut
+
+Ein Datum in einem Dokument ist keine Wiedervorlage: Es wirkt nur, wenn jemand das Dokument am
+richtigen Tag öffnet. Deshalb ist für den **15.09.2026, 08:00 Uhr (Europe/Zurich)** eine
+automatische Wiedervorlage eingerichtet, die unabhängig von dieser Sitzung feuert und die drei
+Dokumente, den ersten Schritt und die Frist mitbringt.
+
+**Wenn diese Zeile ohne Bestätigung dasteht, ist die Wiedervorlage nicht aktiv** — dann gilt nur
+das Datum oben, und jemand muss daran denken. Der Zustand ist in dem Fall ausdrücklich zu
+korrigieren, nicht zu tolerieren: Genau diese Klasse von Zusage ohne Deckung räumt dieser Strang
+gerade auf.
+
+- [ ] Wiedervorlage bestätigt aktiv (Datum eintragen: ______)
 
 > **Ein Hinweis zur Dringlichkeit:** Auch Weg A (nichts an der Technik ändern) verlangt eine
 > Entscheidung **vor** dem 2. November — nämlich die Textänderung. Wer die Frist verstreichen
