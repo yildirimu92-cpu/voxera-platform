@@ -9119,6 +9119,84 @@ function getSupabaseAuthClient() {
   return null;
 }
 
+// ── Der gemeinsame Schreibweg ────────────────────────────────────────────────
+//
+// PostgREST lehnt bei einem Fehler NICHT ab — es liefert `{ error }` im
+// Ergebnis. Ein `try/catch` um den `await` faengt deshalb nichts. Genau dieser
+// Irrtum steckte an mehreren Stellen dieser Datei: Die Glocke, das Profil und
+// die Gelesen-Markierung sahen behandelt aus und schluckten jeden 403.
+//
+// Was das in der Praxis heisst, zeigt PR #847: Der Schreibzugriff auf
+// `callback_requested` kam dazu, das Spaltenrecht nicht. Drei Tage lang lief
+// der Klick "Nachfassen speichern" in einen 403, waehrend die Oberflaeche in
+// Gruen "gespeichert" meldete und der Anruf in Rueckrufliste und KPI stehen
+// blieb.
+//
+// Ab hier laeuft jeder Schreibzugriff durch eine Stelle. Sie wartet das
+// Ergebnis ab, prueft `error`, ordnet den Fehler ein und meldet ihn einmal —
+// mit einheitlichem Praefix, damit er auffindbar ist.
+const VX_DB_WRITE_KIND = { RECHT: 'recht', NETZ: 'netz', SONSTIGES: 'sonstiges' };
+
+function vxClassifyDbWriteError(error) {
+  if (!error) return VX_DB_WRITE_KIND.SONSTIGES;
+  const code = String(error.code || '');
+  const status = Number(error.status || 0);
+  const message = String(error.message || '');
+  // 42501 ist der PostgreSQL-Code fuer "permission denied"; PostgREST macht
+  // daraus einen 403. Beides heisst: Das Recht fehlt. Ein fehlendes Recht ist
+  // kein Wackler — der naechste Versuch scheitert genauso. Wiederholen ist
+  // sinnlos, Verschweigen falsch.
+  if (code === '42501' || status === 403 || /permission denied/i.test(message)) {
+    return VX_DB_WRITE_KIND.RECHT;
+  }
+  if (status === 0 || /network|fetch|timeout/i.test(message)) return VX_DB_WRITE_KIND.NETZ;
+  return VX_DB_WRITE_KIND.SONSTIGES;
+}
+
+function vxDbWriteMeldung(ergebnis) {
+  if (!ergebnis || ergebnis.ok) return '';
+  if (ergebnis.kind === VX_DB_WRITE_KIND.NETZ) {
+    return 'Keine Verbindung. Bitte erneut versuchen.';
+  }
+  // Bei einem fehlenden Recht ist der Fehler bei uns, nicht bei der Kundin.
+  // Sie soll es nicht noch dreimal versuchen.
+  if (ergebnis.kind === VX_DB_WRITE_KIND.RECHT) {
+    return 'Konnte nicht gespeichert werden. Der Fehler liegt bei uns und ist gemeldet.';
+  }
+  return 'Konnte nicht gespeichert werden.';
+}
+
+/**
+ * Fuehrt einen Schreibzugriff aus und liefert immer dieselbe Form:
+ *   { ok: true,  data, kind: null, error: null }
+ *   { ok: false, data: null, kind: 'recht'|'netz'|'sonstiges', error }
+ *
+ * `kontext` beschreibt die Kundenaktion ("Profil speichern"), nicht die
+ * Tabelle — er landet in der Meldung und soll dort lesbar sein.
+ */
+async function vxDbWrite(builder, options) {
+  const kontext = (options && options.kontext) || 'Schreibvorgang';
+  let ergebnis;
+  try {
+    ergebnis = await builder;
+  } catch (e) {
+    // Hierher kommt nur, was wirklich ablehnt: ein Netzfehler.
+    const kind = vxClassifyDbWriteError(e);
+    console.error(`[vx-db-write] ${kontext} fehlgeschlagen (${kind}):`, e && (e.message || e));
+    return { ok: false, data: null, kind, error: e };
+  }
+  if (ergebnis && ergebnis.error) {
+    const kind = vxClassifyDbWriteError(ergebnis.error);
+    console.error(`[vx-db-write] ${kontext} fehlgeschlagen (${kind}):`,
+      ergebnis.error.message || ergebnis.error);
+    return { ok: false, data: null, kind, error: ergebnis.error };
+  }
+  return { ok: true, data: ergebnis ? ergebnis.data : null, kind: null, error: null };
+}
+
+window.vxDbWrite = vxDbWrite;
+window.vxDbWriteMeldung = vxDbWriteMeldung;
+
 function showConfigError(message, options = {}) {
   const login = document.getElementById('login-screen');
   const app = document.getElementById('app');
@@ -10488,9 +10566,18 @@ async function vxNotifMarkRead(id) {
   // In DB schreiben
   var sb = (typeof getSupabaseAuthClient === 'function') ? getSupabaseAuthClient() : null;
   if (!sb) return;
-  try {
-    await sb.from('notifications').update({ read_at: new Date().toISOString() }).eq('id', id);
-  } catch(e) { console.warn('[vxNotif] markRead error', e); }
+  // Das `try/catch`, das hier stand, fing nichts: PostgREST lehnt nicht ab,
+  // es liefert `{ error }`. Die Glocke ging auf 0, nach dem Neuladen waren
+  // alle Meldungen wieder ungelesen — ohne jeden Hinweis dazwischen.
+  const ergebnis = await vxDbWrite(
+    sb.from('notifications').update({ read_at: new Date().toISOString() }).eq('id', id),
+    { kontext: 'Meldung als gelesen markieren' }
+  );
+  if (!ergebnis.ok) {
+    _vxNotifCache.forEach(function(n){ if (n.id === id) n.read = false; });
+    vxBellUpdateBadge();
+    if (typeof toast === 'function') toast(vxDbWriteMeldung(ergebnis), 'error');
+  }
 }
 
 async function vxNotifPersistReadIds(ids) {
@@ -10533,12 +10620,18 @@ async function vxNotifMarkAllRead() {
   // In DB schreiben
   var sb = (typeof getSupabaseAuthClient === 'function') ? getSupabaseAuthClient() : null;
   if (!sb) return;
-  try {
-    var ids = unread.map(function(n){ return n.id; });
-    await sb.from('notifications')
-      .update({ read_at: new Date().toISOString() })
-      .in('id', ids);
-  } catch(e) { console.warn('[vxNotif] markAllRead error', e); }
+  var ids = unread.map(function(n){ return n.id; });
+  const ergebnis = await vxDbWrite(
+    sb.from('notifications').update({ read_at: new Date().toISOString() }).in('id', ids),
+    { kontext: 'Alle Meldungen als gelesen markieren' }
+  );
+  if (!ergebnis.ok) {
+    unread.forEach(function(n){ n.read = false; });
+    vxBellUpdateBadge();
+    vxBellRender();
+    vxBellPageRender();
+    if (typeof toast === 'function') toast(vxDbWriteMeldung(ergebnis), 'error');
+  }
 }
 
 // ── Realtime Subscription ──────────────────────────────────
@@ -15016,7 +15109,16 @@ async function vxSaveProfil() {
         if (error) throw new Error(error.message);
       }
       // Update customers Name
-      await _sb.from('customers').update({ contact_first_name: name, updated_at: new Date().toISOString() }).eq('id', customerMeta.customerId);
+      const nameWrite = await vxDbWrite(
+        _sb.from('customers')
+          .update({ contact_first_name: name, updated_at: new Date().toISOString() })
+          .eq('id', customerMeta.customerId),
+        { kontext: 'Profil speichern' }
+      );
+      // Ohne diese Pruefung meldete der Knopf "Gespeichert ✓", waehrend der Name
+      // ungeschrieben blieb. Nach dem naechsten Laden stand der alte wieder da,
+      // ohne dass irgendetwas auf den Fehler hingewiesen haette.
+      if (!nameWrite.ok) throw new Error(vxDbWriteMeldung(nameWrite));
     }, { savingLabel: 'Speichert …', doneLabel: 'Gespeichert ✓' });
     customerMeta.customerName = name;
     customerMeta.customerEmail = email;
@@ -15979,19 +16081,18 @@ async function vxOnboardingDismissNow() {
 }
 
 async function vxOnboardingMarkComplete() {
-  try {
-    const _sb = getSupabaseAuthClient();
-    const { error } = await _sb.from('customers')
-      .update({ onboarding_completed: true })
-      .eq('id', customerMeta.customerId);
-    if (error) {
-      console.warn('[onboarding] DB write did not persist (kept as local-only dismiss):', error.message || error);
-    } else {
-      customerMeta.onboardingCompleted = true;
-    }
-  } catch(e) {
-    console.warn('[onboarding] mark complete failed', e.message);
-  }
+  const _sb = getSupabaseAuthClient();
+  if (!_sb) return;
+  // Bewusst ohne Meldung an die Kundin: Sie hat gerade ein Willkommensfenster
+  // weggeklickt, und `vxOnboardingPersistDismissed()` haelt diese Entscheidung
+  // im localStorage fest. Das Fenster bleibt also zu, auch wenn der Schreibweg
+  // scheitert — eine Fehlermeldung waere hier Laerm ohne Handlungsoption.
+  // Gemeldet wird der Fehler trotzdem, ueber den gemeinsamen Weg.
+  const ergebnis = await vxDbWrite(
+    _sb.from('customers').update({ onboarding_completed: true }).eq('id', customerMeta.customerId),
+    { kontext: 'Onboarding abschliessen' }
+  );
+  if (ergebnis.ok) customerMeta.onboardingCompleted = true;
 }
 
 // Manuell starten (z.B. von Hilfe-Seite)
@@ -19020,14 +19121,18 @@ function vxMarkRequestAsRead(recordId) {
   if (typeof vxPatchLocalRecordReadState === 'function') vxPatchLocalRecordReadState(id, false, readAtIso);
   if (typeof vxRefreshAfterReadStateChange === 'function') vxRefreshAfterReadStateChange();
   if (!(typeof _sb !== 'undefined' && _sb)) return Promise.resolve(true);
-  return _sb.from('calls').update({ read_at: readAtIso }).eq('id', id).then(function(res){
-    if (res && res.error) {
-      console.warn('[vxRequestRead] read_at update failed.', res.error);
-      return false;
-    }
-    return true;
-  }).catch(function(err){
-    console.warn('[vxRequestRead] read_at update failed.', err);
+  return vxDbWrite(
+    _sb.from('calls').update({ read_at: readAtIso }).eq('id', id),
+    { kontext: 'Als gelesen markieren' }
+  ).then(function(ergebnis){
+    if (ergebnis.ok) return true;
+    // Zurueckdrehen statt driften lassen. Ohne das zeigt die Liste "gelesen",
+    // und der naechste Poll (alle 9-12 s) setzt es wortlos zurueck — ein
+    // Flackern, das die Kundin sich nicht erklaeren kann.
+    if (typeof vxGetManualUnreadIdSet === 'function') vxGetManualUnreadIdSet().add(id);
+    if (typeof vxPatchLocalRecordReadState === 'function') vxPatchLocalRecordReadState(id, true, null);
+    if (typeof vxRefreshAfterReadStateChange === 'function') vxRefreshAfterReadStateChange();
+    if (typeof toast === 'function') toast(vxDbWriteMeldung(ergebnis), 'error');
     return false;
   });
 }
@@ -19035,18 +19140,28 @@ function vxMarkRequestAsRead(recordId) {
 function vxMarkRequestAsUnread(recordId) {
   if (!recordId) return Promise.resolve(false);
   var id = String(recordId);
+  // Vor dem optimistischen Umschalten merken, damit der Rueckweg den echten
+  // alten Wert wiederherstellt und nicht bloss irgendeinen Zeitstempel.
+  var vorherigesReadAt = null;
+  if (typeof allRecords !== 'undefined' && Array.isArray(allRecords)) {
+    var vorher = allRecords.find(function(r){ return String((r && r.id) || '') === id; });
+    if (vorher && vorher.fields) vorherigesReadAt = vorher.fields.read_at || null;
+  }
   if (typeof vxGetManualUnreadIdSet === 'function') vxGetManualUnreadIdSet().add(id);
   if (typeof vxPatchLocalRecordReadState === 'function') vxPatchLocalRecordReadState(id, true, null);
   if (typeof vxRefreshAfterReadStateChange === 'function') vxRefreshAfterReadStateChange();
   if (!(typeof _sb !== 'undefined' && _sb)) return Promise.resolve(true);
-  return _sb.from('calls').update({ read_at: null }).eq('id', id).then(function(res){
-    if (res && res.error) {
-      console.warn('[vxRequestUnread] read_at NULL update failed.', res.error);
-      return false;
+  return vxDbWrite(
+    _sb.from('calls').update({ read_at: null }).eq('id', id),
+    { kontext: 'Als ungelesen markieren' }
+  ).then(function(ergebnis){
+    if (ergebnis.ok) return true;
+    if (typeof vxGetManualUnreadIdSet === 'function') vxGetManualUnreadIdSet().delete(id);
+    if (typeof vxPatchLocalRecordReadState === 'function') {
+      vxPatchLocalRecordReadState(id, false, vorherigesReadAt);
     }
-    return true;
-  }).catch(function(err){
-    console.warn('[vxRequestUnread] read_at NULL update failed.', err);
+    if (typeof vxRefreshAfterReadStateChange === 'function') vxRefreshAfterReadStateChange();
+    if (typeof toast === 'function') toast(vxDbWriteMeldung(ergebnis), 'error');
     return false;
   });
 }
@@ -19616,7 +19731,7 @@ function saveFollowUpV2(callId) {
     phone: f.caller_phone || f.phone_number || ''
   };
 
-  createManualTask(payload).then(function(created) {
+  createManualTask(payload).then(async function(created) {
     if (!Array.isArray(allManualTaskRecords)) allManualTaskRecords = [];
     if (created && created.id) {
       var exists = allManualTaskRecords.some(function(r) { return String(r.id) === String(created.id); });
@@ -19629,29 +19744,29 @@ function saveFollowUpV2(callId) {
     // am Call ausgeschaltet. Damit verschwindet die Doppelzählung in KPI und Liste.
     var isCallbackFollowup = (taskType === 'callback' || taskType === 'rueckruf');
     var hadCallbackRequest = (f.callback_requested === true || f.callback_requested === 'true');
+    var callbackReset = { ok: true };
     if (!isCallbackFollowup && hadCallbackRequest) {
-      sb.from('calls')
-        .update({ callback_requested: false })
-        .eq('id', callId)
-        .then(function(rr) {
-          if (rr.error) {
-            console.warn('[v2.3] callback_requested-Reset fehlgeschlagen:', rr.error);
-          } else {
-            // Lokal sofort aktualisieren
-            if (rec.fields) rec.fields.callback_requested = false;
-            // Re-Render
-            if (typeof renderDashboard === 'function') {
-              try { renderDashboard(allRecords, allManualTaskRecords); } catch(e) {}
-            }
-          }
-        });
+      callbackReset = await vxDbWrite(
+        sb.from('calls').update({ callback_requested: false }).eq('id', callId),
+        { kontext: 'Rückruf-Status zurücksetzen' }
+      );
+      if (callbackReset.ok && rec.fields) rec.fields.callback_requested = false;
     }
 
     renderDashboard(allRecords, allManualTaskRecords);
     vxNotifMarkReadByRecord(recordId);
     renderAnrufe();
     renderRueckrufe(allRecords, allManualTaskRecords);
-    toast('Nachfassen gespeichert', 'success');
+    // Die Folge-Aufgabe ist angelegt — das stimmt in beiden Faellen. Scheitert
+    // nur der Rueckruf-Reset, zaehlt der Vorgang doppelt: einmal als Rueckruf am
+    // Anruf, einmal als Folge-Aufgabe. Genau das ist in den drei Tagen nach
+    // PR #847 passiert, hinter einer gruenen Erfolgsmeldung.
+    if (callbackReset.ok) {
+      toast('Nachfassen gespeichert', 'success');
+    } else {
+      toast('Nachfassen gespeichert. Der Rückruf-Status am Anruf blieb bestehen — '
+        + vxDbWriteMeldung(callbackReset), 'warning');
+    }
     // Zurück ins Heute-Cockpit: dort ist die neue Aufgabe unmittelbar sichtbar.
     if (typeof hideCallDetail === 'function') hideCallDetail();
     var navEl = document.getElementById('nav-dashboard');
