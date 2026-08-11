@@ -15080,7 +15080,11 @@ async function vxSaveProfil() {
         if (error) throw new Error(error.message);
       }
       // Update customers Name
-      await _sb.from('customers').update({ contact_first_name: name, updated_at: new Date().toISOString() }).eq('id', customerMeta.customerId);
+      // .update() meldet einen Fehlschlag im Ergebnis, nicht per Rejection --
+      // ohne diese Pruefung haette der Knopf "Gespeichert ✓" gezeigt, waehrend
+      // der Name nicht geschrieben wurde. Dasselbe Muster wie vxDv2SaveNote().
+      const { error: nameError } = await _sb.from('customers').update({ contact_first_name: name, updated_at: new Date().toISOString() }).eq('id', customerMeta.customerId);
+      if (nameError) throw new Error(nameError.message);
     }, { savingLabel: 'Speichert …', doneLabel: 'Gespeichert ✓' });
     customerMeta.customerName = name;
     customerMeta.customerEmail = email;
