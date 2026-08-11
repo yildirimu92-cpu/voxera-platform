@@ -206,11 +206,18 @@ async function loadNotificationDelivery(sbAdmin, customerId, nowMs = Date.now())
 // Der Zustand der Karte, getrennt von ihrer Darstellung, damit er pruefbar ist.
 //
 // Drei Aussagen, jede belegbar:
-//   proven      - im Fenster wurde nachweislich zugestellt
+//   proven      - im Fenster wurde nachweislich verschickt
 //   failing     - der Retry hat aufgegeben (Status 'dead'); das ist der stille
 //                 Ausfall, um den es bei dieser ganzen Arbeit ging
 //   configured  - eingerichtet, aber im Fenster kein Beleg. Ausdruecklich KEINE
-//                 Fehlermeldung: ohne Anrufe gibt es nichts zuzustellen.
+//                 Fehlermeldung: ohne Anrufe gibt es nichts zu verschicken.
+//
+// "verschickt", nicht "zugestellt": der Beleg ist eine 2xx-Antwort von Make
+// (siehe _lib/mail-delivery.js, dort ausdruecklich "accepted" genannt), keine
+// Zustellbestaetigung beim Empfaenger. Es gibt in diesem System keinen
+// staerkeren Beleg -- kein Bounce-Tracking, kein Rueckkanal von Make. "Wurde
+// verschickt" ist wahr und belegt; "wurde zugestellt" waere eine Behauptung
+// ueber etwas, das hier niemand pruefen kann (#901).
 function notificationCard(configured, delivery, customer) {
   const { state, since } = notificationEvidence(configured, delivery);
   const channels = notificationDetail(customer);
@@ -222,19 +229,19 @@ function notificationCard(configured, delivery, customer) {
   if (state === 'failing') {
     return status(
       'attention',
-      'Zustellung prüfen',
+      'Versand prüfen',
       day
-        ? `Eine Benachrichtigung konnte am ${day} nicht zugestellt werden. Bitte die hinterlegte E-Mail-Adresse prüfen.`
-        : 'Eine Benachrichtigung konnte nicht zugestellt werden. Bitte die hinterlegte E-Mail-Adresse prüfen.'
+        ? `Eine Benachrichtigung konnte am ${day} nicht verschickt werden. Bitte die hinterlegte E-Mail-Adresse prüfen.`
+        : 'Eine Benachrichtigung konnte nicht verschickt werden. Bitte die hinterlegte E-Mail-Adresse prüfen.'
     );
   }
   if (state === 'proven') {
-    return status('active', 'Aktiv', day ? `${channels} · zuletzt zugestellt am ${day}` : channels);
+    return status('active', 'Aktiv', day ? `${channels} · zuletzt verschickt am ${day}` : channels);
   }
-  // Eingerichtet, aber im Fenster nichts zugestellt. Bewusst nicht als Mangel
-  // formuliert: ohne Anrufe gibt es nichts zuzustellen, und die Karte soll
+  // Eingerichtet, aber im Fenster nichts verschickt. Bewusst nicht als Mangel
+  // formuliert: ohne Anrufe gibt es nichts zu verschicken, und die Karte soll
   // keinen Fehler behaupten, den sie nicht belegen kann.
-  return status('active', 'Konfiguriert', `${channels} · in den letzten ${NOTIFICATION_PROOF_WINDOW_DAYS} Tagen nichts zugestellt`);
+  return status('active', 'Konfiguriert', `${channels} · in den letzten ${NOTIFICATION_PROOF_WINDOW_DAYS} Tagen nichts verschickt`);
 }
 
 function notificationEvidence(configured, delivery = {}) {

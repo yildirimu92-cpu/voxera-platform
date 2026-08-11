@@ -105,7 +105,7 @@ test('ohne Einrichtung bleibt die Karte inaktiv', () => {
 test('eingerichtet ohne Zustellbeleg bleibt "Konfiguriert", nicht "Aktiv"', () => {
   const card = notificationCard(true, { lastSentAt: null, lastDeadAt: null }, CONFIGURED_CUSTOMER);
   assert.equal(card.label, 'Konfiguriert');
-  assert.match(card.detail, new RegExp(`${NOTIFICATION_PROOF_WINDOW_DAYS} Tagen nichts zugestellt`));
+  assert.match(card.detail, new RegExp(`${NOTIFICATION_PROOF_WINDOW_DAYS} Tagen nichts verschickt`));
 });
 
 test('eine belegte Zustellung macht die Karte "Aktiv" und nennt das Datum', () => {
@@ -116,7 +116,29 @@ test('eine belegte Zustellung macht die Karte "Aktiv" und nennt das Datum', () =
   );
   assert.equal(card.status, 'active');
   assert.equal(card.label, 'Aktiv');
-  assert.match(card.detail, /zuletzt zugestellt am 09\.08\.2026/);
+  assert.match(card.detail, /zuletzt verschickt am 09\.08\.2026/);
+});
+
+// #901: der einzige Beleg, den diese Karte hat, ist eine 2xx-Antwort von
+// Make (_lib/mail-delivery.js nennt das selbst "accepted") -- keine
+// Zustellbestaetigung beim Empfaenger. "Zugestellt" waere eine Behauptung
+// ueber etwas, das dieses System nicht pruefen kann. Diese vier Zustaende
+// (konfiguriert, aktiv, Fehlschlag, Fehlschlag nach altem Erfolg) decken
+// jeden Aufrufer von notificationCard() ab -- keiner darf "zugestellt" mehr
+// zeigen.
+test('keine Karte behauptet "zugestellt" -- nur "verschickt" ist belegt', () => {
+  const configuredOnly = notificationCard(true, { lastSentAt: null, lastDeadAt: null }, CONFIGURED_CUSTOMER);
+  const proven = notificationCard(true, { lastSentAt: '2026-08-09T17:55:30.731Z', lastDeadAt: null }, CONFIGURED_CUSTOMER);
+  const failing = notificationCard(true, { lastSentAt: null, lastDeadAt: '2026-08-09T10:00:00.000Z' }, CONFIGURED_CUSTOMER);
+  const failingAfterSuccess = notificationCard(
+    true,
+    { lastSentAt: '2026-08-01T10:00:00.000Z', lastDeadAt: '2026-08-09T10:00:00.000Z' },
+    CONFIGURED_CUSTOMER
+  );
+  for (const card of [configuredOnly, proven, failing, failingAfterSuccess]) {
+    assert.doesNotMatch(card.label, /zugestellt/i);
+    assert.doesNotMatch(card.detail, /zugestellt/i);
+  }
 });
 
 test('der Kanal-Text bleibt in der Aktiv-Fassung erhalten', () => {
@@ -163,7 +185,7 @@ test('ein aufgegebener Versand meldet sich, statt still zu bleiben', () => {
     CONFIGURED_CUSTOMER
   );
   assert.equal(card.status, 'attention');
-  assert.equal(card.label, 'Zustellung prüfen');
+  assert.equal(card.label, 'Versand prüfen');
   assert.match(card.detail, /09\.08\.2026/);
 });
 
@@ -174,7 +196,7 @@ test('ein Fehlschlag sticht eine aeltere erfolgreiche Zustellung', () => {
     { lastSentAt: '2026-08-01T10:00:00.000Z', lastDeadAt: '2026-08-09T10:00:00.000Z' },
     CONFIGURED_CUSTOMER
   );
-  assert.equal(card.label, 'Zustellung prüfen');
+  assert.equal(card.label, 'Versand prüfen');
 });
 
 test('der Beleg wird ausserhalb des Fensters gar nicht erst geladen', () => {
