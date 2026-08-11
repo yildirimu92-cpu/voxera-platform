@@ -128,14 +128,23 @@ function eventInput(body, settings) {
 // -- beide brauchen eine eigene Entscheidung und sperren hier bewusst nicht.
 const BLOCKING_UPDATE_TYPES = Object.freeze(['closure', 'appointment_pause']);
 
-async function loadBlockingUpdates(sb, customerId) {
+// Gefiltert wird nach dem ANGEFRAGTEN Zeitraum, nicht nach "laeuft noch".
+//
+// Vorher stand hier ein unsortiertes limit(50) auf alle noch nicht abgelaufenen
+// Eintraege. Bei mehr als 50 haette die Abfrage genau den ueberlappenden
+// auslassen koennen -- und ein uebersehener Block ist eine Buchung waehrend
+// einer veroeffentlichten Schliessung, also der Fall, den diese Pruefung
+// verhindern soll. Die Ueberlappungsbedingung gehoert deshalb in die Abfrage
+// und nicht hinter das Limit.
+async function loadBlockingUpdates(sb, customerId, startIso, endIso) {
+  if (!startIso || !endIso) return [];
   const { data, error } = await sb.from('customer_operational_updates')
     .select('type,title,starts_at,ends_at')
     .eq('customer_id', customerId)
     .eq('status', 'published')
     .in('type', BLOCKING_UPDATE_TYPES)
-    .gt('ends_at', new Date().toISOString())
-    .limit(50);
+    .lt('starts_at', endIso)
+    .gt('ends_at', startIso);
   if (error) throw error;
   return data || [];
 }
@@ -271,7 +280,7 @@ exports.handler = async (event) => {
     const endIso = body.end ? iso(body.end, 'end') : null;
     let responsePayload;
 
-    const blockingUpdates = await loadBlockingUpdates(sb, customerId);
+    const blockingUpdates = await loadBlockingUpdates(sb, customerId, startIso, endIso);
 
     if (action === 'availability') {
       validateWindow(startIso, endIso, settings);

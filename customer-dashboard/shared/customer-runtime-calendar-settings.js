@@ -101,21 +101,24 @@
   }
 
   // Klick-Test 10.08.: Beim geprueften Kunden standen in
-  // `calendar_settings.business_hours` Mo–Fr 08:00–17:00, waehrend das
-  // Geschaeftsprofil fuer dieselben Tage „geschlossen" anzeigte — zwei
+  // `calendar_settings.business_hours` Mo-Fr 08:00-17:00, waehrend das
+  // Geschaeftsprofil fuer dieselben Tage "geschlossen" anzeigte -- zwei
   // Wahrheiten ueber dieselbe Sache, von denen der Kunde nur eine sehen konnte.
   //
-  // Beim Nachpruefen zeigte sich, dass die zweite gar keine Wirkung hat:
-  // `business_hours` hat heute keinen Leser. calendar-tool.js verwendet aus
-  // calendar_settings nur active_provider, timezone, Termindauer, Puffer,
-  // Mindestvorlauf und Horizont — die Terminbuchung prueft ueberhaupt keine
-  // Oeffnungszeiten. Die Migration 2026-08-09_opening_hours.sql haelt das
-  // ausdruecklich fest ("ist definiert, hat denselben Zuschnitt und keinen
-  // Leser") und verweist auf F5/J3 als eigenen Auftrag.
+  // Seit #930 (11.08.) ist das entschieden und die Zeile stimmt wieder:
   //
-  // Die Zeile sagt deshalb genau das: ein hinterlegter Wert, der derzeit nichts
-  // bewirkt. Sie darf keine Wirkung behaupten, die es nicht gibt — und sie nimmt
-  // der offenen Entscheidung nichts vorweg, welche Quelle kuenftig fuehrt.
+  //   Geschaeftsprofil  -> "ist offen"
+  //   business_hours    -> "darf gebucht werden"
+  //
+  // Zwei Fragen, zwei Felder -- aber die Buchungszeiten sind stets eine
+  // TEILMENGE der Oeffnungszeiten, nie eine Erweiterung. Sagt das Profil
+  // "geschlossen", wird an dem Tag nicht gebucht, egal was hier steht.
+  //
+  // NULL bedeutet "noch nicht bestaetigt": dann schraenken allein die
+  // Oeffnungszeiten ein. Der frueher hier vermerkte Zustand "hinterlegter Wert
+  // ohne Wirkung" ist damit aufgeloest; der Vorgabewert Mo-Fr 08-17 wurde bei
+  // der Umstellung auf NULL gesetzt, weil ihn mangels Schreibpfad nachweislich
+  // niemand gewaehlt hatte.
   const HOURS_DAY_LABELS = [
     ['mon', 'Mo'], ['tue', 'Di'], ['wed', 'Mi'], ['thu', 'Do'],
     ['fri', 'Fr'], ['sat', 'Sa'], ['sun', 'So']

@@ -30,7 +30,6 @@
       functionInstructions: text(data._promptFunctionInstructions),
       requiredInformation: text(data._promptRequiredInformation),
       successDefinition: text(data._promptSuccessDefinition),
-      appointmentMode: text(data._promptAppointmentMode) || 'request',
       unknownHandling: text(data._promptUnknownHandling) || 'callback'
     };
   }
@@ -68,7 +67,6 @@
     data._promptRequiredInformation = profile.requiredInformation || data._promptRequiredInformation || templateRequired
       || 'Name und Rückrufnummer\nKonkretes Anliegen\nGewünschter nächster Schritt';
     data._promptSuccessDefinition = profile.successDefinition || data._promptSuccessDefinition || 'Das Anliegen ist verstanden, alle nötigen Angaben sind erfasst und der nächste Schritt wurde eindeutig zusammengefasst.';
-    data._promptAppointmentMode = profile.appointmentMode || data._promptAppointmentMode || 'request';
     data._promptUnknownHandling = profile.unknownHandling || data._promptUnknownHandling || 'callback';
   }
 
@@ -122,9 +120,9 @@
         <div class="wizard-section-heading"><span>3</span><div><strong>Befugnisse festlegen</strong><small>Keine stillschweigenden Zusagen</small></div></div>
         <div class="wizard-decision-grid">
           <div class="wizard-decision-block"><label class="wizard-decision-label">Terminbefugnis</label><div class="wizard-radio-group">
-            ${radio('wz-prompt-appointment','none',data._promptAppointmentMode,'Keine Termine','Nur informieren oder Rückruf anbieten.')}
-            ${radio('wz-prompt-appointment','request',data._promptAppointmentMode,'Anfrage aufnehmen','Bestätigung durch das Unternehmen.')}
-            ${radio('wz-prompt-appointment','direct',data._promptAppointmentMode,'Direkt buchen','Nur nach erfolgreicher Kalenderbestätigung.')}
+            ${radio('wz-prompt-appointment','none',data.appointment_mode,'Keine Termine','Nur informieren oder Rückruf anbieten.')}
+            ${radio('wz-prompt-appointment','request',data.appointment_mode,'Anfrage aufnehmen','Bestätigung durch das Unternehmen.')}
+            ${radio('wz-prompt-appointment','direct',data.appointment_mode,'Direkt buchen','Nur nach erfolgreicher Kalenderbestätigung.')}
           </div></div>
           <div class="wizard-decision-block"><label class="wizard-decision-label">Wenn eine Information fehlt</label><div class="wizard-radio-group">
             ${radio('wz-prompt-unknown','transparent',data._promptUnknownHandling,'Transparent bleiben','Offen sagen, dass die Information fehlt.')}
@@ -141,7 +139,13 @@
     data._promptFunctionInstructions = document.getElementById('wz-prompt-function-instructions')?.value.trim() || '';
     data._promptRequiredInformation = document.getElementById('wz-prompt-required')?.value.trim() || '';
     data._promptSuccessDefinition = document.getElementById('wz-prompt-success')?.value.trim() || '';
-    data._promptAppointmentMode = document.querySelector('input[name="wz-prompt-appointment"]:checked')?.value || data._promptAppointmentMode || 'request';
+    // #930: Dieselbe Radiogruppe, aber sie schreibt jetzt `appointment_mode`
+    // und damit ueber coreWizardPatch() die typisierte Spalte
+    // ai_appointment_mode. Vorher landete die Auswahl ausschliesslich in der
+    // [PROMPT_V2]-Notiz -- der Admin sah "Direkt buchen" bestaetigt, waehrend
+    // der Builder die leere Spalte las. Eine Doppelquelle nur auf der
+    // Leseseite zu beseitigen haette den Fehler bloss verschoben.
+    data.appointment_mode = document.querySelector('input[name="wz-prompt-appointment"]:checked')?.value || data.appointment_mode || 'request';
     data._promptUnknownHandling = document.querySelector('input[name="wz-prompt-unknown"]:checked')?.value || data._promptUnknownHandling || 'callback';
   }
 
@@ -151,7 +155,7 @@
       ['Leistungen', Boolean(text(data.services)), 'Der Agent kennt das tatsächliche Angebot.'],
       ['Agent-Funktionen', Array.isArray(data._promptFunctions) && data._promptFunctions.length > 0, 'Mindestens eine kombinierbare Funktion ist ausgewählt.'],
       ['Pflichtinformationen', Boolean(text(data._promptRequiredInformation)), 'Notwendige Angaben sind festgelegt.'],
-      ['Terminbefugnis', Boolean(text(data._promptAppointmentMode)), 'Buchungszusagen sind klar begrenzt.'],
+      ['Terminbefugnis', Boolean(text(data.appointment_mode)), 'Buchungszusagen sind klar begrenzt.'],
       ['Fallback', Boolean(text(data._promptUnknownHandling) && text(data.fallbackEscalation)), 'Unsicherheit und Eskalation sind geregelt.'],
       ['Antwortgrenzen', Boolean(text(data.responseConstraints)), 'Verbotene oder sensible Aussagen sind definiert.']
     ];
@@ -221,7 +225,7 @@
         </section>
         <section class="wizard-review-card">
           <span class="wizard-review-kicker">Terminbefugnis</span>
-          <strong>${esc(appointmentLabels[data._promptAppointmentMode] || 'Terminanfrage')}</strong>
+          <strong>${esc(appointmentLabels[data.appointment_mode] || 'Terminanfrage')}</strong>
         </section>
         <section class="wizard-review-card">
           <span class="wizard-review-kicker">Fehlende Information</span>

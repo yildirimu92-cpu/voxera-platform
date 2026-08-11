@@ -135,7 +135,14 @@ try {
     appointment_duration_minutes: 60
   };
 
-  assert.match(helper.calendarPromptBlock(verbunden, 'direct'), /Standarddauer von 60 Minuten/);
+  // #930: feste Dauer statt "sofern nichts anderes vereinbart wurde". Der
+  // Zusatz war ein Versprechen ohne Deckung -- book() lehnt jede
+  // abweichende Dauer ab, und ein Agent, der einen Zeitraum als frei
+  // meldet und ihn dann nicht buchen kann, ist schlechter als einer, der
+  // gleich das Raster nennt.
+  assert.match(helper.calendarPromptBlock(verbunden, 'direct'), /genau 60 Minuten/);
+  assert.ok(!/sofern nichts anderes vereinbart/.test(helper.calendarPromptBlock(verbunden, 'direct')),
+    'Der Prompt erlaubt weiterhin eine abweichende Dauer, die book() ablehnt');
   assert.equal(helper.calendarPromptBlock({ feature_enabled: false }, 'direct'), '');
 
   // #930: Der Block haengt am Terminmodus, nicht nur am Anschlussstatus. Bis

@@ -66,6 +66,36 @@ async function loadStatus(sb, customerId) {
   };
 }
 
+// #930: Wochenraster wie {"mon":[["08:00","17:00"]], ...}. Bewusst streng --
+// ein halb gueltiges Raster wuerde ein Buchungsfenster erzeugen, das niemand so
+// gemeint hat. null ist ein gueltiger Wert und bedeutet "noch nicht bestaetigt".
+const WEEK_DAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+const INVALID_WEEK = Symbol('invalid_week');
+
+function safeWeekGrid(value) {
+  if (value === null) return null;
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return INVALID_WEEK;
+  const result = {};
+  for (const day of WEEK_DAYS) {
+    const raw = value[day];
+    if (raw === undefined) { result[day] = []; continue; }
+    if (!Array.isArray(raw)) return INVALID_WEEK;
+    const intervals = [];
+    for (const pair of raw) {
+      if (!Array.isArray(pair) || pair.length !== 2) return INVALID_WEEK;
+      const [from, to] = pair.map((item) => String(item || '').trim());
+      if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(from) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(to)) return INVALID_WEEK;
+      if (to <= from) return INVALID_WEEK;
+      intervals.push([from, to]);
+    }
+    result[day] = intervals;
+  }
+  for (const key of Object.keys(value)) {
+    if (!WEEK_DAYS.includes(key)) return INVALID_WEEK;
+  }
+  return result;
+}
+
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers, body: '' };
   if (event.httpMethod !== 'POST') return reply(405, { ok: false, error: 'method_not_allowed' });
@@ -124,8 +154,25 @@ exports.handler = async (event) => {
         minimum_notice_minutes: Number(input.minimum_notice_minutes ?? 120),
         booking_horizon_days: Number(input.booking_horizon_days ?? 60),
         feature_enabled: input.feature_enabled === true,
+        // #930: Buchungszeiten sind seit dem Buchungsfenster wirksam und
+        // brauchen deshalb einen Schreibpfad. Sie standen vorher in der
+        // Tabelle, wurden angezeigt -- und waren durch nichts aenderbar.
+        // Etwas durchzusetzen, das der Kunde nicht einstellen kann, waere die
+        // schlechtere Haelfte des Fixes gewesen.
+        //
+        // `undefined` heisst "nicht mitgeschickt" und laesst den bestehenden
+        // Wert stehen; `null` heisst ausdruecklich "nicht bestaetigt" und
+        // hebt die Einschraenkung auf. Beides muss unterscheidbar bleiben,
+        // sonst leert ein Speichern ohne dieses Feld die Buchungszeiten.
+        business_hours: input.business_hours === undefined
+          ? undefined
+          : safeWeekGrid(input.business_hours),
         updated_at: new Date().toISOString()
       };
+      if (allowed.business_hours === undefined) delete allowed.business_hours;
+      if (allowed.business_hours === INVALID_WEEK) {
+        return reply(400, { ok: false, error: 'calendar_setting_invalid', field: 'business_hours' });
+      }
       const ranges = {
         appointment_duration_minutes: [10, 240],
         buffer_before_minutes: [0, 180],

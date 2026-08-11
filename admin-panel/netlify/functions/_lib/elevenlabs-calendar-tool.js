@@ -216,7 +216,7 @@ function calendarPromptBlock(settings = {}, appointmentMode = '') {
     '## KALENDER & DIREKTE TERMINBUCHUNG',
     'Direkte Termine sind freigeschaltet. Verwende das Tool manage_voxera_calendar für jeden konkreten Terminwunsch.',
     '1. Kläre Datum, Uhrzeit, Anliegen und falls nötig die Kontaktdaten.',
-    '2. Verwende die Zeitzone ' + timezone + ' und eine Standarddauer von ' + duration + ' Minuten, sofern nichts anderes vereinbart wurde.',
+    '2. Verwende die Zeitzone ' + timezone + '. Jeder Termin dauert genau ' + duration + ' Minuten -- eine andere Dauer ist nicht buchbar, auch nicht auf Wunsch.',
     '3. Prüfe den gewünschten Zeitraum immer zuerst mit action=availability. Erfinde keine freien Zeiten.',
     '4. Bei belegtem Zeitraum: Sage nur, dass dieser Zeitraum nicht verfügbar ist, und frage nach einer Alternative.',
     '5. Bei freiem Zeitraum: Wiederhole Datum, Uhrzeit und Dauer und hole eine ausdrückliche Bestätigung ein.',

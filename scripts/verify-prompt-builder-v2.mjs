@@ -812,7 +812,13 @@ check('wizard collects operational decisions and persists a structured marker', 
   assert.match(source.runtime, /wz-prompt-functions/);
   assert.match(source.runtime, /Mehrfachauswahl/);
   assert.match(source.runtime, /functionInstructions/);
-  assert.match(source.runtime, /appointmentMode/);
+  // #930: Die Terminbefugnis gehoert NICHT mehr in die [PROMPT_V2]-Notiz.
+  // Dieselbe Radiogruppe schreibt jetzt `appointment_mode` und damit ueber
+  // coreWizardPatch() die typisierte Spalte. Vorher sah der Admin seine
+  // Auswahl bestaetigt, waehrend der Builder die leere Spalte las.
+  assert.ok(!/appointmentMode/.test(source.runtime),
+    'Der Wizard schreibt die Terminbefugnis wieder in die Notiz');
+  assert.match(source.runtime, /data\.appointment_mode = document\.querySelector/);
   assert.match(source.runtime, /upsertProfile/);
   assert.match(source.runtime, /_promptProfilePersisted/);
   assert.match(source.runtime, /_promptProfileUserEdited/);
