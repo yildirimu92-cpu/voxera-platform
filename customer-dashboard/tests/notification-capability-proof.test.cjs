@@ -102,13 +102,16 @@ test('ohne Einrichtung bleibt die Karte inaktiv', () => {
   assert.equal(card.label, 'Nicht eingerichtet');
 });
 
-test('eingerichtet ohne Zustellbeleg bleibt "Konfiguriert", nicht "Aktiv"', () => {
+test('eingerichtet ohne Beleg bleibt "Konfiguriert", nicht "Aktiv"', () => {
   const card = notificationCard(true, { lastSentAt: null, lastDeadAt: null }, CONFIGURED_CUSTOMER);
   assert.equal(card.label, 'Konfiguriert');
-  assert.match(card.detail, new RegExp(`${NOTIFICATION_PROOF_WINDOW_DAYS} Tagen nichts verschickt`));
+  // "kein Versandbeleg", nicht "nichts verschickt": deliverMail() liefert
+  // Erfolg weiter, wenn nur der Outbox-Insert scheitert -- eine fehlende Zeile
+  // ist fehlender Beleg, nicht belegtes Nichtstun.
+  assert.match(card.detail, new RegExp(`kein Versandbeleg in den letzten ${NOTIFICATION_PROOF_WINDOW_DAYS} Tagen`));
 });
 
-test('eine belegte Zustellung macht die Karte "Aktiv" und nennt das Datum', () => {
+test('ein belegter Versand macht die Karte "Aktiv" und nennt das Datum', () => {
   const card = notificationCard(
     true,
     { lastSentAt: '2026-08-09T17:55:30.731Z', lastDeadAt: null },
@@ -116,7 +119,10 @@ test('eine belegte Zustellung macht die Karte "Aktiv" und nennt das Datum', () =
   );
   assert.equal(card.status, 'active');
   assert.equal(card.label, 'Aktiv');
-  assert.match(card.detail, /zuletzt verschickt am 09\.08\.2026/);
+  // "beauftragt", nicht "verschickt": das Webhook-Modul in Szenario 09 quittiert
+  // sofort bei Annahme (kein Webhook-Response-Modul im Blueprint) -- die
+  // 2xx-Antwort belegt nicht, dass das E-Mail-Modul danach lief.
+  assert.match(card.detail, /Versand zuletzt beauftragt am 09\.08\.2026/);
 });
 
 // #901: der einzige Beleg, den diese Karte hat, ist eine 2xx-Antwort von

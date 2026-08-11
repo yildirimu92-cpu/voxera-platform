@@ -206,18 +206,31 @@ async function loadNotificationDelivery(sbAdmin, customerId, nowMs = Date.now())
 // Der Zustand der Karte, getrennt von ihrer Darstellung, damit er pruefbar ist.
 //
 // Drei Aussagen, jede belegbar:
-//   proven      - im Fenster wurde nachweislich verschickt
-//   failing     - der Retry hat aufgegeben (Status 'dead'); das ist der stille
-//                 Ausfall, um den es bei dieser ganzen Arbeit ging
-//   configured  - eingerichtet, aber im Fenster kein Beleg. Ausdruecklich KEINE
-//                 Fehlermeldung: ohne Anrufe gibt es nichts zu verschicken.
+//   proven      - im Fenster wurde der Versand nachweislich an Make uebergeben
+//   failing     - der Retry hat aufgegeben (Status 'dead'); direkt beobachtet
+//                 (wiederholt keine 2xx-Antwort auf den Webhook-Aufruf selbst),
+//                 nicht abgeleitet -- das ist der stille Ausfall, um den es bei
+//                 dieser ganzen Arbeit ging.
+//   configured  - eingerichtet, aber im Fenster kein Beleg gefunden.
+//                 Ausdruecklich KEINE Fehlermeldung: ohne Anrufe gibt es nichts
+//                 zu verschicken.
 //
-// "verschickt", nicht "zugestellt": der Beleg ist eine 2xx-Antwort von Make
-// (siehe _lib/mail-delivery.js, dort ausdruecklich "accepted" genannt), keine
-// Zustellbestaetigung beim Empfaenger. Es gibt in diesem System keinen
-// staerkeren Beleg -- kein Bounce-Tracking, kein Rueckkanal von Make. "Wurde
-// verschickt" ist wahr und belegt; "wurde zugestellt" waere eine Behauptung
-// ueber etwas, das hier niemand pruefen kann (#901).
+// "uebergeben"/"beauftragt", nicht "verschickt" oder gar "zugestellt": das
+// Scenario-9-Webhook-Modul bestaetigt sofort bei Annahme in die Warteschlange
+// (kein Webhook-Response-Modul im Blueprint, verifiziert) -- die 2xx-Antwort
+// sagt nichts darueber, ob das E-Mail-Modul danach wirklich lief.
+// _lib/mail-delivery.js nennt das selbst "accepted", nicht "sent". Es gibt in
+// diesem System keinen staerkeren Beleg -- kein Bounce-Tracking, kein
+// Rueckkanal von Make. "Uebergeben" ist wahr und belegt; "verschickt" waere
+// bereits eine Behauptung ueber die Scenario-Ausfuehrung, "zugestellt" erst
+// recht ueber den Empfaenger (#901).
+//
+// "kein Versandbeleg" statt "nichts verschickt" im configured-Zweig aus
+// demselben Grund, nur umgekehrt: deliverMail() liefert bewusst weiter Erfolg,
+// wenn NUR der Outbox-Insert scheitert ("eine zugestellte Mail ohne Protokoll
+// ist besser als gar keine Mail", siehe dortiger Kommentar). Eine fehlende
+// Zeile ist dann fehlender Beleg, nicht belegtes Nichtstun -- "nichts
+// verschickt" waere in diesem Fall selbst eine unbelegte Behauptung.
 function notificationCard(configured, delivery, customer) {
   const { state, since } = notificationEvidence(configured, delivery);
   const channels = notificationDetail(customer);
@@ -236,12 +249,12 @@ function notificationCard(configured, delivery, customer) {
     );
   }
   if (state === 'proven') {
-    return status('active', 'Aktiv', day ? `${channels} · zuletzt verschickt am ${day}` : channels);
+    return status('active', 'Aktiv', day ? `${channels} · Versand zuletzt beauftragt am ${day}` : channels);
   }
-  // Eingerichtet, aber im Fenster nichts verschickt. Bewusst nicht als Mangel
+  // Eingerichtet, aber im Fenster kein Beleg. Bewusst nicht als Mangel
   // formuliert: ohne Anrufe gibt es nichts zu verschicken, und die Karte soll
   // keinen Fehler behaupten, den sie nicht belegen kann.
-  return status('active', 'Konfiguriert', `${channels} · in den letzten ${NOTIFICATION_PROOF_WINDOW_DAYS} Tagen nichts verschickt`);
+  return status('active', 'Konfiguriert', `${channels} · kein Versandbeleg in den letzten ${NOTIFICATION_PROOF_WINDOW_DAYS} Tagen`);
 }
 
 function notificationEvidence(configured, delivery = {}) {
