@@ -317,9 +317,13 @@ Enterprise-Vertrag. **Bis dahin gilt D.3.**
 
 Diese fünf Punkte liessen sich aus Code und APIs nicht abschliessend klären:
 
+> **Nachtrag 11.08.2026:** Punkt 1 ist erledigt — der Betreiber hat
+> `DATA_RETENTION_ENFORCEMENT_ENABLED = true` in Netlify bestätigt. Die verbleibenden vier
+> Punkte sind in Teil G mit konkretem Klickweg aufgeschlüsselt.
+
 | # | Zu prüfen | Wo | Warum es zählt |
 |---|---|---|---|
-| 1 | Steht `DATA_RETENTION_ENFORCEMENT_ENABLED` auf `true`? | Netlify → Env | Sonst ist die 90/180-Tage-Zusage **unwirksam** |
+| 1 | ~~Steht `DATA_RETENTION_ENFORCEMENT_ENABLED` auf `true`?~~ ✅ **erledigt, steht auf `true`** | Netlify → Env | Sonst ist die 90/180-Tage-Zusage **unwirksam** |
 | 2 | Welche Aufbewahrungsfrist gilt für **Gesprächsdaten** (nicht Audio)? | ElevenLabs → Agent → Advanced | Default 2 Jahre widerspräche der eigenen 90-Tage-Aussage |
 | 3 | Aktueller ElevenLabs-Plan — Enterprise ja/nein? | ElevenLabs → Billing | Entscheidet, ob EU-Residenz überhaupt verfügbar ist |
 | 4 | Ist bei der Twilio-Nummer regionales Routing gesetzt? | Twilio → Phone Numbers | Bestätigt oder widerlegt die `us1`-Annahme |
@@ -343,3 +347,154 @@ Produktionsdatenbank (31 Anrufsätze). Anbieterseitige Angaben:
 - [Understanding Edge Locations | Twilio](https://www.twilio.com/docs/global-infrastructure/understanding-edge-locations)
 - [Netlify Function Region Selection](https://www.netlify.com/blog/netlify-functions-region-selection/)
 - [Configuration for functions | Netlify Docs](https://docs.netlify.com/build/functions/configuration/)
+
+---
+
+## F. Nachtrag 11.08.2026 — Entscheidungen und Nachprüfung
+
+### F.0 Entscheidungsstand
+
+| # | Entscheidung | Status |
+|---|---|---|
+| 1 | Formulierung aus D.3 wörtlich übernommen, Badge „Schweizer Datenbank (Zürich)" ebenfalls | an das Website-Fenster übergeben — ⚠️ **siehe F.2, Vorbedingung** |
+| 2 | Netlify → Frankfurt | angenommen, vorbereitet in `docs/AUFTRAG_NETLIFY_FRANKFURT_2026-08-11.md`, **nicht ausgeführt** |
+| 3 | Twilio → Irland | zurückgestellt, gekoppelt an #4 |
+| 4 | ElevenLabs EU-Residenz | vorgemerkt als Geschäftsentscheidung, `docs/ENTSCHEID_ELEVENLABS_EU_RESIDENZ_2026-08-11.md` |
+| 5 | Stammdaten im Prompt — Lückenprüfung Rechtsdokument | **geprüft, siehe F.1** |
+| 6 | `DATA_RETENTION_ENFORCEMENT_ENABLED` | ✅ erledigt, steht auf `true` |
+| 7 | Restliche Konsolen-Prüfpunkte | aufgeschlüsselt in Teil G |
+
+### F.1 Stammdaten im Prompt — ist die Lücke real? Teilweise.
+
+Geprüft wurde der Volltext von `docs/website-relaunch/ist-stand-2026-08-10/datenschutz.html`
+(Version 2.0, Stand 01.05.2026).
+
+**Die Datenkategorie existiert.** §2 führt sie sogar auf:
+
+> **Konfigurationsdaten** — Begrüssungstexte, KI-Anweisungen, Geschäftslogik —
+> *Zweck: Personalisierung des KI-Assistenten*
+
+Die Vermutung, das Geschäftsprofil sei gar nicht erfasst, trifft also **nicht** zu. Die Lücke
+liegt eine Ebene tiefer: Die Kategorie ist **definiert, aber nirgends bis zum Standort und zur
+Frist durchgezogen.**
+
+| Abschnitt | Was dort steht | Konfigurationsdaten erfasst? |
+|---|---|---|
+| §2 Erhobene Daten | Kategorie „Konfigurationsdaten" mit Beispielen | ✅ **ja** |
+| §5 Sub-Auftragsverarbeiter | „KI-Sprachdienste … **Verarbeitung der Anrufinhalte** … USA" | ❌ **nein** — nur Anrufinhalte, nicht die Konfiguration |
+| §6 Drittländer | „insbesondere im Rahmen der **KI-Sprachverarbeitung und Telefonie-Infrastruktur**" | ❌ **nein** — beschreibt Gesprächsdaten, nicht das Geschäftsprofil |
+| §7 Speicherdauer | 7 Zeilen: Audio, Transkripte, Kundendaten, Rechnungen, Kontaktanfragen, Logs, Marketing | ❌ **fehlt vollständig** |
+| §11 KI-Telefonie, „Verarbeitete Daten" | Audio, Transkript, Metadaten | ❌ **nein** |
+
+**Die Lücke in einem Satz:** Die Datenschutzerklärung sagt, dass Konfigurationsdaten erhoben
+werden — aber **nirgends, dass sie in die USA gehen und dass sie dort unbefristet liegen.**
+§7 kennt für diese Kategorie überhaupt keine Frist. Beides ist auskunfts- und
+informationspflichtig. Der Befund bestätigt die Einschätzung: **Lücke im Rechtsdokument, kein
+Website-Thema.**
+
+Zu ergänzen wären zwei Zeilen — je eine in §5/§6 (Standort) und eine in §7 (Frist), etwa:
+
+> **§7:** *Konfigurationsdaten (Begrüssung, KI-Anweisungen, Geschäftsprofil):* Für die Dauer des
+> Vertrags. Diese Daten sind zur Erbringung der Leistung beim KI-Sprachdienstleister
+> gespeichert und werden dort bei Vertragsende mit dem Assistenten gelöscht.
+
+Der zweite Halbsatz ist zugleich eine **operative Anforderung**: Es muss einen Prozess geben,
+der bei Vertragsende den Agenten bei ElevenLabs tatsächlich löscht. Ob es den gibt, ist hier
+nicht geprüft.
+
+### F.2 ⚠️ Wichtiger als F.1 — §7 widerspricht der Realität *und* dem neuen Website-Text
+
+Bei der Prüfung für F.1 ist ein Befund aufgetaucht, der nicht Gegenstand des Auftrags war, aber
+Entscheidung 1 direkt betrifft. **§7 der Datenschutzerklärung stimmt in zwei Zeilen nicht.**
+
+| §7 sagt | Tatsächlich | Bewertung |
+|---|---|---|
+| „Audio-Aufzeichnungen von Anrufen: **30 Tage** nach Anruf, danach automatische Löschung" | ElevenLabs ist auf **90 Tage** gesetzt | 🔴 **Zusage wird heute nicht eingehalten** — die Erklärung verspricht mehr Löschung, als stattfindet |
+| „Transkripte und Anruf-Metadaten: **Während der Vertragsdauer**, danach 30 Tage" | `enforce-data-retention.js` löscht Transkripte nach **90 Tagen**, Anrufsätze nach **180 Tagen** — unabhängig vom Vertrag, und die Funktion ist seit Punkt 6 **scharf** | 🔴 **Kunden verlieren Daten, die ihnen zugesagt sind** |
+
+Der zweite Punkt ist auch ein Produktproblem, nicht nur ein Rechtsproblem: Ein Kunde im zweiten
+Vertragsjahr sieht seine Anrufe aus Monat 4 nicht mehr, obwohl die Erklärung ihm die gesamte
+Vertragsdauer zusichert. Seit gestern läuft die Löschung scharf — der erste Fall tritt ein,
+sobald der älteste Anruf 90 Tage erreicht, also **etwa Anfang November 2026**.
+
+> **Konsequenz für Entscheidung 1:** Der übernommene Text aus D.3 endet mit „Transkripte löschen
+> wir nach 90 Tagen, Anrufprotokolle nach 180 Tagen." Das ist die **Realität** — aber es
+> widerspricht **§7 in der heutigen Fassung.** Geht der neue Website-Text live, ohne dass §7
+> mitgezogen wird, entsteht **exakt derselbe Widerspruch zwischen Startseite und
+> Datenschutzerklärung, den diese Diagnose beseitigen sollte** — nur mit vertauschten Rollen.
+>
+> **Empfehlung:** §7 gehört in denselben Arbeitsgang wie der Website-Text, nicht in einen
+> späteren. Die Zeilen für Audio (30 → 90 Tage, oder ElevenLabs auf 30 Tage stellen) und
+> Transkripte (Vertragsdauer → 90 Tage) sind der Mindestumfang, die fehlende Zeile für
+> Konfigurationsdaten aus F.1 kommt dazu.
+
+Welche der beiden Richtungen bei Audio gewählt wird — Erklärung an die Realität anpassen (90)
+oder Realität an die Erklärung (ElevenLabs auf 30 Tage stellen) —, ist eine Betreiberentscheidung.
+Die zweite Variante ist die datenschutzfreundlichere und kostet nur eine Konsolen-Einstellung;
+sie verkürzt allerdings das Fenster, in dem ein Gespräch im Dashboard noch anhörbar ist.
+
+---
+
+## G. Teil E, aufgeschlüsselt — was wo nachzuschauen ist
+
+Punkt 1 ist erledigt. Die verbleibenden vier, mit Klickweg und der Angabe, was ein „gutes"
+Ergebnis wäre:
+
+### G.1 ElevenLabs — Aufbewahrungsfrist für **Gesprächsdaten** (nicht Audio)
+
+**Weg:** ElevenLabs Dashboard → *Agents* → den produktiven Agenten öffnen → Reiter **Advanced**
+→ Block **Data Retention**.
+
+**Zu notieren:** Der Wert bei der Aufbewahrung der Gesprächsdaten (Transkripte), in Tagen. Das
+ist ein **anderes Feld** als „Anrufaudio speichern", das bereits auf 90 Tage steht.
+
+**Erwartung:** Der Anbieter-Default ist **2 Jahre**. Steht dort noch der Default, liegen
+Transkripte bei ElevenLabs 730 Tage — während Voxera in der eigenen Datenbank nach 90 Tagen
+löscht und der neue Website-Text 90 Tage zusagt. **Das wäre ein dritter Widerspruch** zusätzlich
+zu den beiden aus F.2.
+
+**Gut wäre:** 90 Tage, passend zur eigenen Zusage.
+
+### G.2 ElevenLabs — aktueller Plan (Enterprise ja/nein)
+
+**Weg:** ElevenLabs Dashboard → Profilmenü oben rechts → *Subscription* bzw. **Billing**.
+
+**Zu notieren:** Plan-Name und Monats-/Jahrespreis.
+
+**Warum es zählt:** Datenresidenz ist **ausschliesslich** ein Enterprise-Merkmal. Steht dort
+Creator, Pro oder Scale, ist Entscheidung 4 nicht nur wirtschaftlich, sondern schon technisch
+verschlossen — und der EU-Endpunkt aus C.2 ist bis zu einem Vertragswechsel gar nicht
+erreichbar. Die Zahl fliesst direkt in die Rechnung in
+`docs/ENTSCHEID_ELEVENLABS_EU_RESIDENZ_2026-08-11.md`.
+
+### G.3 Twilio — regionales Routing der Rufnummer
+
+**Weg:** Twilio Console → *Phone Numbers* → *Manage* → *Active Numbers* → die Voxera-Nummer
+öffnen. Zusätzlich oben rechts im Konsolenkopf die **Region** ablesen (dort steht `US1`, `IE1`
+oder `AU1`).
+
+**Zu notieren:** In welcher Region die Nummer geführt wird, und ob unter *Voice Configuration*
+ein regionaler Edge gesetzt ist.
+
+**Erwartung:** `US1`. Der Code spricht ausschliesslich das unqualifizierte `api.twilio.com` an,
+und Twilio führt Nummern standardmässig in `us1` — **auch Schweizer Nummern**. Sollte dort wider
+Erwarten `IE1` stehen, wäre das ein Widerspruch zum Code und ein eigener Prüfpunkt, weil dann
+API-Aufrufe und tatsächliches Routing auseinanderlaufen.
+
+**Gut wäre:** vorerst egal — Entscheidung 3 ist bewusst zurückgestellt. Der Wert wird gebraucht,
+sobald Entscheidung 4 fällt.
+
+### G.4 Netlify — tatsächliche Functions-Region beider Projekte
+
+**Weg:** Netlify → Projekt auswählen → *Project configuration* → *Build & deploy* →
+*Continuous deployment* → Abschnitt **Functions region**. **Für beide Projekte einzeln:**
+`customer-dashboard` **und** `admin-panel`.
+
+**Zu notieren:** Die angezeigte Region je Projekt.
+
+**Erwartung:** `us-east-2` (Ohio) — keine der beiden `netlify.toml` enthält eine Regionsangabe,
+und das ist der Netlify-Default für neue Projekte.
+
+**Gut wäre:** Die Bestätigung, dass beide auf dem Default stehen. Genau das ist die
+Ausgangslage, die der vorbereitete Auftrag in `docs/AUFTRAG_NETLIFY_FRANKFURT_2026-08-11.md`
+annimmt. Weicht ein Projekt ab, ist der Auftrag vor der Ausführung anzupassen.
