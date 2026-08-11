@@ -321,6 +321,35 @@ Example for modal action bugs:
 
 If a test cannot be executed in the current environment, report that explicitly.
 
+### A verify script without a workflow is a script that never runs
+
+**Whoever adds a `scripts/verify-*.mjs` wires it into CI in the same commit.**
+A script nobody runs cannot go red — it is simply not executed, and its silence
+is indistinguishable from a pass.
+
+This is not a hypothetical. On 2026-08-11 a full local run found **twelve**
+verify scripts that no workflow references. Two of them were broken:
+`verify-qr-invoice-controls` had been crashing since 2026-08-10 because a
+routine cache-bust changed a version string it asserts literally, and
+`verify-invoice-only-swiss-billing` was failing 2 of 17 checks. Neither had
+shown up anywhere, because neither runs anywhere. See issue #941.
+
+Two consequences worth stating separately:
+
+1. **Adding the script is half the work.** Either add a workflow for it, or —
+   preferably — make sure it is covered by a collective workflow that runs every
+   `scripts/verify-*.mjs` needing no credentials, so a new script is covered by
+   default instead of waiting on a second, easily forgotten step.
+
+2. **"CI green" on a pull request never means "the repository is green."** Most
+   verify workflows are path-filtered, which is correct for run time but means a
+   red script whose paths a PR does not touch will not appear in that PR's
+   checks. When reporting CI status, say which of the two you mean.
+
+A script that needs credentials (for example `verify-db-security-invariants`,
+which runs against the real database) must **fail** when they are absent, never
+report success. Being unable to check is not the same as having checked.
+
 ---
 
 ## Codex / AI Assistant Instruction
