@@ -30,7 +30,13 @@ async function preRunSnapshot(sb, customerId, runStartedAt) {
   const { data, error } = await sb.from('elevenlabs_sync_log')
     .select('prompt_snapshot, created_at')
     .eq('customer_id', customerId)
-    .eq('status', 'success')
+    // #932: 'drift' heisst "Agent aktualisiert, weicht aber in mindestens einem
+    // Feld vom Sollzustand ab". Der prompt_snapshot wird in dem Fall nur
+    // geschrieben, wenn gerade der Prompt angekommen ist -- eine solche Zeile
+    // belegt also genauso, was live war. Bliebe sie hier aussen vor, griffe das
+    // Rollback an ihr vorbei auf einen aelteren Stand zurueck und liesse genau
+    // den Prompt aus, der tatsaechlich lief.
+    .in('status', ['success', 'drift'])
     .lt('created_at', runStartedAt)
     .not('prompt_snapshot', 'is', null)
     .order('created_at', { ascending: false })

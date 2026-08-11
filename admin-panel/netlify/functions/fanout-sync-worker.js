@@ -238,19 +238,30 @@ exports.handler = async () => {
       // 'unknown' und wird vom naechsten Planungslauf erneut eingeplant.
       const statePersisted = result.statePersisted !== false;
       if (!statePersisted) statePersistFailures += 1;
+      // #932: Dieselbe Bauart wie statePersisted -- die Zeile ist erledigt (ein
+      // zweiter PATCH sendet denselben Koerper und repariert nichts), aber der
+      // Grund steht in der Zeile statt nur im Log. Sonst waere ein Fan-out, der
+      // reihenweise abweichende Agenten hinterlaesst, von einem sauberen Lauf
+      // nicht zu unterscheiden.
+      const driftPaths = Array.isArray(result.configDrift)
+        ? result.configDrift.map((deviation) => deviation.path)
+        : [];
+      const noteworthy = !statePersisted || driftPaths.length > 0;
       await finish(sb, claimed.id, {
         status: 'done',
-        error_message: statePersisted
-          ? null
-          : `Agent aktualisiert, Zustand nicht gespeichert: ${String(result.stateError || 'unbekannt').slice(0, 300)}`
+        error_message: [
+          statePersisted ? null : `Agent aktualisiert, Zustand nicht gespeichert: ${String(result.stateError || 'unbekannt')}`,
+          driftPaths.length ? `Agent weicht vom Sollzustand ab: ${driftPaths.join(', ')}` : null
+        ].filter(Boolean).join(' · ').slice(0, 500) || null
       });
-      log(statePersisted ? 'info' : 'warn', 'sync_done', {
+      log(noteworthy ? 'warn' : 'info', 'sync_done', {
         run_id: claimed.run_id,
         customer_id: claimed.customer_id,
         wave: claimed.wave,
         reason: claimed.reason,
         fingerprint: result.promptFingerprint,
-        state_persisted: statePersisted
+        state_persisted: statePersisted,
+        config_drift: driftPaths.length ? driftPaths : undefined
       });
     } else {
       failed += 1;

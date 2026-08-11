@@ -1,0 +1,20 @@
+name: Verify ElevenLabs agent config (#932)
+
+on:
+  pull_request:
+    paths:
+      - 'admin-panel/netlify/functions/_lib/elevenlabs-agent-config.js'
+      - 'admin-panel/netlify/functions/_lib/elevenlabs-sync.js'
+      - 'admin-panel/netlify/functions/elevenlabs-provision-agent.js'
+      - 'scripts/verify-elevenlabs-agent-config.mjs'
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: node scripts/verify-elevenlabs-agent-config.mjs

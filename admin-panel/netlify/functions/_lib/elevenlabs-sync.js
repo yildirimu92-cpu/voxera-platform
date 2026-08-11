@@ -28,10 +28,52 @@ const {
 } = require('./elevenlabs-calendar-tool');
 const { ensureAgentPhoneNumber } = require('./elevenlabs-phone-number');
 const { promptFingerprint } = require('./prompt-fingerprint');
+// #932: der Sollzustand liegt jetzt in einer Datei, die sich Provisionierung
+// und Sync teilen. Vorher beschrieb der Sync nur einen Ausschnitt und ersetzte
+// damit bei jedem Lauf `conversation_config.agent.prompt` -- die Herleitung
+// steht ausfuehrlich in elevenlabs-agent-config.js.
+const {
+  buildAgentConfig,
+  compareAgentState,
+  looksLikeAgentState
+} = require('./elevenlabs-agent-config');
 
 const ELEVENLABS_BASE = 'https://api.elevenlabs.io/v1/convai/agents';
-const AUDIO_TRANSCRIPT_RETENTION_DAYS = 90;
 const SYNC_LOG_KEEP_PER_CLASS = 10;
+
+// Der Pfad, an dem der gebaute Prompt landet. Weicht ausgerechnet er ab, ist
+// der Prompt NICHT live -- dann duerfen weder prompt_snapshot noch
+// prompt_fingerprint fortgeschrieben werden, denn beide behaupten sonst einen
+// Zustand, den der Agent nicht hat.
+const PROMPT_PATH = 'conversation_config.agent.prompt.prompt';
+const FIRST_MESSAGE_PATH = 'conversation_config.agent.first_message';
+
+/**
+ * #932 / Punkt 1 — Rueckleseprüfung.
+ *
+ * Nach dem PATCH wird der Agent zurueckgelesen und gegen genau den Koerper
+ * verglichen, den wir gesendet haben. Liefert die PATCH-Antwort den
+ * resultierenden Agenten bereits mit, ist die Pruefung kostenlos; sonst ein GET.
+ *
+ * Der Punkt steht vor allen anderen, weil er nicht an die sieben heute
+ * bekannten Felder gebunden ist: die Erwartung wird aus dem gesendeten Koerper
+ * abgeleitet. Kommt morgen ein Feld dazu, ist es mitgeprueft -- und damit faengt
+ * die Pruefung auch die naechste Auspraegung dieser Fehlerklasse.
+ */
+async function readBackAgentState({ apiKey, agentId, patchPayload }) {
+  if (looksLikeAgentState(patchPayload)) {
+    return { state: patchPayload, source: 'patch_response' };
+  }
+  const res = await fetch(`${ELEVENLABS_BASE}/${encodeURIComponent(agentId)}`, {
+    method: 'GET',
+    headers: { 'xi-api-key': apiKey }
+  });
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(`ElevenLabs readback ${res.status}: ${errText.substring(0, 300)}`);
+  }
+  return { state: await res.json(), source: 'get' };
+}
 
 async function loadPromptInputs(sb, customerId, customer) {
   const nowIso = new Date().toISOString();
@@ -187,6 +229,11 @@ async function syncCustomerToElevenLabs({
   let phoneNumberId = null;
   let phoneNumber = null;
   let fingerprint = null;
+  // #932 / Punkt 1: Ergebnis der Rueckleseprüfung.
+  let configDrift = [];
+  let readbackSource = 'not_attempted';
+  let readbackFailure = null;
+  let promptLanded = false;
 
   try {
     const inputs = await loadPromptInputs(sb, customerId, customer);
@@ -226,8 +273,15 @@ async function syncCustomerToElevenLabs({
       throw new Error('calendar_tool_provisioning_configuration_missing');
     }
 
-    const promptPatch = { prompt: fullPrompt };
-    if (toolIds) promptPatch.tool_ids = toolIds;
+    // #932: der vollstaendige Sollzustand, nicht mehr ein Ausschnitt davon.
+    // `toolIds` bleibt weg, wenn die Kalender-Provisionierung nicht
+    // konfiguriert ist -- siehe buildAgentConfig().
+    const desiredState = buildAgentConfig({
+      customer,
+      prompt: fullPrompt,
+      firstMessage: compiled.firstMessage,
+      toolIds
+    });
 
     const elRes = await fetch(`${ELEVENLABS_BASE}/${encodeURIComponent(agentId)}`, {
       method: 'PATCH',
@@ -235,27 +289,47 @@ async function syncCustomerToElevenLabs({
         'Content-Type': 'application/json',
         'xi-api-key': apiKey
       },
-      body: JSON.stringify({
-        conversation_config: {
-          agent: {
-            prompt: promptPatch,
-            first_message: compiled.firstMessage
-          },
-          tts: customer.voice_id ? { voice_id: customer.voice_id } : undefined
-        },
-        platform_settings: {
-          privacy: {
-            record_voice: true,
-            retention_days: AUDIO_TRANSCRIPT_RETENTION_DAYS,
-            zero_retention_mode: false
-          }
-        }
-      })
+      body: JSON.stringify(desiredState)
     });
 
     if (!elRes.ok) {
       const errText = await elRes.text();
       throw new Error(`ElevenLabs ${elRes.status}: ${errText.substring(0, 300)}`);
+    }
+
+    // Ab hier ist der Agent aktualisiert. Alles Weitere darf den Sync nicht
+    // mehr nachtraeglich zum Fehlschlag erklaeren.
+    promptLanded = true;
+
+    // Die Antwort wird tolerant gelesen: liefert sie den Agenten mit, sparen
+    // wir den GET. Ein nicht lesbarer Koerper ist kein Fehlschlag des Syncs --
+    // der PATCH hat bereits mit 2xx geantwortet.
+    let patchPayload = null;
+    try {
+      patchPayload = await elRes.json();
+    } catch (_parseError) {
+      patchPayload = null;
+    }
+
+    // Die Rueckleseprüfung haengt an einem eigenen Netzaufruf. Faellt der aus,
+    // ist das kein Fehlschlag des Syncs -- der PATCH steht bereits. Ihn
+    // deswegen als 'failed' zu fuehren wuerde die Warteschlange denselben
+    // Koerper erneut senden lassen und den prompt_snapshot verwerfen, an dem
+    // das Rollback haengt. Dass die Pruefung nicht laufen konnte, wird aber
+    // festgehalten statt verschwiegen.
+    try {
+      const readback = await readBackAgentState({ apiKey, agentId, patchPayload });
+      readbackSource = readback.source;
+      configDrift = compareAgentState(desiredState, readback.state);
+      promptLanded = !configDrift.some((deviation) => deviation.path === PROMPT_PATH);
+    } catch (error) {
+      readbackSource = 'failed';
+      readbackFailure = error?.message || String(error);
+      console.warn('[elevenlabs-sync] readback_failed', {
+        customer_id: customerId,
+        agent_id: agentId,
+        message: readbackFailure
+      });
     }
 
     const phoneAssignment = await ensureAgentPhoneNumber({
@@ -271,18 +345,51 @@ async function syncCustomerToElevenLabs({
     syncError = error?.message || String(error);
   }
 
+  // #932 / Punkt 1: Eine Abweichung darf 'success' nicht unwidersprochen lassen.
+  //
+  // Sie macht daraus aber auch keinen Fehlschlag. `ok: false` wuerde die
+  // Warteschlange die Zeile wiederholen lassen, den Canary reissen und ueber
+  // abortIfFailing() den ganzen Fan-out anhalten -- und der Wiederholungsversuch
+  // sendet exakt denselben Koerper, kann also nichts reparieren. Das ist
+  // dieselbe Ueberlegung, aus der weiter unten schon ein fehlgeschlagener
+  // Kunden-Patch den Sync nicht umdeutet.
+  //
+  // Sichtbar ist die Abweichung trotzdem: eigener Status, die betroffenen
+  // Feldnamen in `config_drift`, und `configDrift` im Rueckgabewert.
+  if (syncStatus === 'success' && configDrift.length) {
+    syncStatus = 'drift';
+    syncError = `Agent weicht nach dem Sync in ${configDrift.length} Feld(ern) vom Sollzustand ab: ${configDrift.map((d) => d.path).join(', ')}`.slice(0, 500);
+  }
+
+  // 'success' und 'drift' heissen beide: der PATCH ist durch, der Agent traegt
+  // den neuen Stand. 'failed' heisst das nicht -- ein Schritt NACH dem PATCH
+  // (Telefonnummer) kann den Sync noch kippen, und dann darf keine Zeile
+  // entstehen, die einen Stand belegt, den wir nicht mehr verantworten.
+  const syncReachedAgent = syncStatus === 'success' || syncStatus === 'drift';
+
   const changedFields = diffPrevValues(prevValues, customer);
   const syncLogRow = {
     customer_id: customerId,
     agent_id: agentId,
     status: syncStatus,
     triggered_by: triggeredBy,
-    prompt_snapshot: syncStatus === 'success' ? fullPrompt : null,
+    // Der Snapshot belegt, welcher Prompt live ist. Bei einer Abweichung, die
+    // den Prompt selbst betrifft, ist er das gerade nicht -- dann waere der
+    // Snapshot eine Behauptung, und ein Rollback wuerde spaeter auf ihn
+    // zurueckgreifen. Weicht nur ein Nebenfeld ab, ist der Prompt live und der
+    // Snapshot bleibt gueltig.
+    prompt_snapshot: (syncReachedAgent && promptLanded) ? fullPrompt : null,
     prompt_length: fullPrompt.length,
     error_message: syncError,
     changed_fields: Object.keys(changedFields).length ? changedFields : null,
     prev_values: Object.keys(prevValues || {}).length ? prevValues : null,
     prompt_fingerprint: fingerprint,
+    // Auch eine Pruefung, die gar nicht laufen konnte, gehoert hier hin --
+    // sonst ist eine ungeprueft gebliebene Zeile von einer geprueften ohne
+    // Befund nicht zu unterscheiden.
+    config_drift: (configDrift.length || readbackFailure)
+      ? { source: readbackSource, deviations: configDrift, error: readbackFailure }
+      : null,
     created_at: new Date().toISOString()
   };
   // Stufenweise, nicht alles-oder-nichts. Uebernommen aus N6 (#878) und um die
@@ -297,17 +404,24 @@ async function syncCustomerToElevenLabs({
   //
   // Jede Stufe gibt nur auf, was die vorige nachweislich nicht aufnehmen
   // konnte, in der Reihenfolge "am wenigsten wertvoll zuerst": prev_values
-  // (Rohwert) vor changed_fields (abgeleitet) vor prompt_fingerprint (an dem
-  // der ganze Fan-out haengt).
+  // (Rohwert) vor changed_fields (abgeleitet) vor config_drift (#932) vor
+  // prompt_fingerprint (an dem der ganze Fan-out haengt).
+  //
+  // #932: `config_drift` steht bewusst in dieser Leiter. Waere die Spalte nur
+  // in der ersten Stufe enthalten, wuerde ein Deployment ohne die zugehoerige
+  // Migration jeden Sync-Log-Insert in Stufe 1 scheitern lassen -- genau der
+  // Ablauf vom 09.08., als `prev_values` in Produktion fehlte.
   const {
     prev_values: _prevColumn,
     changed_fields: _changedColumn,
+    config_drift: _driftColumn,
     prompt_fingerprint: _fingerprintColumn,
     ...bareRow
   } = syncLogRow;
   const logAttempts = [
     syncLogRow,
-    { ...bareRow, changed_fields: syncLogRow.changed_fields, prompt_fingerprint: syncLogRow.prompt_fingerprint },
+    { ...bareRow, changed_fields: syncLogRow.changed_fields, config_drift: syncLogRow.config_drift, prompt_fingerprint: syncLogRow.prompt_fingerprint },
+    { ...bareRow, config_drift: syncLogRow.config_drift, prompt_fingerprint: syncLogRow.prompt_fingerprint },
     { ...bareRow, prompt_fingerprint: syncLogRow.prompt_fingerprint },
     bareRow
   ];
@@ -324,16 +438,25 @@ async function syncCustomerToElevenLabs({
     elevenlabs_sync_error: syncError || null,
     updated_at: new Date().toISOString()
   };
+  // #932: 'drift' heisst, der Agent wurde aktualisiert, weicht aber in
+  // mindestens einem Feld ab. Ob die beiden folgenden Werte fortgeschrieben
+  // werden duerfen, haengt deshalb nicht mehr am Gesamtstatus, sondern daran,
+  // ob GENAU das jeweilige Feld angekommen ist. Sonst haette eine Abweichung
+  // in, sagen wir, `temperature` den Fingerprint blockiert und den Kunden in
+  // eine endlose Neuplanung geschickt.
+  const greetingLanded = syncReachedAgent
+    && !configDrift.some((deviation) => deviation.path === FIRST_MESSAGE_PATH);
+
   // Etappe 6 / S2: Das Kunden-Dashboard zeigt die Begruessung an. Damit dort nie
   // ein Satz steht, den der Agent nicht bekommen hat, wird die erste Nachricht
   // nur nach einem erfolgreichen Sync festgehalten.
-  if (syncStatus === 'success' && compiled?.firstMessage) {
+  if (greetingLanded && compiled?.firstMessage) {
     customerPatch.ai_effective_greeting = compiled.firstMessage;
   }
   // S4 / Stufe 1: Der Ist-Fingerprint darf nur nach einem erfolgreichen Sync
   // fortgeschrieben werden -- sonst gaelte ein Kunde als aktuell, obwohl der
   // Agent den neuen Prompt nie bekommen hat, und der Fan-out uebersaehe ihn.
-  if (syncStatus === 'success' && fingerprint) {
+  if (syncReachedAgent && promptLanded && fingerprint) {
     customerPatch.prompt_fingerprint = fingerprint;
   }
   const { error: customerPatchError } = await sb.from('customers')
@@ -358,7 +481,10 @@ async function syncCustomerToElevenLabs({
   }
 
   return {
-    ok: syncStatus === 'success',
+    // #932: 'drift' zaehlt hier als erfolgreich -- Begruendung oben, wo der
+    // Status gesetzt wird. Der Aufrufer sieht die Abweichung an `configDrift`
+    // und `status`, nicht an `ok`.
+    ok: syncReachedAgent,
     status: syncStatus,
     error: syncError,
     statePersisted: !customerPatchError,
@@ -367,6 +493,9 @@ async function syncCustomerToElevenLabs({
     promptVersion: compiled?.version,
     promptFingerprint: fingerprint,
     quality: compiled?.quality,
+    configDrift,
+    readbackSource,
+    readbackError: readbackFailure,
     calendarToolStatus,
     calendarToolId,
     phoneNumberStatus,
@@ -378,48 +507,159 @@ async function syncCustomerToElevenLabs({
 /**
  * S4 / Stufe 3 — Rollback: schreibt einen frueheren prompt_snapshot zurueck.
  *
- * Bewusst minimal: nur der Prompt, keine tool_ids, keine Stimme, keine
- * Telefonnummer. Ein Rollback soll den Zustand herstellen, der nachweislich
- * einmal live war -- und der Snapshot belegt genau den Prompt, nichts sonst.
- * Alles Weitere zu "rekonstruieren" hiesse raten.
+ * Der Snapshot belegt genau den Prompt, nichts sonst. Alles andere zu
+ * "rekonstruieren" hiesse weiterhin raten -- deshalb kommt es aus derselben
+ * geteilten Definition wie beim Sync, nicht aus dem Snapshot.
  *
- * Der Ist-Fingerprint wird dabei geleert, nicht zurueckgesetzt: nach einem
- * Rollback ist der Stand des Agenten definitionsgemaess nicht der aktuelle,
- * und "unbekannt" ist die ehrliche Aussage. Der naechste Sync setzt ihn neu.
+ * ── #932: warum das hier nicht minimal bleiben durfte ─────────────────────────
+ *
+ * Vorher sendete diese Funktion `{ agent: { prompt: { prompt } } }` -- also die
+ * gleiche Form, die im Sync der Befund von #932 war, sogar ohne `tool_ids`. Da
+ * ElevenLabs `agent.prompt` ersetzt statt zusammenzufuehren, hatte das zwei
+ * Folgen, die als "bewusst minimal" gelesen wurden, aber keine waren:
+ *
+ *   1. dieselben sieben Felder fielen auf Anbieter-Standard wie beim Sync;
+ *   2. `tool_ids` fehlte im ersetzten Objekt -- ein Rollback nahm dem Agenten
+ *      damit sein Kalenderwerkzeug.
+ *
+ * Ein Fix, der nur den Sync repariert, haette die gefaehrlichere der beiden
+ * Quellen stehen lassen: diese hier laeuft im Fehlerfall, also genau dann, wenn
+ * niemand hinschaut.
+ *
+ * Die Begruessung bleibt unangetastet (`firstMessage` wird nicht gesetzt) --
+ * ein Rollback dreht den Prompt zurueck, nicht die Anrede.
+ *
+ * Der Ist-Fingerprint wird geleert, nicht zurueckgesetzt: nach einem Rollback
+ * ist der Stand des Agenten definitionsgemaess nicht der aktuelle, und
+ * "unbekannt" ist die ehrliche Aussage. Der naechste Sync setzt ihn neu.
  */
 async function restoreAgentPrompt({ sb, apiKey, customerId, agentId, prompt }) {
+  // Der Kundensatz liefert Stimme und Sprache. Ohne ihn koennten wir den
+  // Sollzustand nur raten -- und ein geratener Rollback ist schlimmer als
+  // keiner.
+  const { data: customer, error: customerError } = await sb.from('customers')
+    .select('*')
+    .eq('id', customerId)
+    .maybeSingle();
+  if (customerError || !customer) {
+    return { ok: false, error: 'customer_not_found' };
+  }
+
+  // `tool_ids` auf demselben Weg wie im Sync. Ist die Kalender-Provisionierung
+  // nicht konfiguriert, bleibt das Feld weg statt leer -- buildAgentConfig()
+  // erklaert, warum ein leeres Array hier die falsche Aussage waere.
+  let toolIds = null;
+  try {
+    if (calendarToolProvisioningConfigured()) {
+      toolIds = await mergedAgentToolIds(agentId, await ensureWorkspaceTool());
+    }
+  } catch (error) {
+    return { ok: false, error: `tool_ids_lookup_failed: ${error?.message || String(error)}` };
+  }
+
+  const desiredState = buildAgentConfig({ customer, prompt, toolIds });
+
   const elRes = await fetch(`${ELEVENLABS_BASE}/${encodeURIComponent(agentId)}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', 'xi-api-key': apiKey },
-    body: JSON.stringify({
-      conversation_config: { agent: { prompt: { prompt } } }
-    })
+    body: JSON.stringify(desiredState)
   });
   if (!elRes.ok) {
     const errText = await elRes.text();
     return { ok: false, error: `ElevenLabs ${elRes.status}: ${errText.substring(0, 300)}` };
   }
 
-  await sb.from('elevenlabs_sync_log').insert({
+  // Punkt 1 gilt auch hier -- siehe oben, warum gerade hier.
+  let configDrift = [];
+  let readbackSource = 'not_attempted';
+  let readbackFailure = null;
+  try {
+    let patchPayload = null;
+    try {
+      patchPayload = await elRes.json();
+    } catch (_parseError) {
+      patchPayload = null;
+    }
+    const readback = await readBackAgentState({ apiKey, agentId, patchPayload });
+    readbackSource = readback.source;
+    configDrift = compareAgentState(desiredState, readback.state);
+  } catch (error) {
+    readbackSource = 'failed';
+    readbackFailure = error?.message || String(error);
+    console.warn('[elevenlabs-sync] rollback_readback_failed', {
+      customer_id: customerId,
+      agent_id: agentId,
+      message: readbackFailure
+    });
+  }
+
+  const promptLanded = !configDrift.some((deviation) => deviation.path === PROMPT_PATH);
+  const rollbackStatus = configDrift.length ? 'drift' : 'success';
+
+  const rollbackLogRow = {
     customer_id: customerId,
     agent_id: agentId,
-    status: 'success',
+    status: rollbackStatus,
     triggered_by: 'fanout_rollback',
-    prompt_snapshot: prompt,
+    prompt_snapshot: promptLanded ? prompt : null,
     prompt_length: String(prompt || '').length,
+    error_message: configDrift.length
+      ? `Agent weicht nach dem Rollback in ${configDrift.length} Feld(ern) vom Sollzustand ab: ${configDrift.map((d) => d.path).join(', ')}`.slice(0, 500)
+      : null,
+    config_drift: (configDrift.length || readbackFailure)
+      ? { source: readbackSource, deviations: configDrift, error: readbackFailure }
+      : null,
     created_at: new Date().toISOString()
-  });
+  };
+  // Dieselbe Stufenleiter wie oben: fehlt die config_drift-Spalte, darf das
+  // nicht die ganze Rollback-Zeile kosten.
+  const { config_drift: _driftColumn, ...bareRollbackRow } = rollbackLogRow;
+  for (const attempt of [rollbackLogRow, bareRollbackRow]) {
+    const { error: insertError } = await sb.from('elevenlabs_sync_log').insert(attempt);
+    if (!insertError) break;
+    console.warn('[elevenlabs-sync] rollback_log_insert_failed', insertError.message);
+  }
 
   await sb.from('customers')
     .update({
       prompt_fingerprint: null,
       elevenlabs_last_sync_at: new Date().toISOString(),
-      elevenlabs_sync_status: 'success',
+      elevenlabs_sync_status: rollbackStatus,
       updated_at: new Date().toISOString()
     })
     .eq('id', customerId);
 
-  return { ok: true, promptLength: String(prompt || '').length };
+  // #932: Hier gilt NICHT dieselbe Regel wie beim Sync.
+  //
+  // Beim Sync ist 'drift' ein Erfolg: der Sollzustand ging raus, ein
+  // Wiederholungsversuch saende denselben Koerper. Beim Rollback ist der
+  // zurueckgeschriebene Prompt der ganze Zweck des Aufrufs. Weicht ausgerechnet
+  // er ab, wurde der alte Stand nicht wiederhergestellt -- und ein `ok: true`
+  // liesse rollbackRun() die Zeile als 'cancelled' abhaken, `rolled_back`
+  // hochzaehlen und dem Bedienenden einen Rollback melden, den es nicht gab.
+  // Das waere eine falsche Erfolgsmeldung im Notfall.
+  //
+  // Eine Abweichung in einem Nebenfeld ist dagegen unschaedlich: der Prompt
+  // steht, und der Rest ist ohnehin der geteilte Sollzustand.
+  if (!promptLanded) {
+    return {
+      ok: false,
+      error: `Rollback nicht wirksam: der Agent traegt den zurueckgeschriebenen Prompt nicht (${configDrift.map((d) => d.path).join(', ')})`.slice(0, 500),
+      status: rollbackStatus,
+      configDrift,
+      readbackSource,
+      readbackError: readbackFailure
+    };
+  }
+
+  return {
+    ok: true,
+    promptLength: String(prompt || '').length,
+    status: rollbackStatus,
+    configDrift,
+    readbackSource,
+    readbackError: readbackFailure
+  };
 }
 
 module.exports = {
