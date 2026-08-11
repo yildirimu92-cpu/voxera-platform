@@ -393,108 +393,178 @@ where n.nspname = 'public' and c.relkind = 'r'
     or pg_catalog.has_table_privilege('authenticated', c.oid, 'TRUNCATE'))
 order by c.relname;
 
--- Die Wurzel, nicht nur der Bestand. Die Default-Privilegien des Schemas
--- public vergaben an anon und authenticated `arwdDxtm` -- das `D` ist
--- TRUNCATE. Damit erbte JEDE neue Tabelle die Luecke automatisch; so ist der
--- Zustand ueberhaupt entstanden. Ohne diesen Check waere der Bestandscheck
--- oben eine Momentaufnahme mit Verfallsdatum.
+-- ── Die Wurzel: Default-Privilegien ────────────────────────────────────────
 --
--- Geprueft wird der Eintrag mit Erzeuger `postgres`: alle 45 Tabellen in
--- public gehoeren postgres, und Migrationen laufen unter dieser Rolle.
--- Der zweite Eintrag (Erzeuger supabase_admin) vergibt weiterhin `D` und
--- laesst sich aus der Migrationsrolle nicht aendern (42501, ausprobiert). Er
--- greift nur fuer Tabellen, die supabase_admin selbst in public anlegt --
--- aktuell keine einzige. Faende so eine Tabelle je den Weg hierher, meldet
--- der Bestandscheck oben sie beim naechsten Lauf.
-select case when pg_catalog.count(*) = 0 then 'PASS' else 'FAIL' end,
-       'F6-grants', 'Default-Privilegien vergeben kein TRUNCATE an anon/authenticated',
-       coalesce(pg_catalog.string_agg(detail, '; '),
-                'Erzeuger postgres: anon und authenticated ohne D')
-from (
-  select coalesce(n.nspname, '<global>') || '/' || pg_get_userbyid(d.defaclrole)
-         || ': ' || pg_catalog.array_to_string(d.defaclacl, ' | ') as detail
+-- Der Bestandscheck oben ist eine Momentaufnahme. Was neue Tabellen erben,
+-- entscheidet pg_default_acl -- und genau daher stammt der Zustand, den die
+-- Sweeps der letzten Tage aufgeraeumt haben.
+--
+-- Diese Fassung ersetzt den Vorgaenger vom 2026-08-09. Der prueft drei
+-- Filter gleichzeitig: nur Schema `public`, nur Erzeuger `postgres`, nur
+-- `TRUNCATE`. Zwei davon lecken, und der dritte hat ihn am 2026-08-11 gruen
+-- gemeldet, waehrend der Eintrag public/postgres `a`, `w` und `d` an anon
+-- vergab -- jede neue Tabelle in public wurde anon-schreibbar geboren, und
+-- der Check sagte PASS. Ein Check mit drei Filtern, von denen zwei lecken,
+-- deckt weniger ab, als sein Name verspricht.
+--
+-- Der Nachweis-Zustand ist deshalb dreiwertig, nicht zweiwertig:
+--   PASS  Regel vorhanden UND verengt -- geprueft und eng.
+--   FAIL  Regel vorhanden UND weit    -- Befund.
+--   SKIP  Regel fehlt                 -- neue Tabellen erben nichts (das ist
+--         sicher, sicherer als jede verengte Regel), aber die Verengung ist
+--         damit NICHT nachgewiesen. Der Check hat nichts gesehen und darf
+--         das nicht als Erfolg ausgeben.
+-- Der SKIP-Zweig ist kein Formalismus: Staging hat fuer public keinen
+-- einzigen Eintrag, Produktion hat zwei. Liefe der Check gegen Staging und
+-- meldete dort PASS, waere das ein Erfolgsbericht ueber einen Zustand, den
+-- er nie gemessen hat -- dieselbe Bauform wie ein `sync_status = success`,
+-- das nur bedeutet, dass niemand einen Fehler zurueckgemeldet hat.
+--
+-- SELECT steht bewusst NICHT in der Verbotsliste: das Zugriffsmodell des
+-- Projekts ist "SELECT-Grant plus RLS als Tor". INSERT/UPDATE/DELETE und
+-- TRUNCATE gehoeren dort nicht hin, REFERENCES/TRIGGER/MAINTAIN hat eine
+-- Browser-Rolle nie zu brauchen.
+-- Die Existenz wird an der pg_default_acl-Zeile selbst gemessen, NICHT am
+-- Vorhandensein von anon-Eintraegen darin. Sonst meldete ausgerechnet der
+-- sicherste Zustand -- Regel da, vergibt an anon/authenticated gar nichts --
+-- ein SKIP mit der Begruendung "keine Regel vorhanden".
+with regel as (
+  select d.defaclacl
   from pg_catalog.pg_default_acl as d
-  -- LEFT JOIN wie beim DML-Check darunter, aus demselben Grund: ein
-  -- `alter default privileges` ohne `in schema` traegt defaclnamespace = 0 und
-  -- gilt trotzdem fuer public. Nachgezogen am 11.08.2026 -- die Luecke war seit
-  -- #892 drin und ist beim Bau des DML-Checks aufgefallen.
+  -- LEFT JOIN, nicht JOIN, und die `or`-Bedingung dazu: ein `alter default
+  -- privileges` OHNE `in schema` legt einen Eintrag mit defaclnamespace = 0
+  -- an. Der gilt fuer JEDES Schema, also auch fuer public -- ein INNER JOIN
+  -- auf pg_namespace wirft ihn weg, und der Check meldete PASS, waehrend neue
+  -- Tabellen in public das Recht weiterhin erben. Genau die Bauform, gegen
+  -- die dieser Check gerichtet ist.
   left join pg_catalog.pg_namespace as n on n.oid = d.defaclnamespace
-  cross join lateral pg_catalog.aclexplode(d.defaclacl) as ac
   where (n.nspname = 'public' or d.defaclnamespace = 0)
     and d.defaclobjtype = 'r'
     and pg_get_userbyid(d.defaclrole) = 'postgres'
-    and ac.grantee::regrole::text in ('anon', 'authenticated')
-    and ac.privilege_type = 'TRUNCATE'
-) as offenders;
+), weit as (
+  select ac.grantee::regrole::text || '=' || ac.privilege_type as befund
+  from regel
+  cross join lateral pg_catalog.aclexplode(regel.defaclacl) as ac
+  where ac.grantee::regrole::text in ('anon', 'authenticated')
+    and ac.privilege_type in ('INSERT', 'UPDATE', 'DELETE', 'TRUNCATE',
+                              'REFERENCES', 'TRIGGER', 'MAINTAIN')
+)
+select case
+         when not exists (select 1 from regel) then 'SKIP'
+         when exists (select 1 from weit) then 'FAIL'
+         else 'PASS'
+       end,
+       'F6-grants', 'Default-Privilegien public/postgres ohne Schreibrechte fuer anon/authenticated',
+       case
+         when not exists (select 1 from regel)
+           then 'keine Default-Regel fuer public/postgres vorhanden -- neue Tabellen '
+                || 'erben nichts (sicher), die Verengung ist damit aber nicht nachgewiesen'
+         when exists (select 1 from weit)
+           then 'Regel vorhanden und zu weit: '
+                || (select pg_catalog.string_agg(befund, ', ' order by befund) from weit)
+         else 'Regel vorhanden und verengt (kein Schreibrecht fuer anon/authenticated)'
+       end;
 
--- Dieselbe Wurzel, die drei uebrigen Schreibrechte. Der Sweep aus #892 hat aus
--- `anon=arwdDxtm` genau das `D` entfernt; `a`, `w` und `d` -- INSERT, UPDATE,
--- DELETE -- blieben vergeben, und damit erbte jede neue Tabelle sie weiter.
--- Der Check oben bewachte also genau den Buchstaben, der schon weg war.
+-- Alle uebrigen Default-Regeln -- jedes Schema, jede Erzeugerrolle. Der
+-- Vorgaenger sah nur public/postgres; was ausserhalb lag, war unsichtbar,
+-- nicht harmlos. Vier Eintraege sind hier bekannt und begruendet ausgenommen
+-- (der naechste Check weist jeden einzeln nach); alles andere ist ein Befund.
 --
--- Zum Zusammenspiel mit dem Bestand: Es gibt hier BEWUSST keinen
--- Bestandscheck fuer INSERT/UPDATE/DELETE. Anders als bei TRUNCATE ist das
--- Recht nicht tot -- das Admin-Portal arbeitet als `authenticated` und
--- schreibt real. Der Bestand (18 bzw. 21 Tabellen, Stand 2026-08-11) wird
--- getrennt und nach einer Pfadaufnahme behandelt; sein Waechter kommt mit ihm.
--- Diese Zeile bewacht ausschliesslich, dass nichts NEUES nachwaechst.
+-- Am 2026-08-11 gemessen, damit die naechste Sitzung die Basis kennt:
+--   public/supabase_admin          anon=arwdDxtm  -> Ausnahme, siehe unten
+--   storage/postgres               anon=arwdDxtm  -> Ausnahme, siehe unten
+--   graphql/supabase_admin         anon=arwdDxtm  -> Ausnahme, siehe unten
+--   graphql_public/supabase_admin  anon=arwdDxtm  -> Ausnahme, siehe unten
+--   auth, realtime, extensions -> vergeben nichts an anon/authenticated,
+--                           tauchen hier also gar nicht auf.
+--
+-- Die beiden graphql-Schemata gehoeren vollstaendig Supabase und sind aus
+-- der Migrationsrolle nicht aenderbar. Sie hier NICHT auszunehmen waere die
+-- bequemere Geste, aber die schlechtere: der Check waere ab dem ersten Lauf
+-- dauerhaft rot, ohne dass jemand etwas dagegen tun koennte -- und ein
+-- Check, der am ersten Tag rot ist, wird abgeschaltet und schuetzt dann gar
+-- nichts mehr (dieselbe Begruendung wie in db-security-baseline.json).
 select case when pg_catalog.count(*) = 0 then 'PASS' else 'FAIL' end,
-       'F6-grants', 'Default-Privilegien vergeben kein INSERT/UPDATE/DELETE an anon/authenticated',
-       coalesce(pg_catalog.string_agg(detail, '; '),
-                'Erzeuger postgres: anon und authenticated ohne a/w/d')
+       'F6-grants', 'keine unbekannte Default-Regel vergibt Schreibrechte an anon/authenticated',
+       coalesce(pg_catalog.string_agg(distinct befund, '; '),
+                'ausser den vier dokumentierten Ausnahmen keine weitere Regel')
 from (
-  select coalesce(n.nspname, '<global>') || '/' || pg_get_userbyid(d.defaclrole)
-         || ' vergibt ' || ac.privilege_type
-         || ' an ' || ac.grantee::regrole::text as detail
+  select coalesce(n.nspname, '<global>') || '/' || pg_get_userbyid(d.defaclrole) || ': '
+           || ac.grantee::regrole::text || '=' || ac.privilege_type as befund
   from pg_catalog.pg_default_acl as d
-  -- LEFT JOIN, nicht JOIN: `alter default privileges` OHNE `in schema` legt
-  -- einen Eintrag mit defaclnamespace = 0 an. Der gilt fuer JEDES Schema, also
-  -- auch fuer public -- ein INNER JOIN auf pg_namespace wirft ihn weg, und der
-  -- Check meldete PASS, waehrend neue Tabellen in public das Recht weiterhin
-  -- erben. Genau die Bauform, gegen die dieser Check gerichtet ist.
+  -- LEFT JOIN plus coalesce, aus demselben Grund wie beim Wurzelcheck oben:
+  -- defaclnamespace = 0 ist eine schemalose Regel, die fuer jedes Schema gilt.
+  -- Ein INNER JOIN wirft sie weg -- ausgerechnet die weiteste Regelform waere
+  -- die einzige, die dieser Check nie sieht.
   left join pg_catalog.pg_namespace as n on n.oid = d.defaclnamespace
   cross join lateral pg_catalog.aclexplode(d.defaclacl) as ac
-  where (n.nspname = 'public' or d.defaclnamespace = 0)
-    and d.defaclobjtype = 'r'
-    and pg_get_userbyid(d.defaclrole) = 'postgres'
+  where d.defaclobjtype = 'r'
     and ac.grantee::regrole::text in ('anon', 'authenticated')
-    and ac.privilege_type in ('INSERT', 'UPDATE', 'DELETE')
+    and ac.privilege_type in ('INSERT', 'UPDATE', 'DELETE', 'TRUNCATE',
+                              'REFERENCES', 'TRIGGER', 'MAINTAIN')
+    -- public/postgres hat oben seinen eigenen, dreiwertigen Check -- und der
+    -- deckt seit der LEFT-JOIN-Korrektur auch die schemalose Regel mit ab.
+    and not (coalesce(n.nspname, '<global>') in ('public', '<global>')
+             and pg_get_userbyid(d.defaclrole) = 'postgres')
+    -- Die vier dokumentierten Ausnahmen. Ausgenommen wird hier NUR die
+    -- Regel selbst -- die Bedingung, unter der sie scharf wuerde, prueft der
+    -- naechste Check. Ein stiller Filterausschluss ist genau der Grund,
+    -- warum das hier jahrelang niemand gesehen hat.
+    and not (coalesce(n.nspname, '<global>') = 'public'         and pg_get_userbyid(d.defaclrole) = 'supabase_admin')
+    and not (coalesce(n.nspname, '<global>') = 'storage'        and pg_get_userbyid(d.defaclrole) = 'postgres')
+    and not (coalesce(n.nspname, '<global>') = 'graphql'        and pg_get_userbyid(d.defaclrole) = 'supabase_admin')
+    and not (coalesce(n.nspname, '<global>') = 'graphql_public' and pg_get_userbyid(d.defaclrole) = 'supabase_admin')
 ) as offenders;
 
--- Die zweite Tuer, ausdruecklich statt ausgeblendet.
+-- Die vier Ausnahmen sind nicht abstellbar, aber ihre Zuendbedingung ist
+-- pruefbar. Jede Regel greift ausschliesslich fuer Tabellen, die die
+-- jeweilige Erzeugerrolle in dem jeweiligen Schema anlegt:
 --
--- Beide Wurzelchecks oben filtern auf Erzeuger `postgres`, weil nur dieser
--- Eintrag aus der Migrationsrolle aenderbar ist. Der Eintrag mit Erzeuger
--- `supabase_admin` vergibt weiterhin das volle `arwdDxtm` und laesst sich
--- nicht aendern (42501, in #892 ausprobiert). Er ist damit eine bewusst
--- tolerierte Ausnahme -- und genau deshalb wird sie hier GEPRUEFT und nicht
--- verschwiegen.
+--   public/supabase_admin  -- aus der Migrationsrolle nicht aenderbar; der
+--     Vorgaenger-Kommentar nennt dafuer 42501, am 2026-08-09 ausprobiert.
+--     Am 2026-08-11 nachgemessen wurde nur der Bestand der Regel (sie steht
+--     unveraendert, anon=arwdDxtm) -- der ALTER-Versuch wurde NICHT
+--     wiederholt, das waere ein Schreibversuch auf Produktion gewesen.
+--     Scharf nur fuer Tabellen, die supabase_admin selbst in public anlegt.
+--     Gemessen: 47 von 47 Tabellen in public gehoeren postgres, keine
+--     einzige supabase_admin.
 --
--- Wirksam wird die Tuer erst, wenn supabase_admin selbst eine Tabelle in
--- public anlegt: eine solche Tabelle erbt INSERT/UPDATE/DELETE UND TRUNCATE,
--- an beiden Wurzelchecks vorbei. Diese Zeile ist der Auffang dafuer. Sie steht
--- heute auf PASS (0 von 47 Tabellen gehoeren supabase_admin) und wird rot,
--- sobald die Ausnahme aufhoert, folgenlos zu sein.
+--   storage/postgres  -- technisch aenderbar (die Regel gehoert postgres),
+--     bewusst nicht angefasst: sie stammt aus dem Supabase-Bootstrap, und
+--     eine Abweichung vom Standard-Image kann Storage-Upgrades brechen.
+--     Sie ist inert, weil die Storage-API ihre acht Tabellen als
+--     supabase_storage_admin anlegt und deren Grants aus den Storage-
+--     Migrationen kommen, nicht aus dieser Regel. Gemessen: 8 von 8
+--     Tabellen in storage gehoeren supabase_storage_admin, keine postgres.
 --
--- Ein Check, der eine bekannte Ausnahme stillschweigend ueberspringt, macht
--- aus einer getroffenen Entscheidung eine vergessene. Das ist die Bauform, die
--- in diesem Repository schon mehrfach Zeit gekostet hat.
+--   graphql/supabase_admin und graphql_public/supabase_admin -- Supabase-
+--     eigene Schemata, aus der Migrationsrolle nicht aenderbar. Beide sind
+--     inert, weil sie ueberhaupt keine Tabellen enthalten: graphql haelt die
+--     resolve-Funktion, graphql_public ist nur die oeffentliche Fassade.
+--     Gemessen am 2026-08-11: 0 Tabellen in beiden.
+--
+-- Legt dort je jemand eine Tabelle an -- mit der falschen Rolle in public
+-- oder storage, ueberhaupt eine in den graphql-Schemata --, wird die
+-- jeweilige Ausnahme scharf und dieser Check rot, bevor die Tabelle Daten
+-- sieht. Das ist der Unterschied zwischen einer dokumentierten Ausnahme und
+-- einem stillen Filterausschluss: die Ausnahme hat eine Zuendbedingung, und
+-- die wird gemessen.
 select case when pg_catalog.count(*) = 0 then 'PASS' else 'FAIL' end,
-       'F6-grants',
-       'Keine Tabelle in public gehoert supabase_admin (umgeht beide Wurzelchecks)',
-       coalesce(
-         pg_catalog.string_agg(c.relname, ', ' order by c.relname),
-         'Bekannte, folgenlose Ausnahme: Erzeuger supabase_admin vergibt weiter arwdDxtm, '
-         || 'greift aber nur fuer eigene Tabellen -- aktuell keine')
+       'F6-grants', 'keine Tabelle unter einer ausgenommenen Default-Regel',
+       coalesce(pg_catalog.string_agg(n.nspname || '.' || c.relname
+                  || ' gehoert ' || pg_get_userbyid(c.relowner), ', '),
+                'public ohne supabase_admin-Tabelle, storage ohne postgres-Tabelle, '
+                || 'graphql und graphql_public ohne jede Tabelle')
 from pg_catalog.pg_class as c
 join pg_catalog.pg_namespace as n on n.oid = c.relnamespace
-where n.nspname = 'public'
-  -- 'p' MUSS mit: eine partitionierte Tabelle wird als Elternteil mit
-  -- relkind = 'p' gefuehrt, nicht 'r'. Sie erbt die Default-Privilegien
-  -- genauso -- ein Filter auf 'r' allein liesse ausgerechnet den Fall durch,
-  -- den dieser Check abfangen soll.
-  and c.relkind in ('r', 'p')
-  and pg_get_userbyid(c.relowner) = 'supabase_admin';
+-- 'p' MUSS mit: eine partitionierte Tabelle wird als Elternteil mit
+-- relkind = 'p' gefuehrt, nicht 'r'. Sie erbt die Default-Privilegien
+-- genauso -- ein Filter auf 'r' allein liesse ausgerechnet den Fall durch,
+-- den dieser Check abfangen soll. Aus #944 uebernommen.
+where c.relkind in ('r', 'p')
+  and ((n.nspname = 'public'  and pg_get_userbyid(c.relowner) = 'supabase_admin')
+    or (n.nspname = 'storage' and pg_get_userbyid(c.relowner) = 'postgres')
+    or  n.nspname in ('graphql', 'graphql_public'));
 
 -- Die uebrigen Schreibrechte auf system_config. Sie waren durch RLS bereits
 -- wirkungslos (die Tabelle traegt genau eine Policy, und die gilt nur fuer
