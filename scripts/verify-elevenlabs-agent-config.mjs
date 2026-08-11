@@ -75,16 +75,32 @@ for (const field of REGRESSION_FIELDS) {
   );
 }
 
-// Die Felder duerfen nicht nur vorhanden, sondern muessen auch die Werte der
-// urspruenglichen Provisionierung sein -- sonst waere der Umstieg fuer
-// bestehende Agenten eine stille Umstellung.
+// Die Felder duerfen nicht nur vorhanden sein, sondern muessen die abgestimmten
+// Werte tragen -- sonst waere eine Aenderung an ihnen eine stille Umstellung.
+//
+// `thinking_budget` stand hier bis zum 11.08. auf 1024, dem Wert der
+// urspruenglichen Provisionierung. Abgestimmt und am laufenden Agenten gemessen
+// ist 0 (aus). Der Sync sendet das Feld nicht, es kommt also nur beim Anlegen
+// an -- stuende hier weiter 1024, bekaeme jeder neue Kunde ein eingeschaltetes
+// Denkbudget, das niemand entschieden hat.
 check(
-  'thinking_budget bleibt 1024',
-  sent.conversation_config.agent.prompt.thinking_budget === 1024
+  'thinking_budget ist aus (0)',
+  sent.conversation_config.agent.prompt.thinking_budget === 0
 );
 check(
   'temperature bleibt 0.19',
   sent.conversation_config.agent.prompt.temperature === 0.19
+);
+
+// Die vier am 10.08. abgestimmten Werte. Sie stehen hier, damit ein Aufraeumen
+// an AGENT_DEFINITION nicht unbemerkt hinter die Entscheidung zurueckfaellt.
+check('turn_model ist turn_v3',   sent.conversation_config.turn.turn_model === 'turn_v3');
+check('turn_timeout ist 5',       sent.conversation_config.turn.turn_timeout === 5);
+check('Wartefloskel ist aus',     sent.conversation_config.turn.soft_timeout_config.timeout_seconds === -1);
+check('keine Audio-Tags',
+  sent.conversation_config.tts.expressive_mode === false
+  && Array.isArray(sent.conversation_config.tts.suggested_audio_tags)
+  && sent.conversation_config.tts.suggested_audio_tags.length === 0
 );
 
 // ── 2. Kundenspezifisch bleibt kundenspezifisch ──────────────────────────────
@@ -183,7 +199,11 @@ check(
 );
 
 const realMismatch = JSON.parse(JSON.stringify(sent));
-realMismatch.conversation_config.agent.prompt.thinking_budget = 0;
+// 1024 statt 0: der Sollzustand ist seit dem 11.08. selbst 0, ein
+// zurueckgelesenes 0 waere also keine Abweichung mehr. 1024 ist hier genau der
+// richtige Gegenwert -- es ist der Wert, auf den die alte Definition
+// zurueckfaellt, wenn jemand sie unbedacht wiederherstellt.
+realMismatch.conversation_config.agent.prompt.thinking_budget = 1024;
 const mismatch = compareAgentState(sent, realMismatch);
 check(
   'ausgeschaltetes Denkbudget wird als Abweichung erkannt',
