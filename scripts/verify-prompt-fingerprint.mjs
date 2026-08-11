@@ -129,8 +129,32 @@ check('Sync-Funktion schreibt ihn ins Log', /prompt_fingerprint: fingerprint/.te
 
 // Der Ist-Wert darf nur nach Erfolg fortgeschrieben werden -- sonst gilt ein
 // Kunde als aktuell, dessen Agent den neuen Prompt nie bekommen hat.
-check('Ist-Fingerprint wird nur nach erfolgreichem Sync gesetzt',
-  /if \(syncStatus === 'success' && fingerprint\) \{\s*customerPatch\.prompt_fingerprint = fingerprint;/.test(trigger));
+//
+// #932 hat die Bedingung verschaerft, nicht gelockert. Vorher genuegte
+// `syncStatus === 'success'`. Seither gibt es 'drift' (Agent aktualisiert,
+// weicht aber in mindestens einem Feld ab), und die Rueckleseprüfung weiss
+// genauer als der Gesamtstatus, ob AUSGERECHNET der Prompt angekommen ist:
+//
+//   - syncReachedAgent  schliesst 'failed' aus (PATCH nie durch)
+//   - promptLanded      schliesst den Fall aus, dass die Abweichung gerade den
+//                       Prompt betrifft -- dann ist er nicht live, und der
+//                       Fingerprint duerfte ihn nicht als aktuell ausweisen
+//
+// Beides zusammen ist echt staerker als die alte Bedingung: 'success' allein
+// haette einen Prompt, der laut Rueckleseprüfung gar nicht ankam, als aktuell
+// gefuehrt.
+check('Ist-Fingerprint wird nur gesetzt, wenn der Agent erreicht wurde und der Prompt ankam',
+  /if \(syncReachedAgent && promptLanded && fingerprint\) \{\s*customerPatch\.prompt_fingerprint = fingerprint;/.test(trigger));
+
+// Der Wachhund gegen die naheliegende Aushebelung: syncReachedAgent darf nicht
+// zu "immer wahr" verkommen. Ohne diese Pruefung koennte jemand die Bedingung
+// oben formal stehen lassen und ihr trotzdem jede Wirkung nehmen.
+check('syncReachedAgent schliesst fehlgeschlagene Syncs aus',
+  /const syncReachedAgent = syncStatus === 'success' \|\| syncStatus === 'drift';/.test(trigger));
+
+// promptLanded muss aus der Rueckleseprüfung stammen, nicht geraten sein.
+check('promptLanded kommt aus dem Vergleich am Prompt-Pfad',
+  /promptLanded = !configDrift\.some\(\(deviation\) => deviation\.path === PROMPT_PATH\)/.test(trigger));
 
 // Die Stufenleiter aus N6 (#878) gibt "am wenigsten wertvoll zuerst" auf.
 // prompt_fingerprint muss changed_fields ueberleben -- an ihm haengt der ganze
