@@ -179,6 +179,7 @@
     ['__voxeraCustomerScreenNavigationLoaded', '/shared/customer-runtime-screen-navigation.js?v=20260809-1'],
     ['__voxeraCustomerCaseIntakeLoaded', '/shared/customer-runtime-case-intake.js?v=20260808-1'],
     ['__voxeraCustomerInlineSaveStatusLoaded', '/shared/customer-runtime-inline-save-status.js?v=20260808-1'],
+    ['__voxeraCustomerSupabaseWriteLoaded', '/shared/customer-runtime-supabase-write.js?v=20260811-1'],
     ['__voxeraCustomerCalendarSettingsLoaded', '/shared/customer-runtime-calendar-settings.js?v=20260809-1'],
     ['__voxeraCustomerOperationalUpdatesLoaded', '/shared/customer-runtime-operational-updates.js?v=20260809-1'],
     ['__voxeraCustomerAssistantProfileLoaded', '/shared/customer-runtime-assistant-profile.js?v=20260809-9'],
