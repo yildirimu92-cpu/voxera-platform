@@ -243,6 +243,31 @@ from (
 ) as offenders;
 
 -- ═══ Gruppe F6: Grants ═════════════════════════════════════════════════════
+--
+-- ── Die Schnittregel ───────────────────────────────────────────────────────
+-- Ein Grant faellt genau dann, wenn KEINE permissive Policy diese Rolle fuer
+-- dieses Kommando bedienen kann.
+--
+-- Sie gilt fuer jedes Aufraeumen in dieser Gruppe, nicht nur fuer die
+-- Migration, aus der sie stammt (20260811094500). Ermittelt wird sie ueber
+-- pg_policy: polroles enthaelt die Rolle oder ist `public` (Oid 0), polcmd
+-- passt zum Kommando oder ist ALL, polpermissive ist true -- restriktive
+-- Policies koennen nur einschraenken, nie erlauben.
+--
+-- Warum gerade diese Regel: sie trennt totes von tragendem Recht, ohne
+-- Vermutungen ueber die Anwendung anzustellen. Ein Grant, den keine Policy
+-- bedienen kann, ist per Konstruktion tot -- die Rolle kommt heute nicht
+-- durch und ohne Policy auch morgen nicht. Ein erfolgreicher Aufruf kann
+-- dadurch nicht fehlschlagen, weil es keinen gibt. Umgekehrt bleibt jedes
+-- Recht stehen, das eine Policy tatsaechlich bedient; ein pauschales
+-- `revoke all` haette das Dashboard zerlegt.
+--
+-- Die Grenze der Regel, damit sie nicht ueberdehnt wird: sie sagt nichts
+-- ueber Rechte, auf die RLS gar nicht angewandt wird. TRUNCATE hat keine
+-- Policy-Ebene, REFERENCES, TRIGGER und MAINTAIN ebenso wenig -- dort ist
+-- die Frage "bedient das eine Policy" gegenstandslos, und das Grant ist die
+-- einzige Huerde. Diese vier fallen fuer Browser-Rollen immer.
+--
 -- Nur die Rechte, die nachweislich zurueckgenommen WURDEN. Bewusst NICHT
 -- dabei: DELETE auf customers/users/calls und INSERT auf users. Diese Grants
 -- bestehen absichtlich -- das Admin-Panel arbeitet als `authenticated` und
