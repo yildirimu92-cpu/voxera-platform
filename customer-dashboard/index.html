@@ -11310,7 +11310,10 @@ let forceDashboardOnNextRestore = false;
 window._vxForceDashboardAfterLogin = false;
 let isLogoutInProgress = false;
 let isAuthTransition = false;
-let customerMeta = {plan:'Kein Plan', startDate:'', customerName:'', customerDisplayName:'', customerLegalName:'', customerEmail:'', telNr:'', status:'aktiv', forwardingSetupCompleted:false, setupDeviceType:null, forwardingStatus:null, activationStartedAt:null, activatedAt:null, customerId:'', forwardingMode:null, notificationMode:'callback_only', lastConfirmedSetupDeviceType:null, lastConfirmedForwardingMode:null, activationTestMode:null, activationTestOutboundCallId:null, assistantName:'Lara', contactFirstName:''};
+function defaultCustomerMeta() {
+  return {plan:'Kein Plan', startDate:'', customerName:'', customerDisplayName:'', customerLegalName:'', customerEmail:'', telNr:'', status:'aktiv', forwardingSetupCompleted:false, setupDeviceType:null, forwardingStatus:null, activationStartedAt:null, activatedAt:null, customerId:'', forwardingMode:null, notificationMode:'callback_only', lastConfirmedSetupDeviceType:null, lastConfirmedForwardingMode:null, activationTestMode:null, activationTestOutboundCallId:null, assistantName:'Lara', contactFirstName:''};
+}
+let customerMeta = defaultCustomerMeta();
 // Werksstandard, identisch zu customers.notification_mode DEFAULT und zu
 // DEFAULT_NOTIFICATION_MODE in _lib/call-notification.js. Bis 2026-08-09 fiel
 // die Oberflaeche hier auf 'none' zurueck, waehrend die Datenbank
@@ -11362,9 +11365,26 @@ let customerContext = { authUserId: null, usersCustomerId: null, customerId: nul
 // customerId/authUserId laedt und ohne forceReload den letzten Stand
 // zurueckgibt), muss hier mit aufgenommen werden -- sonst wiederholt sich
 // derselbe Fehler beim naechsten Konto, nur an einer neuen Stelle.
+//
+// vxAccountGeneration deckt eine zweite Luecke ab, die dieser Reset allein
+// nicht schliesst: eine Anfrage, die noch fuer Konto A laeuft (Dokumente,
+// Stimmen, Kundenkontext), kann NACH diesem Reset fertig werden und ihr
+// Ergebnis unbedingt zurueckschreiben -- dann stuende A's Antwort wieder im
+// gerade geleerten Cache. resolveCustomerContext(), vxLoadCustomerDocuments(),
+// vxPreloadAssistantVoices() und loadCustomerMeta() merken sich die
+// Generation bei Anfragebeginn und verwerfen ihr Ergebnis, wenn sie beim
+// Abschluss nicht mehr aktuell ist.
+let vxAccountGeneration = 0;
+// Der erzwungene Reload in loadCustomerMeta() (siehe dort) muss nur einmal
+// pro Konto laufen, nicht bei jedem 12s-Polling-Tick -- sonst ruft er die
+// Dokumente-Funktion bei jedem Tick neu auf. -1 heisst: fuer die aktuelle
+// Generation noch nicht gelaufen.
+let vxAccountBootReloadGeneration = -1;
 function resetPerAccountCaches() {
+  vxAccountGeneration++;
   customerContext = { authUserId: null, usersCustomerId: null, customerId: null, customerRecord: null };
   customerDocumentsState = { loading: false, loaded: false, invoices: [], contract: null, error: null };
+  customerMeta = defaultCustomerMeta();
   window._vxAssistantVoicesLoaded = false;
   window._vxAssistantVoicesLoading = false;
   window._vxAssistantVoicesPromise = null;
@@ -12843,10 +12863,16 @@ async function ensurePublicUserProvisioning(authUser) {
 async function resolveCustomerContext(forceReload) {
   if (!forceReload && customerContext.customerId && customerContext.customerRecord) return customerContext;
 
+  // Wechselt das Konto (resetPerAccountCaches()), waehrend diese Anfrage noch
+  // laeuft, darf ihr Ergebnis den frisch geleerten Cache nicht mehr
+  // ueberschreiben -- siehe Kommentar an vxAccountGeneration.
+  const generation = vxAccountGeneration;
+
   const authUser = currentUser || await getCurrentSessionUser();
   const authUserId = authUser && authUser.id ? String(authUser.id).trim() : '';
   vxDebugInfo('[voxera-dashboard] auth user id', authUserId || null);
   if (!authUserId) {
+    if (generation !== vxAccountGeneration) return customerContext;
     customerContext = { authUserId: null, usersCustomerId: null, customerId: null, customerRecord: null };
     return customerContext;
   }
@@ -12882,6 +12908,8 @@ async function resolveCustomerContext(forceReload) {
   } else {
     vxDebugInfo('[voxera-dashboard] customers.id', null);
   }
+
+  if (generation !== vxAccountGeneration) return customerContext; // Konto wechselte waehrend die Anfrage lief -- Ergebnis verwerfen
 
   customerContext = {
     authUserId,
@@ -14607,6 +14635,10 @@ async function vxPreloadAssistantVoices(forceReload) {
   if (window._vxAssistantVoicesLoading && window._vxAssistantVoicesPromise) return window._vxAssistantVoicesPromise;
   const customerId = String(customerMeta.customerId || customerContext?.customerId || '').trim();
   if (!customerId) return [];
+  // Siehe Kommentar an vxAccountGeneration: wechselt das Konto waehrend
+  // diese Anfrage laeuft, darf ihre Antwort (Stimmauswahl von Konto A) den
+  // frisch geleerten Cache nicht mehr fuellen.
+  const generation = vxAccountGeneration;
   window._vxAssistantVoicesLoading = true;
   window._vxAssistantVoicesError = null;
   window._vxAssistantVoicesPromise = (async function() {
@@ -14618,6 +14650,7 @@ async function vxPreloadAssistantVoices(forceReload) {
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json?.error || 'voices_load_failed');
+      if (generation !== vxAccountGeneration) return window.assistantVoiceOptions || []; // Konto wechselte waehrend die Anfrage lief -- Ergebnis verwerfen
       window.assistantVoiceOptions = Array.isArray(json?.voices) ? json.voices : [];
       if (!window.assistantSelectedVoiceId) {
         window.assistantSelectedVoiceId = String(json?.selected_voice_id || customerMeta.voiceId || '').trim();
@@ -14625,6 +14658,7 @@ async function vxPreloadAssistantVoices(forceReload) {
       window._vxAssistantVoicesLoaded = true;
       return window.assistantVoiceOptions;
     } catch (e) {
+      if (generation !== vxAccountGeneration) return window.assistantVoiceOptions || [];
       window._vxAssistantVoicesError = e;
       throw e;
     } finally {
@@ -15562,10 +15596,16 @@ async function vxLoadCustomerDocuments(forceReload) {
     return customerDocumentsState;
   }
 
+  // Siehe Kommentar an vxAccountGeneration: wechselt das Konto waehrend
+  // diese Anfrage laeuft, darf ihre Antwort (Rechnungen/Vertrag von Konto A)
+  // den frisch geleerten Cache nicht mehr fuellen.
+  const generation = vxAccountGeneration;
+
   customerDocumentsState = { loading: true, loaded: false, invoices: [], contract: null, error: null };
   vxRenderCustomerDocuments();
   try {
     const result = await callDashboardFunction('customer-documents', {});
+    if (generation !== vxAccountGeneration) return customerDocumentsState; // Konto wechselte waehrend die Anfrage lief -- Ergebnis verwerfen
     customerDocumentsState = {
       loading: false,
       loaded: true,
@@ -15574,6 +15614,7 @@ async function vxLoadCustomerDocuments(forceReload) {
       error: null
     };
   } catch (error) {
+    if (generation !== vxAccountGeneration) return customerDocumentsState;
     console.error('[customer-documents] load failed', error);
     customerDocumentsState = { loading: false, loaded: false, invoices: [], contract: null, error: error || new Error('documents_load_failed') };
   }
@@ -16779,6 +16820,11 @@ async function loadCustomerContractMeta(customerId, subscriptionId) {
 // jeden Aufrufer, der forceReload=true uebergibt, unabhaengig davon, ob der
 // Reset im konkreten Fall bereits gegriffen hat.
 async function loadCustomerMeta(forceReload) {
+  // Siehe Kommentar an vxAccountGeneration: diese Funktion schreibt
+  // customerMeta an zwei Stellen unbedingt (unten und nach dem
+  // Add-on-Ladevorgang) -- beide muessen verwerfen, wenn das Konto
+  // zwischendurch gewechselt hat.
+  const generation = vxAccountGeneration;
   const context = await resolveCustomerContext(forceReload);
   const rec = context.customerRecord;
   if (!rec) return customerMeta;
@@ -16808,6 +16854,7 @@ async function loadCustomerMeta(forceReload) {
   }
 
   vxDebugLog('[voxera] startDate mapping — commercialContract.start_date:', commercialContract && commercialContract.start_date, '| f.start_date:', f.start_date);
+  if (generation !== vxAccountGeneration) return customerMeta; // Konto wechselte waehrend die Anfrage lief -- Ergebnis verwerfen
   customerMeta = {
     plan: resolvedPlan,
     startDate: (commercialContract && commercialContract.start_date) 
@@ -16897,6 +16944,7 @@ async function loadCustomerMeta(forceReload) {
       .from('customer_addons')
       .select('addon_code, active, quantity, valid_until')
       .eq('customer_id', customerMeta.customerId);
+    if (generation !== vxAccountGeneration) return customerMeta; // Konto wechselte waehrend die Anfrage lief -- Add-ons nicht mehr auf das (neue) customerMeta anwenden
     if (!addonsError && addons) {
       customerMeta.customerAddons = addons;
       const activeAddons = addons.filter(a => {
@@ -16920,6 +16968,7 @@ async function loadCustomerMeta(forceReload) {
       customerMeta.extraMinutes = 0;
     }
   } catch(e) {
+    if (generation !== vxAccountGeneration) return customerMeta;
     customerMeta.customerAddons = [];
     customerMeta.smsNotifyAddon = false;
     customerMeta.smsCallerAddon = false;
@@ -20390,7 +20439,14 @@ async function loadData(onMilestone) {
     // garantiert durchlaeuft (Boot und Polling). Ohne den Reset bei
     // SIGNED_OUT gegen sich selbst abzusichern, gehoert die Garantie hierher,
     // nicht nur in den Reset -- siehe Kommentar an loadCustomerMeta().
-    await loadCustomerMeta(true).catch(()=>{});
+    //
+    // Nur einmal pro Konto erzwingen, nicht bei jedem 12s-Polling-Tick --
+    // sonst ruft loadCustomerMeta() ueber vxLoadCustomerDocuments() bei
+    // jedem Tick die customer-documents-Funktion neu auf, obwohl der Cache
+    // fuer dieses Konto laengst geladen ist.
+    const needsAccountBootReload = vxAccountBootReloadGeneration !== vxAccountGeneration;
+    await loadCustomerMeta(needsAccountBootReload).catch(()=>{});
+    if (needsAccountBootReload) vxAccountBootReloadGeneration = vxAccountGeneration;
     applyContractAccessStateToUI();
     await loadPlanConfigFromSupabase().catch(()=>{});
     const context = await resolveCustomerContext(true);

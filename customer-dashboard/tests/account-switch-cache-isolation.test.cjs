@@ -29,6 +29,18 @@
  * nicht simuliert -- das Skript selbst laesst sich wegen DOM- und
  * Supabase-Abhaengigkeiten nicht laden). Die zweite Haelfte haelt die
  * Verdrahtung an den Aufrufstellen als Quelltext-Contract fest.
+ *
+ * Dritte Ebene, aus der automatisierten Review auf PR #945 selbst: der Reset
+ * allein schliesst nicht die Luecke, dass eine zum Reset-Zeitpunkt bereits
+ * laufende Anfrage (Kundenkontext, Dokumente, Stimmen) DANACH noch fertig
+ * wird und ihr Ergebnis unbedingt zurueckschreibt -- dann stuende Konto A's
+ * Antwort wieder im gerade geleerten Cache. vxAccountGeneration schliesst
+ * diese zweite Luecke: jede der vier betroffenen Funktionen merkt sich die
+ * Generation bei Anfragebeginn und verwirft ihr Ergebnis, wenn sie beim
+ * Abschluss nicht mehr aktuell ist. Ausserdem fehlte customerMeta selbst im
+ * Reset (der Namens-Fallback in loadCustomerMeta() konnte Konto A's Namen an
+ * Konto B weiterreichen), und der erzwungene Dokumenten-Reload lief zunaechst
+ * bei jedem 12s-Polling-Tick statt nur einmal pro Konto.
  */
 
 const assert = require('node:assert/strict');
@@ -102,6 +114,8 @@ function freshSandbox() {
     console,
     customerContext: { ...ACCOUNT_A },
     customerDocumentsState: { loading: false, loaded: true, invoices: [{ id: 'inv-a' }], contract: { id: 'contract-a' }, error: null },
+    customerMeta: { customerId: 'cust-a', customerName: 'Firma A AG', plan: 'Business', contactFirstName: 'Anna' },
+    vxAccountGeneration: 0,
     window: {
       _vxAssistantVoicesLoaded: true,
       _vxAssistantVoicesLoading: false,
@@ -118,8 +132,48 @@ function freshSandbox() {
   };
   const context = vm.createContext(sandbox);
   vm.runInContext(
+    extractFunction('defaultCustomerMeta') + '\n' +
     extractFunction('resetPerAccountCaches') + '\n' +
     extractFunction('resolveCustomerContext') + '\n',
+    context
+  );
+  return context;
+}
+
+// Konto A's Anfrage steckt noch (Netzwerk, Datenbank, o.ae.), waehrend der
+// Reset schon laeuft -- der Zustand, den vxAccountGeneration abfangen muss.
+// Jeder Test setzt genau die eine Abhaengigkeit, die er kontrolliert
+// verzoegern will; die uebrigen loesen sofort auf.
+function raceSandbox(overrides) {
+  const sandbox = Object.assign({
+    console,
+    customerContext: { authUserId: null, usersCustomerId: null, customerId: null, customerRecord: null },
+    customerDocumentsState: { loading: false, loaded: false, invoices: [], contract: null, error: null },
+    customerMeta: { customerId: 'cust-a', voiceId: '' },
+    vxAccountGeneration: 0,
+    window: {
+      _vxAssistantVoicesLoaded: false,
+      _vxAssistantVoicesLoading: false,
+      _vxAssistantVoicesPromise: null,
+      _vxAssistantVoicesError: null,
+      assistantVoiceOptions: [],
+      assistantSelectedVoiceId: null
+    },
+    currentUser: { id: 'auth-a' },
+    CUSTOMERS_TABLE: 'customers',
+    _sb: { from: fakeFrom },
+    ensurePublicUserProvisioning: async () => {},
+    vxDebugInfo: () => {},
+    getCurrentSessionUser: async () => ({ id: 'auth-a' }),
+    vxRenderCustomerDocuments: () => {}
+  }, overrides);
+  const context = vm.createContext(sandbox);
+  vm.runInContext(
+    extractFunction('defaultCustomerMeta') + '\n' +
+    extractFunction('resetPerAccountCaches') + '\n' +
+    extractFunction('resolveCustomerContext') + '\n' +
+    extractFunction('vxLoadCustomerDocuments') + '\n' +
+    extractFunction('vxPreloadAssistantVoices') + '\n',
     context
   );
   return context;
@@ -158,6 +212,13 @@ test('resetPerAccountCaches() leert customerContext, Dokumente und Stimmen-Cache
   assert.equal(context.window._vxAssistantVoicesLoaded, false);
   assert.equal(context.window.assistantVoiceOptions.length, 0);
   assert.equal(context.window.assistantSelectedVoiceId, null);
+  // customerMeta fehlte im ersten Fix -- der Namens-Fallback in
+  // loadCustomerMeta() (customerName: f.contact_first_name || ... ||
+  // customerMeta.customerName || '') haette Konto A's Namen sonst an Konto B
+  // weitergereicht, sobald Konto B selbst keinen Namen hinterlegt hat.
+  assert.equal(context.customerMeta.customerId, '');
+  assert.equal(context.customerMeta.customerName, '');
+  assert.equal(context.customerMeta.contactFirstName, '');
 });
 
 test('nach resetPerAccountCaches() liefert auch resolveCustomerContext() OHNE forceReload frische Daten', async () => {
@@ -198,9 +259,107 @@ test('loadCustomerMeta() nimmt forceReload an und reicht es an beide kontospezif
     'sonst zeigt die Dokumentenliste (Rechnungen, Vertrag) weiterhin das vorherige Konto');
 });
 
-test('der Boot-Pfad erzwingt den Reload -- loadData() und showApp() rufen mit true auf', () => {
-  assert.match(dashboard, /await loadCustomerMeta\(true\)\.catch\(\(\)=>\{\}\);/,
-    'loadData() ist der eine Pfad, der bei jedem Kontowechsel garantiert durchlaeuft');
+test('der Boot-Pfad erzwingt den Reload -- loadData() einmal pro Konto-Generation, showApp() immer', () => {
+  // loadData() laeuft sowohl beim Booten als auch bei jedem 12s-Poll -- ein
+  // unbedingtes forceReload=true haette (P2 aus der PR-#945-Review) die
+  // Dokumente-Funktion bei jedem Tick neu aufgerufen, obwohl der Cache fuer
+  // dieses Konto laengst geladen ist. vxAccountBootReloadGeneration macht
+  // daraus "einmal pro Konto", nicht "einmal pro Tick".
+  assert.match(dashboard, /const needsAccountBootReload = vxAccountBootReloadGeneration !== vxAccountGeneration;/,
+    'ohne diese Bedingung erzwingt jeder Poll denselben vollen Reload wie der erste nach einem Kontowechsel');
+  assert.match(dashboard, /await loadCustomerMeta\(needsAccountBootReload\)\.catch\(\(\)=>\{\}\);/);
+  assert.match(dashboard, /if \(needsAccountBootReload\) vxAccountBootReloadGeneration = vxAccountGeneration;/,
+    'ohne diese Zeile bliebe needsAccountBootReload dauerhaft wahr -- dann waere nichts gewonnen');
+  // showApp() laeuft nur einmal pro Boot, nie im 12s-Poll -- hier ist ein
+  // unbedingtes true weiterhin richtig, nicht dieselbe Regression.
   assert.match(dashboard, /vxPreloadAssistantVoices\(true\)\.catch\(function\(\)\{\}\);/,
     'sonst zeigt die Stimmauswahl beim Booten weiterhin die zwischengespeicherte Liste des vorherigen Kontos');
+});
+
+test('loadCustomerMeta() verwirft ein verspaetetes Ergebnis an beiden Schreibstellen', () => {
+  // loadCustomerMeta() schreibt customerMeta zweimal unbedingt: einmal in
+  // der grossen Zuweisung, ein zweites Mal danach -- nach einem WEITEREN
+  // await -- wenn die Add-ons geladen sind. Beide Stellen muessen die
+  // Generation pruefen, sonst mutiert die zweite ein Objekt, das laengst
+  // einem anderen Konto gehoert.
+  const meta = extractFunction('loadCustomerMeta');
+  assert.match(meta, /^async function loadCustomerMeta\(forceReload\) \{\s*\n\s*\/\/[^\n]*\n(?:\s*\/\/[^\n]*\n)*\s*const generation = vxAccountGeneration;/,
+    'die Generation muss beim Anfragebeginn festgehalten werden, nicht erst am Ende');
+  assert.match(meta, /if \(generation !== vxAccountGeneration\) return customerMeta; \/\/[^\n]*\n\s*customerMeta = \{/,
+    'die grosse customerMeta-Zuweisung muss durch die Generation abgesichert sein');
+  const addonSection = meta.slice(meta.indexOf("from('customer_addons')"));
+  assert.match(addonSection, /if \(generation !== vxAccountGeneration\) return customerMeta;/,
+    'die Add-on-Zuweisungen nach dem zweiten await muessen die Generation ebenfalls pruefen');
+  assert.match(addonSection, /\} catch\(e\) \{\s*if \(generation !== vxAccountGeneration\) return customerMeta;/,
+    'auch der Fehlerfall des Add-on-Ladevorgangs darf ein inzwischen fremdes customerMeta nicht mehr anfassen');
+});
+
+// ── 3. Wettlauf: eine Anfrage von Konto A wird ERST NACH dem Reset fertig ──
+//
+// resetPerAccountCaches() schliesst die Luecke, dass ein Cache nach dem
+// Kontowechsel STEHEN bleibt. Es schliesst NICHT die Luecke, dass eine zum
+// Reset-Zeitpunkt bereits laufende Anfrage danach noch fertig wird und ihr
+// Ergebnis unbedingt zurueckschreibt. Diese drei Tests steuern die
+// Netzwerk-Antwort manuell per Promise-Handle: Anfrage starten, Reset
+// dazwischenschieben, dann ERST die (jetzt veraltete) Antwort liefern -- und
+// pruefen, dass sie den frisch geleerten Cache nicht wieder fuellt.
+
+test('resolveCustomerContext(): eine Antwort fuer Konto A nach dem Reset ueberschreibt den geleerten Kontext nicht', async () => {
+  let resumeProvisioning;
+  const context = raceSandbox({
+    ensurePublicUserProvisioning: () => new Promise(function(resolve) { resumeProvisioning = resolve; })
+  });
+
+  const pending = vm.runInContext('resolveCustomerContext()', context);
+  // resolveCustomerContext() haengt jetzt in ensurePublicUserProvisioning()
+  // fest -- die Stelle, an der im echten Betrieb Netzwerkzeit vergeht.
+  vm.runInContext('resetPerAccountCaches()', context); // Konto-Wechsel, waehrend Konto A's Anfrage noch unterwegs ist
+
+  resumeProvisioning(); // Konto A's Anfrage laeuft jetzt weiter -- zu spaet
+  await pending;
+
+  assert.equal(context.customerContext.customerId, null,
+    'Konto A durfte den nach dem Reset geleerten Kontext nicht mehr fuellen');
+  assert.equal(context.customerContext.customerRecord, null);
+});
+
+test('vxLoadCustomerDocuments(): Rechnungen/Vertrag von Konto A nach dem Reset landen nicht im geleerten Cache', async () => {
+  let resolveDocsCall;
+  const context = raceSandbox({
+    callDashboardFunction: () => new Promise(function(resolve) { resolveDocsCall = resolve; })
+  });
+
+  const pending = vm.runInContext('vxLoadCustomerDocuments()', context);
+  vm.runInContext('resetPerAccountCaches()', context); // Konto-Wechsel, waehrend Konto A's Rechnungen noch unterwegs sind
+
+  resolveDocsCall({ invoices: [{ id: 'inv-a' }], contract: { id: 'contract-a' } }); // zu spaet
+  await pending;
+
+  assert.equal(context.customerDocumentsState.invoices.length, 0,
+    'Konto A\'s Rechnungen duerfen den nach dem Reset geleerten Dokumenten-Cache nicht mehr fuellen');
+  assert.equal(context.customerDocumentsState.contract, null,
+    'Konto A\'s Vertrag ist der schwerwiegendere Fall -- er waere hier fuer Konto B sichtbar');
+});
+
+test('vxPreloadAssistantVoices(): Stimmen von Konto A nach dem Reset landen nicht im geleerten Cache', async () => {
+  let resolveVoicesFetch;
+  const context = raceSandbox({
+    getSupabaseAuthClient: () => ({ auth: { getSession: async () => ({ data: { session: { access_token: 'tok-a' } } }) } }),
+    fetch: () => new Promise(function(resolve) { resolveVoicesFetch = resolve; })
+  });
+
+  const pending = vm.runInContext('vxPreloadAssistantVoices()', context);
+  vm.runInContext('resetPerAccountCaches()', context); // Konto-Wechsel, waehrend Konto A's Stimmenanfrage noch unterwegs ist
+
+  // getSession() liegt als eigene (schnelle) Promise vor fetch() -- Microtasks
+  // durchlaufen lassen, bis fetch() tatsaechlich aufgerufen und damit
+  // resolveVoicesFetch zugewiesen wurde.
+  await new Promise(function(resolve) { setImmediate(resolve); });
+  resolveVoicesFetch({ ok: true, json: async () => ({ voices: [{ voice_id: 'voice-a' }], selected_voice_id: 'voice-a' }) }); // zu spaet
+
+  await pending;
+
+  assert.equal(context.window.assistantVoiceOptions.length, 0,
+    'Konto A\'s Stimmenliste darf den nach dem Reset geleerten Cache nicht mehr fuellen');
+  assert.equal(context.window._vxAssistantVoicesLoaded, false);
 });
