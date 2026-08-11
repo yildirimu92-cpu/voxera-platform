@@ -203,3 +203,49 @@ CI-Check den `supabase_admin`-Eintrag
 
 **Empfehlung (b).** Der Bestandscheck fängt die Folge; (b) fängt die Ursache und macht sichtbar,
 dass die zweite Tür bewusst offen steht statt vergessen wurde. Kostet eine Abfrage.
+
+---
+
+## 7. Nebenbefund beim Verifizieren: Staging trägt den Zustand vor #892
+
+Beim Versuch, die Migration auf Staging zu proben statt ihre Wirkung zu behaupten, ist etwas
+aufgefallen, das nicht Teil des Auftrags war.
+
+**Gemessen am 11.08.2026 auf `voxera-staging` (`hzqiyyqfchvfcmmbemvd`):**
+
+| | Produktion | **Staging** |
+|---|---|---|
+| Tabellen in `public` | 47 | 46 |
+| `anon` mit INSERT | 18 | **27** |
+| `authenticated` mit INSERT | 20 | **29** |
+| **TRUNCATE für Browser-Rollen** | **0** ✅ | **29** 🔴 |
+| Default-ACL-Einträge für Tabellen | 2 (postgres, supabase_admin) | **keine** |
+
+**Die beiden Sicherheitsmigrationen vom 09.08. fehlen im Staging-Ledger** — direkt abgefragt, nicht
+aus dem Bestand geschlossen:
+
+- `20260809164858_truncate_grant_sweep` — **fehlt**
+- `20260809174824_revoke_browser_grants_rls_no_policy` — **fehlt**
+
+Spätere Migrationen sind dagegen da, bis `20260811184207`. Es ist also **kein** stehengebliebenes
+Projekt: Staging bekommt Fachmigrationen, aber die beiden Grant-Migrationen sind übersprungen
+worden.
+
+> **Was daraus folgt — zwei Dinge:**
+>
+> 1. **Staging taugt für diese Klasse von Änderung nicht als Probe.** Sein `pg_default_acl` ist
+>    leer; die Wurzelmigration wäre dort ein No-op und würde nichts beweisen. Deshalb ist die
+>    Wirkung dieser Migration in Abschnitt 5 **hergeleitet und nicht gemessen** — das ist offen
+>    gesagt, statt eine Probe zu behaupten, die keine wäre.
+> 2. **Der Sicherheitsstand der beiden Umgebungen ist auseinandergelaufen.** Auf Staging kann
+>    `anon` 29 Tabellen truncieren — genau der Zustand, den #892 auf Produktion beseitigt hat. Der
+>    Katalogcheck läuft offenbar nur gegen Produktion, sonst wäre es rot.
+
+**Nicht angefasst.** Das ist ein eigener Auftrag, und er ist grösser als er aussieht: Zu klären ist
+nicht nur, ob die beiden Migrationen nachgezogen werden, sondern **warum sie ausgelassen wurden** —
+und ob der Katalogcheck künftig gegen beide Umgebungen laufen soll. Ohne die zweite Frage wiederholt
+sich der Zustand mit der nächsten Sicherheitsmigration.
+
+**Für den hier vorgeschlagenen Ablauf heisst das:** Die Wurzelmigration gehört auf **beide**
+Umgebungen — auf Staging allerdings erst sinnvoll, nachdem die beiden ausgelassenen Migrationen dort
+nachgezogen sind. Sonst schliesst man eine Wurzel, während der Bestand daneben unbehandelt liegt.

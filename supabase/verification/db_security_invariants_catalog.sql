@@ -422,6 +422,65 @@ from (
     and ac.privilege_type = 'TRUNCATE'
 ) as offenders;
 
+-- Dieselbe Wurzel, die drei uebrigen Schreibrechte. Der Sweep aus #892 hat aus
+-- `anon=arwdDxtm` genau das `D` entfernt; `a`, `w` und `d` -- INSERT, UPDATE,
+-- DELETE -- blieben vergeben, und damit erbte jede neue Tabelle sie weiter.
+-- Der Check oben bewachte also genau den Buchstaben, der schon weg war.
+--
+-- Zum Zusammenspiel mit dem Bestand: Es gibt hier BEWUSST keinen
+-- Bestandscheck fuer INSERT/UPDATE/DELETE. Anders als bei TRUNCATE ist das
+-- Recht nicht tot -- das Admin-Portal arbeitet als `authenticated` und
+-- schreibt real. Der Bestand (18 bzw. 21 Tabellen, Stand 2026-08-11) wird
+-- getrennt und nach einer Pfadaufnahme behandelt; sein Waechter kommt mit ihm.
+-- Diese Zeile bewacht ausschliesslich, dass nichts NEUES nachwaechst.
+select case when pg_catalog.count(*) = 0 then 'PASS' else 'FAIL' end,
+       'F6-grants', 'Default-Privilegien vergeben kein INSERT/UPDATE/DELETE an anon/authenticated',
+       coalesce(pg_catalog.string_agg(detail, '; '),
+                'Erzeuger postgres: anon und authenticated ohne a/w/d')
+from (
+  select pg_get_userbyid(d.defaclrole) || ' vergibt ' || ac.privilege_type
+         || ' an ' || ac.grantee::regrole::text as detail
+  from pg_catalog.pg_default_acl as d
+  join pg_catalog.pg_namespace as n on n.oid = d.defaclnamespace
+  cross join lateral pg_catalog.aclexplode(d.defaclacl) as ac
+  where n.nspname = 'public'
+    and d.defaclobjtype = 'r'
+    and pg_get_userbyid(d.defaclrole) = 'postgres'
+    and ac.grantee::regrole::text in ('anon', 'authenticated')
+    and ac.privilege_type in ('INSERT', 'UPDATE', 'DELETE')
+) as offenders;
+
+-- Die zweite Tuer, ausdruecklich statt ausgeblendet.
+--
+-- Beide Wurzelchecks oben filtern auf Erzeuger `postgres`, weil nur dieser
+-- Eintrag aus der Migrationsrolle aenderbar ist. Der Eintrag mit Erzeuger
+-- `supabase_admin` vergibt weiterhin das volle `arwdDxtm` und laesst sich
+-- nicht aendern (42501, in #892 ausprobiert). Er ist damit eine bewusst
+-- tolerierte Ausnahme -- und genau deshalb wird sie hier GEPRUEFT und nicht
+-- verschwiegen.
+--
+-- Wirksam wird die Tuer erst, wenn supabase_admin selbst eine Tabelle in
+-- public anlegt: eine solche Tabelle erbt INSERT/UPDATE/DELETE UND TRUNCATE,
+-- an beiden Wurzelchecks vorbei. Diese Zeile ist der Auffang dafuer. Sie steht
+-- heute auf PASS (0 von 47 Tabellen gehoeren supabase_admin) und wird rot,
+-- sobald die Ausnahme aufhoert, folgenlos zu sein.
+--
+-- Ein Check, der eine bekannte Ausnahme stillschweigend ueberspringt, macht
+-- aus einer getroffenen Entscheidung eine vergessene. Das ist die Bauform, die
+-- in diesem Repository schon mehrfach Zeit gekostet hat.
+select case when pg_catalog.count(*) = 0 then 'PASS' else 'FAIL' end,
+       'F6-grants',
+       'Keine Tabelle in public gehoert supabase_admin (umgeht beide Wurzelchecks)',
+       coalesce(
+         pg_catalog.string_agg(c.relname, ', ' order by c.relname),
+         'Bekannte, folgenlose Ausnahme: Erzeuger supabase_admin vergibt weiter arwdDxtm, '
+         || 'greift aber nur fuer eigene Tabellen -- aktuell keine')
+from pg_catalog.pg_class as c
+join pg_catalog.pg_namespace as n on n.oid = c.relnamespace
+where n.nspname = 'public'
+  and c.relkind = 'r'
+  and pg_get_userbyid(c.relowner) = 'supabase_admin';
+
 -- Die uebrigen Schreibrechte auf system_config. Sie waren durch RLS bereits
 -- wirkungslos (die Tabelle traegt genau eine Policy, und die gilt nur fuer
 -- SELECT) -- aber damit haette die Sicherheit dieser Tabelle allein an dieser
