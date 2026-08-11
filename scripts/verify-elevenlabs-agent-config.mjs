@@ -1,24 +1,26 @@
-// Guard fuer #932: Der Sync ueberschrieb die Agentenkonfiguration.
+// Guard fuer den Agenten-Sollzustand (#932 und seine Rücknahme #955).
 //
-// Befund: `_lib/elevenlabs-sync.js` sendete `conversation_config.agent.prompt`
-// als `{ prompt, tool_ids }`. Die Provisionierung setzt dort sieben weitere
-// Felder (llm, thinking_budget, temperature, max_tokens, timezone,
-// backup_llm_config, cascade_timeout_seconds). ElevenLabs ersetzt dieses Objekt,
-// statt es zusammenzufuehren -- die sieben fielen bei jedem Sync auf
-// Anbieter-Standard.
+// ── Was hier geprueft wird, und warum ────────────────────────────────────────
 //
-// Dieser Test fuehrt die echten Funktionen aus _lib/elevenlabs-agent-config.js
-// aus (nicht nachgebaut) und prueft die vier Eigenschaften, an denen der Fix
-// haengt:
+// #932 nahm an, ElevenLabs ersetze `conversation_config.agent.prompt`. Diese
+// Annahme wurde am 11.08. WIDERLEGT: Die Rueckleseprüfung hat am laufenden
+// Agenten `timezone: "Europe/Zurich"` gemessen -- ein Feld in `agent.prompt`,
+// das der Sync nie sendet und das neun Syncs ueberlebt hat.
 //
-//   1. Jeder Sync sendet den vollstaendigen Sollzustand, nicht einen Ausschnitt.
-//   2. Die Rueckleseprüfung deckt ALLE gesendeten Felder ab -- nicht nur die
-//      sieben heute bekannten. Ein neues Feld in der Definition ist ohne
-//      weiteres Zutun mitgeprueft.
-//   3. Beide Schreibpfade benutzen dieselbe Definition -- auch das Rollback,
-//      das sonst denselben Schaden angerichtet haette wie der Sync.
-//   4. Der Vergleich meldet keine Phantom-Abweichungen bei Gleitkommazahlen
-//      und bei umsortierten tool_ids.
+// Daraus folgen die zwei Trennungen, die dieser Guard festhaelt:
+//
+//   1. Der SYNC sendet nur den Ausschnitt (`buildSyncPatch`). Er darf keines
+//      der Felder senden, die am 10.08. von Hand abgestimmt wurden -- sonst
+//      stellt eine Kundenaenderung sie zurueck. Namentlich geprueft.
+//
+//   2. Die PROVISIONIERUNG sendet den vollen Startzustand
+//      (`buildAgentConfig`). Der muss die abgestimmten Werte tragen, sonst
+//      startet jeder neue Kunde mit dem Stand von vor dem 10.08.
+//
+// Dazu die Herkunftsunterscheidung [A] abgestimmt / [B] vorgefunden: Ohne sie
+// wird in drei Monaten ein Messwert fuer eine Entscheidung gehalten.
+//
+// Der Test fuehrt die echten Funktionen aus (nicht nachgebaut).
 
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -78,14 +80,34 @@ for (const field of REGRESSION_FIELDS) {
 // Die Felder duerfen nicht nur vorhanden, sondern muessen auch die Werte der
 // urspruenglichen Provisionierung sein -- sonst waere der Umstieg fuer
 // bestehende Agenten eine stille Umstellung.
-check(
-  'thinking_budget bleibt 1024',
-  sent.conversation_config.agent.prompt.thinking_budget === 1024
-);
-check(
-  'temperature bleibt 0.19',
-  sent.conversation_config.agent.prompt.temperature === 0.19
-);
+// Die fuenf am 10.08. abgestimmten Werte, am 11.08. gemessen und hier
+// festgeschrieben. Ein neu angelegter Agent muss mit dem Stand starten, der
+// gegen Testanrufe geprueft wurde -- nicht mit dem davor.
+const ABGESTIMMT = [
+  ['thinking_budget aus (0, nicht null, nicht fehlend)', sent.conversation_config.agent.prompt.thinking_budget === 0],
+  ['Turn V3', sent.conversation_config.turn.turn_model === 'turn_v3'],
+  ['Nach Stille uebernehmen 5 s', sent.conversation_config.turn.turn_timeout === 5],
+  ['Wartefloskel aus (timeout_seconds -1)', sent.conversation_config.turn.soft_timeout_config.timeout_seconds === -1],
+  ['expressiver Modus aus', sent.conversation_config.tts.expressive_mode === false],
+  ['keine Audio-Tags', Array.isArray(sent.conversation_config.tts.suggested_audio_tags) && sent.conversation_config.tts.suggested_audio_tags.length === 0]
+];
+for (const [name, ok] of ABGESTIMMT) check(`Abgestimmt 10.08.: ${name}`, ok);
+
+// Vorgefunden: gemessen, nicht entschieden. Steht hier, damit ein neuer Agent
+// dem bestehenden gleicht.
+check('Vorgefunden: temperature 0.19', sent.conversation_config.agent.prompt.temperature === 0.19);
+check('Vorgefunden: max_tokens 1200', sent.conversation_config.agent.prompt.max_tokens === 1200);
+check('Vorgefunden: timezone Europe/Zurich', sent.conversation_config.agent.prompt.timezone === 'Europe/Zurich');
+
+// Der Herkunftsvermerk selbst ist die Zusicherung: ohne ihn wird ein Messwert
+// fuer eine Entscheidung gehalten.
+const configSource = fs.readFileSync(configPath, 'utf8');
+check('Dateikopf unterscheidet [A] abgestimmt von [B] vorgefunden',
+  /\[A\] ABGESTIMMT/.test(configSource) && /\[B\] VORGEFUNDEN/.test(configSource));
+check('Der widerlegte Ersetzungs-Befund steht nicht mehr als Tatsache im Kopf',
+  /WIDERLEGT/.test(configSource) && /Europe\/Zurich/.test(configSource));
+check('Die unerklaerte Beobachtung vom 10.08. ist als offen vermerkt',
+  /UNGEKLAERT/.test(configSource));
 
 // ── 2. Kundenspezifisch bleibt kundenspezifisch ──────────────────────────────
 
@@ -182,11 +204,13 @@ check(
   compareAgentState(sent, reordered).length === 0
 );
 
+// Seit dem 11.08. ist 0 der Sollwert. Die Abweichung, die zaehlt, ist die
+// Gegenrichtung: das Denkbudget kommt zurueck.
 const realMismatch = JSON.parse(JSON.stringify(sent));
-realMismatch.conversation_config.agent.prompt.thinking_budget = 0;
+realMismatch.conversation_config.agent.prompt.thinking_budget = 1024;
 const mismatch = compareAgentState(sent, realMismatch);
 check(
-  'ausgeschaltetes Denkbudget wird als Abweichung erkannt',
+  'wieder eingeschaltetes Denkbudget wird als Abweichung erkannt',
   mismatch.length === 1 && mismatch[0].path === 'conversation_config.agent.prompt.thinking_budget',
   JSON.stringify(mismatch[0] || null)
 );

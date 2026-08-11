@@ -1,60 +1,70 @@
 'use strict';
 
-// #932 — Eine Definition des Agenten-Sollzustands fuer beide Schreibpfade.
+// Der Sollzustand eines ElevenLabs-Agenten — fuer die PROVISIONIERUNG.
 //
-// Vorher gab es zwei Stellen, die einen ElevenLabs-Agenten beschrieben:
-// `elevenlabs-provision-agent.js` (AGENT_TEMPLATE, vollstaendig, einmalig beim
-// Anlegen) und `_lib/elevenlabs-sync.js` (ein Ausschnitt, bei jedem Sync). Der
-// Ausschnitt gewann, weil er oefter laeuft.
+// ── Wofuer diese Datei gilt, und wofuer nicht ────────────────────────────────
 //
-// ── Der Befund ────────────────────────────────────────────────────────────────
+// `buildAgentConfig()` beschreibt einen Agenten VOLLSTAENDIG und wird beim
+// ANLEGEN benutzt (elevenlabs-provision-agent.js). Der Sync benutzt sie NICHT
+// -- er sendet `buildSyncPatch()`, einen Ausschnitt. Die Trennung ist die
+// Lehre aus #932; die Begruendung steht bei buildSyncPatch().
 //
-// Der Sync sendete `conversation_config.agent.prompt` als `{ prompt, tool_ids }`.
-// Die Provisionierung setzt dort sieben weitere Felder: llm, thinking_budget,
-// temperature, max_tokens, timezone, backup_llm_config, cascade_timeout_seconds.
-// ElevenLabs ersetzt dieses Objekt, statt es zusammenzufuehren -- die sieben
-// Felder fielen bei jedem Sync auf Anbieter-Standard zurueck. Belegt an einem
-// von Hand ausgeschalteten Denkbudget, das nach dem naechsten Sync wieder an war.
+// ── Was #932 annahm, und was am 11.08. gemessen wurde ────────────────────────
 //
-// ── Warum nur `prompt` und nicht `agent` insgesamt ────────────────────────────
+// #932 nahm an, ElevenLabs ERSETZE `conversation_config.agent.prompt`, statt es
+// zusammenzufuehren. Grundlage war eine Beobachtung vom 10.08.: Denkbudget von
+// Hand ausgeschaltet, nach dem naechsten Sync wieder an.
 //
-// Die Zusammenfuehrung greift auf der Ebene darueber sehr wohl. Zwei Belege:
+// Diese Annahme ist WIDERLEGT. Am 11.08. um 20:36 UTC hat die Rueckleseprüfung
+// den laufenden Produktivagenten gemessen (`elevenlabs_sync_log.config_drift`,
+// `observed`). Befund:
 //
-//   1. `platform_settings`: der Sync sendete dort nur `privacy`, und
-//      `data_collection` (die strukturierte Auswertung) ueberlebte das
-//      nachweislich -- die Auswertung funktioniert weiterhin.
+//   conversation_config.agent.prompt.timezone = "Europe/Zurich"
 //
-//   2. `conversation_config.agent`: der Sync sendete `{ prompt, first_message }`
-//      -- ohne `language`. Gesetzt wird `agent.language` ausschliesslich beim
-//      Anlegen (elevenlabs-provision-agent.js, aus `customers.ai_language`);
-//      keine andere Codestelle im Repo schreibt es je nach, und ausser
-//      Provisionierung und Sync ruehrt nichts den Endpunkt `convai/agents` an.
-//      Wuerde `agent` genauso ersetzt wie `agent.prompt`, waeren saemtliche
-//      fr/it/en-Agenten seit ihrem jeweils ersten Sync auf Standardsprache
-//      gefallen. Das ist nicht eingetreten.
+// `timezone` liegt in `agent.prompt`, wird vom Sync nie gesendet, und
+// `Europe/Zurich` ist kein plausibler Anbieter-Standard. Nach neun Syncs steht
+// es unveraendert dort. Ebenso ueberlebt haben `temperature: 0.19`,
+// `max_tokens: 1200`, `cascade_timeout_seconds: 8` -- und die Handeinstellungen
+// vom 10.08. in `turn` und `tts`.
 //
-// Daraus folgt: die Zusammenfuehrung steigt in `agent` hinein und ersetzt erst
-// auf der Ebene `agent.prompt`. `prompt` ist die Ausnahme, nicht die Regel --
-// es liest sich wie ein eigenes typisiertes Teilmodell, dessen nicht gesendete
-// Felder beim Deserialisieren auf Schema-Standard materialisiert werden.
+// **ElevenLabs fuehrt zusammen, auch auf der Ebene `agent.prompt`.** Ein Sync
+// beschaedigt die Agentenkonfiguration nicht.
 //
-// Belegstatus nach AGENTS.md: Punkt 1 ist Tatsache (beobachtet). Punkt 2 ist
-// eine Ableitung aus einer Nicht-Beobachtung -- gut gestuetzt, aber nicht
-// gemessen. Die Rueckleseprüfung in elevenlabs-sync.js misst beides ab dem
-// ersten Produktivlauf und macht die Ableitung damit ueberpruefbar, statt sie
-// als Annahme stehen zu lassen.
+// ── Was damit OFFEN ist ──────────────────────────────────────────────────────
 //
-// ── Die Konsequenz, die gewollt ist ───────────────────────────────────────────
+// Was am 10.08. das Denkbudget zurueckgesetzt hat, ist UNGEKLAERT. Wenn der
+// PATCH es nicht war, hat ein anderer Pfad geschrieben -- oder die Beobachtung
+// hat eine andere Erklaerung. Eine unerklaerte Beobachtung ist keine
+// widerlegte. Sie wird als offener Punkt gefuehrt, nicht als erledigt.
 //
-// Bewusst NICHT Read-Modify-Write. RMW haette den laufenden Agenten zur
-// massgeblichen Quelle gemacht: eine falsche Handeinstellung bliebe dann fuer
-// immer, stuende in keinem Repository und tauchte in keinem Diff auf -- ein
-// sichtbarer Fehler waere gegen einen unsichtbaren getauscht.
+// ── Warum die Werte hier trotzdem stimmen muessen ────────────────────────────
 //
-// Stattdessen ist diese Datei der Sollzustand. Jeder Sync sendet ihn
-// vollstaendig. Handeinstellungen in der ElevenLabs-Oberflaeche halten damit
-// nicht mehr -- das ist die beabsichtigte Wirkung, nicht ein Nebeneffekt.
-// Kundenspezifisch bleiben genau die Felder in CUSTOMER_SPECIFIC_PATHS.
+// Fuer bestehende Agenten ist diese Datei folgenlos. Fuer JEDEN NEU ANGELEGTEN
+// Kunden ist sie der Startzustand -- und sie trug bis zum 11.08. die Werte von
+// VOR der Abstimmung vom 10.08. Ein neuer Pilot waere mit Turn V2, laufendem
+// Denkbudget, Audio-Tags und aktiver Wartefloskel gestartet.
+//
+// ── Herkunft der Werte: [A] und [B] ──────────────────────────────────────────
+//
+//   [A] ABGESTIMMT. Am 10.08. in der Oberflaeche eingestellt, gegen Testanrufe
+//       geprueft, am 11.08. nach dem Sync bestaetigt. Das sind Entscheidungen.
+//       Wer sie aendert, aendert ein Ergebnis -- und braucht einen Grund.
+//
+//   [B] VORGEFUNDEN. Am 11.08. am laufenden Agenten gemessen, aber von niemandem
+//       bewusst gesetzt. Das sind Messwerte, keine Entscheidungen. Sie stehen
+//       hier, damit ein neuer Agent dem bestehenden gleicht -- nicht, weil sie
+//       geprueft waeren.
+//
+// Die Unterscheidung ist der Punkt: Ohne sie wird in drei Monaten ein Messwert
+// fuer eine Entscheidung gehalten und mit derselben Ehrfurcht behandelt.
+//
+// Nicht markierte Felder sind [B].
+//
+// ── Bewusst NICHT Read-Modify-Write ──────────────────────────────────────────
+//
+// RMW haette den laufenden Agenten zur massgeblichen Quelle gemacht: eine
+// falsche Handeinstellung bliebe fuer immer, stuende in keinem Repository und
+// tauchte in keinem Diff auf. Beim Anlegen gilt diese Datei.
 
 // Die Aufbewahrungsdauer fuer Audio und Transkript. Lag vorher doppelt vor
 // (Provisionierung und Sync); hier ist sie einmal.
@@ -83,12 +93,12 @@ const CUSTOMER_SPECIFIC_PATHS = Object.freeze([
 ]);
 
 /**
- * Der geteilte Sollzustand. Alles hier ist anbieterunabhaengig vom Kunden --
- * zwei Kunden mit derselben Sprache und Stimme bekommen exakt diese Werte.
+ * Der Startzustand eines neu angelegten Agenten.
  *
- * Uebernommen aus AGENT_TEMPLATE in elevenlabs-provision-agent.js, damit der
- * Umstieg fuer bestehende Agenten wertidentisch ist. Wer hier etwas aendert,
- * aendert es fuer alle Agenten beim naechsten Sync.
+ * Wer hier etwas aendert, aendert es fuer alle KUENFTIGEN Agenten. Bestehende
+ * Agenten sind nicht betroffen -- der Sync sendet diese Datei nicht.
+ *
+ * Herkunft der Werte: [A] abgestimmt, [B] vorgefunden. Siehe Dateikopf.
  */
 const AGENT_DEFINITION = Object.freeze({
   conversation_config: {
@@ -99,28 +109,48 @@ const AGENT_DEFINITION = Object.freeze({
       keywords: []
     },
     turn: {
-      turn_timeout: 3,
+      // [A] Abgestimmt 10.08., am 11.08. nach dem Sync bestaetigt.
+      turn_timeout: 5,
+      // [A] Abgestimmt 10.08. In der Oberflaeche ueber "Zu Turn V3 wechseln";
+      // der API-Wert `turn_v3` stammt aus der Messung vom 11.08., nicht aus
+      // der Beschriftung.
+      turn_model: 'turn_v3',
+      // [B] Vorgefunden.
       silence_end_call_timeout: -1,
       mode: 'turn',
       turn_eagerness: 'eager',
       spelling_patience: 'auto',
       speculative_turn: true,
       retranscribe_on_turn_timeout: false,
-      turn_model: 'turn_v2',
+      // [A] Abgestimmt 10.08. -- und der lehrreichste der fuenf Werte.
+      //
+      // Ausgeschaltet, weil "Einen Moment" vor jeder Antwort kam. Die
+      // Aenderung war richtig, aber die Ursache lag woanders: Die Latenz kam
+      // vom dynamisch rechnenden Denkbudget. Die Wartefloskel hat das
+      // Latenzproblem KASCHIERT, nicht geloest -- sie war das Pflaster, das
+      // erklaerte, warum es weh tut.
+      //
+      // Deshalb bleibt sie aus, auch nachdem das Denkbudget aus ist. Wer sie
+      // wieder einschaltet, sollte das tun, weil eine gemessene Latenz es
+      // rechtfertigt, nicht weil das Feld leer aussieht.
+      //
+      // "Aus" heisst `timeout_seconds: -1` (Messung 11.08.) -- das Objekt
+      // bleibt bestehen, der Text ebenfalls, nur die Schwelle ist abgeschaltet.
       soft_timeout_config: {
-        timeout_seconds: 3,
+        timeout_seconds: -1,
         message: 'Einen Moment',
         use_llm_generated_message: false  // Statisch — nie LLM-generiert
       }
     },
     tts: {
+      // [B] Vorgefunden.
       model_id: 'eleven_v3_conversational',
-      expressive_mode: true,
-      suggested_audio_tags: [
-        { tag: 'Geduldig',   description: '' },
-        { tag: 'Einfühlsam', description: '' },
-        { tag: 'Herzlich',   description: '' }
-      ],
+      // [A] Abgestimmt 10.08. Die Tags erschienen als `[happy]` im Transkript;
+      // nach dem Entfernen nicht mehr. Der expressive Modus ist aus -- die
+      // Tags haengen daran und sind in der Oberflaeche seither nicht mehr
+      // sichtbar.
+      expressive_mode: false,
+      suggested_audio_tags: [],
       agent_output_audio_format: 'pcm_16000',
       optimize_streaming_latency: 3,
       stability: 0.5,
@@ -137,9 +167,14 @@ const AGENT_DEFINITION = Object.freeze({
     agent: {
       disable_first_message_interruptions: false,
       prompt: {
-        // Genau die sieben Felder, die #932 verloren gingen.
+        // [A] Abgestimmt 10.08. "Aus" heisst `0` -- Messung vom 11.08., kein
+        // `null` und kein Weglassen. Das dynamisch rechnende Denkbudget war
+        // die Ursache der Latenzstreuung (756 ms / 1,8 s / 8,9 s im selben
+        // Gespraech) und damit auch der Grund fuer die Wartefloskel oben.
+        thinking_budget: 0,
+        // [B] Vorgefunden -- alle fuenf am 11.08. am laufenden Agenten
+        // gemessen, keine Entscheidung von uns.
         llm: 'gemini-2.5-flash',
-        thinking_budget: 1024,
         temperature: 0.19,
         max_tokens: 1200,
         timezone: 'Europe/Zurich',
