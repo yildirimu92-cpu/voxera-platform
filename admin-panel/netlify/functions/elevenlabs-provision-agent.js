@@ -1,132 +1,25 @@
 // elevenlabs-provision-agent.js v2
-// Erstellt neuen ElevenLabs Agent aus Template + kundenspezifischem Prompt
+// Erstellt neuen ElevenLabs Agent aus dem geteilten Sollzustand + kundenspezifischem Prompt
 // Wird aufgerufen wenn ein neuer Kunde onboardet wird
 
 const { createClient } = require('@supabase/supabase-js');
 const { requireAdminCaller } = require('./_lib/require-admin');
+// #932: Das frueher hier stehende AGENT_TEMPLATE liegt jetzt in
+// _lib/elevenlabs-agent-config.js und wird vom Sync mitbenutzt. Vorher
+// beschrieben zwei Dateien denselben Agenten -- die Provisionierung
+// vollstaendig, der Sync nur ausschnittsweise -- und der Ausschnitt gewann,
+// weil er oefter laeuft. Der Sollzustand hat jetzt genau eine Quelle.
+const { buildAgentConfig, DEFAULT_VOICE_ID } = require('./_lib/elevenlabs-agent-config');
 
 const ELEVENLABS_API_KEY  = process.env.ELEVENLABS_API_KEY;
 const SUPABASE_URL        = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const SUPABASE_ANON_KEY    = process.env.SUPABASE_ANON_KEY;
 const ELEVENLABS_BASE     = 'https://api.elevenlabs.io/v1/convai/agents';
-const AUDIO_TRANSCRIPT_RETENTION_DAYS = 90;
 
-// ── Agent-Template (identisch mit konfiguriertem Yildirim-Agent, ohne Kundendaten) ──
-const AGENT_TEMPLATE = {
-  conversation_config: {
-    asr: {
-      quality: 'high',
-      provider: 'scribe_realtime',
-      user_input_audio_format: 'pcm_16000',
-      keywords: []
-    },
-    turn: {
-      turn_timeout: 3,
-      silence_end_call_timeout: -1,
-      mode: 'turn',
-      turn_eagerness: 'eager',
-      spelling_patience: 'auto',
-      speculative_turn: true,
-      retranscribe_on_turn_timeout: false,
-      turn_model: 'turn_v2',
-      soft_timeout_config: {
-        timeout_seconds: 3,
-        message: 'Einen Moment',
-        use_llm_generated_message: false  // Statisch — nie LLM-generiert
-      }
-    },
-    tts: {
-      model_id: 'eleven_v3_conversational',
-      voice_id: '1iF3vHdwHKuVKSPDK23Z',  // Lara (Default) — wird nach Sync überschrieben
-      expressive_mode: true,
-      suggested_audio_tags: [
-        { tag: 'Geduldig',   description: '' },
-        { tag: 'Einfühlsam', description: '' },
-        { tag: 'Herzlich',   description: '' }
-      ],
-      agent_output_audio_format: 'pcm_16000',
-      optimize_streaming_latency: 3,
-      stability: 0.5,
-      speed: 1,
-      similarity_boost: 0.8,
-      text_normalisation_type: 'system_prompt'
-    },
-    conversation: {
-      text_only: false,
-      max_duration_seconds: 600,
-      client_events: ['audio','interruption','user_transcript','agent_response','agent_response_correction']
-    },
-    vad: { background_voice_detection: false },
-    agent: {
-      language: 'de',
-      disable_first_message_interruptions: false,
-      prompt: {
-        llm: 'gemini-2.5-flash',
-        thinking_budget: 1024,
-        temperature: 0.19,
-        max_tokens: 1200,
-        timezone: 'Europe/Zurich',
-        backup_llm_config: { preference: 'default' },
-        cascade_timeout_seconds: 8
-      }
-    }
-  },
-  platform_settings: {
-    data_collection: {
-      caller_name: {
-        type: 'string',
-        description: 'Der vollständige Name der anrufenden Person, exakt wie sie sich selbst vorgestellt hat. Format: "Vorname Nachname". Nur eintragen wenn die Person ihren Namen explizit genannt hat. Niemals raten. Trage NIEMALS den Namen des Assistenten ein.'
-      },
-      caller_company: {
-        type: 'string',
-        description: 'Die Firma der anrufenden Person. Nur eintragen wenn explizit genannt. Trage NIEMALS die Firma des Assistenten ein.'
-      },
-      caller_email: {
-        type: 'string',
-        description: 'E-Mail-Adresse die der Anrufer mündlich angegeben hat. Nur eintragen wenn klar buchstabiert. Bei Unsicherheit leer lassen.'
-      },
-      call_summary: {
-        type: 'string',
-        description: 'Sachliche Zusammenfassung in 2-3 Sätzen auf Deutsch. IMMER auf Deutsch. Beginne mit dem Anliegen. Keine Floskeln.'
-      },
-      call_summary_short: {
-        type: 'string',
-        description: 'Kernanliegen in einem Satz auf Deutsch, max. 80 Zeichen. IMMER auf Deutsch. Keine Namen, keine Zeiten.'
-      },
-      callback_requested: {
-        type: 'boolean',
-        description: 'true wenn Anrufer Rückruf wünscht oder zugestimmt hat. false wenn kein Rückruf. Im Zweifel false.'
-      },
-      callback_time: {
-        type: 'string',
-        description: 'Gewünschter Rückruf-Zeitpunkt auf Deutsch. Leer wenn kein Zeitpunkt genannt.'
-      },
-      category: {
-        type: 'string',
-        description: 'Kategorie des Anliegens. Wähle einen der Enum-Werte.',
-        enum: ['rueckrufanfrage','terminanfrage','informationsanfrage','offertenanfrage','beschwerde','aenderung_kuendigung','notfall','sonstiges']
-      },
-      lead_quality: {
-        type: 'string',
-        description: 'Geschäftspotenzial: hot = konkrete Handlungsabsicht. warm = allgemeines Interesse. cold = kein Geschäftsbezug. Im Zweifel warm.'
-      },
-      urgency: {
-        type: 'string',
-        description: 'Dringlichkeit: hoch / mittel / niedrig. Nur aus Anrufer-Aussagen ableiten.'
-      },
-      next_action: {
-        type: 'string',
-        description: 'Nächste konkrete Aktion auf Deutsch. "Keine Aktion nötig" wenn nichts zu tun.'
-      }
-    },
-    summary_language: 'de',
-    auth: { enable_auth: true, allowlist: [], require_origin_header: false },
-    call_limits: { agent_concurrency_limit: 10, daily_limit: 500, bursting_enabled: true },
-    privacy: { record_voice: true, retention_days: AUDIO_TRANSCRIPT_RETENTION_DAYS, zero_retention_mode: false },
-    analysis_llm: 'gemini-2.5-flash'
-  }
-};
+// Der Prompt kommt unmittelbar danach ueber trigger-elevenlabs-sync; bis dahin
+// steht dieser Platzhalter im Agenten.
+const PLACEHOLDER_PROMPT = '(Wird nach Erstellung durch trigger-elevenlabs-sync befüllt)';
 
 exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') {
@@ -188,15 +81,20 @@ exports.handler = async (event) => {
   const greeting      = customer.ai_greeting || buildDefaultGreeting(assistantName, displayName, language);
 
   // 5. Voice-ID aus Plan bestimmen
-  const voiceId = customer.voice_id || '1iF3vHdwHKuVKSPDK23Z'; // Default: Lara
+  const voiceId = customer.voice_id || DEFAULT_VOICE_ID; // Default: Lara
 
-  // 6. Template zusammenbauen
-  const agentPayload = JSON.parse(JSON.stringify(AGENT_TEMPLATE)); // Deep clone
+  // 6. Sollzustand zusammenbauen — dieselbe Funktion, die auch jeder Sync
+  //    benutzt. Genau deshalb kann ein Sync den Agenten nicht mehr in einen
+  //    Zustand bringen, den die Provisionierung nie erzeugt haette (#932).
+  //    `tool_ids` bleibt hier weg: der Kalender wird erst vom nachgelagerten
+  //    Sync provisioniert, und ein leeres Array waere die Aussage "keine
+  //    Werkzeuge" statt "noch nicht bekannt".
+  const agentPayload = buildAgentConfig({
+    customer,
+    prompt: PLACEHOLDER_PROMPT,
+    firstMessage: greeting
+  });
   agentPayload.name = agentName;
-  agentPayload.conversation_config.agent.first_message = greeting;
-  agentPayload.conversation_config.agent.language = language;
-  agentPayload.conversation_config.agent.prompt.prompt = '(Wird nach Erstellung durch trigger-elevenlabs-sync befüllt)';
-  agentPayload.conversation_config.tts.voice_id = voiceId;
 
   // 7. Agent erstellen
   let agentId = null;

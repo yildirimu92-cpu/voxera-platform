@@ -15,6 +15,7 @@ const paths = {
   adminSyncCore: new URL('../admin-panel/netlify/functions/_lib/elevenlabs-sync.js', import.meta.url),
   adminPromptSyncGuard: new URL('../admin-panel/netlify/functions/_lib/require-prompt-sync-caller.js', import.meta.url),
   adminProvision: new URL('../admin-panel/netlify/functions/elevenlabs-provision-agent.js', import.meta.url),
+  adminAgentConfig: new URL('../admin-panel/netlify/functions/_lib/elevenlabs-agent-config.js', import.meta.url),
   adminAiApply: new URL('../admin-panel/netlify/functions/ai-apply-change.js', import.meta.url),
   adminScrape: new URL('../admin-panel/netlify/functions/scrape-website.js', import.meta.url),
   customerDuplicateAiApply: new URL('../customer-dashboard/netlify/functions/ai-apply-change.js', import.meta.url),
@@ -35,6 +36,7 @@ const [
   adminSyncCore,
   adminPromptSyncGuard,
   adminProvision,
+  adminAgentConfig,
   adminAiApply,
   adminScrape,
   customerDuplicateAiApply,
@@ -79,8 +81,15 @@ const checks = [
   ['admin privileged calls use authenticated helper', ['elevenlabs-provision-agent', 'trigger-elevenlabs-sync', 'ai-apply-change', 'scrape-website'].every(name => adminIndex.includes("callAdminFunction('" + name + "'"))],
   ['admin privileged calls have no direct unauthenticated fetch', !/fetch\('\/\.netlify\/functions\/(elevenlabs-provision-agent|trigger-elevenlabs-sync|ai-apply-change|scrape-website)/.test(adminIndex)],
   ['admin workspace refresh does not reload all operational data', !/await loadDataFromSupabase\(\{ silent: true \}\)/.test(adminIndex) && /loadSyncLog\(customerId\)/.test(adminIndex)],
-  ['ElevenLabs provisioning enforces 90-day retention', /AUDIO_TRANSCRIPT_RETENTION_DAYS = 90/.test(adminProvision) && /retention_days: AUDIO_TRANSCRIPT_RETENTION_DAYS/.test(adminProvision) && !/retention_days: -1/.test(adminProvision)],
-  ['ElevenLabs sync enforces 90-day retention for existing agents', /AUDIO_TRANSCRIPT_RETENTION_DAYS = 90/.test(adminSyncCore) && /retention_days: AUDIO_TRANSCRIPT_RETENTION_DAYS/.test(adminSyncCore) && !/retention_days: -1/.test(adminSyncCore)],
+  // #932: Die Aufbewahrungsdauer stand frueher als eigene Konstante in BEIDEN
+  // Dateien. Seit der Sollzustand geteilt ist, steht sie einmal in
+  // _lib/elevenlabs-agent-config.js -- und beide Schreibpfade holen sie von
+  // dort. Die Invariante ist damit strenger als vorher: vorher konnten die
+  // beiden Werte auseinanderlaufen, ohne dass es auffiel. Geprueft wird
+  // deshalb dreifach: der Wert an seiner einen Quelle, dass der jeweilige
+  // Pfad diese Quelle auch benutzt, und dass nirgends -1 (unbegrenzt) steht.
+  ['ElevenLabs provisioning enforces 90-day retention', /AUDIO_TRANSCRIPT_RETENTION_DAYS = 90/.test(adminAgentConfig) && /retention_days: AUDIO_TRANSCRIPT_RETENTION_DAYS/.test(adminAgentConfig) && !/retention_days: -1/.test(adminAgentConfig) && /require\('\.\/_lib\/elevenlabs-agent-config'\)/.test(adminProvision) && /buildAgentConfig\(/.test(adminProvision) && !/retention_days: -1/.test(adminProvision)],
+  ['ElevenLabs sync enforces 90-day retention for existing agents', /AUDIO_TRANSCRIPT_RETENTION_DAYS = 90/.test(adminAgentConfig) && /retention_days: AUDIO_TRANSCRIPT_RETENTION_DAYS/.test(adminAgentConfig) && !/retention_days: -1/.test(adminAgentConfig) && /require\('\.\/elevenlabs-agent-config'\)/.test(adminSyncCore) && /buildAgentConfig\(/.test(adminSyncCore) && !/retention_days: -1/.test(adminSyncCore)],
   ['database retention separates raw and operational call data', /TRANSCRIPT_RETENTION_DAYS = 90/.test(retentionJob) && /CALL_RECORD_RETENTION_DAYS = 180/.test(retentionJob) && /transcript: null/.test(retentionJob) && /transcript_json: null/.test(retentionJob) && /elevenlabs_conversation_id: null/.test(retentionJob) && /\.delete\(\)/.test(retentionJob)],
   ['database retention is gated and scheduled daily', /DATA_RETENTION_ENFORCEMENT_ENABLED !== 'true'/.test(retentionJob) && /\[functions\."enforce-data-retention"\]/.test(customerNetlify) && /schedule = "17 3 \* \* \*"/.test(customerNetlify)],
   ['customer retention messaging distinguishes 90 and 180 days', /vollständige Transkripte werden nach\s*<strong>\s*90 Tagen\s*<\/strong>/.test(dashboard) && /Archiveinträge nach\s*<strong>\s*180 Tagen\s*<\/strong>/.test(dashboard)],

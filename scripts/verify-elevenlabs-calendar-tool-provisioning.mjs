@@ -60,10 +60,29 @@ for (const token of [
   'findWorkspaceToolId()',
   'calendarPromptBlock(inputs.calendarSettings || {}, appointmentMode)',
   'compiled.appointmentMode',
-  'promptPatch.tool_ids = toolIds',
+  // #932: Frueher setzte der Sync `promptPatch.tool_ids = toolIds` von Hand.
+  // Seit der Sollzustand geteilt ist, reicht er `toolIds` an buildAgentConfig()
+  // durch, das sie an conversation_config.agent.prompt.tool_ids setzt.
+  'toolIds',
   'calendar_tool_status'
 ]) {
   if (!syncPath.includes(token)) failures.push('Prompt sync integration missing: ' + token);
+}
+
+// #932: Der Rollback-Pfad musste hier dazu. Er sendete vorher nur den Prompt --
+// und da ElevenLabs `agent.prompt` ersetzt statt zusammenzufuehren, nahm ein
+// Rollback dem Agenten damit sein Kalenderwerkzeug. Das ist derselbe Befund wie
+// beim Sync, nur an der Stelle, die im Fehlerfall laeuft.
+const restoreBody = syncPath.slice(syncPath.indexOf('async function restoreAgentPrompt'));
+for (const token of [
+  'calendarToolProvisioningConfigured()',
+  // #930: Auch der Rollback haengt am Terminmodus -- er darf keine
+  // Direktbuchung wiederherstellen, die der Kunde abgewaehlt hat.
+  "const attach = customer.ai_appointment_mode === 'direct';",
+  'agentToolIds(agentId, calendarToolId, { attach })',
+  'buildAgentConfig({ customer, prompt, toolIds })'
+]) {
+  if (!restoreBody.includes(token)) failures.push('Rollback calendar tool handling missing: ' + token);
 }
 
 for (const token of [

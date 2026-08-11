@@ -6242,9 +6242,14 @@ function renderCustomerWorkspace(id) {
   if (g('cw-ai-status')) {
     var syncOk = cu.elevenlabs_sync_status === 'success';
     var syncErr = cu.elevenlabs_sync_status === 'error';
-    g('cw-ai-status').textContent = syncOk ? 'Sync OK' : syncErr ? 'Sync Fehler' : '—';
-    g('cw-ai-status').style.background = syncOk ? 'rgba(52,211,153,.2)' : syncErr ? 'rgba(220,38,38,.2)' : 'rgba(255,255,255,.1)';
-    g('cw-ai-status').style.color = syncOk ? '#34D399' : syncErr ? '#F87171' : 'rgba(255,255,255,.5)';
+    // #932: 'drift' — der Agent wurde aktualisiert, weicht aber in mindestens
+    // einem Feld vom Sollzustand ab. Ohne eigenen Zustand fiele das hier auf
+    // '—' und waere von "noch nie synchronisiert" nicht zu unterscheiden. Die
+    // Feldnamen stehen in elevenlabs_sync_log.config_drift.
+    var syncDrift = cu.elevenlabs_sync_status === 'drift';
+    g('cw-ai-status').textContent = syncOk ? 'Sync OK' : syncErr ? 'Sync Fehler' : syncDrift ? 'Sync Abweichung' : '—';
+    g('cw-ai-status').style.background = syncOk ? 'rgba(52,211,153,.2)' : syncErr ? 'rgba(220,38,38,.2)' : syncDrift ? 'rgba(245,158,11,.2)' : 'rgba(255,255,255,.1)';
+    g('cw-ai-status').style.color = syncOk ? '#34D399' : syncErr ? '#F87171' : syncDrift ? '#FBBF24' : 'rgba(255,255,255,.5)';
   }
   if (g('cw-assistant')) {
     var lastSync = cu.elevenlabs_last_sync_at
@@ -12329,7 +12334,7 @@ function openCustomerProfile(id){
         <div style="background:#fff;border:0.5px solid var(--line);border-radius:14px;overflow:hidden;flex:1;">
           <div style="background:#0D1F3C;padding:10px 16px;display:flex;justify-content:space-between;align-items:center;">
             <span style="font-size:12px;font-weight:700;color:#fff;">Assistent</span>
-            <span style="font-size:10px;background:rgba(52,211,153,.2);color:#34D399;border-radius:99px;padding:2px 8px;font-weight:600;">${c.elevenlabs_sync_status==='success'?'Sync OK':c.elevenlabs_sync_status==='error'?'Sync Fehler':'—'}</span>
+            <span style="font-size:10px;background:rgba(52,211,153,.2);color:#34D399;border-radius:99px;padding:2px 8px;font-weight:600;">${c.elevenlabs_sync_status==='success'?'Sync OK':c.elevenlabs_sync_status==='error'?'Sync Fehler':c.elevenlabs_sync_status==='drift'?'Sync Abweichung':'—'}</span>
           </div>
           <div style="padding:12px 16px;display:grid;grid-template-columns:1fr 1fr;gap:8px;">
             <div><div style="font-size:10px;color:#64748B;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;">Name</div><div style="font-size:13px;font-weight:600;color:#0D1F3C;">${esc(c.assistant_name||'Lara')}</div></div>
@@ -16516,21 +16521,26 @@ async function loadSyncLog(customerId) {
         hour:'2-digit', minute:'2-digit'
       });
       const isOk = r.status === 'success';
+      // #932: 'drift' — Agent erreicht, weicht aber in mindestens einem Feld
+      // vom Sollzustand ab. Ohne eigenen Zweig stuende die Zeile hier mit ❌
+      // als "Fehler" da, obwohl der Sync durchging. Die Feldnamen kommen im
+      // Klartext aus error_message und werden unten ohnehin ausgegeben.
+      const isDrift = r.status === 'drift';
       const changedKeys = r.changed_fields ? Object.keys(r.changed_fields) : [];
       const changedHtml = changedKeys.length > 0
         ? `<div style="margin-top:4px;font-size:11px;color:var(--slate2);">Geändert: ${changedKeys.join(', ')}</div>`
         : '';
       const errorHtml = r.error_message
-        ? `<div style="margin-top:4px;font-size:11px;color:var(--red);">Fehler: ${esc(r.error_message)}</div>`
+        ? `<div style="margin-top:4px;font-size:11px;color:var(--${isDrift?'amber':'red'});">${isDrift?'Abweichung':'Fehler'}: ${esc(r.error_message)}</div>`
         : '';
       const promptBtn = `<button onclick="showPromptSnapshot('${r.id}')" class="btn btn-quiet btn-sm" style="font-size:10px;margin-top:6px;">Prompt anzeigen</button>`;
 
       return `<div style="padding:10px 0;border-bottom:1px solid var(--line);" id="sync-log-${r.id}">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
           <div style="display:flex;align-items:center;gap:8px;">
-            <span style="font-size:13px;">${isOk ? '✅' : '❌'}</span>
+            <span style="font-size:13px;">${isOk ? '✅' : (isDrift ? '⚠️' : '❌')}</span>
             <span style="font-size:12px;font-weight:600;color:var(--text1);">${date}</span>
-            <span class="badge badge-${isOk?'green':'red'}" style="font-size:10px;">${isOk?'Erfolg':'Fehler'}</span>
+            <span class="badge badge-${isOk?'green':(isDrift?'amber':'red')}" style="font-size:10px;">${isOk?'Erfolg':(isDrift?'Abweichung':'Fehler')}</span>
           </div>
           <div style="display:flex;align-items:center;gap:6px;">
             <span style="font-size:11px;color:var(--slate2);">${triggerMap[r.triggered_by]||r.triggered_by}</span>

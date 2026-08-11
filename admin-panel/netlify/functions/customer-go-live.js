@@ -79,6 +79,15 @@ async function loadCustomerContext(sbAdmin, customerId) {
     sbAdmin.from('contracts').select('id, status, updated_at').eq('customer_id', customerId).order('updated_at', { ascending: false }).limit(50),
     sbAdmin.from('offers').select('id, status, accepted_at, contract_id, updated_at').eq('customer_id', customerId).order('updated_at', { ascending: false }).limit(50),
     sbAdmin.from('elevenlabs_sync_log')
+      // #932: `config_drift` steht hier bewusst NICHT drin. PostgREST weist
+      // eine Auswahl mit unbekannter Spalte komplett zurueck -- ein Deploy vor
+      // der Migration liesse `loadCustomerContext()` mit 'Sync lookup failed'
+      // werfen und damit jeden Go-Live scheitern. Die Stufenleiter beim
+      // Log-Insert schuetzt nur den Schreibpfad, nicht diesen Lesepfad.
+      //
+      // Die Feldnamen der Abweichung gehen dabei nicht verloren: sie stehen im
+      // Klartext in `error_message` und werden ueber `latest_log_error` bereits
+      // ausgeliefert, und `latest_log_status` traegt 'drift'.
       .select('id, agent_id, status, triggered_by, prompt_length, error_message, created_at')
       .eq('customer_id', customerId)
       .order('created_at', { ascending: false })
@@ -123,12 +132,48 @@ function syncEvidence(context) {
   const latestStatus = textValue(latest?.status).toLowerCase();
   const latestAgentId = textValue(latest?.agent_id);
   const agentMatches = Boolean(currentAgentId && latestAgentId && currentAgentId === latestAgentId);
+  // #932: 'drift' bedeutet "Agent aktualisiert, weicht aber in mindestens einem
+  // Feld vom Sollzustand ab". Das zaehlt hier weiterhin als Sync-Beleg -- ein
+  // Agent, der laeuft und einen Prompt hat, ist startbereit.
+  //
+  // Bewusst nicht als Startsperre: die Rueckleseprüfung ist neu und gegen die
+  // Anbieter-API noch nicht im Betrieb gemessen. Wuerde eine Normalisierung auf
+  // Anbieterseite (etwa ein Gleitkommawert, der anders zurueckkommt, als er
+  // gesendet wurde) faelschlich als Abweichung gelten, blockierte das
+  // Kundenstarts -- ein teurer Fehlschlag fuer einen Vergleich, der sich erst
+  // noch bewaehren muss. Die Abweichung ist ueber `latest_config_drift` sichtbar
+  // und steht im Sync-Log.
+  //
+  // ── Wann wird umgeschaltet ───────────────────────────────────────────────────
+  //
+  // Ein "spaeter mal" bleibt fuer immer aus, deshalb hier die Bedingung, an der
+  // es zu entscheiden ist. Umgeschaltet wird, sobald ueber mindestens vier
+  // Wochen produktiven Betriebs JEDE aufgetretene Abweichung eine echte war --
+  // also keine, bei der Soll- und Ist-Wert dasselbe bedeuten und sich nur in der
+  // Darstellung unterscheiden.
+  //
+  //   select created_at, customer_id, status,
+  //          jsonb_array_elements(config_drift->'deviations') as deviation
+  //     from public.elevenlabs_sync_log
+  //    where config_drift is not null
+  //      and config_drift->'deviations' <> '[]'::jsonb
+  //    order by created_at desc;
+  //
+  // Ergibt das ueber den Zeitraum keine Zeile, deren `expected` und `actual`
+  // denselben Wert in anderer Schreibweise zeigen, ist der Vergleich
+  // treffsicher: dann 'drift' aus SYNC_REACHED_AGENT entfernen -- eine Zeile --
+  // und der Start ist gesperrt, solange ein Agent vom Sollzustand abweicht.
+  //
+  // Taucht stattdessen eine solche Zeile auf, gehoert der Fall in
+  // valuesMatch() in _lib/elevenlabs-agent-config.js, nicht in eine Ausnahme
+  // hier.
+  const SYNC_REACHED_AGENT = new Set(['success', 'drift']);
   const success = Boolean(
     currentAgentId &&
-    customerStatus === 'success' &&
+    SYNC_REACHED_AGENT.has(customerStatus) &&
     customerLastSync &&
     latest &&
-    latestStatus === 'success' &&
+    SYNC_REACHED_AGENT.has(latestStatus) &&
     agentMatches
   );
 
@@ -142,6 +187,9 @@ function syncEvidence(context) {
     latest_log_agent_id: latestAgentId || null,
     latest_log_error: latest?.error_message || null,
     latest_prompt_length: latest?.prompt_length ?? null,
+    // #932: Kein eigenes Abweichungsfeld -- siehe die Auswahl oben. Der
+    // Startdialog erkennt eine Abweichung an `latest_log_status === 'drift'`
+    // und findet die Feldnamen in `latest_log_error`.
     agent_matches: agentMatches
   };
 }
