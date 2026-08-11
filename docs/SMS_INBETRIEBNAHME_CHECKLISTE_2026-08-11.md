@@ -16,6 +16,14 @@ Drei Sperren, alle bewusst:
 
 Der Deploy dieses Standes ändert für keinen Bestandskunden etwas. Das ist Absicht: Der Kanal geht bewusst nicht mit dem Merge live, sondern mit einer Entscheidung.
 
+### Reihenfolge von Code und Migration
+
+Nach der Merge-Regel in `AGENTS.md` gilt hier **Option 2: der Code funktioniert ohne die Migration.**
+
+Fehlt `customer_notification_recipients`, behandelt `ladeTeamEmpfaenger()` das wie „keine Empfänger" — mit einem `sms_empfaengertabelle_fehlt`-Protokolleintrag, ohne Absturz, und ohne den Anrufer-Versand mitzureissen. Die Anrufer-Bestätigung wird in diesem Fall unterdrückt, weil das Team nichts erhalten hat.
+
+Code und Migration dürfen also in beliebiger Reihenfolge ausgerollt werden. Der Zwischenzustand ist beschrieben und getestet, nicht bloss unwahrscheinlich.
+
 ---
 
 ## Vor der Scharfschaltung

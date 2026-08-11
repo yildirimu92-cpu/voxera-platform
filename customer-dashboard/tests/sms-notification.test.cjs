@@ -273,36 +273,61 @@ test('Erfolg liefert die Twilio-SID zurueck', async () => {
  * Minimaler Supabase-Ersatz. Deckt genau die Aufrufketten ab, die call-sms.js
  * und sms-delivery.js benutzen.
  */
-function fakeSb({ customer, addons = [], empfaenger = [] }) {
-  const outbox = [];
+function fakeSb({ customer, addons = [], empfaenger = [], empfaengerError = null, outbox = [] }) {
+  const updates = [];
+
   const bauKette = (tabelle) => {
+    const f = { eqs: {}, neu: null, kollision: false };
     const kette = {
       _tabelle: tabelle,
       select() { return kette; },
-      eq() { return kette; },
+      eq(spalte, wert) { f.eqs[spalte] = wert; return kette; },
       order() { return kette; },
       limit() { return kette; },
-      maybeSingle: async () => {
-        if (tabelle === 'customers') return { data: customer, error: null };
-        if (tabelle === 'outbox_events') return { data: outbox[outbox.length - 1] || null, error: null };
-        return { data: null, error: null };
-      },
-      single: async () => ({ data: outbox[outbox.length - 1], error: null }),
+
       insert(row) {
-        const zeile = { id: `ob_${outbox.length + 1}`, retry_count: 0, ...row };
-        outbox.push(zeile);
+        // Der Unique-Index uq_outbox_events_type_dedupe_key existiert seit
+        // 20260809142631 in Produktion. Zwei Zeilen mit demselben
+        // (event_type, dedupe_key) kollidieren -- genau das passiert, wenn
+        // Tool-Call- und Post-Call-Pfad denselben Anruf verarbeiten.
+        const vorhanden = outbox.find(z =>
+          z.dedupe_key && z.dedupe_key === row.dedupe_key && z.event_type === row.event_type);
+        if (vorhanden) f.kollision = true;
+        else {
+          f.neu = { id: `ob_${outbox.length + 1}`, retry_count: 0, status: 'pending', ...row };
+          outbox.push(f.neu);
+        }
         return kette;
       },
-      update() { return kette; },
+
+      update(payload) { updates.push({ tabelle, payload, filter: f }); return kette; },
+
+      single: async () => f.kollision
+        ? { data: null, error: { code: '23505', message: 'duplicate key value violates unique constraint' } }
+        : { data: f.neu, error: null },
+
+      maybeSingle: async () => {
+        if (tabelle === 'customers') return { data: customer, error: null };
+        if (tabelle === 'outbox_events') {
+          if (f.eqs.dedupe_key) return { data: outbox.find(z => z.dedupe_key === f.eqs.dedupe_key) || null, error: null };
+          if (f.eqs.id) return { data: outbox.find(z => z.id === f.eqs.id) || null, error: null };
+          return { data: null, error: null };
+        }
+        return { data: null, error: null };
+      },
+
       then(resolve) {
         if (tabelle === 'customer_addons') return resolve({ data: addons, error: null });
-        if (tabelle === 'customer_notification_recipients') return resolve({ data: empfaenger, error: null });
+        if (tabelle === 'customer_notification_recipients') {
+          return resolve(empfaengerError ? { data: null, error: empfaengerError } : { data: empfaenger, error: null });
+        }
         return resolve({ data: [], error: null });
       }
     };
     return kette;
   };
-  return { from: bauKette, _outbox: outbox };
+
+  return { from: bauKette, _outbox: outbox, _updates: updates };
 }
 
 const KUNDE_VOLL = {
@@ -549,6 +574,106 @@ test('der Doppelversand-Schluessel unterscheidet Empfaenger', async () => {
 });
 
 // ───────────────────────────────────────────────────────────────────────────
+// Doppelversand, Fehlkonfiguration, fehlende Migration
+// ───────────────────────────────────────────────────────────────────────────
+
+test('ein erneut zugestellter Webhook loest keinen zweiten Versand aus', async () => {
+  // Tool-Call- und Post-Call-Pfad feuern beide fuer dasselbe Gespraech, und
+  // ElevenLabs stellt denselben Webhook bei Bedarf erneut zu. Ohne Auswertung
+  // der Outbox-Kollision bekaeme ein vierkoepfiges Team dieselbe Nachricht
+  // zweimal -- nachts, und zum doppelten Preis.
+  const geteilteOutbox = [];
+  const kunde = { ...KUNDE_VOLL, sms_caller_enabled: false };
+
+  const ersterLauf = stubFetch(() => ({ status: 201, body: { sid: 'SM1' } }));
+  const r1 = await callSms.sendCallSms(
+    fakeSb({ customer: kunde, addons: ADDONS_BEIDE, empfaenger: DREI_EMPFAENGER, outbox: geteilteOutbox }),
+    { callRowId: 'call_dup', customerId: 'cust_1', call: ANRUF });
+  assert.equal(r1.team.angenommen, 3);
+  assert.equal(ersterLauf.length, 3);
+
+  const zweiterLauf = stubFetch(() => ({ status: 201, body: { sid: 'SM2' } }));
+  const r2 = await callSms.sendCallSms(
+    fakeSb({ customer: kunde, addons: ADDONS_BEIDE, empfaenger: DREI_EMPFAENGER, outbox: geteilteOutbox }),
+    { callRowId: 'call_dup', customerId: 'cust_1', call: ANRUF });
+
+  assert.equal(zweiterLauf.length, 0, 'zweiter Lauf darf nichts an Twilio schicken');
+  assert.equal(r2.team.angenommen, 0);
+  assert.equal(r2.team.uebersprungen, 3);
+  assert.equal(geteilteOutbox.length, 3, 'keine zusaetzlichen Outbox-Zeilen');
+});
+
+test('ein permanenter Fehler kommt sofort auf "dead", nicht auf "failed"', async () => {
+  // Sonst holt der Retry-Worker die Zeile noch einmal und schickt einen
+  // weiteren Request an Twilio, bevor er selbst merkt, dass es zwecklos ist.
+  stubFetch(() => ({ status: 400, body: { code: 21614, message: 'not a mobile number' } }));
+  const sb = fakeSb({
+    customer: { ...KUNDE_VOLL, sms_caller_enabled: false },
+    addons: ADDONS_BEIDE,
+    empfaenger: [DREI_EMPFAENGER[0]]
+  });
+
+  await callSms.sendCallSms(sb, { callRowId: 'call_perm', customerId: 'cust_1', call: ANRUF });
+
+  const status = sb._updates.filter(u => u.tabelle === 'outbox_events').map(u => u.payload.status);
+  assert.ok(status.includes('dead'), `erwartet 'dead', erhalten: ${JSON.stringify(status)}`);
+  assert.ok(!status.includes('failed'), 'kein Zwischenschritt ueber failed');
+});
+
+test('leere Empfaengerliste unterdrueckt die Anrufer-Bestaetigung', async () => {
+  // Gebucht, eingeschaltet, niemand eingetragen: der Kunde glaubt sein Team
+  // abgedeckt. Der Anrufer duerfte dann keine Bestaetigung bekommen.
+  const gesendet = stubFetch(() => ({ status: 201, body: { sid: 'SM1' } }));
+  const sb = fakeSb({ customer: KUNDE_VOLL, addons: ADDONS_BEIDE, empfaenger: [] });
+
+  const r = await callSms.sendCallSms(sb, { callRowId: 'call_leer', customerId: 'cust_1', call: ANRUF });
+
+  assert.equal(r.team.versucht, 0);
+  assert.equal(r.anrufer.versucht, false);
+  assert.equal(r.anrufer.uebersprungen, true);
+  assert.equal(r.anrufer.reason, 'team_ohne_empfaenger');
+  assert.equal(gesendet.length, 0);
+});
+
+test('fehlende Empfaengertabelle bricht den Pfad nicht ab', async () => {
+  // AGENTS.md: Code und Migration duerfen nicht getrennt gemergt werden --
+  // hier gilt die zweite Option, der Code kommt ohne die Migration aus.
+  const gesendet = stubFetch(() => ({ status: 201, body: { sid: 'SM1' } }));
+  const sb = fakeSb({
+    customer: KUNDE_VOLL,
+    addons: ADDONS_BEIDE,
+    empfaengerError: { code: '42P01', message: 'relation "customer_notification_recipients" does not exist' }
+  });
+
+  const r = await callSms.sendCallSms(sb, { callRowId: 'call_migr', customerId: 'cust_1', call: ANRUF });
+
+  assert.equal(r.error, null, 'kein Absturz');
+  assert.equal(r.team.versucht, 0);
+  assert.equal(r.anrufer.uebersprungen, true);
+  assert.equal(r.anrufer.reason, 'team_tabelle_fehlt');
+  assert.equal(gesendet.length, 0);
+});
+
+test('bei nicht gebuchtem Team-SMS geht die Anrufer-Bestaetigung trotzdem raus', async () => {
+  // Der Unterschied zum Fall darueber: Der Team-Kanal ist gar nicht
+  // eingeschaltet, benachrichtigt wurde per E-Mail. Kein Fehlschlag -- die
+  // Nachricht traegt nur die schwaechere Aussage.
+  const gesendet = stubFetch(() => ({ status: 201, body: { sid: 'SM1' } }));
+  const sb = fakeSb({
+    customer: { ...KUNDE_VOLL, sms_notify_enabled: false },
+    addons: [{ addon_code: 'sms_endkunde', status: 'active', active: true, valid_until: null }],
+    empfaenger: []
+  });
+
+  const r = await callSms.sendCallSms(sb, { callRowId: 'call_nurendk', customerId: 'cust_1', call: ANRUF });
+
+  assert.equal(r.anrufer.angenommen, true);
+  assert.equal(gesendet.length, 1);
+  assert.doesNotMatch(gesendet[0].body, /Team ist informiert/);
+  assert.match(gesendet[0].body, /aufgenommen/);
+});
+
+// ───────────────────────────────────────────────────────────────────────────
 // Die beiden Kopien duerfen nicht auseinanderlaufen
 // ───────────────────────────────────────────────────────────────────────────
 
@@ -559,6 +684,24 @@ test('sms-transport.js ist in beiden Funktionsverzeichnissen identisch', () => {
     'utf8'
   );
   assert.equal(a, b, 'Die Kopien sind auseinandergelaufen. Beide Dateien gleich halten.');
+});
+
+test('die Migration definiert set_updated_at, bevor sie den Trigger anlegt', () => {
+  // Die Funktion existiert in Produktion, ist aber in keiner Migrationsdatei
+  // definiert -- sie wurde seinerzeit direkt auf der Datenbank angelegt. Eine
+  // frisch aus den Migrationen aufgebaute Umgebung braeuchte sie hier, sonst
+  // bricht CREATE TRIGGER ab und rollt die Tabelle zurueck.
+  const sql = fs.readFileSync(
+    path.join(__dirname, '..', '..', 'supabase', 'migrations', '20260811210000_sms_notification_recipients.sql'),
+    'utf8'
+  );
+  const iDefinition = sql.indexOf('create function public.set_updated_at');
+  const iTrigger = sql.indexOf('create trigger trg_customer_notification_recipients_updated_at');
+  assert.ok(iDefinition > -1, 'set_updated_at wird nicht nachgetragen');
+  assert.ok(iTrigger > -1);
+  assert.ok(iDefinition < iTrigger, 'die Definition muss vor dem Trigger stehen');
+  assert.doesNotMatch(sql, /create or replace function public\.set_updated_at/,
+    'die bestehende Funktion darf nicht ersetzt werden -- an ihr haengen sieben weitere Tabellen');
 });
 
 test('der Retry-Worker kennt beide SMS-Ereignistypen', () => {

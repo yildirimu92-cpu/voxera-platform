@@ -89,9 +89,55 @@ create index if not exists idx_customer_notification_recipients_lookup
   on public.customer_notification_recipients (customer_id, channel, sort_order)
   where active;
 
+-- set_updated_at() existiert in Produktion und Staging seit langem (sie haengt
+-- an customers, invoices, offers, subscriptions und weiteren), ist aber in
+-- KEINER Migrationsdatei dieses Repositories definiert -- sie wurde seinerzeit
+-- direkt auf der Datenbank angelegt. In einer frisch aus den Migrationen
+-- aufgebauten Umgebung bricht `create trigger ... execute function
+-- set_updated_at()` deshalb mit "function does not exist" ab und rollt diese
+-- Migration samt Tabelle zurueck.
+--
+-- Der Nachtrag steht hier und nicht in einer eigenen Migration, weil er sonst
+-- genau die Reihenfolgeabhaengigkeit erzeugt, die er beheben soll.
+--
+-- BEWUSST `if not exists` statt `create or replace`: an dieser Funktion haengen
+-- die updated_at-Trigger von customers, invoices, offers, subscriptions,
+-- onboarding, admins und voxera_cases. Sie zu ersetzen waere eine Aenderung an
+-- sieben Tabellen, versteckt in einer SMS-Migration -- auch dann, wenn der
+-- neue Rumpf identisch ist. Hier wird nur nachgetragen, was fehlt.
+--
+-- Die Produktionsdefinition wurde am 2026-08-11 gelesen und stimmt mit der
+-- untenstehenden ueberein (plpgsql behandelt `:=` und `=` als dieselbe
+-- Zuweisung):
+--
+--   BEGIN NEW.updated_at = now(); RETURN NEW; END;
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_proc p
+    join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public' and p.proname = 'set_updated_at'
+  ) then
+    create function public.set_updated_at()
+    returns trigger
+    language plpgsql
+    as $fn$
+    begin
+      new.updated_at := now();
+      return new;
+    end;
+    $fn$;
+    raise notice 'set_updated_at() nachgetragen (fehlte in dieser Umgebung).';
+  end if;
+end $$;
+
+drop trigger if exists trg_customer_notification_recipients_updated_at
+  on public.customer_notification_recipients;
+
 create trigger trg_customer_notification_recipients_updated_at
   before update on public.customer_notification_recipients
-  for each row execute function set_updated_at();
+  for each row execute function public.set_updated_at();
 
 comment on table public.customer_notification_recipients is
   'Empfaenger der Team-SMS je Kunde. Eine Zeile je Nummer, damit jeder Empfaenger '

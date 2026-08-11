@@ -123,7 +123,29 @@ async function ladeAktiveAddons(sbAdmin, customerId) {
   return new Set(aktiv.map(a => toStr(a.addon_code)));
 }
 
-/** Team-Empfaenger, in Reihenfolge, aktiv, entdoppelt. */
+/** Fehlt die Tabelle noch, weil die Migration nicht angewandt ist? */
+function istFehlendeTabelle(error) {
+  const code = String(error?.code || '');
+  const message = String(error?.message || '').toLowerCase();
+  return code === '42P01'
+    || code === 'PGRST205'
+    || (message.includes('relation') && message.includes('does not exist'))
+    || (message.includes('could not find the table'));
+}
+
+/**
+ * Team-Empfaenger, in Reihenfolge, aktiv, entdoppelt.
+ *
+ * Vertraegt eine noch nicht angewandte Migration. AGENTS.md ("Code and
+ * migration must not be merged apart") verlangt, dass entweder die Migration
+ * bereits laeuft oder der Code ohne sie funktioniert. Hier gilt der zweite
+ * Fall: Fehlt die Tabelle, gibt es keine Empfaenger -- kein Absturz, der den
+ * gesamten SMS-Pfad und damit auch die Anrufer-Bestaetigung mitreisst.
+ *
+ * `tabelleFehlt` wird zurueckgegeben statt verschluckt: Der Aufrufer behandelt
+ * "keine Empfaenger" fuer die Anrufer-Sperre gleich, soll den Unterschied aber
+ * protokollieren koennen.
+ */
 async function ladeTeamEmpfaenger(sbAdmin, customerId) {
   const { data, error } = await sbAdmin
     .from('customer_notification_recipients')
@@ -134,7 +156,17 @@ async function ladeTeamEmpfaenger(sbAdmin, customerId) {
     .order('sort_order', { ascending: true })
     .order('created_at', { ascending: true });
 
-  if (error) throw new Error(`recipients lookup failed: ${error.message}`);
+  if (error) {
+    if (istFehlendeTabelle(error)) {
+      log('warn', 'sms_empfaengertabelle_fehlt', {
+        customer_id: customerId,
+        error: error.message || String(error),
+        hinweis: 'Migration 20260811210000_sms_notification_recipients.sql nicht angewandt'
+      });
+      return { empfaenger: [], tabelleFehlt: true };
+    }
+    throw new Error(`recipients lookup failed: ${error.message}`);
+  }
 
   // Zweite Entdopplung nach Normalisierung: die Unique-Bedingung greift auf
   // der gespeicherten Schreibweise, und zwei Schreibweisen derselben Nummer
@@ -147,7 +179,7 @@ async function ladeTeamEmpfaenger(sbAdmin, customerId) {
     gesehen.add(nummer);
     empfaenger.push({ id: zeile.id, nummer, name: toStr(zeile.name) });
   }
-  return empfaenger;
+  return { empfaenger, tabelleFehlt: false };
 }
 
 // Ziel des Links in der Team-SMS.
@@ -252,10 +284,12 @@ async function sendCallSms(sbAdmin, { callRowId = null, customerId = null, call 
     const res = ergebnis();
 
     // ── Team ─────────────────────────────────────────────────────────────────
-    let teamVersuchtUeberhaupt = false;
+    let teamTabelleFehlt = false;
 
     if (teamAn) {
-      let empfaenger = await ladeTeamEmpfaenger(sbAdmin, kundeId);
+      const geladen = await ladeTeamEmpfaenger(sbAdmin, kundeId);
+      let empfaenger = geladen.empfaenger;
+      teamTabelleFehlt = geladen.tabelleFehlt;
 
       if (empfaenger.length > MAX_TEAM_EMPFAENGER) {
         log('warn', 'sms_empfaenger_gekappt', {
@@ -265,8 +299,11 @@ async function sendCallSms(sbAdmin, { callRowId = null, customerId = null, call 
         empfaenger = empfaenger.slice(0, MAX_TEAM_EMPFAENGER);
       }
 
-      if (!empfaenger.length) {
-        log('warn', 'sms_team_ohne_empfaenger', { call_row_id: callRowId, customer_id: kundeId });
+      if (!empfaenger.length && !teamTabelleFehlt) {
+        // Der Kunde hat die Erweiterung gebucht und den Schalter gesetzt, aber
+        // niemanden eingetragen. Er glaubt sein Team abgedeckt, und es ist
+        // niemand erreichbar -- deshalb 'error', nicht 'warn'.
+        log('error', 'sms_team_ohne_empfaenger', { call_row_id: callRowId, customer_id: kundeId });
       }
 
       // Zusammenfassung, Name, Kategorie und Ort werden hier NICHT uebergeben
@@ -289,7 +326,6 @@ async function sendCallSms(sbAdmin, { callRowId = null, customerId = null, call 
       }
 
       for (const e of empfaenger) {
-        teamVersuchtUeberhaupt = true;
         res.team.versucht += 1;
 
         const ergebnisEinzeln = await deliverSms(sbAdmin, {
@@ -325,18 +361,29 @@ async function sendCallSms(sbAdmin, { callRowId = null, customerId = null, call 
 
     // ── Anrufer ──────────────────────────────────────────────────────────────
     if (anruferAn) {
-      // Die Sperre aus dem Kopfkommentar: Wurde ein Team-Versand VERSUCHT und
-      // ist vollstaendig gescheitert, geht keine Bestaetigung raus.
+      // Die Sperre aus dem Kopfkommentar.
       //
-      // Wurde gar kein Team-Versand versucht (der Kunde hat die Erweiterung
-      // nicht gebucht), ist das kein Fehlschlag -- dann traegt die Nachricht
-      // nur eine schwaechere Aussage, siehe teamInformiert.
-      if (teamVersuchtUeberhaupt && res.team.angenommen === 0) {
+      // Massgeblich ist NICHT, ob ein Versand versucht wurde, sondern ob der
+      // Team-Kanal eingeschaltet ist und trotzdem niemanden erreicht hat. Die
+      // drei Wege dorthin sehen im Code verschieden aus, fuer den Anrufer sind
+      // sie identisch -- er bekaeme eine Bestaetigung, von der niemand weiss:
+      //
+      //   * alle Versuche gescheitert,
+      //   * Empfaengerliste leer (gebucht, eingeschaltet, niemand eingetragen),
+      //   * Empfaengertabelle fehlt (Migration noch nicht angewandt).
+      //
+      // Nur wenn der Team-Kanal gar nicht eingeschaltet ist, ist das kein
+      // Fehlschlag: dann wurde per E-Mail benachrichtigt, und die Nachricht
+      // traegt die schwaechere Aussage (siehe teamInformiert).
+      if (teamAn && res.team.angenommen === 0) {
+        const grund = teamTabelleFehlt ? 'team_tabelle_fehlt'
+          : res.team.versucht === 0 ? 'team_ohne_empfaenger'
+          : 'team_nicht_erreicht';
         res.anrufer.uebersprungen = true;
-        res.anrufer.reason = 'team_nicht_erreicht';
+        res.anrufer.reason = grund;
         log('error', 'sms_anrufer_unterdrueckt', {
           call_row_id: callRowId, customer_id: kundeId,
-          reason: 'team_nicht_erreicht',
+          reason: grund,
           team_versucht: res.team.versucht,
           team_fehlgeschlagen: res.team.fehlgeschlagen,
           team_uebersprungen: res.team.uebersprungen

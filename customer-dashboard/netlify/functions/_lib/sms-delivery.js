@@ -31,7 +31,7 @@
 // muss vorher die Callbacks bauen -- sonst behauptet die Anzeige wieder etwas,
 // das nicht belegt ist.
 
-const { createOutboxEvent, markOutboxSent, markOutboxFailed } = require('./webhook-outbox');
+const { createOutboxEvent, markOutboxSent, markOutboxFailed, markOutboxTerminal } = require('./webhook-outbox');
 const { normalizePhoneE164 } = require('./phone-normalize');
 const {
   sendSmsViaTwilio,
@@ -126,6 +126,32 @@ async function deliverSms(sbAdmin, {
       payloadSummary: payloadSummary || `${typ} -> ${ziel}`,
       dedupeKey: dedupeKey || null
     });
+
+    // Doppelversand-Schutz.
+    //
+    // Dieser Pfad wird oefter angestossen als jeder andere: Tool-Call und
+    // Post-Call feuern beide fuer dasselbe Gespraech, und ElevenLabs stellt
+    // denselben Webhook bei Bedarf erneut zu. Ohne diese Pruefung bekommt ein
+    // vierkoepfiges Team dieselbe Nachricht zweimal -- mitten in der Nacht,
+    // und zum doppelten Preis.
+    //
+    // uq_outbox_events_type_dedupe_key (20260809142631) macht die Kollision
+    // erkennbar: createOutboxEvent faengt die Unique-Violation ab und gibt die
+    // bestehende Zeile mit duplicate = true zurueck.
+    //
+    // Bewusst wird hier NICHT nachgesendet, wenn die bestehende Zeile auf
+    // 'failed' steht: Der Retry-Worker besitzt diese Zeile und liefert nach.
+    // Zwei Stellen, die dieselbe Zeile zustellen, waeren genau der
+    // Doppelversand, den die Sperre verhindern soll.
+    if (outbox?.duplicate) {
+      log('info', 'sms_skipped', {
+        event_type: typ, reason: 'already_queued',
+        dedupe_key: dedupeKey || null, outbox_id: outbox.id || null,
+        outbox_status: outbox.status || null, ...meta
+      });
+      return smsResult({ skipped: true, reason: 'already_queued', outbox_id: outbox.id || null });
+    }
+
     outboxId = outbox?.id || null;
   } catch (outboxError) {
     log('error', 'sms_outbox_insert_failed', { event_type: typ, error: outboxError?.message || 'outbox insert failed' });
@@ -155,7 +181,18 @@ async function deliverSms(sbAdmin, {
   }
 
   if (outboxId) {
-    await markOutboxFailed(sbAdmin, outboxId, `${antwort.error} (code ${antwort.code ?? 'n/a'})`).catch(() => {});
+    const meldung = `${antwort.error} (code ${antwort.code ?? 'n/a'})`;
+    // Ein permanenter Fehler kommt sofort auf 'dead', nicht auf 'failed'.
+    //
+    // Sonst sammelt der Retry-Worker die Zeile im naechsten Lauf wieder ein
+    // und schickt einen weiteren Request an Twilio, bevor er selbst merkt,
+    // dass der Fehler permanent ist. Eine Festnetznummer wird beim zweiten
+    // Versuch keine Mobilnummer -- der Request ist reine Verschwendung, und
+    // beim Anrufer waere er der Regelfall, nicht die Ausnahme.
+    await (antwort.permanent
+      ? markOutboxTerminal(sbAdmin, outboxId, meldung)
+      : markOutboxFailed(sbAdmin, outboxId, meldung)
+    ).catch(() => {});
   }
 
   // Ein permanenter Fehler ist keine Panne, sondern eine Eigenschaft des
