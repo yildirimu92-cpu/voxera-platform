@@ -34,8 +34,9 @@ const { promptFingerprint } = require('./prompt-fingerprint');
 // damit bei jedem Lauf `conversation_config.agent.prompt` -- die Herleitung
 // steht ausfuehrlich in elevenlabs-agent-config.js.
 const {
-  buildAgentConfig,
+  buildSyncPatch,
   compareAgentState,
+  observeAgentState,
   looksLikeAgentState
 } = require('./elevenlabs-agent-config');
 
@@ -235,6 +236,9 @@ async function syncCustomerToElevenLabs({
   let readbackSource = 'not_attempted';
   let readbackFailure = null;
   let promptLanded = false;
+  // #932-Rest: reine Beobachtung der Felder, die wir NICHT senden. Keine
+  // Zusicherung -- siehe observeAgentState().
+  let observedState = null;
 
   try {
     const inputs = await loadPromptInputs(sb, customerId, customer);
@@ -312,10 +316,15 @@ async function syncCustomerToElevenLabs({
       throw new Error('calendar_tool_provisioning_configuration_missing');
     }
 
-    // #932: der vollstaendige Sollzustand, nicht mehr ein Ausschnitt davon.
-    // `toolIds` bleibt weg, wenn die Kalender-Provisionierung nicht
-    // konfiguriert ist -- siehe buildAgentConfig().
-    const desiredState = buildAgentConfig({
+    // #932, zurueckgenommen am 11.08.: Der Sync sendet wieder den Ausschnitt,
+    // nicht den vollstaendigen Sollzustand. Die Begruendung steht ausfuehrlich
+    // in buildSyncPatch() -- kurz: die Ersetzungs-Semantik, auf der #932
+    // beruhte, ist unbelegt, und die Definition traegt Werte von vor der
+    // Abstimmung vom 10.08. Der vollstaendige Sollzustand wuerde sie
+    // zurueckstellen, ausgeloest schon durch eine Kundenaenderung.
+    //
+    // Die Rueckleseprüfung bleibt. Sie ist der Teil, der Bestand hat.
+    const desiredState = buildSyncPatch({
       customer,
       prompt: fullPrompt,
       firstMessage: compiled.firstMessage,
@@ -360,6 +369,7 @@ async function syncCustomerToElevenLabs({
       const readback = await readBackAgentState({ apiKey, agentId, patchPayload });
       readbackSource = readback.source;
       configDrift = compareAgentState(desiredState, readback.state);
+      observedState = observeAgentState(readback.state);
       promptLanded = !configDrift.some((deviation) => deviation.path === PROMPT_PATH);
     } catch (error) {
       readbackSource = 'failed';
@@ -426,8 +436,13 @@ async function syncCustomerToElevenLabs({
     // Auch eine Pruefung, die gar nicht laufen konnte, gehoert hier hin --
     // sonst ist eine ungeprueft gebliebene Zeile von einer geprueften ohne
     // Befund nicht zu unterscheiden.
-    config_drift: (configDrift.length || readbackFailure)
-      ? { source: readbackSource, deviations: configDrift, error: readbackFailure }
+    // `deviations` sind Abweichungen bei GESENDETEN Feldern -- ein Befund.
+    // `observed` ist die Messung der Felder, die wir NICHT senden -- kein
+    // Befund, sondern das Instrument, mit dem die Ersetzungs-Frage entschieden
+    // wird. Deshalb steht es hier, auch wenn es nichts zu beanstanden gibt,
+    // und deshalb loest es KEIN 'drift' aus.
+    config_drift: (configDrift.length || readbackFailure || observedState)
+      ? { source: readbackSource, deviations: configDrift, error: readbackFailure, observed: observedState }
       : null,
     created_at: new Date().toISOString()
   };
@@ -585,7 +600,7 @@ async function restoreAgentPrompt({ sb, apiKey, customerId, agentId, prompt }) {
   }
 
   // `tool_ids` auf demselben Weg wie im Sync. Ist die Kalender-Provisionierung
-  // nicht konfiguriert, bleibt das Feld weg statt leer -- buildAgentConfig()
+  // nicht konfiguriert, bleibt das Feld weg statt leer -- buildSyncPatch()
   // erklaert, warum ein leeres Array hier die falsche Aussage waere.
   //
   // #930: Ob das Kalenderwerkzeug drangehoert, entscheidet auch hier der
@@ -606,7 +621,11 @@ async function restoreAgentPrompt({ sb, apiKey, customerId, agentId, prompt }) {
     return { ok: false, error: `tool_ids_lookup_failed: ${error?.message || String(error)}` };
   }
 
-  const desiredState = buildAgentConfig({ customer, prompt, toolIds });
+  // Wie im Sync: der Ausschnitt, nicht der Sollzustand. `tool_ids` bleibt
+  // trotzdem drin -- das ist unter beiden Semantiken unschaedlich und
+  // verhindert, dass ein Rollback dem Agenten sein Kalenderwerkzeug nimmt,
+  // falls doch ersetzt wird.
+  const desiredState = buildSyncPatch({ customer, prompt, toolIds });
 
   const elRes = await fetch(`${ELEVENLABS_BASE}/${encodeURIComponent(agentId)}`, {
     method: 'PATCH',
@@ -622,6 +641,7 @@ async function restoreAgentPrompt({ sb, apiKey, customerId, agentId, prompt }) {
   let configDrift = [];
   let readbackSource = 'not_attempted';
   let readbackFailure = null;
+  let observedState = null;
   try {
     let patchPayload = null;
     try {
@@ -632,6 +652,7 @@ async function restoreAgentPrompt({ sb, apiKey, customerId, agentId, prompt }) {
     const readback = await readBackAgentState({ apiKey, agentId, patchPayload });
     readbackSource = readback.source;
     configDrift = compareAgentState(desiredState, readback.state);
+    observedState = observeAgentState(readback.state);
   } catch (error) {
     readbackSource = 'failed';
     readbackFailure = error?.message || String(error);
@@ -655,8 +676,8 @@ async function restoreAgentPrompt({ sb, apiKey, customerId, agentId, prompt }) {
     error_message: configDrift.length
       ? `Agent weicht nach dem Rollback in ${configDrift.length} Feld(ern) vom Sollzustand ab: ${configDrift.map((d) => d.path).join(', ')}`.slice(0, 500)
       : null,
-    config_drift: (configDrift.length || readbackFailure)
-      ? { source: readbackSource, deviations: configDrift, error: readbackFailure }
+    config_drift: (configDrift.length || readbackFailure || observedState)
+      ? { source: readbackSource, deviations: configDrift, error: readbackFailure, observed: observedState }
       : null,
     created_at: new Date().toISOString()
   };

@@ -80,7 +80,7 @@ for (const token of [
   // Direktbuchung wiederherstellen, die der Kunde abgewaehlt hat.
   "const attach = customer.ai_appointment_mode === 'direct';",
   'agentToolIds(agentId, calendarToolId, { attach })',
-  'buildAgentConfig({ customer, prompt, toolIds })'
+  'buildSyncPatch({ customer, prompt, toolIds })'
 ]) {
   if (!restoreBody.includes(token)) failures.push('Rollback calendar tool handling missing: ' + token);
 }

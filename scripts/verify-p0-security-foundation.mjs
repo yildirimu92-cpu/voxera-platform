@@ -88,8 +88,13 @@ const checks = [
   // beiden Werte auseinanderlaufen, ohne dass es auffiel. Geprueft wird
   // deshalb dreifach: der Wert an seiner einen Quelle, dass der jeweilige
   // Pfad diese Quelle auch benutzt, und dass nirgends -1 (unbegrenzt) steht.
+  //
+  // Seit dem 11.08. geht der Sync ueber buildSyncPatch() statt
+  // buildAgentConfig() -- er sendet wieder den Ausschnitt, nicht den vollen
+  // Sollzustand. Die Aufbewahrung liegt in BEIDEN Funktionen und kommt in
+  // beiden aus derselben Konstante; die Invariante ist davon unberuehrt.
   ['ElevenLabs provisioning enforces 90-day retention', /AUDIO_TRANSCRIPT_RETENTION_DAYS = 90/.test(adminAgentConfig) && /retention_days: AUDIO_TRANSCRIPT_RETENTION_DAYS/.test(adminAgentConfig) && !/retention_days: -1/.test(adminAgentConfig) && /require\('\.\/_lib\/elevenlabs-agent-config'\)/.test(adminProvision) && /buildAgentConfig\(/.test(adminProvision) && !/retention_days: -1/.test(adminProvision)],
-  ['ElevenLabs sync enforces 90-day retention for existing agents', /AUDIO_TRANSCRIPT_RETENTION_DAYS = 90/.test(adminAgentConfig) && /retention_days: AUDIO_TRANSCRIPT_RETENTION_DAYS/.test(adminAgentConfig) && !/retention_days: -1/.test(adminAgentConfig) && /require\('\.\/elevenlabs-agent-config'\)/.test(adminSyncCore) && /buildAgentConfig\(/.test(adminSyncCore) && !/retention_days: -1/.test(adminSyncCore)],
+  ['ElevenLabs sync enforces 90-day retention for existing agents', /AUDIO_TRANSCRIPT_RETENTION_DAYS = 90/.test(adminAgentConfig) && /retention_days: AUDIO_TRANSCRIPT_RETENTION_DAYS/.test(adminAgentConfig) && !/retention_days: -1/.test(adminAgentConfig) && /require\('\.\/elevenlabs-agent-config'\)/.test(adminSyncCore) && /buildSyncPatch\(/.test(adminSyncCore) && !/retention_days: -1/.test(adminSyncCore)],
   ['database retention separates raw and operational call data', /TRANSCRIPT_RETENTION_DAYS = 90/.test(retentionJob) && /CALL_RECORD_RETENTION_DAYS = 180/.test(retentionJob) && /transcript: null/.test(retentionJob) && /transcript_json: null/.test(retentionJob) && /elevenlabs_conversation_id: null/.test(retentionJob) && /\.delete\(\)/.test(retentionJob)],
   ['database retention is gated and scheduled daily', /DATA_RETENTION_ENFORCEMENT_ENABLED !== 'true'/.test(retentionJob) && /\[functions\."enforce-data-retention"\]/.test(customerNetlify) && /schedule = "17 3 \* \* \*"/.test(customerNetlify)],
   ['customer retention messaging distinguishes 90 and 180 days', /vollständige Transkripte werden nach\s*<strong>\s*90 Tagen\s*<\/strong>/.test(dashboard) && /Archiveinträge nach\s*<strong>\s*180 Tagen\s*<\/strong>/.test(dashboard)],
