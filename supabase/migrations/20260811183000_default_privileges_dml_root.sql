@@ -1,0 +1,83 @@
+-- INSERT/UPDATE/DELETE aus den Default-Privilegien nehmen -- nur die Wurzel.
+--
+-- Anschluss an 20260809164858_truncate_grant_sweep.sql (PR #892). Jener Sweep
+-- hat aus der Default-Privilegien-Zeile genau EINEN Buchstaben entfernt:
+--
+--     anon=arwdDxtm  ->  anon=arwdxtm
+--                ^ D = TRUNCATE, entfernt
+--      ^^^ a/w/d = INSERT/UPDATE/DELETE, unveraendert vergeben
+--
+-- Damit erbt weiterhin JEDE neu in public angelegte Tabelle INSERT, UPDATE und
+-- DELETE fuer anon und authenticated. Es ist dieselbe Wurzel, aus der die 27
+-- TRUNCATE-Rechte entstanden sind -- nur fuer die drei Rechte, die #892
+-- bewusst eingefroren statt entfernt hat.
+--
+-- Gemessen am 2026-08-11 auf Produktion (Diagnose
+-- docs/ANON_DML_WURZEL_DIAGNOSE_2026-08-11.md):
+--
+--     47 Tabellen (waren 45), davon anon mit INSERT auf 18, DELETE auf 18,
+--     authenticated mit INSERT auf 20, DELETE auf 21.
+--
+-- Dass die beiden seit dem 09.08. hinzugekommenen Tabellen sauber sind, ist
+-- KEIN Verdienst der Wurzel: customer_voice_previews und elevenlabs_sync_queue
+-- widerrufen in ihrer eigenen Migration ausdruecklich. Das ist Disziplin, keine
+-- Struktur -- dieselbe Begruendung, mit der #892 die Einzeltabellen-Loesung
+-- verworfen hat, nur dass die Rolle der gepflegten Liste hier der Mensch
+-- uebernimmt, der die naechste Migration schreibt.
+--
+-- ─── Warum NUR die Wurzel, ohne Bestand ────────────────────────────────────
+--
+-- Beim TRUNCATE war der Bestand billig mitzunehmen, weil das Recht
+-- nachweislich tot war: keine Datenbankfunktion, kein Anwendungscode setzte je
+-- TRUNCATE ab. Bei INSERT/UPDATE/DELETE trifft das NICHT zu. Das Admin-Portal
+-- arbeitet als `authenticated` und schreibt direkt aus dem Browser -- belegte
+-- Fundstellen sind admin-panel/index.html (admins, onboarding) und
+-- customer-dashboard/index.html (users). Ein pauschales Revoke waere hier ein
+-- Ausfall, kein Sicherheitsgewinn.
+--
+-- Diese Migration aendert deshalb KEIN EINZIGES bestehendes Recht. Sie kann
+-- nichts lahmlegen -- und stoppt trotzdem das Nachwachsen. Das ist der Grund,
+-- warum sie vorgezogen und einzeln gefahren wird: der billige Teil ist der
+-- wirksame.
+--
+-- Der Bestand (18 bzw. 21 Tabellen) folgt getrennt, nach einer Pfadaufnahme,
+-- welche Schreibpfade real als anon und welche als authenticated laufen. anon
+-- und authenticated werden dabei getrennt behandelt.
+--
+-- ─── Wirkung auf kuenftige Tabellen ────────────────────────────────────────
+--
+-- Ab hier gilt fuer jede neue Tabelle in public: anon und authenticated
+-- bekommen kein INSERT/UPDATE/DELETE mehr geschenkt. Wer eine Tabelle braucht,
+-- die das Portal beschreibt, vergibt das Recht dort ausdruecklich -- derselbe
+-- Weg, den elevenlabs_sync_queue schon geht. Das ist die Absicht, nicht ein
+-- Nebeneffekt: ein ausdrueckliches Grant ist eine Entscheidung, ein geerbtes
+-- ist keine.
+--
+-- ─── Bewusst NICHT enthalten ───────────────────────────────────────────────
+--
+-- Nach dieser Migration lautet die Zeile `anon=rxtm`: SELECT, REFERENCES,
+-- TRIGGER, MAINTAIN. `x` und `t` sind ebenfalls fragwuerdig -- TRIGGER
+-- erlaubte das Anlegen von Triggern auf der Tabelle. Sie bleiben hier drin,
+-- weil der freigegebene Auftrag INSERT/UPDATE/DELETE lautet und eine stille
+-- Ausweitung genau die Bauform waere, die #892 im Scope-Hinweis offengelegt
+-- hat. Als benannter Folgepunkt, nicht als Versehen:
+--     -> eigene Entscheidung, ob `x` und `t` ebenfalls fallen.
+--
+-- BEKANNTE RESTLUECKE, unveraendert aus #892: ein zweiter Eintrag mit Erzeuger
+-- `supabase_admin` vergibt weiterhin `arwdDxtm` und laesst sich aus der
+-- Migrationsrolle nicht aendern (42501). Er greift nur fuer Tabellen, die
+-- supabase_admin selbst in public anlegt -- aktuell keine einzige von 47.
+-- NEU an dieser Stelle: der Katalogcheck prueft diese Tuer ab sofort
+-- AUSDRUECKLICH, statt sie auszublenden (F6-grants). Ein Check, der eine
+-- bekannte Ausnahme stillschweigend ueberspringt, macht aus einer getroffenen
+-- Entscheidung eine vergessene.
+--
+-- Idempotent: mehrfaches Ausfuehren aendert nichts.
+
+begin;
+
+-- Kein Bestand, keine Schleife ueber pg_class -- ausschliesslich die Wurzel.
+alter default privileges in schema public revoke insert, update, delete on tables from anon;
+alter default privileges in schema public revoke insert, update, delete on tables from authenticated;
+
+commit;
