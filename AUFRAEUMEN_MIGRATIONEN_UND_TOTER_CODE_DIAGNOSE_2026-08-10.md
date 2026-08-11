@@ -718,3 +718,47 @@ Verwechslung zweier Features:
 
 **Ergebnis: weder löschen noch ein Grant vergeben.** Beides ist bereits richtig.
 Der Fund gehört nach C.4 (bewusst belassen), nicht nach C.3.
+
+## D.3 Waisen-Migrationen, Stand 2026-08-11 abends
+
+Gemessen am Ledger der Produktions-DB gegen `supabase/migrations/`. Zwei echte
+Waisen und zwei Namensdriften — die Klasse Befund, für die Etappe E1 gebaut wurde.
+
+| Ledger-Version | Name | Datei im Verzeichnis | Befund |
+| --- | --- | --- | --- |
+| `20260811184916` | `default_privileges_dml_root` | `20260811183000_…` | Namensdrift |
+| `20260811184947` | `elevenlabs_sync_log_config_drift` | `20260811183000_…` | Namensdrift, **und dieselbe Version wie die Zeile darüber** |
+| `20260811190623` | `default_privileges_root_and_dead_grants` | `20260811094500_…` | Namensdrift, ~10 h Abstand |
+| `20260811194700` | `calls_callback_requested_allowlist` | **keine, in keinem Branch** | **Waise** |
+
+Die Waise ist die wichtigere der beiden Auffälligkeiten. Ihr Ledger-Eintrag nennt
+selbst den Dateinamen, unter dem sie liegen müsste
+(`20260811200000_calls_callback_requested_allowlist.sql`), und diese Datei
+existiert weder auf `main` noch auf einem der drei Arbeits-Branches. Angewandt
+wurde sie um 19:47 UTC aus dem parallelen Fenster.
+
+**Was sie tut, und warum das hier steht:** Sie nimmt `callback_requested` in die
+Spalten-Allowlist von `public.calls` auf und repariert damit einen 403, den
+PR #847 am 2026-08-08 verursacht hatte — der Schreibzugriff kam dazu, die
+Allowlist wurde nicht nachgezogen. Drei Tage lang lief der Klick „Nachfassen
+speichern" ins Leere.
+
+Genau diese Migration habe ich um 21:15 zurückgenommen, 88 Minuten nachdem sie
+angewandt wurde, und den Fehler damit für 27 Minuten wiederhergestellt. Beides
+hätte auffallen müssen: die Waise, weil ich vor dem Eingriff nur das Verzeichnis
+und nicht das Ledger gelesen habe — die Begründung stand die ganze Zeit im
+Ledger-Eintrag. Und die Kollision, weil zwei Fenster an derselben Tabelle
+arbeiteten.
+
+**Daraus zwei Regeln, beide teurer erkauft als nötig:**
+
+1. Vor einem Rechte-Entzug das Ledger der Zieldatenbank lesen, nicht nur das
+   Migrationsverzeichnis. Ein Verzeichnis sagt, was wir vorhatten; das Ledger
+   sagt, was gilt.
+2. Der Waisen-Zustand ist nicht bloss Unordnung. Er hat hier direkt einen
+   Produktionsfehler verursacht, weil die Begründung für ein Recht an einem Ort
+   lag, an dem sie beim Aufräumen niemand sucht.
+
+Nachzudokumentieren bleibt für das Datenresidenz-Fenster, dem die Dateien
+gehören: die drei Namensdriften angleichen und die Waise als Datei nachreichen.
+Ich fasse sie nicht an.
