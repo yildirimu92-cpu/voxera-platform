@@ -346,7 +346,8 @@ Nicht geprüft, auf ausdrückliche Vorgabe. Damit die Frage nicht wiederkehrt, h
 | 10 | `sendCallSms()` + Gating + Reihenfolge Team→Anrufer | **gebaut** | — |
 | 11 | Vorlagen + Segment-/Encoding-Behandlung | **gebaut** — beide 1 Segment | — |
 | 12 | Addon-Code-Fehler + „✓ SMS"-Abzeichen | **weiterhin offen**, kommentiert | ~0,5 Tag |
-| 13 | Ortsfeld + Prompt-Anpassung | **fehlt** | ~1 Tag + Entscheid |
+| 13a | **Dringlichkeit als Pflichtfeld** (58 % heute ohne Einstufung) | **fehlt — Vorrang** | ~2 Tage, `TICKET_DRINGLICHKEIT_PFLICHTFELD_2026-08-11.md` |
+| 13b | Ortsfeld + Prompt-Anpassung | **fehlt** | ~1 Tag + Entscheid |
 | 14 | Rückrufnummer als eigenes Feld | **fehlt** | ~0,5 Tag |
 | 15 | Zustellbelege (Status-Callback je Nachricht) | **fehlt** | ~1 Tag, aufschiebbar |
 | 16 | Kundenoberfläche für die Einstellungen | **fehlt** — Scharfschaltung per SQL | 1–2 Tage |

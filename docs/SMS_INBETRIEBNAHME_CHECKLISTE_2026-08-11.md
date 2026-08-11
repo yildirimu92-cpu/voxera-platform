@@ -91,6 +91,32 @@ Ein unbekannter Wert fällt auf `callback_only` zurück, nicht auf `all` — im 
 | `TWILIO_AUTH_TOKEN` | ja | — | vorhanden |
 | `TWILIO_SMS_FROM` | nein | `Voxera` | alphanumerische Absenderkennung, höchstens 11 Zeichen. Eine rein numerische Angabe wird als Telefonnummer behandelt — so lässt sich später auf eine SMS-fähige Nummer wechseln, ohne Code zu ändern. |
 | `SMS_MAX_TEAM_EMPFAENGER` | nein | `10` | Kostenbremse je Anruf. Wird sie erreicht, protokolliert `sms_empfaenger_gekappt` — es wird nicht still abgeschnitten. |
+| `DASHBOARD_URL` | nein | `https://dashboard.voxera.ch` | Basis des Links in der Team-SMS. **Längenkritisch**, siehe unten. |
+
+### Das Längenbudget der Team-SMS
+
+Die Nachricht muss ein Segment bleiben — bei fünf Empfängern kostet ein zweites Segment fünffach. Der Stand heute:
+
+| Fall | Zeichen | Luft bis 160 |
+|---|---|---|
+| Dringlichkeit eingestuft (`hoch`) | 147 | 13 |
+| Dringlichkeit `unbekannt` (heute die Mehrheit) | 152 | **8** |
+
+Den grössten Einzelposten stellt der Link: `https://dashboard.voxera.ch/#call/<uuid>` sind 70 Zeichen, davon 36 allein die UUID.
+
+**Was passiert, wenn `DASHBOARD_URL` länger wird.** Jedes zusätzliche Zeichen in der Domain geht eins zu eins vom Budget ab. Schon ein Wechsel auf `https://app.voxera-dashboard.ch` (+4) oder eine Netlify-Preview-Domain (deutlich mehr) reisst die Grenze im `unbekannt`-Fall.
+
+Der Bruch ist nicht still: `finalisieren()` meldet ihn, und `call-sms.js` protokolliert `sms_mehrere_segmente` mit Länge, Segmentzahl und Empfängerzahl. Er wird also sichtbar — aber erst im Betrieb und nachdem die Rechnung schon läuft. Ein Test hält den längsten realistischen Fall fest (`unbekannt` + volle UUID + 16-stellige Rufnummer); wer die Domain ändert, sollte ihn zuerst anpassen und laufen lassen.
+
+**Wäre ein Kurzlink eine Option?** Technisch ja, aber er ist heute nicht empfehlenswert, und zwar aus drei Gründen:
+
+1. **Ein zusätzlicher Dienst im Pfad.** Ein Kurzlink-Auflöser, der nachts ausfällt, macht die Nachricht wertlos — und zwar genau in dem Moment, für den sie gebaut ist. Der lange Link funktioniert, solange das Dashboard erreichbar ist.
+2. **Ein dritter Ort mit Daten.** Ein externer Verkürzer bekäme die Zuordnung Kurzcode → Anruf-UUID, und das ist genau die Art zusätzlicher Bestand, den die Datenresidenz-Entscheidung gerade vermeiden wollte. Ein selbst betriebener Verkürzer vermeidet das, kostet aber eine eigene Route, eine eigene Tabelle und eine eigene Aufbewahrungsfrist.
+3. **Kurzlinks in SMS sind Spam-verdächtig.** Manche Netze und Endgeräte behandeln verkürzte Links in SMS strenger als eine erkennbare Absenderdomain. Bei einer Nachricht, die ankommen *muss*, ist das ein schlechter Tausch.
+
+**Wenn Platz gebraucht wird, gibt es billigere Hebel:** die Zeile `Details: ` kürzen (9 Zeichen), das Wort `Dringlichkeit:` durch `Prio:` ersetzen (−9), oder — der grösste Posten — eine kürzere Kennung als die volle UUID einführen (bis zu −25). Alle drei sind reine Textänderungen ohne neuen Dienst.
+
+*Nur festgehalten, nicht entschieden. Handlungsbedarf besteht erst, wenn `DASHBOARD_URL` tatsächlich wechselt.*
 
 Die Variablen müssen auf **beiden** Netlify-Sites gesetzt sein: Der Erstversand läuft auf der Dashboard-Site, der Retry-Worker auf der Admin-Site.
 
