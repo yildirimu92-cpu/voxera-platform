@@ -642,28 +642,52 @@ FAIL  F6-grants  calls: authenticated-UPDATE auf exakt 4 Spalten
       callback_requested,dashboard_status,notes_customer_voxera,read_at,updated_at
 ```
 
-Fünf statt vier. Die fünfte war `callback_requested` — ein Recht, das kein
-Browser-Pfad braucht. Die Kundensitzung schreibt an `calls` nur `read_at`,
-`dashboard_status`, `notes_customer_voxera` und `updated_at`. Gesetzt wird
-`callback_requested` ausschliesslich serverseitig mit dem Service-Role-Schlüssel,
-aus dem Anrufeingang (`call-intake-webhook.js:153`, `:297`,
-`elevenlabs-post-call.js:300`, `:415`). Zurückgenommen mit Migration
-`20260811203000_revoke_calls_callback_requested_grant.sql`; Nachmessung im
-Zielsystem: vier Spalten, Check grün.
+Fünf statt vier. Die fünfte ist `callback_requested`.
 
-Harmlos war das Recht nicht. `callback_requested` entscheidet, ob ein Anruf als
-Rückrufwunsch gilt — es steuert die Aufgabenliste, die Sortierung und künftig
-den SMS-Versand. Eine Kundensitzung hätte den Rückrufwunsch eines Anrufers still
-zurücksetzen können.
+**Ich habe daraus den falschen Schluss gezogen.** Die Messung stimmte, die
+Deutung nicht: Ich habe das Recht für tot gehalten und zurückgenommen
+(`20260811211535_revoke_calls_callback_requested_grant.sql`). Es ist nicht tot.
+Zwei Browser-Pfade schreiben die Spalte, beide aus der Rückruf-Konsolidierung
+(PATCH 2026-05-13 v2.3):
 
-**Das ist das Argument für den nächsten Katalogeintrag.** Der Befund kam nicht
-aus einem Audit, sondern nebenbei, beim ersten Lauf eines Checks, der für etwas
-anderes geschrieben wurde. Kein Mensch hatte diese Spalte auf dem Zettel — die
-Aufräum-Diagnose in Teil B hat sie nicht gefunden, weil statische Code-Suche
-fehlende Aufrufer sieht, nicht überschüssige Rechte. Ein exakter Check ("genau
-diese vier") findet, was eine Mindestprüfung ("mindestens diese vier")
-durchwinkt. Jede weitere Tabelle mit einer Spalten-Allowlist verdient denselben
-Eintrag.
+| Stelle | Funktion | Auslöser |
+| --- | --- | --- |
+| `index.html:19634` | `saveFollowUpV2()` | Knopf im Anruf-Detail, live verdrahtet |
+| `index.html:20224` | `saveFollowUp()` | Vorgänger derselben Aktion |
+
+Legt die Kundin aus einem Anruf mit Rückrufwunsch eine konkretere Folge-Aufgabe
+an, wird der Rückruf-Status am Anruf ausgeschaltet, damit derselbe Vorgang nicht
+doppelt zählt. Das ist eine Kundenaktion, kein Serverpfad.
+
+Zurückgestellt mit `20260811214237_restore_calls_callback_requested_grant.sql`.
+Zeitfenster ohne das Recht: 21:15:35 bis 21:42:37 UTC, 27 Minuten. Wer in dieser
+Zeit eine Folge-Aufgabe anlegte, sah „Nachfassen gespeichert" — die Aufgabe
+entstand auch —, während der Rückruf-Status stehen blieb und der Vorgang doppelt
+zählt. Sichtbar wurde der Fehler nirgends: der Pfad meldet ihn per `console.warn`.
+
+**Woran meine Prüfung scheiterte, und was daraus folgt.** Ich habe nach
+`callback_requested` in den Netlify Functions gesucht und im Browser-Code eine
+einzige Fundstelle angesehen — die, die kein Schreibzugriff war. Eine Suche, die
+Lesen und Schreiben nicht trennt, beweist keine Abwesenheit. Für jeden weiteren
+Rechte-Entzug gilt deshalb: erst alle `.update(`-, `.insert(`- und `.upsert(`-Aufrufe
+auf die Spalte auflisten, dann entscheiden. Genau diese Liste entsteht ohnehin
+gerade im Auftrag zu den Browser-Schreibzugriffen — sie ist die Vorbedingung,
+nicht die Nacharbeit.
+
+**Der Wächter selbst hat sich bewährt, seine Erwartung nicht.** Er hat eine
+Abweichung gemeldet, die keiner gesucht hatte, und er war es auch, der den
+Rückweg belegt hat. Falsch ist die im Katalog hinterlegte Zahl: `calls` erlaubt
+`authenticated`-UPDATE zu Recht auf **fünf** Spalten, nicht vier —
+`callback_requested` gehört in die Allowlist. Solange das nicht nachgezogen ist,
+steht der Check rot, und zwar zu Unrecht.
+
+`db_security_invariants_catalog.sql` gehört dem Datenresidenz-Fenster; ich fasse
+die Datei nicht an. **Übergabe dorthin:** in der Allowlist für `calls` die 4 auf
+5 setzen und `callback_requested` in die Namensliste aufnehmen.
+
+Offen bleibt die Entwurfsfrage, ob dieser Reset überhaupt in den Browser gehört
+oder in den serverseitigen Anlegepfad der Folge-Aufgabe. Sie wird getrennt
+entschieden — ein Rechte-Entzug nimmt sie nicht vorweg.
 
 ## D.2 Fund 14 (neu): `onboarding_completed` — geprüft, kein Handlungsbedarf
 
