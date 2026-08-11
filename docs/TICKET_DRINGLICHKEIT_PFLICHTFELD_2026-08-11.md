@@ -3,7 +3,73 @@
 **Datum:** 2026-08-11
 **Art:** Bau (Data Collection + Prompt + Branchenvorlagen). Keine Migration.
 **Vorrang:** **vor** Ortsfeld und gesprochener Rückrufnummer (`TICKET_ORT_UND_RUECKRUFNUMMER_2026-08-11.md`)
+**Start:** nach dem Kalender-Testanruf. Danach nächster Auftrag im laufenden Fenster.
 **Herkunft:** `docs/SMS_BENACHRICHTIGUNG_DIAGNOSE_2026-08-11.md` + `BEFUND_TWILIO_DATENRESIDENZ_2026-08-11.md`
+
+---
+
+## Entschieden am 2026-08-11
+
+| Frage | Entscheid |
+|---|---|
+| Kriterien und Massstab | **Freigegeben, wörtlich** — inklusive beider Grenzfälle im Prompt |
+| Vierte Stufe über *hoch* | **Nein.** Drei Stufen sind das, was ein Mensch um drei Uhr nachts noch unterscheidet. Eine vierte hiesse, dass *hoch* nicht mehr „jetzt aufstehen" bedeutet — dann trägt die Einstufung nichts mehr. |
+| E-Mail-Betreff | **Ja.** Trägt die Dringlichkeit die SMS, muss sie auch in den Betreff — sonst hat der Kunde zwei Kanäle mit unterschiedlicher Aussage über denselben Anruf. |
+| Dashboard-Sortierung | **Ja, aber als eigener Schritt.** Anzeigeentscheidung mit Folgen für den Heute-Screen; gehört zur Dashboard-Struktur, nicht zum Pflichtfeld. |
+
+---
+
+## Der Schnitt: Minimum gegen Ausbau
+
+Zwei Tage sind zu viel für einen Blocker. Der Auftrag zerfällt sauber, und der Grund dafür ist inhaltlich, nicht organisatorisch: **Der Massstab ist branchenunabhängig, nur die Beispiele sind es nicht.**
+
+Die SMS trägt bereits, sobald der Assistent überhaupt zuverlässig einstuft. Branchenspezifische Listen machen die Einstufung *treffsicherer*, nicht erst *möglich*.
+
+### Minimum — der Blocker (≈ 1 Tag)
+
+| Schritt | Aufwand |
+|---|---|
+| `urgency` als Pflichtfeld, geschlossene Werteliste `hoch\|mittel\|niedrig` | ~0,5 Tag |
+| Generischer Prompt-Baustein: **Massstab + beide Grenzfälle**, für alle Vorlagen gleich | ~0,25 Tag |
+| Nachmessen an echten Anrufen, Anteil „nicht eingestuft" prüfen | ~0,25 Tag |
+
+Die beiden Grenzfälle gehören ausdrücklich ins Minimum, obwohl sie aus zwei konkreten Branchen stammen. Sie sind die einzige Stelle, an der der Massstab *vorgeführt* statt nur behauptet wird — dasselbe Auto ist *hoch* auf dem Pannenstreifen und *niedrig* in der Garage, dieselbe Menge Wasser ist *mittel* mit Eimer und *hoch* auf Parkett. Wer sie weglässt, behält eine Definition ohne Beispiel, und genau daran scheitern Einstufungen.
+
+**Damit ist der SMS-Kanal entblockt.**
+
+### Ausbau — kein Blocker
+
+| Schritt | Aufwand | Anmerkung |
+|---|---|---|
+| Branchenlisten `handwerk` + Abschleppdienst | ~0,5 Tag | siehe Befund unten — für den Abschleppdienst gibt es noch keine Vorlage |
+| Branchenlisten für die übrigen Vorlagen | nach Bedarf | **nicht alle 19 brauchen sie**, siehe unten |
+| Dringlichkeit im E-Mail-Betreff | ~0,5 Tag | entschieden, aber unabhängig von der SMS |
+| Dashboard-Sortierung | eigener Auftrag | gehört zur Dashboard-Struktur |
+
+---
+
+## Befund zum Ausbau: nicht alle 19 Vorlagen brauchen Listen
+
+`industry_templates` führt 19 aktive Vorlagen. Für die Dringlichkeit zerfallen sie in drei Gruppen:
+
+**(a) Notdienst-Charakter — Listen lohnen sich.** `handwerk`, `garage`, `it-support`, `immobilien`, `facharzt`, `zahnarzt`. Hier existiert *hoch* im Alltag und heisst tatsächlich „jetzt aufstehen".
+
+**(b) Dringlichkeit existiert, aber selten.** `versicherung`, `anwalt`, `physiotherapie`, `reinigung`, `hotel`. Der generische Massstab dürfte reichen; Listen erst, wenn die Messung Fehleinstufungen zeigt.
+
+**(c) *hoch* kommt praktisch nicht vor.** `coiffeur`, `kosmetik`, `restaurant`, `baeckerei`, `fitness`, `treuhand`, `digitalmarketing`, `generic`. Hier eine dreistufige Skala zu erzwingen erzeugt Rauschen — ein Coiffeur-Anruf um 22 Uhr ist keine Notlage, und ein Assistent, der unter Druck etwas einstufen *muss*, stuft zu hoch ein.
+
+**Empfehlung:** Ausbau auf Gruppe (a) begrenzen, Gruppe (b) nach Messung, Gruppe (c) beim generischen Massstab belassen. Das sind sechs Listen statt neunzehn.
+
+### Es gibt keine Vorlage für den Abschleppdienst
+
+Die 19 Vorlagen enthalten `garage` („Garage / Autowerkstatt"), aber **keinen Abschleppdienst**. Der Pilotkunde bekäme heute `garage` oder `generic`.
+
+Das betrifft das Minimum nicht — der generische Massstab greift unabhängig von der Vorlage. Für den Ausbau ist aber zu entscheiden, ob die Abschlepp-Kriterien
+
+- in `garage` einfliessen (dann trägt sie auch jede Autowerkstatt, für die „Fahrzeug steht auf der Autobahn" nicht typisch ist), oder
+- eine eigene Vorlage `abschleppdienst` bekommen (sauberer, aber eine neue Zeile in `industry_templates` und eine Zuordnung beim Pilotkunden).
+
+Empfehlung: **eigene Vorlage.** Der Unterschied zwischen „Auto steht kaputt bei uns im Hof" und „Auto steht kaputt auf der A1" ist genau der Unterschied, den die Einstufung treffen soll — und er trennt Werkstatt von Abschleppdienst.
 
 ---
 
@@ -94,13 +160,13 @@ Sie sind Erkennungsmerkmale, keine Aufzählung aller Fälle. Der Prompt sollte d
 
 ## Aufwand
 
-| Schritt | Aufwand |
-|---|---|
-| Data-Collection-Feld verpflichtend, geschlossene Werteliste | ~0,5 Tag |
-| Prompt-Baustein mit Massstab + Beispielen | ~0,5 Tag |
-| Verankerung in `industry_templates` (zwei Branchen) | ~0,5 Tag |
-| Nachmessen an echten Anrufen, Kriterien nachschärfen | ~0,5 Tag |
-| **Summe** | **≈ 2 Tage** |
+Aufgeteilt, siehe „Der Schnitt" oben. Kurzfassung:
+
+| Teil | Aufwand | Blocker? |
+|---|---|---|
+| **Minimum** — Pflichtfeld, generischer Massstab, beide Grenzfälle, Nachmessung | **≈ 1 Tag** | **ja** |
+| Ausbau — Branchenlisten Gruppe (a), E-Mail-Betreff | ≈ 1 Tag | nein |
+| Dashboard-Sortierung | eigener Auftrag | nein |
 
 ## Abnahme
 
@@ -118,9 +184,10 @@ Ein zweiter Blick lohnt auf die Verteilung *innerhalb* der eingestuften Anrufe: 
 
 ## Zu entscheiden
 
-| # | Frage |
-|---|---|
-| 1 | Branchen für den ersten Wurf: nur Abschleppdienst (Pilot), oder gleich Handwerk mit? |
-| 2 | Bleibt es bei drei Stufen, oder braucht es eine vierte („Notfall") über *hoch*? |
-| 3 | Soll die Stufe auch das E-Mail-Betreff und die Dashboard-Sortierung steuern, oder vorerst nur die SMS? |
-| 4 | Wird `urgency` beim Anrufer sichtbar? *(Empfehlung: nein — der Anrufer soll nicht erfahren, dass sein Notfall als „niedrig" eingestuft wurde.)* |
+| # | Frage | Stand |
+|---|---|---|
+| ~~2~~ | ~~Vierte Stufe über *hoch*?~~ | **Nein** (2026-08-11) |
+| ~~3a~~ | ~~E-Mail-Betreff?~~ | **Ja** (2026-08-11), Ausbau |
+| ~~3b~~ | ~~Dashboard-Sortierung?~~ | **Ja, eigener Schritt** (2026-08-11) |
+| **1** | Branchen für den ersten Ausbau-Wurf: nur Abschleppdienst, oder `handwerk` gleich mit? Und: eigene Vorlage `abschleppdienst` oder in `garage` einbetten? | **offen** — Empfehlung: beide, und eigene Vorlage |
+| **4** | Wird `urgency` beim Anrufer sichtbar? | **offen** — Empfehlung: **nein**. Der Anrufer soll nicht erfahren, dass seine Lage als „niedrig" eingestuft wurde. Betrifft die Anrufer-SMS und eine spätere Statusseite. |
