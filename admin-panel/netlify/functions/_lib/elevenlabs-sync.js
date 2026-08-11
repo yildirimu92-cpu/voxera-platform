@@ -629,6 +629,29 @@ async function restoreAgentPrompt({ sb, apiKey, customerId, agentId, prompt }) {
     })
     .eq('id', customerId);
 
+  // #932: Hier gilt NICHT dieselbe Regel wie beim Sync.
+  //
+  // Beim Sync ist 'drift' ein Erfolg: der Sollzustand ging raus, ein
+  // Wiederholungsversuch saende denselben Koerper. Beim Rollback ist der
+  // zurueckgeschriebene Prompt der ganze Zweck des Aufrufs. Weicht ausgerechnet
+  // er ab, wurde der alte Stand nicht wiederhergestellt -- und ein `ok: true`
+  // liesse rollbackRun() die Zeile als 'cancelled' abhaken, `rolled_back`
+  // hochzaehlen und dem Bedienenden einen Rollback melden, den es nicht gab.
+  // Das waere eine falsche Erfolgsmeldung im Notfall.
+  //
+  // Eine Abweichung in einem Nebenfeld ist dagegen unschaedlich: der Prompt
+  // steht, und der Rest ist ohnehin der geteilte Sollzustand.
+  if (!promptLanded) {
+    return {
+      ok: false,
+      error: `Rollback nicht wirksam: der Agent traegt den zurueckgeschriebenen Prompt nicht (${configDrift.map((d) => d.path).join(', ')})`.slice(0, 500),
+      status: rollbackStatus,
+      configDrift,
+      readbackSource,
+      readbackError: readbackFailure
+    };
+  }
+
   return {
     ok: true,
     promptLength: String(prompt || '').length,

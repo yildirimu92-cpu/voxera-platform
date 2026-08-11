@@ -59,6 +59,12 @@
         success: ['Synchronisiert', 'green'],
         failed: ['Fehler', 'red'],
         syncing: ['Synchronisierung läuft', 'amber'],
+        // #932: Der Agent wurde aktualisiert, weicht aber in mindestens einem
+        // Feld vom Sollzustand ab. Ohne eigenen Eintrag fiele der Status auf
+        // `map.never` -- also ausgerechnet auf "Noch nie synchronisiert",
+        // obwohl gerade eben synchronisiert wurde. Die Feldnamen stehen in
+        // elevenlabs_sync_log.config_drift und im Klartext in error_message.
+        drift: ['Abweichung vom Sollzustand', 'amber'],
         never: ['Noch nie synchronisiert', 'gray']
       };
       const [label, cls] = map[status] || map.never;
@@ -115,9 +121,14 @@
         const status = String(row.status || '').toLowerCase();
         const ok = status === 'success';
         const running = status === 'syncing';
+        // #932: Ohne eigenen Zweig liefe 'drift' in den else-Fall und stuende
+        // rot als "Fehler" da -- eine Zeile, die den Agenten sehr wohl
+        // erreicht hat. Die Feldnamen stehen in error_message und werden
+        // darunter ohnehin schon ausgegeben.
+        const drift = status === 'drift';
         const date = row.created_at ? new Date(row.created_at).toLocaleString('de-CH') : '—';
-        const badge = running ? 'amber' : (ok ? 'green' : 'red');
-        const label = running ? 'Läuft' : (ok ? 'Erfolg' : 'Fehler');
+        const badge = running ? 'amber' : (ok ? 'green' : (drift ? 'amber' : 'red'));
+        const label = running ? 'Läuft' : (ok ? 'Erfolg' : (drift ? 'Abweichung' : 'Fehler'));
         return `<div style="padding:11px 0;border-bottom:1px solid var(--line)">
           <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap">
             <div><strong>${esc(date)}</strong> <span class="badge badge-${badge}">${label}</span></div>

@@ -79,7 +79,16 @@ async function loadCustomerContext(sbAdmin, customerId) {
     sbAdmin.from('contracts').select('id, status, updated_at').eq('customer_id', customerId).order('updated_at', { ascending: false }).limit(50),
     sbAdmin.from('offers').select('id, status, accepted_at, contract_id, updated_at').eq('customer_id', customerId).order('updated_at', { ascending: false }).limit(50),
     sbAdmin.from('elevenlabs_sync_log')
-      .select('id, agent_id, status, triggered_by, prompt_length, error_message, config_drift, created_at')
+      // #932: `config_drift` steht hier bewusst NICHT drin. PostgREST weist
+      // eine Auswahl mit unbekannter Spalte komplett zurueck -- ein Deploy vor
+      // der Migration liesse `loadCustomerContext()` mit 'Sync lookup failed'
+      // werfen und damit jeden Go-Live scheitern. Die Stufenleiter beim
+      // Log-Insert schuetzt nur den Schreibpfad, nicht diesen Lesepfad.
+      //
+      // Die Feldnamen der Abweichung gehen dabei nicht verloren: sie stehen im
+      // Klartext in `error_message` und werden ueber `latest_log_error` bereits
+      // ausgeliefert, und `latest_log_status` traegt 'drift'.
+      .select('id, agent_id, status, triggered_by, prompt_length, error_message, created_at')
       .eq('customer_id', customerId)
       .order('created_at', { ascending: false })
       .limit(1)
@@ -178,11 +187,9 @@ function syncEvidence(context) {
     latest_log_agent_id: latestAgentId || null,
     latest_log_error: latest?.error_message || null,
     latest_prompt_length: latest?.prompt_length ?? null,
-    // Feldnamen der Abweichung, damit der Startdialog sie zeigen kann, ohne
-    // dass jemand dafuer ins Sync-Log steigen muss.
-    latest_config_drift: Array.isArray(latest?.config_drift?.deviations)
-      ? latest.config_drift.deviations.map((deviation) => deviation.path)
-      : null,
+    // #932: Kein eigenes Abweichungsfeld -- siehe die Auswahl oben. Der
+    // Startdialog erkennt eine Abweichung an `latest_log_status === 'drift'`
+    // und findet die Feldnamen in `latest_log_error`.
     agent_matches: agentMatches
   };
 }

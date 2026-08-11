@@ -249,5 +249,64 @@ check(
   /readback_failed/.test(syncSource)
 );
 
+// ── 7. Die drei Befunde aus dem Review zu #938 ──────────────────────────────
+
+const goLiveSource = fs.readFileSync('admin-panel/netlify/functions/customer-go-live.js', 'utf8');
+const adminIndexSource = fs.readFileSync('admin-panel/index.html', 'utf8');
+const adminSyncRuntime = fs.readFileSync('admin-panel/shared/admin-runtime-sync.js', 'utf8');
+
+// (a) Der Lesepfad darf die neue Spalte NICHT auswaehlen. PostgREST weist eine
+// Auswahl mit unbekannter Spalte komplett zurueck -- ein Deploy vor der
+// Migration liesse damit jeden Go-Live scheitern. Die Stufenleiter beim
+// Log-Insert schuetzt nur den Schreibpfad.
+const goLiveSelects = goLiveSource.match(/\.select\('[^']*'\)/g) || [];
+check(
+  'Go-Live-Abfrage waehlt config_drift nicht aus (Deploy vor Migration)',
+  goLiveSelects.every((select) => !select.includes('config_drift')),
+  goLiveSelects.filter((s) => s.includes('config_drift')).join(' ') || 'keine Auswahl mit config_drift'
+);
+check(
+  'Go-Live erkennt die Abweichung trotzdem',
+  /SYNC_REACHED_AGENT/.test(goLiveSource) && /'drift'/.test(goLiveSource)
+);
+
+// (b) Beim Rollback ist der zurueckgeschriebene Prompt der ganze Zweck des
+// Aufrufs. Kommt ausgerechnet er nicht an, darf die Funktion keinen Erfolg
+// melden -- rollbackRun() haekte die Zeile sonst als 'cancelled' ab und meldete
+// dem Bedienenden einen Rollback, den es nicht gab.
+const restoreSource = syncSource.slice(syncSource.indexOf('async function restoreAgentPrompt'));
+check(
+  'Rollback meldet keinen Erfolg, wenn der Prompt nicht ankam',
+  /if \(!promptLanded\) \{\s*return \{\s*ok: false/.test(restoreSource)
+);
+check(
+  'Rollback meldet Erfolg, wenn nur ein Nebenfeld abweicht',
+  /ok: true/.test(restoreSource)
+);
+
+// (c) Jeder Renderer, der den Sync-Status abbildet, muss 'drift' kennen. Sonst
+// zeigt dieselbe Zeile an einer Stelle "Abweichung", an der naechsten
+// "Noch nie synchronisiert" und an der dritten ein rotes "Fehler".
+check(
+  'Arbeitsbereich-Abzeichen kennt drift',
+  /elevenlabs_sync_status === 'drift'/.test(adminIndexSource)
+);
+check(
+  'Kundenkarte kennt drift',
+  /elevenlabs_sync_status==='drift'/.test(adminIndexSource)
+);
+check(
+  'Sync-Log-Renderer in index.html kennt drift',
+  /const isDrift = r\.status === 'drift'/.test(adminIndexSource)
+);
+check(
+  'statusBlock() in admin-runtime-sync.js kennt drift',
+  /drift: \['Abweichung vom Sollzustand', 'amber'\]/.test(adminSyncRuntime)
+);
+check(
+  'Log-Renderer in admin-runtime-sync.js kennt drift',
+  /const drift = status === 'drift'/.test(adminSyncRuntime)
+);
+
 console.log(failed ? `\n${failed} Pruefung(en) fehlgeschlagen.` : '\nelevenlabs agent config (#932) verified.');
 assert.equal(failed, 0);
