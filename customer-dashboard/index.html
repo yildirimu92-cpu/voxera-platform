@@ -11357,6 +11357,11 @@ let customerContext = { authUserId: null, usersCustomerId: null, customerId: nul
 // vorher je ihre eigene Reset-Zeile -- genau diese Art von Divergenz (der
 // allgemeine Pfad raeumt weniger auf als der explizite) war die Ursache des
 // Fehlers.
+//
+// JEDER NEUE modulglobale Cache, der an ein Kundenkonto gebunden ist (nach
+// customerId/authUserId laedt und ohne forceReload den letzten Stand
+// zurueckgibt), muss hier mit aufgenommen werden -- sonst wiederholt sich
+// derselbe Fehler beim naechsten Konto, nur an einer neuen Stelle.
 function resetPerAccountCaches() {
   customerContext = { authUserId: null, usersCustomerId: null, customerId: null, customerRecord: null };
   customerDocumentsState = { loading: false, loaded: false, invoices: [], contract: null, error: null };
