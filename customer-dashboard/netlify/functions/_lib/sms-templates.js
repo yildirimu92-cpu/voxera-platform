@@ -202,9 +202,17 @@ function buildTeamSms({
   const zeit = uhrzeit(zeitpunkt);
   const zeilen = [['Voxera', zeit, 'Neuer Anruf'].filter(Boolean).join(' ')];
 
-  // Die einzige Einstufung, die mitgeht. Sie sagt, wie schnell zu reagieren
-  // ist, ohne zu sagen, worum es geht.
-  if (s(dringlichkeit)) zeilen.push(`Dringlichkeit: ${s(dringlichkeit)}`);
+  // PFLICHTZEILE, nicht Beiwerk.
+  //
+  // Seit die Nachricht kein Anliegen mehr traegt, ist die Dringlichkeit die
+  // einzige Angabe, die "jetzt oder morgen" beantwortet. Sie fehlen zu lassen
+  // waere schlimmer als eine Einstufung ohne Wert: Eine fehlende Zeile liest
+  // sich wie "nicht dringend", und genau diese Lesart darf nicht entstehen.
+  //
+  // Ist nichts eingestuft, sagt die Zeile das ausdruecklich. "unbekannt" ist
+  // eine Aussage ueber den Assistenten, nicht ueber den Anruf -- und fuehrt
+  // zum Oeffnen des Links statt zum Weiterschlafen.
+  zeilen.push(`Dringlichkeit: ${s(dringlichkeit) || 'unbekannt'}`);
 
   // Ohne Rueckrufnummer ist die Nachricht nicht handlungsfaehig. Dass sie
   // fehlt, muss dastehen -- sonst sucht das Team auf dem Sperrbildschirm nach
@@ -213,8 +221,14 @@ function buildTeamSms({
     ? `Rueckruf: ${s(rueckrufnummer)}`
     : 'Rueckruf: keine Nummer uebermittelt');
 
-  // Der Link ersetzt die Zusammenfassung. Er traegt kein Inhaltsdatum -- und
-  // hinter ihm greift die eigene Aufbewahrungsfrist statt Twilios.
+  // Der Link ersetzt die Zusammenfassung und zeigt direkt auf den Anruf, nicht
+  // auf die Startseite. Um drei Uhr nachts ist der Unterschied zwischen einem
+  // Klick und einer Suche der ganze Unterschied -- und er ist der einzige
+  // Ausgleich fuer den Komfort, den der Verzicht auf das Anliegen kostet.
+  //
+  // Der Link selbst traegt kein Inhaltsdatum: eine UUID ist ohne Anmeldung am
+  // Dashboard nicht aufloesbar. Hinter ihm greift die eigene
+  // Aufbewahrungsfrist statt Twilios.
   if (s(dashboardUrl)) zeilen.push(`Details: ${s(dashboardUrl)}`);
 
   return finalisieren(zeilen.join('\n'), 'team');

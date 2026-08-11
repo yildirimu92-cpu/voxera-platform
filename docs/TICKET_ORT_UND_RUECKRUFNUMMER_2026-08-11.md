@@ -39,6 +39,29 @@ Dieselbe Lücke besteht aber unabhängig davon:
 
 ---
 
+## Nachtrag 2026-08-11: ein drittes Feld, und es ist das dringlichste
+
+**`urgency` wird auf 58 % der Anrufe gar nicht gesetzt.** Gemessen in Produktion über alle 33 Anrufe:
+
+| Wert | Anrufe | Anteil |
+|---|---|---|
+| *(nicht eingestuft)* | 19 | **58 %** |
+| niedrig | 10 | 30 % |
+| mittel | 3 | 9 % |
+| hoch | 1 | 3 % |
+
+Das war folgenlos, solange die Dringlichkeit ein Zusatz war. Seit dem 2026-08-11 ist sie es nicht mehr: Die Team-SMS trägt kein Anliegen mehr (Datenresidenz), und damit ist die Dringlichkeit **die einzige Angabe, die „jetzt oder morgen" beantwortet**.
+
+Die Vorlage schreibt bei fehlender Einstufung ausdrücklich `Dringlichkeit: unbekannt` — eine fehlende Zeile hätte sich wie „nicht dringend" gelesen, und diese Lesart wäre bei einem Abschleppdienst gefährlich. Aber „unbekannt" ist eine Aussage über den Assistenten, nicht über den Anruf. **Auf 58 % der Anrufe trägt die Nachricht damit keine Entscheidungsgrundlage** und zwingt zum Öffnen des Links.
+
+`urgency` kommt aus derselben Quelle wie Ort und Rückrufnummer — `pickDC(dc, 'urgency')` in `elevenlabs-post-call.js:316`. Es ist also **derselbe Handgriff**: ein Data-Collection-Feld, das der Assistent verpflichtend füllt, plus eine Prompt-Anweisung mit klaren Kriterien.
+
+**Empfehlung: dieses Feld zuerst.** Es ist der billigste der drei — die Spalte existiert bereits, es braucht keine Migration — und hat den grössten Hebel auf die Nachtnutzung.
+
+*Zu entscheiden:* Welche Kriterien gelten je Branche? Für einen Abschleppdienst ist „Fahrzeug steht auf der Autobahn" hoch, für eine Zahnarztpraxis ist es etwas anderes. Das gehört in `industry_templates`, nicht in einen globalen Prompt.
+
+---
+
 ## Die gute Nachricht: der Erfassungsweg existiert
 
 ElevenLabs' **Data Collection** ist bereits angebunden und wird produktiv ausgewertet. `elevenlabs-post-call.js:206–226` (`pickDC()`) liest strukturierte Felder aus `analysis.data_collection_results`, mit defensivem Abgleich über Schreibweisen und mehreren Rückfallquellen.

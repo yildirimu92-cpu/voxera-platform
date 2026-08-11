@@ -247,7 +247,7 @@ PW nicht fahrbereit, 1 Person
 Voxera 03:14 Neuer Anruf
 Dringlichkeit: hoch
 Rueckruf: +41791234567
-Details: https://dashboard.voxera.ch/?tab=requests
+Details: https://dashboard.voxera.ch/#call/8c101866-94bb-4081-8b75-f879e3d46744
 ```
 
 118 Zeichen, ein Segment.

@@ -184,16 +184,36 @@ async function ladeTeamEmpfaenger(sbAdmin, customerId) {
 
 // Ziel des Links in der Team-SMS.
 //
-// Einen Tiefenlink auf einen einzelnen Anruf gibt es im Dashboard nicht; der
-// Navigationsparameter (?tab=requests, index.html:26225-26236) fuehrt aber
-// direkt in die Anfragenliste, und der neueste Anruf steht dort oben. Das ist
-// nah genug und kostet keine Aenderung an der Oberflaeche.
+// Er zeigt auf GENAU DIESEN Anruf, nicht auf die Startseite. Seit die
+// Nachricht kein Anliegen mehr traegt, ist der Link der einzige Weg dorthin --
+// und um drei Uhr nachts ist der Unterschied zwischen einem Klick und einer
+// Suche in einer Liste der ganze Unterschied.
 //
-// Bewusst OHNE Anruf-Kennung: eine ID im Link waere fuer Twilio zwar
-// bedeutungslos, wuerde aber einen dauerhaften Verweis auf genau diesen
-// Vorgang in einem fremden Bestand hinterlassen.
+// Die Hash-Route #call/<id> existierte bereits: vxOpenPriorityRecord schreibt
+// sie beim Oeffnen aus der Anwendung heraus (index.html), und die
+// popstate-/Waisen-Wachen respektieren sie. Ausgewertet hat sie beim
+// KALTSTART aber niemand -- wer mit diesem Hash einstieg, landete auf der
+// Liste. vxApplyDeepLinkFromHash() in index.html schliesst diese Luecke.
+//
+// Zur Datenresidenz: Die UUID im Link ist ohne Anmeldung am Dashboard nicht
+// aufloesbar und traegt selbst kein Inhaltsdatum. Sie hinterlaesst bei Twilio
+// einen dauerhaften Verweis auf diesen Vorgang -- allerdings steht dort im
+// selben Text ohnehin die Rufnummer des Anrufers, und der Sprachanruf hat
+// dieselbe Verknuepfung laengst erzeugt. Der Zuwachs ist gering, der Gewinn
+// an Handlungsfaehigkeit gross.
 const DASHBOARD_BASIS = (process.env.DASHBOARD_URL || 'https://dashboard.voxera.ch').replace(/\/+$/, '');
-const DASHBOARD_ANFRAGEN_URL = `${DASHBOARD_BASIS}/?tab=requests`;
+
+/**
+ * Link auf einen einzelnen Anruf. Ohne Kennung faellt er auf die
+ * Anfragenliste zurueck -- ein Link auf nichts waere schlimmer als ein Link
+ * auf die Liste.
+ */
+function dashboardLinkFuerAnruf(callRowId) {
+  const id = toStr(callRowId);
+  return id
+    ? `${DASHBOARD_BASIS}/#call/${encodeURIComponent(id)}`
+    : `${DASHBOARD_BASIS}/?tab=requests`;
+}
 
 /**
  * Dringlichkeit fuer die Team-SMS.
@@ -314,7 +334,7 @@ async function sendCallSms(sbAdmin, { callRowId = null, customerId = null, call 
       const nachricht = buildTeamSms({
         dringlichkeit: dringlichkeitAusAnruf(call),
         rueckrufnummer: rueckrufnummerFuerTeam(call),
-        dashboardUrl: DASHBOARD_ANFRAGEN_URL,
+        dashboardUrl: dashboardLinkFuerAnruf(callRowId),
         zeitpunkt
       });
 
@@ -453,7 +473,7 @@ module.exports = {
   ADDON_TEAM,
   ADDON_CALLER,
   MAX_TEAM_EMPFAENGER,
-  DASHBOARD_ANFRAGEN_URL,
+  dashboardLinkFuerAnruf,
   ausloeserTrifftZu,
   dringlichkeitAusAnruf,
   rueckrufnummerFuerTeam,

@@ -74,7 +74,7 @@ test('Team-SMS bleibt ein Segment', () => {
   const m = vorlagen.buildTeamSms({
     dringlichkeit: 'hoch',
     rueckrufnummer: '+41791234567',
-    dashboardUrl: callSms.DASHBOARD_ANFRAGEN_URL,
+    dashboardUrl: callSms.dashboardLinkFuerAnruf("call_1"),
     zeitpunkt: ZEIT
   });
   assert.equal(m.segmente, 1);
@@ -118,9 +118,15 @@ test('fehlende Rueckrufnummer wird benannt, nicht verschwiegen', () => {
   assert.match(m.text, /keine Nummer uebermittelt/);
 });
 
-test('fehlende Dringlichkeit laesst die Zeile weg statt sie leer zu zeigen', () => {
-  const m = vorlagen.buildTeamSms({ rueckrufnummer: '+41791234567', zeitpunkt: ZEIT });
-  assert.doesNotMatch(m.text, /Dringlichkeit/);
+test('die Dringlichkeit steht IMMER da, notfalls als "unbekannt"', () => {
+  // Pflichtzeile, seit die Nachricht kein Anliegen mehr traegt: sie
+  // beantwortet als einzige "jetzt oder morgen". Eine fehlende Zeile liest
+  // sich wie "nicht dringend" -- genau diese Lesart darf nicht entstehen.
+  const ohne = vorlagen.buildTeamSms({ rueckrufnummer: '+41791234567', zeitpunkt: ZEIT });
+  assert.match(ohne.text, /Dringlichkeit: unbekannt/);
+
+  const mit = vorlagen.buildTeamSms({ dringlichkeit: 'hoch', rueckrufnummer: '+41791234567', zeitpunkt: ZEIT });
+  assert.match(mit.text, /Dringlichkeit: hoch/);
 });
 
 test('nur eingestufte Dringlichkeiten gehen mit', () => {
@@ -131,8 +137,28 @@ test('nur eingestufte Dringlichkeiten gehen mit', () => {
     'ein Freitext darf nicht als Dringlichkeit durchrutschen');
 });
 
-test('der Link traegt keine Anruf-Kennung', () => {
-  assert.match(callSms.DASHBOARD_ANFRAGEN_URL, /\?tab=requests$/);
+test('der Link zeigt auf genau diesen Anruf', () => {
+  const id = '8c101866-94bb-4081-8b75-f879e3d46744';
+  assert.equal(callSms.dashboardLinkFuerAnruf(id), `https://dashboard.voxera.ch/#call/${id}`);
+});
+
+test('ohne Anruf-Kennung faellt der Link auf die Anfragenliste zurueck', () => {
+  // Ein Link auf nichts waere schlimmer als ein Link auf die Liste.
+  assert.match(callSms.dashboardLinkFuerAnruf(''), /\?tab=requests$/);
+  assert.match(callSms.dashboardLinkFuerAnruf(null), /\?tab=requests$/);
+});
+
+test('die Team-SMS bleibt auch im laengsten Fall ein Segment', () => {
+  // Schlimmster realistischer Fall: nicht eingestufte Dringlichkeit (das ist
+  // heute die Mehrheit), volle UUID im Link, lange Rufnummer. Ein zweites
+  // Segment kostet bei fuenf Empfaengern fuenffach.
+  const m = vorlagen.buildTeamSms({
+    dringlichkeit: '',
+    rueckrufnummer: '+491701234567890',
+    dashboardUrl: callSms.dashboardLinkFuerAnruf('8c101866-94bb-4081-8b75-f879e3d46744'),
+    zeitpunkt: ZEIT
+  });
+  assert.equal(m.segmente, 1, `laenge ${m.laenge}: ${m.text}`);
 });
 
 // ───────────────────────────────────────────────────────────────────────────

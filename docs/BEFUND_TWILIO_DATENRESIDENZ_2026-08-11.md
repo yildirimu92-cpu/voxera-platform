@@ -78,7 +78,7 @@ PW nicht fahrbereit, eine Person wartet im Fahrzeug
 Voxera 03:14 Neuer Anruf
 Dringlichkeit: hoch
 Rueckruf: +41791234567
-Details: https://dashboard.voxera.ch/?tab=requests
+Details: https://dashboard.voxera.ch/#call/8c101866-94bb-4081-8b75-f879e3d46744
 ```
 
 Entfallen sind: **Name des Anrufers, Anliegen, Zusammenfassung, Kategorie, Ort.** Wer wissen will, worum es geht, öffnet das Dashboard — dort greift die eigene 90-Tage-Frist.
@@ -99,6 +99,7 @@ Wichtig für die Beurteilung: Die Änderung reduziert, sie beseitigt nicht.
 |---|---|---|
 | Private Mobilnummern der Mitarbeiter | Empfänger der Team-SMS | **neu durch SMS** |
 | Grobe Dringlichkeitsstufe | Text der Team-SMS | **neu durch SMS** |
+| Anruf-UUID im Link | Text der Team-SMS | **neu durch SMS**, siehe unten |
 | Rufnummer des Anrufers | Text der Team-SMS **und** Empfänger der Anrufer-SMS | siehe unten |
 | Zeitpunkt des Anrufs | beide Nachrichten | siehe unten |
 | Firmenname des Kunden | Text der Anrufer-SMS | öffentlich |
@@ -106,6 +107,18 @@ Wichtig für die Beurteilung: Die Änderung reduziert, sie beseitigt nicht.
 **Der entscheidende Punkt:** Rufnummer und Zeitpunkt des Anrufers liegen **ohnehin schon bei Twilio** — der Anruf selbst läuft über Twilio (`twilio-inbound-router.js`), und die Call Records tragen `From`, `To` und Zeitstempel unabhängig von jeder SMS.
 
 Der marginale Zuwachs durch die SMS beschränkt sich damit im Wesentlichen auf **die Mobilnummern der Mitarbeiter** und **eine dreistufige Dringlichkeitsangabe**.
+
+### Zur UUID im Link
+
+Der Link zeigt seit dem 2026-08-11 auf **genau diesen Anruf** (`#call/<uuid>`), nicht mehr auf die Anfragenliste. Begründung: Seit die Nachricht kein Anliegen mehr trägt, ist der Link der einzige Weg dorthin — und um drei Uhr nachts ist der Unterschied zwischen einem Klick und einer Suche der ganze Unterschied. Er ist der Ausgleich für den Komfort, den der Verzicht kostet.
+
+Datenschutzrechtlich ist das ein Zuwachs, aber ein kleiner:
+
+- Die UUID ist **ohne Anmeldung am Dashboard nicht auflösbar** und trägt selbst kein Inhaltsdatum. Für sich genommen ist sie eine Zufallszahl.
+- Sie steht im selben Text wie die **Rufnummer des Anrufers** — die Verknüpfung „dieser Vorgang gehört zu dieser Person" entsteht also nicht erst durch sie.
+- Dieselbe Verknüpfung erzeugt der **Sprachanruf ohnehin** in den Call Records.
+
+Was sie hinzufügt, ist ein dauerhafter, eindeutiger Verweis auf einen bestimmten Vorgang im fremden Bestand — also die Möglichkeit, zwei Twilio-Records sicher demselben Fall zuzuordnen. Das ist der ehrliche Preis; er wurde bewusst bezahlt.
 
 Was durch die Entscheidung *nicht* mehr entsteht, ist der eigentliche Kern: eine Beschreibung der Lage einer identifizierbaren Person zu einem konkreten Zeitpunkt an einem konkreten Ort.
 

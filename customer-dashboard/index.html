@@ -19253,6 +19253,65 @@ function vxEnsureNoOrphanDetailView(reason) {
 window.vxEnsureNoOrphanDetailView = vxEnsureNoOrphanDetailView;
 window.vxForceCloseCallDetail = vxForceCloseCallDetail;
 
+// ─── Deep-Link-Einstieg auf einen einzelnen Anruf ───────────────────────────
+//
+// Die Hash-Route #call/<id> gab es schon: vxOpenPriorityRecord schreibt sie
+// beim Oeffnen aus der Anwendung heraus, und die popstate- sowie die
+// Waisen-Wache respektieren sie. Ausgewertet hat sie beim KALTSTART aber
+// niemand -- wer mit diesem Hash einstieg, landete auf der Liste und musste
+// den Anruf selbst suchen.
+//
+// Seit die Team-SMS kein Anliegen mehr traegt (Datenresidenz, siehe
+// docs/BEFUND_TWILIO_DATENRESIDENZ_2026-08-11.md), ist dieser Link der einzige
+// Weg zum Anliegen. Um drei Uhr nachts ist der Unterschied zwischen einem
+// Klick und einer Suche der ganze Unterschied -- und er ist der einzige
+// Ausgleich fuer den Komfort, den der Verzicht auf das Anliegen kostet.
+var _vxDeepLinkAngewendet = false;
+function vxApplyDeepLinkFromHash(reason) {
+  if (_vxDeepLinkAngewendet) return false;
+  var treffer = /^#(call|task)\/(.+)$/.exec(String(window.location.hash || ''));
+  if (!treffer) return false;
+
+  // Nur ein Versuch je Seitenaufruf. loadData() laeuft auch beim Aktualisieren
+  // und beim Polling -- ohne diese Sperre risse es dem Nutzer die Ansicht
+  // immer wieder auf denselben Anruf zurueck.
+  _vxDeepLinkAngewendet = true;
+
+  var typ = treffer[1];
+  var id = '';
+  try { id = decodeURIComponent(treffer[2]); } catch (e) { id = treffer[2]; }
+  id = String(id || '').trim();
+  if (!id) return false;
+
+  // Nicht blind oeffnen: ein unbekannter Datensatz ergaebe eine leere
+  // Detailhuelle, die wie ein Fehler des Dashboards aussieht -- obwohl der
+  // Link nur veraltet ist oder der Anruf zu einem anderen Konto gehoert.
+  var vorhanden = false;
+  try {
+    var liste = (typ === 'task')
+      ? (window.allManualTaskRecords || [])
+      : (window.allRecords || []);
+    vorhanden = liste.some(function (r) { return r && String(r.id) === id; });
+  } catch (e) { vorhanden = false; }
+
+  if (!vorhanden) {
+    console.warn('[deep-link] Datensatz nicht in dieser Ansicht', { typ: typ, id: id, reason: reason || null });
+    // Hash raeumen, damit die Waisen-Wache keine leere Detailansicht offen
+    // haelt und ein Reload nicht dasselbe noch einmal versucht.
+    try { history.replaceState(history.state || {}, '', location.pathname + location.search); } catch (e) {}
+    return false;
+  }
+
+  try {
+    if (typ === 'task' && typeof showTaskDetail === 'function') { showTaskDetail(id); return true; }
+    if (typ === 'call' && typeof showCallDetail === 'function') { showCallDetail(id); return true; }
+  } catch (e) {
+    console.warn('[deep-link] oeffnen fehlgeschlagen', { typ: typ, id: id, error: e && e.message });
+  }
+  return false;
+}
+window.vxApplyDeepLinkFromHash = vxApplyDeepLinkFromHash;
+
 
 // options.strict = true: Fehler werden geworfen statt als leere Liste
 // zurueckgegeben. Der Normalfall (ohne Option) bleibt unveraendert, weil die
@@ -20532,6 +20591,11 @@ async function loadData(onMilestone) {
     var loadingEl = document.getElementById('dash-loading');
     if (loadingEl) loadingEl.style.display = 'none';
     if (typeof onMilestone === 'function') onMilestone(90); // Rendering fertig
+
+    // Erst jetzt: die Listen stehen, ein Deep-Link kann seinen Datensatz
+    // finden. Frueher aufgerufen traefe er auf window.allRecords = [] und
+    // wuerde den Anruf faelschlich als unbekannt verwerfen.
+    if (typeof vxApplyDeepLinkFromHash === 'function') vxApplyDeepLinkFromHash('loadData');
 
   } catch(e) {
     const rawMsg = String((e && e.message) || 'Unbekannter Fehler');
