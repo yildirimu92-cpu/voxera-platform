@@ -79,9 +79,11 @@ oder in einen Pool zurückgeführt wird, ist eine Produktentscheidung
   unabhängig vom Agenten bestehen? Das entscheidet, ob zusätzlich Konversationen gelöscht werden
   müssen. **Vor dem Bau in der Anbieter-Dokumentation prüfen** — die Annahme „Agent weg = alles weg"
   ist nicht belegt.
-- **Prüfpunkt G.1** (Aufbewahrungsfrist Gesprächsdaten, Default 2 Jahre) hängt mit drin: Steht dort
-  der Default, überleben Transkripte beim Anbieter die Kündigung um bis zu zwei Jahre — unabhängig
-  davon, ob der Agent gelöscht wird.
+- ~~**Prüfpunkt G.1**~~ ✅ **erledigt 11.08.2026: 90 Tage.** Transkripte und Audio überleben eine
+  Kündigung beim Anbieter damit höchstens 90 Tage — deutlich besser als die zwei Jahre, die der
+  Default bedeutet hätte. **Das entschärft dieses Ticket aber nicht:** Die 90 Tage gelten für
+  *Gesprächsdaten*. Der **Agent mit den Stammdaten** hat gar keine Frist und bleibt unbefristet
+  stehen. Genau er ist der Gegenstand hier.
 
 ## 6. Aufwand und Dringlichkeit
 

@@ -21,7 +21,7 @@ Zug fallen sollten, weil sie dieselbe Ursache haben.
 
 | # | Stelle | Problem | Dringlichkeit |
 |---|---|---|---|
-| 1 | §7, Zeile „Audio-Aufzeichnungen" | sagt 30 Tage, tatsächlich 90 — ✅ **entschieden: ElevenLabs wird auf 30 Tage gestellt, die Zeile bleibt.** Nur eine Klarstellung kommt hinzu. **Bis 03.09. folgenlos, siehe 2.1** | 🔴 **Zusage wird bis zur Umstellung gebrochen** |
+| 1 | §7, Zeile „Audio-Aufzeichnungen" | sagt 30 Tage, tatsächlich 90. Ein Ausweg über die Konsole existiert **nicht** (2.1) — die Zeile wird auf **90** gezogen | 🔴 **Zusage wird heute gebrochen** |
 | 2 | §7, Zeile „Transkripte" | sagt Vertragsdauer, tatsächlich 90 Tage | 🔴 **ab Anfang November wirksam** |
 | 3 | §7 | Zeile für Konfigurationsdaten **fehlt ganz** | 🟠 Lücke |
 | 4 | §5, Zeile „KI-Sprachdienste" | Zweck nennt nur Anrufinhalte, nicht die Konfiguration | 🟠 Lücke |
@@ -36,35 +36,37 @@ der Netlify-Umstellung, nicht vorher.
 
 ## 2. §7 Speicherdauer — neue Fassung
 
-### 2.1 Zeile „Audio-Aufzeichnungen von Anrufen" — ✅ entschieden: Technik anpassen
+### 2.1 Zeile „Audio-Aufzeichnungen von Anrufen" — ✅ geltend: auf 90 Tage ziehen
 
-**Entscheidung vom 11.08.2026:** Nicht die Erklärung auf 90 Tage heben, sondern **ElevenLabs auf
-30 Tage stellen.** Begründung des Betreibers: datenschutzfreundlicher, und bei einem
-Rückrufprodukt ist ein kürzeres Anhör-Fenster kein Verlust.
+> **Korrigiert am 11.08.2026 nach Prüfung in der Konsole.** Die vorherige Fassung dieses Abschnitts
+> empfahl, statt der Erklärung die Technik anzupassen und ElevenLabs auf 30 Tage zu stellen.
+> **Diese Möglichkeit existiert nicht.** Damit ist auch der dort genannte 3.-September-Termin
+> gegenstandslos — er wird hier ausdrücklich zurückgenommen, damit ihn niemand aus einer älteren
+> Fassung weiterträgt.
 
-**Folge für den Text:** Die Zeile bleibt inhaltlich, wie sie ist. Es ändert sich **keine Zahl** —
-nur eine Klarstellung kommt hinzu:
+**Was die Konsole tatsächlich anbietet:** Der Datenschutz-Abschnitt der Agentenkonfiguration
+enthält **genau einen Zahlenwert** — „Aufbewahrungszeitraum für Konversationen: **90 Tage**".
+Daneben stehen zwei Schalter **ohne Frist**: „Transkript und abgeleitete Felder (PII) löschen" und
+„Audio löschen", beide **aus**. Nach ihrer Beschreibung sind das **Sofortlöschungen, keine
+Aufbewahrungssteuerung**.
 
-> | Audio-Aufzeichnungen von Anrufen | 30 Tage nach dem Anruf. Die Aufzeichnung wird nicht bei Voxera, sondern beim KI-Sprachdienstleister gespeichert und dort automatisch gelöscht. |
+> **Eine separate Audiofrist gibt es nicht.** Audio und Transkript hängen an demselben Wert. Eine
+> Senkung auf 30 Tage hätte die **Transkripte mitverkürzt** — genau die, die in §7 auf 90 Tage
+> stehen sollen und die Voxera selbst nach 90 Tagen löscht. Der vermeintlich billige Ausweg hätte
+> also einen neuen Widerspruch erzeugt statt einen alten zu heilen.
 
-**Warum der Zusatz trotzdem nötig ist:** Die heutige Zeile erweckt den Eindruck, Voxera halte die
-Aufnahme selbst. Das ist nachweislich nicht so — `recording_url` und `recording_storage_path` sind
-bei allen Anrufen leer, die einzige Kopie liegt beim Sprachdienstleister (Diagnose B.3). Wer nach
-Art. 25 revDSG Auskunft verlangt, muss wissen, wo er sie bekommt.
+**Damit gilt der ursprüngliche Vorschlag: die Zeile wird auf 90 Tage gezogen, wie die anderen.**
 
-> ⚠️ **Diese Umstellung ist bis zum 3. September gratis — danach nicht mehr.**
->
-> Wird die Aufbewahrung bei ElevenLabs von 90 auf 30 Tage gesenkt, fragt die Konsole, ob die neue
-> Frist **auch auf bestehende Aufnahmen** angewendet werden soll. Der älteste Anruf stammt vom
-> 04.08.2026 und erreicht am **03.09.2026** die 30-Tage-Grenze. **Bis dahin gibt es keine
-> Aufnahme, die dadurch verlorenginge.** Danach löscht dieselbe Umstellung bestehende Aufnahmen
-> sofort mit.
->
-> Es ist also nicht nur billig, das jetzt zu tun — es ist der einzige Zeitpunkt, zu dem es
-> folgenlos ist.
+> | Audio-Aufzeichnungen von Anrufen | 90 Tage nach dem Anruf. Die Aufzeichnung wird nicht bei Voxera, sondern beim KI-Sprachdienstleister gespeichert und dort automatisch gelöscht. |
 
-**Reihenfolge:** Erst umstellen, dann veröffentlichen. Solange ElevenLabs auf 90 Tage steht, ist
-die 30-Tage-Zeile falsch — daran ändert die Entscheidung nichts, nur ihre Ausführung.
+**Warum der Zusatz:** Die heutige Zeile erweckt den Eindruck, Voxera halte die Aufnahme selbst. Das
+ist nachweislich nicht so — `recording_url` und `recording_storage_path` sind bei allen Anrufen
+leer, die einzige Kopie liegt beim Sprachdienstleister (Diagnose B.3). Wer nach Art. 25 revDSG
+Auskunft verlangt, muss wissen, wo er sie bekommt.
+
+**Der Nebeneffekt ist der eigentliche Gewinn:** Audio, Transkript und Anbieterfrist stehen damit
+alle auf **90 Tage** — ein einziger Wert statt dreier, die auseinanderdriften können. Es gibt keine
+Umstellung, die vorher zu erledigen wäre, und keinen Termin, der davon abhängt.
 
 ### 2.2 Zeile „Transkripte und Anruf-Metadaten"
 
@@ -213,15 +215,16 @@ Zu ändern sind sechs Zeilen, nicht das Dokument.
 
 | # | Schritt | Status |
 |---|---|---|
-| 1 | Einzeiler-Filter in `findStaleCustomers()` | ✅ umgesetzt, **Merge offen** |
-| 2 | **ElevenLabs auf 30 Tage Audio stellen** — ⏳ **bis 03.09. folgenlos** (2.1) | offen, Betreiber |
-| 3 | Weg A aus dem Transkript-Ticket umsetzen: §7 auf 90/180 (2.2) | wartet auf Schritt 2 |
-| 4 | **Transkript-Spalte in den CSV-Export** — `TICKET_DATENEXPORT_2026-08-11.md`, 4.1 | offen, unabhängig |
-| 5 | §7 (2.1–2.3), §5 (4.1) und §6 (4.2) **gemeinsam mit dem neuen Startseiten-Text** veröffentlichen | wartet auf 2–4 |
+| 1 | Einzeiler-Filter in `findStaleCustomers()` (plus Nachprüfung im Worker) | ✅ umgesetzt, **Merge offen** |
+| 2 | ~~ElevenLabs auf 30 Tage Audio stellen~~ | ❌ **entfällt** — die Einstellung existiert nicht (2.1) |
+| 3 | Weg A aus dem Transkript-Ticket umsetzen: §7 auf 90/180 (2.1–2.2) | **bereit** — keine Vorbedingung mehr |
+| 4 | **Export überhaupt erreichbar machen** — `TICKET_DATENEXPORT_2026-08-11.md`, 4.1 | offen, unabhängig |
+| 5 | §7 (2.1–2.3), §5 (4.1) und §6 (4.2) **gemeinsam mit dem neuen Startseiten-Text** veröffentlichen | wartet auf 3 |
 | 6 | Version auf **2.1** heben, Stand-Datum aktualisieren, wesentliche Änderung den Vertragskunden mitteilen (§13 sieht das vor) | mit Schritt 5 |
 | 7 | **Nach** der Netlify-Umstellung: §5 Web-Hosting auf „EU" (4.3) | wartet auf Website-Ausfall |
 | 8 | Sobald der Offboarding-Löschprozess steht: Variante B → Variante A (Abschnitt 3) | wartet auf Ticket |
 
-**Der kritische Pfad ist Schritt 2.** Er ist der einzige mit einem Datum, das nicht verschiebbar
-ist: Ab dem 3. September kostet dieselbe Umstellung bestehende Aufnahmen. Alles andere in dieser
-Liste kann warten, das nicht.
+**Der kritische Pfad ist wieder der 2. November** — Schritt 3 zusammen mit Schritt 4. Der
+3.-September-Termin aus der vorherigen Fassung ist gegenstandslos; es gibt keine Konsolenumstellung
+mehr, die vorher zu erledigen wäre. Damit ist die Reihenfolge einfacher als zuvor: §7 kann sofort
+geschrieben werden, die Zahl steht fest und ist durch G.1 bestätigt.

@@ -29,7 +29,7 @@ bei ElevenLabs, siehe C.3).
 
 | Dienst | Datenart | Verarbeitungsort | Speicherort | Frist | Einstellmöglichkeit |
 |---|---|---|---|---|---|
-| **ElevenLabs** | Gesprächsaudio (vollständig, live), Transkript, Metadaten, **Kundenstammdaten im Agenten-Prompt** (Firma, Adresse, Öffnungszeiten, Leistungen, Notfallnummer) | **USA** 🔴 — `api.us.elevenlabs.io` fest im Code | **USA** 🔴 | Audio **90 Tage** (aktiv gesetzt); Gesprächsdaten Default **2 Jahre**; Prompt-Konfiguration **unbefristet** | ZRM (aus), Audio-Speicherung (an/90 T.), Aufbewahrung; **Datenresidenz nur Enterprise**, Regionen EU/US/Indien/Singapur — **kein CH** |
+| **ElevenLabs** | Gesprächsaudio (vollständig, live), Transkript, Metadaten, **Kundenstammdaten im Agenten-Prompt** (Firma, Adresse, Öffnungszeiten, Leistungen, Notfallnummer) | **USA** 🔴 — `api.us.elevenlabs.io` fest im Code | **USA** 🔴 | Gesprächsdaten **inkl. Audio: 90 Tage** — ein einziger Wert, bestätigt 11.08. (G.1); Prompt-Konfiguration **unbefristet** | ZRM (aus), Audio speichern (an), zwei Sofortlösch-Schalter (aus) — **alle ohne Standortwirkung**; **keine getrennte Audiofrist**; **Datenresidenz nur Enterprise**, Regionen EU/US/Indien/Singapur — **kein CH** |
 | **Twilio** | Signalisierung + **Medienstrom** (Audio läuft durch), Anrufer-/Zielnummer, Call-SID, Dauer, Status | **USA** 🔴 — Standardregion `us1`, im Code **keine** Region/Edge gesetzt | **USA** 🔴 (nur CDR/Metadaten) | CDR nach Twilio-Standard; **keine Aufzeichnung** ✅ | Twilio Regions: `ie1` Irland verfügbar — **kein CH**; erfordert Nummern- + Edge-Konfiguration |
 | **Supabase** | Transkripte, Zusammenfassungen, Anrufername/-nummer, Kundenstammdaten, Notizen, Rechnungen | **Schweiz (Zürich)** 🟢 `eu-central-2` | **Schweiz (Zürich)** 🟢 | Transkripte **90 T.**, Anrufsätze **180 T.** — implementiert, **Scharfschaltung offen** ⚠️ | Region ist fix pro Projekt; bereits die beste Option. **Kein Audio gespeichert** |
 | **Netlify** | **Alles, was durch Functions läuft**: Webhook-Payloads mit Transkripten, Audio-Proxy-Stream, Stammdaten; dazu Besucher-IPs | **USA** 🟠 — `netlify.toml` setzt **keine** Region → Default `us-east-2` (Ohio) | Static/CDN global; Functions ohne Persistenz | keine eigene Frist (zustandslos), Logs nach Netlify-Standard | Functions-Region wählbar: `eu-central-1` Frankfurt, `eu-west-2` London — **kein CH** |
@@ -62,12 +62,33 @@ Leistungskatalog, Begrüssungstext, Notfallnummer (`_lib/prompt-builder-v2.js`, 
 über `_lib/elevenlabs-sync.js:238`). Diese Daten liegen dort **dauerhaft**, unabhängig von jeder
 Anruf-Aufbewahrungsfrist. Das wird bei der Diskussion um Audio-Fristen regelmässig übersehen.
 
-**Die beiden Schalter in der Agentenkonfiguration — und was sie *nicht* tun:**
+**Die Datenschutz-Konfiguration des Agenten — vollständig, Stand 11.08.2026**
 
-| Schalter | Stand | Was er steuert | Was er **nicht** steuert |
-|---|---|---|---|
-| „Modus ohne Speicherung" (Zero Retention Mode) | **aus** | Ob Aufnahmen, Transkripte und PII **nach dem Anruf gespeichert/geloggt** werden | **Den Verarbeitungsort.** Der Anruf wird weiterhin in den USA verarbeitet |
-| „Anrufaudio speichern" | **an, 90 Tage** | Ob und wie lange die **Audiodatei aufbewahrt** wird | **Den Verarbeitungsort.** Auch ohne Speicherung läuft das Audio durch US-Infrastruktur |
+Das ist die Konfiguration, die entscheidet, **was tatsächlich in den USA liegt**. Sie gehört
+deshalb hierher und nicht nur in ein Ticket. Alle Werte am 11.08.2026 in der Konsole abgelesen:
+
+| Einstellung | Stand | Wirkung |
+|---|---|---|
+| **Aufbewahrungszeitraum für Konversationen** | **90 Tage** | Der **einzige Zahlenwert** im Abschnitt. Deckt Gesprächsdaten **einschliesslich Audio** ab — eine getrennte Audiofrist gibt es nicht |
+| „Modus ohne Speicherung" (Zero Retention Mode) | **aus** | Bewusst. Bei „an" bliebe nach dem Anruf nichts liegen — der Audio-Player im Dashboard entfiele |
+| „Anrufaudio speichern" | **an** | Bewusst. Die Aufnahme entsteht und lebt die 90 Tage |
+| „Transkript und abgeleitete Felder (PII) löschen" | **aus** | Schalter **ohne** Frist — laut Beschreibung eine **Sofortlöschung**, keine Aufbewahrungssteuerung |
+| „Audio löschen" | **aus** | dito |
+
+> **Zwei Dinge, die man an dieser Tabelle ablesen muss:**
+>
+> 1. **Die vier Schalter sind Aufbewahrungs-, keine Standort-Einstellungen.** Keiner von ihnen
+>    verlagert irgendetwas in die Schweiz oder die EU. Sie steuern, *was liegen bleibt* — nicht,
+>    *wo verarbeitet wird*. Datenschutzrechtlich ist die Übermittlung in die USA bereits mit dem
+>    Verbindungsaufbau erfolgt, unabhängig von jeder Stellung.
+> 2. **Audio und Transkript hängen an demselben Wert.** Es gibt keinen Weg, das eine kürzer
+>    aufzubewahren als das andere. Ein früherer Vorschlag, die Audiofrist auf 30 Tage zu senken,
+>    ist genau daran gescheitert (siehe G.1b) — er hätte die Transkripte mitverkürzt.
+>
+> **Die heutige Stellung ist damit die bewusste Entscheidung, Gesprächsinhalte 90 Tage in den USA
+> liegen zu lassen**, im Austausch gegen den Audio-Player und die Nachvollziehbarkeit im Support.
+> Wer das ändern will, hat genau einen Hebel: ZRM einschalten (Diagnose C.4) — und verliert dabei
+> den Player, nicht den Verarbeitungsort.
 
 > **Die direkte Antwort auf die Frage im Auftrag:** Beide Schalter sind **Aufbewahrungs**-, keine
 > **Standort**-Einstellungen. „Modus ohne Speicherung" einzuschalten verlagert **nichts** in die
@@ -228,10 +249,10 @@ Diese verlagern nichts, verringern aber die Datenmenge im Ausland — und sind b
   USA liegen; die Transkripterfassung liefe über den Post-Call-Webhook weiter, das Transkript
   landete weiterhin in Zürich. **Preis:** Der Audio-Player im Dashboard entfiele, und die
   Fehlersuche bei Anrufproblemen wird schwerer.
-- **Aufbewahrungsfrist der Gesprächsdaten prüfen:** Der Default liegt bei **2 Jahren**. Gesetzt
-  ist nur die Audio-Frist (90 Tage). Ob die Transkriptfrist bei ElevenLabs ebenfalls auf 90 Tage
-  steht, ist in der Konsole zu verifizieren — sonst besteht ein Widerspruch zur eigenen
-  90-Tage-Zusage.
+- ~~**Aufbewahrungsfrist der Gesprächsdaten prüfen**~~ — ✅ **erledigt am 11.08.2026: steht auf
+  90 Tagen**, nicht auf dem Anbieter-Default von zwei Jahren. Es gibt nur **einen** Wert für
+  Gesprächsdaten und Audio gemeinsam. Anbieterfrist, eigene Löschung und §7 in der neuen Fassung
+  stimmen damit überein (G.1).
 - **`DATA_RETENTION_ENFORCEMENT_ENABLED` scharfschalten** (siehe B.3).
 
 ---
@@ -324,7 +345,7 @@ Diese fünf Punkte liessen sich aus Code und APIs nicht abschliessend klären:
 | # | Zu prüfen | Wo | Warum es zählt |
 |---|---|---|---|
 | 1 | ~~Steht `DATA_RETENTION_ENFORCEMENT_ENABLED` auf `true`?~~ ✅ **erledigt, steht auf `true`** | Netlify → Env | Sonst ist die 90/180-Tage-Zusage **unwirksam** |
-| 2 | Welche Aufbewahrungsfrist gilt für **Gesprächsdaten** (nicht Audio)? | ElevenLabs → Agent → Advanced | Default 2 Jahre widerspräche der eigenen 90-Tage-Aussage |
+| 2 | ~~Welche Aufbewahrungsfrist gilt für **Gesprächsdaten**?~~ ✅ **erledigt: 90 Tage** — ein gemeinsamer Wert für Gesprächsdaten und Audio, kein Default von 2 Jahren | ElevenLabs → Agent → Datenschutz | Kein dritter Widerspruch (G.1) |
 | 3 | Aktueller ElevenLabs-Plan — Enterprise ja/nein? | ElevenLabs → Billing | Entscheidet, ob EU-Residenz überhaupt verfügbar ist |
 | 4 | Ist bei der Twilio-Nummer regionales Routing gesetzt? | Twilio → Phone Numbers | Bestätigt oder widerlegt die `us1`-Annahme |
 | 5 | Welche Functions-Region zeigt Netlify tatsächlich an? | Netlify → Build & deploy | Bestätigt den `us-east-2`-Default |
@@ -424,14 +445,14 @@ sobald der älteste Anruf 90 Tage erreicht, also **etwa Anfang November 2026**.
 > Datenschutzerklärung, den diese Diagnose beseitigen sollte** — nur mit vertauschten Rollen.
 >
 > **Empfehlung:** §7 gehört in denselben Arbeitsgang wie der Website-Text, nicht in einen
-> späteren. Die Zeilen für Audio (30 → 90 Tage, oder ElevenLabs auf 30 Tage stellen) und
-> Transkripte (Vertragsdauer → 90 Tage) sind der Mindestumfang, die fehlende Zeile für
-> Konfigurationsdaten aus F.1 kommt dazu.
+> späteren. Die Zeilen für Audio (30 → 90 Tage) und Transkripte (Vertragsdauer → 90 Tage) sind der
+> Mindestumfang, die fehlende Zeile für Konfigurationsdaten aus F.1 kommt dazu.
 
-Welche der beiden Richtungen bei Audio gewählt wird — Erklärung an die Realität anpassen (90)
-oder Realität an die Erklärung (ElevenLabs auf 30 Tage stellen) —, ist eine Betreiberentscheidung.
-Die zweite Variante ist die datenschutzfreundlichere und kostet nur eine Konsolen-Einstellung;
-sie verkürzt allerdings das Fenster, in dem ein Gespräch im Dashboard noch anhörbar ist.
+**Nachtrag 11.08.2026 — bei Audio gibt es keine zwei Richtungen.** Kurzzeitig stand die Überlegung
+im Raum, statt der Erklärung die Technik anzupassen und ElevenLabs auf 30 Tage zu stellen. **Diese
+Einstellung existiert nicht** (G.1b): Es gibt genau einen Aufbewahrungswert für Gesprächsdaten und
+Audio gemeinsam, und eine Senkung hätte die Transkripte mitverkürzt. Die Audiozeile wird deshalb
+auf **90** gezogen, wie die anderen — es bleibt bei einer reinen Textänderung.
 
 ---
 
@@ -440,39 +461,41 @@ sie verkürzt allerdings das Fenster, in dem ein Gespräch im Dashboard noch anh
 Punkt 1 ist erledigt. Die verbleibenden vier, mit Klickweg und der Angabe, was ein „gutes"
 Ergebnis wäre:
 
-### G.1 ElevenLabs — Aufbewahrungsfrist für **Gesprächsdaten** (nicht Audio)
+### G.1 ElevenLabs -- Aufbewahrungsfrist fuer Gespraechsdaten -- ✅ **beantwortet: 90 Tage**
 
-**Weg:** ElevenLabs Dashboard → *Agents* → den produktiven Agenten öffnen → Reiter **Advanced**
-→ Block **Data Retention**.
+**Ergebnis vom 11.08.2026:** "Aufbewahrungszeitraum fuer Konversationen" steht auf **90 Tage** --
+**nicht** auf dem Anbieter-Default von zwei Jahren.
 
-**Zu notieren:** Der Wert bei der Aufbewahrung der Gesprächsdaten (Transkripte), in Tagen. Das
-ist ein **anderes Feld** als „Anrufaudio speichern", das bereits auf 90 Tage steht.
+**Damit ist der befuerchtete dritte Widerspruch ausgeraeumt.** Anbieterfrist, eigene Loeschung und
+Paragraf 7 in der neuen Fassung stehen alle auf **90 Tagen**:
 
-**Erwartung:** Der Anbieter-Default ist **2 Jahre**. Steht dort noch der Default, liegen
-Transkripte bei ElevenLabs 730 Tage — während Voxera in der eigenen Datenbank nach 90 Tagen
-löscht und der neue Website-Text 90 Tage zusagt. **Das wäre ein dritter Widerspruch** zusätzlich
-zu den beiden aus F.2.
+| Ebene | Frist | Beleg |
+|---|---|---|
+| ElevenLabs, Gespraechsdaten inkl. Audio | 90 Tage | Konsole, 11.08.2026 |
+| Voxera, `transcript` / `transcript_json` | 90 Tage | `enforce-data-retention.js:12` |
+| Paragraf 7, neue Fassung | 90 Tage | `DSE_KORREKTUR_2026-08-11.md`, 2.1--2.2 |
 
-**Gut wäre:** 90 Tage, passend zur eigenen Zusage.
+Ein einziger Wert ueber alle drei Ebenen -- das ist der Zustand, den dieser Strang herstellen
+sollte. Der Anrufsatz mit Zusammenfassung lebt davon unberuehrt bis Tag 180 weiter.
 
-### G.1b ElevenLabs — Audio-Aufbewahrung auf 30 Tage stellen ⏳ **bis 03.09. folgenlos**
+### G.1b ~~Audio-Aufbewahrung auf 30 Tage stellen~~ — ❌ **zurueckgezogen, Praemisse war falsch**
 
-Kein reiner Prüfpunkt, sondern eine **Umstellung** — vom Betreiber am 11.08.2026 entschieden.
+> **Am 11.08.2026 in der Konsole geprueft. Diese Einstellung gibt es nicht.** Der Vorschlag wird
+> hier stehen gelassen statt geloescht, damit der zurueckgenommene 3.-September-Termin nicht aus
+> einer aelteren Fassung weitergetragen wird.
 
-**Weg:** ElevenLabs Dashboard → *Agents* → produktiven Agenten öffnen → Reiter **Advanced** →
-Block **Privacy / Audio saving** → Aufbewahrung von **90 auf 30 Tage**.
+Der Datenschutz-Abschnitt der Agentenkonfiguration enthaelt **genau einen Zahlenwert** --
+"Aufbewahrungszeitraum fuer Konversationen: 90 Tage". Daneben zwei Schalter **ohne Frist**,
+"Transkript und abgeleitete Felder (PII) loeschen" und "Audio loeschen", beide **aus** und nach
+ihrer Beschreibung **Sofortloeschungen, keine Aufbewahrungssteuerung**.
 
-**Warum:** Damit wird die bestehende Zeile in §7 der Datenschutzerklärung („30 Tage nach Anruf")
-wieder wörtlich richtig, statt sie auf 90 Tage anzuheben. Datenschutzfreundlicher, und bei einem
-Rückrufprodukt ist das kürzere Anhör-Fenster kein Verlust.
+**Eine separate Audiofrist existiert nicht.** Audio und Transkript haengen an demselben Wert. Eine
+Senkung auf 30 Tage haette die Transkripte mitverkuerzt -- genau die, die in Paragraf 7 auf 90 Tage
+stehen sollen. Der vermeintlich billige Ausweg haette einen neuen Widerspruch erzeugt statt einen
+alten zu heilen.
 
-**Der Termin ist der Punkt:** Beim Senken fragt die Konsole, ob die neue Frist **auch auf
-bestehende Aufnahmen** angewendet werden soll. Der älteste Anruf stammt vom 04.08.2026 und
-erreicht am **03.09.2026** die 30-Tage-Grenze. **Bis dahin gibt es keine Aufnahme, die dadurch
-verlorenginge** — danach löscht dieselbe Umstellung bestehende Aufnahmen sofort mit.
-
-Es ist also nicht nur billig, das jetzt zu tun, sondern der einzige Zeitpunkt, zu dem es folgenlos
-ist. Zusammen mit G.1 in einem Aufwasch, beide Werte liegen im selben Reiter.
+**Folge:** Die Audiozeile in Paragraf 7 wird auf 90 gezogen, wie die anderen. Siehe
+`docs/DSE_KORREKTUR_2026-08-11.md`, 2.1. **Der 3.-September-Termin ist gegenstandslos.**
 
 ### G.2 ElevenLabs — aktueller Plan (Enterprise ja/nein)
 

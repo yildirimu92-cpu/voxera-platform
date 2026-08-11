@@ -98,7 +98,7 @@ braucht es eine **ereignisbasierte** Löschung, die es noch nicht gibt:
 | Löschlauf, der an `contracts.terminated_at` / `operational_ended_at` hängt statt an `created_at` | Die Frist beginnt am Vertragsende, nicht beim Anruf |
 | Behandlung von Kunden mit mehreren Verträgen | `lifecycle-runner.js` kennt bereits `hasOtherActiveContract()` — die Logik muss dieselbe sein, sonst löscht man einem aktiven Kunden die Daten |
 | Behandlung des Falls „Vertrag endet nie" | Ohne Vertragsende gibt es keine Löschung — dann wachsen Transkripte unbegrenzt |
-| Abstimmung mit ElevenLabs | Dort steht die Gesprächsdaten-Frist auf dem Default von **2 Jahren** (Prüfpunkt G.1). Eine längere Voxera-Frist als die Anbieter-Frist ist möglich, umgekehrt entsteht ein neuer Widerspruch |
+| Abstimmung mit ElevenLabs | Dort steht die Frist für Gesprächsdaten **und Audio gemeinsam auf 90 Tagen** (G.1, bestätigt 11.08.). Eine längere Voxera-Frist als die Anbieter-Frist ist möglich — dann liegen Transkripte in Zürich länger als beim Dienstleister, was unproblematisch ist. Umgekehrt entstünde ein Widerspruch |
 
 | ✅ Dafür | ❌ Dagegen |
 |---|---|
@@ -158,12 +158,15 @@ Ziel.**
 
 ## 6. Was ebenfalls zu klären ist
 
-- **Prüfpunkt G.1** (ElevenLabs-Frist für Gesprächsdaten, Default 2 Jahre): Steht dort noch der
-  Default, liegen Transkripte beim Dienstleister **länger** als bei Voxera — unabhängig davon,
-  welcher Weg gewählt wird. Diese Frist gehört auf denselben Wert.
-- **Audio-Frist:** Dieselbe Frage in klein. §7 sagt 30 Tage, ElevenLabs steht auf 90. Entweder die
-  Erklärung auf 90 heben oder ElevenLabs auf 30 stellen — siehe `DSE_KORREKTUR_2026-08-11.md`, 2.1.
-  **Sinnvoll ist, beides in einem Zug zu entscheiden**, weil es dieselbe Frage ist.
+- ~~**Prüfpunkt G.1**~~ ✅ **erledigt 11.08.2026: 90 Tage**, nicht der Default von zwei Jahren.
+  Anbieterfrist und eigene Löschung stehen auf demselben Wert — kein Widerspruch. **Relevant für
+  Weg B und C:** Wird die Voxera-Frist verlängert, liegen Transkripte in Zürich künftig **länger**
+  als beim Dienstleister. Das ist unproblematisch, aber es heisst, dass ein Gespräch nach 90 Tagen
+  nur noch als Transkript existiert — das Audio ist dann beim Anbieter weg und lässt sich nicht
+  nachträglich verlängern.
+- ~~**Audio-Frist**~~ ✅ **geklärt: keine eigene Frist vorhanden.** Audio und Transkript hängen bei
+  ElevenLabs an demselben Wert; eine getrennte Steuerung gibt es nicht. §7 zieht die Audiozeile
+  deshalb auf 90 — siehe `DSE_KORREKTUR_2026-08-11.md`, 2.1.
 - **Datenexport — inzwischen geprüft, Befund bestätigt.** Es gibt einen CSV-Export, aber er enthält
   **das Transkript nicht** und deckt **nur archivierte Anrufe** ab. Er liefert also genau das, was
   nach 90 Tagen noch da ist, und genau das nicht, was verschwindet. Vollständig in
