@@ -1,8 +1,35 @@
 # Ticket — Transkript-Aufbewahrung: Zusage oder Technik anpassen?
 
-**Datum:** 11.08.2026 · **Typ:** Produktentscheidung mit Rechtsfolge · **Status:** offen,
-**Entscheidung beim Betreiber** · **Frist:** **2. November 2026** (siehe Abschnitt 2) ·
+**Datum:** 11.08.2026 · **Typ:** Produktentscheidung mit Rechtsfolge ·
+**Status:** ✅ **entschieden am 11.08.2026 — Weg C, mit Weg A als Sofortmassnahme** ·
+**Frist:** **2. November 2026** (siehe Abschnitt 2) ·
 **Grundlage:** `DATENRESIDENZ_DIAGNOSE_2026-08-11.md`, F.2
+
+---
+
+## 0. Entscheidung
+
+> **Weg A jetzt, Weg C als Ziel.** §7 wird auf 90/180 Tage korrigiert und geht mit dem neuen
+> Startseiten-Text live. Die Staffelung nach Plan (Weg C) folgt als Produktvorhaben.
+>
+> **Begründung:** Verlängern geht später problemlos — verkürzen nicht. Weg A ist damit der sichere
+> Zwischenschritt, der die Frist hält, ohne eine Tür zuzuschlagen.
+>
+> **Die konkreten Staffelwerte für Weg C** (90 Tage / 12 Monate / 24 Monate im Vorschlag unten)
+> sind **noch nicht entschieden.** Sie werden zusammen mit der Preisstruktur festgelegt, nicht
+> separat — die Aufbewahrungsfrist ist ein Planmerkmal und gehört in dieselbe Rechnung wie
+> Inklusivminuten und Zusatzminutenpreis.
+
+> ### ⚠️ Ausdrücklich festgehalten: Auch Weg A verlangt eine Entscheidung vor dem 2. November
+>
+> Weg A ist eine **Textänderung, die aktiv vorgenommen werden muss** — kein Zustand, in den man
+> hineinläuft, indem man nichts tut. Wer die Frist verstreichen lässt, hat **nicht „Weg A
+> gewählt"**, sondern am 2. November eine Zusage gebrochen: §7 sichert dann noch immer die
+> Vertragsdauer zu, während das erste Transkript gelöscht wird.
+>
+> Der Unterschied ist nicht akademisch. Im ersten Fall steht ein korrigiertes Dokument, im zweiten
+> ein Dokument, das nachweislich etwas anderes sagt als die Anlage tut — und zwar zu einem
+> Zeitpunkt, zu dem der ganze Strang gerade wegen genau dieses Fehlers aufgeräumt wurde.
 
 ---
 
@@ -92,11 +119,15 @@ Voxera ist dabei Auftragsverarbeiter, nicht Herr der Entscheidung.
 
 Weder A noch B, sondern: **Die Frist wird konfigurierbar und Teil des Plans.**
 
-| Plan | Transkript-Aufbewahrung |
+| Plan | Transkript-Aufbewahrung *(Werte offen — mit der Preisstruktur zu entscheiden)* |
 |---|---|
-| Starter | 90 Tage |
-| Business | 12 Monate |
-| Professional | 24 Monate, im Dashboard einstellbar |
+| Starter | z. B. 90 Tage |
+| Business | z. B. 12 Monate |
+| Professional | z. B. 24 Monate, im Dashboard einstellbar |
+
+> **Die Zahlen oben sind Platzhalter zur Veranschaulichung der Staffelung, keine Festlegung.**
+> Entschieden wird gemeinsam mit der Preisstruktur — die Aufbewahrungsfrist gehört in dieselbe
+> Rechnung wie Inklusivminuten und Zusatzminutenpreis, nicht in eine eigene.
 
 Dazu in §7: „Transkripte: entsprechend der im gebuchten Plan vereinbarten Aufbewahrungsfrist
 (90 Tage bis 24 Monate), längstens bis 30 Tage nach Vertragsende."
@@ -133,10 +164,14 @@ Ziel.**
 - **Audio-Frist:** Dieselbe Frage in klein. §7 sagt 30 Tage, ElevenLabs steht auf 90. Entweder die
   Erklärung auf 90 heben oder ElevenLabs auf 30 stellen — siehe `DSE_KORREKTUR_2026-08-11.md`, 2.1.
   **Sinnvoll ist, beides in einem Zug zu entscheiden**, weil es dieselbe Frage ist.
-- **Kein Datenexport heute:** Wenn Transkripte gelöscht werden, sollte der Kunde sie vorher
-  herunterladen können. §10 sagt Datenübertragbarkeit zu (Art. 28 revDSG). Ob es dafür eine
-  Funktion gibt, ist hier **nicht geprüft** — wäre aber vor dem 2. November zu klären, sonst ist
-  die Löschung endgültig und die Zusage aus §10 lief ins Leere.
+- **Datenexport — inzwischen geprüft, Befund bestätigt.** Es gibt einen CSV-Export, aber er enthält
+  **das Transkript nicht** und deckt **nur archivierte Anrufe** ab. Er liefert also genau das, was
+  nach 90 Tagen noch da ist, und genau das nicht, was verschwindet. Vollständig in
+  `docs/TICKET_DATENEXPORT_2026-08-11.md`.
+  **Folge:** Am 2. November brechen ohne Gegenmaßnahme **zwei** Zusagen gleichzeitig — §7 und §10.
+  §7 lässt sich durch Weg A heilen, §10 nicht: Datenübertragbarkeit ist ein gesetzliches Recht und
+  lässt sich nicht wegformulieren, nur erfüllen. Die Transkript-Spalte im Export ist deshalb
+  **keine Nebensache, sondern Teil derselben Frist** — Aufwand rund eine Stunde.
 
 ---
 

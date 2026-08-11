@@ -455,6 +455,25 @@ zu den beiden aus F.2.
 
 **Gut wäre:** 90 Tage, passend zur eigenen Zusage.
 
+### G.1b ElevenLabs — Audio-Aufbewahrung auf 30 Tage stellen ⏳ **bis 03.09. folgenlos**
+
+Kein reiner Prüfpunkt, sondern eine **Umstellung** — vom Betreiber am 11.08.2026 entschieden.
+
+**Weg:** ElevenLabs Dashboard → *Agents* → produktiven Agenten öffnen → Reiter **Advanced** →
+Block **Privacy / Audio saving** → Aufbewahrung von **90 auf 30 Tage**.
+
+**Warum:** Damit wird die bestehende Zeile in §7 der Datenschutzerklärung („30 Tage nach Anruf")
+wieder wörtlich richtig, statt sie auf 90 Tage anzuheben. Datenschutzfreundlicher, und bei einem
+Rückrufprodukt ist das kürzere Anhör-Fenster kein Verlust.
+
+**Der Termin ist der Punkt:** Beim Senken fragt die Konsole, ob die neue Frist **auch auf
+bestehende Aufnahmen** angewendet werden soll. Der älteste Anruf stammt vom 04.08.2026 und
+erreicht am **03.09.2026** die 30-Tage-Grenze. **Bis dahin gibt es keine Aufnahme, die dadurch
+verlorenginge** — danach löscht dieselbe Umstellung bestehende Aufnahmen sofort mit.
+
+Es ist also nicht nur billig, das jetzt zu tun, sondern der einzige Zeitpunkt, zu dem es folgenlos
+ist. Zusammen mit G.1 in einem Aufwasch, beide Werte liegen im selben Reiter.
+
 ### G.2 ElevenLabs — aktueller Plan (Enterprise ja/nein)
 
 **Weg:** ElevenLabs Dashboard → Profilmenü oben rechts → *Subscription* bzw. **Billing**.
