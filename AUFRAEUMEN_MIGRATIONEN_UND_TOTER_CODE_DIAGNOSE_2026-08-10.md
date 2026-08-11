@@ -626,3 +626,71 @@ CSS und JavaScript nie im selben PR — die Abnahmekriterien sind verschieden.
   Eigener Auftrag, wenn gewünscht.
 - Ob die Geisterklassen aus C.3/11 ein Darstellungsfehler sind, ist **nur am
   laufenden Produkt** zu klären.
+
+---
+
+# D — Nachtrag 2026-08-11: erster Produktivlauf des F6-Wächters
+
+## D.1 Der Wächter hat einen Befund geliefert, den niemand gesucht hat
+
+Der Spalten-Allowlist-Check aus Gruppe F6 lief zum ersten Mal gegen die
+Produktions-Datenbank. Gesucht war eine Bestätigung; geliefert hat er einen
+zweiten Befund:
+
+```
+FAIL  F6-grants  calls: authenticated-UPDATE auf exakt 4 Spalten
+      callback_requested,dashboard_status,notes_customer_voxera,read_at,updated_at
+```
+
+Fünf statt vier. Die fünfte war `callback_requested` — ein Recht, das kein
+Browser-Pfad braucht. Die Kundensitzung schreibt an `calls` nur `read_at`,
+`dashboard_status`, `notes_customer_voxera` und `updated_at`. Gesetzt wird
+`callback_requested` ausschliesslich serverseitig mit dem Service-Role-Schlüssel,
+aus dem Anrufeingang (`call-intake-webhook.js:153`, `:297`,
+`elevenlabs-post-call.js:300`, `:415`). Zurückgenommen mit Migration
+`20260811203000_revoke_calls_callback_requested_grant.sql`; Nachmessung im
+Zielsystem: vier Spalten, Check grün.
+
+Harmlos war das Recht nicht. `callback_requested` entscheidet, ob ein Anruf als
+Rückrufwunsch gilt — es steuert die Aufgabenliste, die Sortierung und künftig
+den SMS-Versand. Eine Kundensitzung hätte den Rückrufwunsch eines Anrufers still
+zurücksetzen können.
+
+**Das ist das Argument für den nächsten Katalogeintrag.** Der Befund kam nicht
+aus einem Audit, sondern nebenbei, beim ersten Lauf eines Checks, der für etwas
+anderes geschrieben wurde. Kein Mensch hatte diese Spalte auf dem Zettel — die
+Aufräum-Diagnose in Teil B hat sie nicht gefunden, weil statische Code-Suche
+fehlende Aufrufer sieht, nicht überschüssige Rechte. Ein exakter Check ("genau
+diese vier") findet, was eine Mindestprüfung ("mindestens diese vier")
+durchwinkt. Jede weitere Tabelle mit einer Spalten-Allowlist verdient denselben
+Eintrag.
+
+## D.2 Fund 14 (neu): `onboarding_completed` — geprüft, kein Handlungsbedarf
+
+Offen stand die Frage, ob der Browser-Aufruf toter Code ist, weil der Wizard
+über eine Function schreibt. Er ist es nicht — die Frage beruhte auf einer
+Verwechslung zweier Features:
+
+1. **Kein Server-Pfad schreibt die Spalte.** `onboarding_completed` kommt in
+   keiner der 54 Netlify Functions des Customer Dashboards und in keiner des
+   Admin Portals vor. Der Aktivierungs-Wizard in `activate.html` ist ein anderes
+   Feature als das Onboarding-Modal im Dashboard; er rührt diese Spalte nicht an.
+   `customer-dashboard/index.html:15985` ist der **einzige** Schreiber im
+   gesamten Repository.
+2. **Der Pfad ist auf zwei Wegen erreichbar.** Automatisch über
+   `vxOnboardingInit()` (`index.html:16856`, 800 ms nach jedem
+   customerMeta-Rebuild, also bei jedem Poll) und manuell über
+   `vxOnboardingRestart()`, verdrahtet an zwei Schaltflächen (`:8164`, `:8486`,
+   Hilfe → Einrichtung).
+3. **Der Pfad lief nachweislich in Produktion.** Der Kommentar bei `:15810`
+   beschreibt einen real beobachteten Fehler: Das Modal öffnete sich bei jedem
+   Poll erneut, weil der Schreibvorgang still scheiterte und der nächste Poll
+   `onboarding_completed=false` zurücklas. Genau dieses Symptom hat am
+   2026-08-07 zur Grant-Migration geführt.
+4. **Das Recht ist da und gehört dazu.** Messung in der Produktions-DB:
+   `customers` erlaubt `authenticated`-UPDATE auf genau vier Spalten —
+   `contact_first_name`, `in_app_notification_settings`, `onboarding_completed`,
+   `updated_at`. Deckungsgleich mit der Katalog-Allowlist, Check grün.
+
+**Ergebnis: weder löschen noch ein Grant vergeben.** Beides ist bereits richtig.
+Der Fund gehört nach C.4 (bewusst belassen), nicht nach C.3.
