@@ -498,3 +498,60 @@ und das ist der Netlify-Default für neue Projekte.
 **Gut wäre:** Die Bestätigung, dass beide auf dem Default stehen. Genau das ist die
 Ausgangslage, die der vorbereitete Auftrag in `docs/AUFTRAG_NETLIFY_FRANKFURT_2026-08-11.md`
 annimmt. Weicht ein Projekt ab, ist der Auftrag vor der Ausführung anzupassen.
+
+---
+
+## F.3 Nachtrag 11.08.2026 — Löscht irgendetwas den Agenten bei Vertragsende? Nein.
+
+Geprüft auf Nachfrage zu F.1. Die Antwort ist eindeutig und hat eine unerwartete zweite Hälfte.
+
+**Teil 1 — es gibt keinen Löschprozess.**
+
+Im gesamten Repository existiert **kein einziger `DELETE`-Aufruf an ElevenLabs**. Der einzige
+`DELETE` überhaupt geht an einen Kalenderanbieter (`_lib/calendar-providers.js:285`).
+
+Beide Wege, auf denen ein Vertrag endet, fassen ausschliesslich Supabase an:
+
+| Weg | Datei | Was passiert | ElevenLabs? |
+|---|---|---|---|
+| manuell | `contract-terminate.js:125` | `operational_status = 'terminated'` | ❌ **kein Bezug** — das Wort „elevenlabs" kommt in der Datei nicht vor |
+| zeitgesteuert | `lifecycle-runner.js:138` | dito, plus Vertrags- und Abo-Status, Mail, Audit-Eintrag | ❌ **kein Bezug** |
+
+`elevenlabs_agent_id` bleibt in beiden Fällen **unverändert am Kundensatz stehen**. Der Agent
+existiert bei ElevenLabs weiter, mit Firmenname, Adresse, Öffnungszeiten und Leistungskatalog —
+unbefristet, in den USA.
+
+**Teil 2 — und ein Nachtdienst frischt ihn weiter auf.**
+
+`findStaleCustomers()` in `_lib/elevenlabs-fanout.js:44` wählt die zu synchronisierenden Kunden aus.
+Das einzige Auswahlkriterium ist:
+
+```js
+sb.from('customers')
+  .select('id, customer_name, elevenlabs_agent_id, prompt_fingerprint, …')
+  .not('elevenlabs_agent_id', 'is', null)
+```
+
+**Es gibt keinen Filter auf `operational_status`.** Ein gekündigter Kunde, dessen
+`elevenlabs_agent_id` noch gesetzt ist, wird vom nächtlichen `fanout-sync-planner` (03:40) also
+weiterhin als synchronisierungsbedürftig eingestuft und sein Geschäftsprofil **erneut in die USA
+geschrieben** — jede Nacht, unbegrenzt.
+
+**Teil 3 — noch ist nichts passiert.**
+
+Live geprüft, Produktionsdatenbank:
+
+| `operational_status` | Kunden | davon mit `elevenlabs_agent_id` |
+|---|---|---|
+| `active` | 3 | 1 |
+| `terminated` | **1** | **0** |
+
+Der eine gekündigte Kunde hat **keine** Agent-ID. Der Fehler ist damit **latent, nicht aktiv**: Er
+tritt beim ersten Kunden ein, der mit einem bereitgestellten Agenten gekündigt wird. Beim aktuellen
+Stand von einem einzigen aktiven Agenten ist das noch keine Datenschutzlage — aber es ist eine, die
+mit dem ersten echten Kündigungsfall entsteht.
+
+**Folge für die §7-Ergänzung aus F.1:** Der dort vorgeschlagene Halbsatz „… und werden dort bei
+Vertragsende mit dem Assistenten gelöscht" wäre **heute eine Zusage ohne Deckung.** Er darf so
+nicht in das Rechtsdokument, solange der Prozess nicht existiert. Die beiden Auswege stehen in
+`docs/DSE_KORREKTUR_2026-08-11.md`, Abschnitt 3.

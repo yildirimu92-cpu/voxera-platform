@@ -193,3 +193,66 @@ nebenbei anfällt.
   Berufsgeheimnis-Branche.
 - **Was kostet Warten?** Die Migration wird pro zusätzlichem Kunden teurer. Ab ~25 Kunden ist der
   Umbau der Hauptkostenblock.
+
+---
+
+## 7. Anhang — Anfragetext für das Angebot
+
+Zu Massnahme 5.2. **Auf Englisch**, weil der ElevenLabs-Vertrieb so arbeitet und eine deutsche
+Anfrage nur eine Übersetzungsschleife einbaut.
+
+**Wohin:** Kontaktformular unter `elevenlabs.io/enterprise` oder direkt an den Sales-Kontakt, falls
+im Konto bereits einer hinterlegt ist.
+
+**Betreff:** `EU data residency — pricing for a small Swiss voice-agent provider`
+
+---
+
+> Hello,
+>
+> I run Voxera, a Swiss company providing an AI phone assistant for small and medium businesses. We
+> use ElevenLabs Agents with the native Twilio integration — inbound calls only, German-language
+> agents, one agent per business customer.
+>
+> We are a small operation: currently a handful of agents and low call volume, growing. Swiss and
+> EU data protection law (revDSG / GDPR) is a recurring topic in our sales conversations,
+> particularly with medical practices and law firms, so I am trying to understand what EU data
+> residency would involve for us.
+>
+> Could you tell me:
+>
+> 1. **Entry-level pricing.** What is the smallest Enterprise commitment that includes EU data
+>    residency? An indicative annual figure is enough at this stage — I need to know whether this is
+>    realistic for a company of our size or something to revisit in a year.
+> 2. **Coverage.** Does EU residency apply to the full Agents product — inbound Twilio calls,
+>    conversation storage, post-call webhooks — or only to parts of it?
+> 3. **Endpoints.** Is `api.eu.residency.elevenlabs.io` the base URL for all API calls, and is there
+>    an equivalent EU endpoint for the Twilio inbound handler (we currently use
+>    `api.us.elevenlabs.io/twilio/inbound_call`)?
+> 4. **Migration.** Our existing agents, voices, phone numbers and tools live in the US environment.
+>    Is there any migration path, or do these need to be recreated in the EU environment?
+> 5. **Processing vs. storage.** Your documentation notes that processing may occur outside the
+>    selected region for support and moderation purposes. Can you describe what that covers in
+>    practice, and whether it can be restricted contractually?
+> 6. **Zero Retention Mode.** Is ZRM available alongside EU residency, and does it remain compatible
+>    with post-call webhooks?
+> 7. **Twilio regional routing.** If we move our Twilio numbers to the Ireland (ie1) region, what
+>    needs to be configured on the ElevenLabs side?
+>
+> Happy to have a short call if that is easier.
+>
+> Best regards,
+> Umut Yildirim
+> Voxera — voxera.ch
+
+---
+
+**Warum diese sieben Fragen und nicht weniger:** Jede einzelne ist ein Punkt, an dem die Sache
+scheitern kann. Frage 1 klärt die Wirtschaftlichkeit, 4 den versteckten Hauptkostenblock aus
+Abschnitt 2.2, 5 die Frage, ob die Investition überhaupt liefert, was sie verspricht. Die offene
+Nennung der eigenen Grösse in Absatz 2 ist Absicht — sie erspart eine Runde, in der ein
+Enterprise-Paket für 200 Nutzer angeboten wird.
+
+**Was mit der Antwort geschieht:** Die Zahl aus Frage 1 ersetzt ΔK in Abschnitt 2.1, die Antwort auf
+Frage 4 präzisiert 2.2, und die Antwort auf Frage 5 entscheidet, ob Abschnitt 1 („was es nicht
+löst") abgeschwächt werden kann. Danach ist die Rechnung in 3.1 keine Schätzung mehr.
