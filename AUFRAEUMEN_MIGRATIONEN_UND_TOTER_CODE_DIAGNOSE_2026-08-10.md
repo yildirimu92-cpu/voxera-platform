@@ -762,3 +762,25 @@ arbeiteten.
 Nachzudokumentieren bleibt für das Datenresidenz-Fenster, dem die Dateien
 gehören: die drei Namensdriften angleichen und die Waise als Datei nachreichen.
 Ich fasse sie nicht an.
+
+## D.4 Fund 15 (neu): `saveFollowUp()` ist tot
+
+`customer-dashboard/index.html:20169` definiert `saveFollowUp(callId)`. Aufgerufen
+wird die Funktion nirgends — weder aus dem Markup (`onclick`), noch aus dem
+JavaScript, noch ueber `window.`. Der Nachfolger `saveFollowUpV2()` (`:19575`)
+haengt an den Knoepfen und ist als `window.saveFollowUpV2` exportiert.
+
+Vertrauensgrad: **Fakt** fuer „kein Aufrufer im Repository"; nach B.1 bleibt der
+uebliche Vorbehalt, dass eine statische Suche keinen Aufruf aus einer Konsole
+oder aus dynamisch gebautem Markup ausschliesst.
+
+Die Funktion enthaelt eine zweite Kopie des `callback_requested`-Resets
+(`:20224`). Sie ist deshalb in der Liste der Browser-Schreibzugriffe
+mitaufgefuehrt, gehoert aber nicht in deren Behebung: Toter Code wird entfernt,
+nicht repariert. Vor dem Entfernen ist zu pruefen, ob `saveFollowUpV2()`
+tatsaechlich alles abdeckt, was hier steht — der Vorgaenger schreibt in
+`customer_tasks` andere Felder (`customer_id`, `source_call_id`) als der
+Nachfolger ueber `createManualTask()`.
+
+Einordnung: **C.2** (sicher, aber eigener PR) — nicht C.1, weil die Funktion
+gross ist und der Feldvergleich oben zuerst gemacht gehoert.

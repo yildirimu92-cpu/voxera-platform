@@ -1,0 +1,83 @@
+# Haelt die Schreibzugriffe des Customer Dashboards gegen die tatsaechlichen
+# Spaltenrechte der Rolle `authenticated` auf der Produktions-DB.
+#
+# Zwei Vorfaelle, dieselbe Luecke: PR #847 (2026-08-08) fuegte
+# `.update({ callback_requested: false })` hinzu, ohne die Allowlist
+# nachzuziehen -- drei Tage 403 hinter einer gruenen Erfolgsmeldung. Am
+# 2026-08-11 wurde derselbe Grant als vermeintlich tot entzogen. Beide Male
+# haette dieser Lauf es gesagt.
+name: Browser-Spaltenrechte
+
+# KEIN `paths:`-Filter, und das ist Absicht. Beide Vorfaelle entstanden aus
+# Aenderungen an ganz verschiedenen Stellen -- einmal am Dashboard, einmal an
+# der Datenbank. Ein Pfadfilter haette den zweiten Fall durchgelassen, weil kein
+# Repo-Pfad beteiligt war: der Grant verschwand ohne Commit. Ein Waechter, der
+# nur laeuft, wenn jemand die richtige Datei anfasst, schuetzt genau dann nicht,
+# wenn es darauf ankommt.
+on:
+  # Logik und Parser -- ohne Zugangsdaten, deshalb auch auf PRs gefahrlos.
+  pull_request:
+  push:
+    branches: [main]
+  # Der eigentliche Schutz: Rechte aendern sich auch ohne Commit.
+  schedule:
+    - cron: '41 */6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: browser-column-grants-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # Laeuft ueberall, auch auf Fremd-PRs: kein Datenbankzugriff, keine Secrets.
+  # Faengt den Fall ab, dass der Parser stillschweigend aufhoert zu verstehen --
+  # der Test prueft am echten index.html, dass die bekannten Schreibstellen noch
+  # gefunden werden.
+  logik:
+    name: Parser und Abgleichlogik
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: node --test customer-dashboard/tests/browser-column-grants.test.mjs
+
+  # BEWUSST ohne `pull_request`, gleiche Begruendung wie in
+  # verify-db-security-invariants.yml: `actions/checkout` holt bei einem PR den
+  # PR-Stand, und erst danach bekommt der Job das Produktions-Secret. Der PR
+  # koennte das Skript so aendern, dass es den Connection-String ausgibt.
+  # Review-CI darf kein Weg zu Produktionszugriff sein.
+  rechte:
+    name: Abgleich gegen die Produktions-DB
+    if: github.event_name != 'pull_request'
+    needs: logik
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: production-db-readonly
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: psql bereitstellen
+        run: |
+          if ! command -v psql >/dev/null 2>&1; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq postgresql-client
+          fi
+          psql --version
+
+      - name: Schreibzugriffe gegen die Spaltenrechte pruefen
+        env:
+          SUPABASE_DB_HOST: ${{ secrets.SUPABASE_DB_HOST }}
+          SUPABASE_DB_PORT: ${{ secrets.SUPABASE_DB_PORT }}
+          SUPABASE_DB_USER: ${{ secrets.SUPABASE_DB_USER }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL_CI_VERIFIER }}
+        run: node scripts/verify-browser-column-grants.mjs
