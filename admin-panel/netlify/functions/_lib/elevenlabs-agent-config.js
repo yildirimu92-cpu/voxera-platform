@@ -7,54 +7,68 @@
 // Anlegen) und `_lib/elevenlabs-sync.js` (ein Ausschnitt, bei jedem Sync). Der
 // Ausschnitt gewann, weil er oefter laeuft.
 //
-// ── Der Befund ────────────────────────────────────────────────────────────────
+// ── Der urspruengliche Befund, und was daraus geworden ist ───────────────────
 //
-// Der Sync sendete `conversation_config.agent.prompt` als `{ prompt, tool_ids }`.
-// Die Provisionierung setzt dort sieben weitere Felder: llm, thinking_budget,
-// temperature, max_tokens, timezone, backup_llm_config, cascade_timeout_seconds.
-// ElevenLabs ersetzt dieses Objekt, statt es zusammenzufuehren -- die sieben
-// Felder fielen bei jedem Sync auf Anbieter-Standard zurueck. Belegt an einem
-// von Hand ausgeschalteten Denkbudget, das nach dem naechsten Sync wieder an war.
+// #932 ging von einer Annahme aus: ElevenLabs ERSETZE `agent.prompt`, statt es
+// zusammenzufuehren, weshalb die sieben Nachbarfelder des Prompts (llm,
+// thinking_budget, temperature, max_tokens, timezone, backup_llm_config,
+// cascade_timeout_seconds) bei jedem Sync auf Anbieter-Standard zurueckfielen.
+// Grundlage war eine einzelne Beobachtung vom 10.08.: ein von Hand
+// ausgeschaltetes Denkbudget war nach dem Sync um 14:20 wieder an.
 //
-// ── Warum nur `prompt` und nicht `agent` insgesamt ────────────────────────────
+// ── Die Annahme ist widerlegt (11.08.) ───────────────────────────────────────
 //
-// Die Zusammenfuehrung greift auf der Ebene darueber sehr wohl. Zwei Belege:
+// ElevenLabs FUEHRT `conversation_config.agent.prompt` ZUSAMMEN. Beleg:
 //
-//   1. `platform_settings`: der Sync sendete dort nur `privacy`, und
-//      `data_collection` (die strukturierte Auswertung) ueberlebte das
-//      nachweislich -- die Auswertung funktioniert weiterhin.
+//   `timezone: Europe/Zurich` und `temperature: 0.19` liegen in `agent.prompt`
+//   und werden ausschliesslich beim Anlegen gesetzt. Kein Sync hat sie je
+//   gesendet -- #932 war produktiv nur zwischen 18:25 und 20:21 UTC am 11.08.,
+//   und in diesem Fenster lief kein einziger Sync (`elevenlabs_sync_log`).
+//   Beide Werte traegt der Agent nach 13 protokollierten Syncs unveraendert,
+//   die beiden vom 10.08. 14:20 eingeschlossen. Bei Ersetzung waeren sie weg.
+//   `0.19` ist dabei der belastbarere der beiden: bei `Europe/Zurich` liesse
+//   sich noch ueber einen Arbeitsbereich-Standard streiten, bei 0.19 nicht.
 //
-//   2. `conversation_config.agent`: der Sync sendete `{ prompt, first_message }`
-//      -- ohne `language`. Gesetzt wird `agent.language` ausschliesslich beim
-//      Anlegen (elevenlabs-provision-agent.js, aus `customers.ai_language`);
-//      keine andere Codestelle im Repo schreibt es je nach, und ausser
-//      Provisionierung und Sync ruehrt nichts den Endpunkt `convai/agents` an.
-//      Wuerde `agent` genauso ersetzt wie `agent.prompt`, waeren saemtliche
-//      fr/it/en-Agenten seit ihrem jeweils ersten Sync auf Standardsprache
-//      gefallen. Das ist nicht eingetreten.
+// Damit scheidet der PATCH als Ursache aus. Die drei schreibenden Codepfade
+// sind einzeln ausgeschlossen: Provisionierung (Agent aelter als der Vorfall),
+// Rollback (`restoreAgentPrompt()` -- keine Zeile `triggered_by =
+// 'fanout_rollback'`), Sync (siehe oben).
 //
-// Daraus folgt: die Zusammenfuehrung steigt in `agent` hinein und ersetzt erst
-// auf der Ebene `agent.prompt`. `prompt` ist die Ausnahme, nicht die Regel --
-// es liest sich wie ein eigenes typisiertes Teilmodell, dessen nicht gesendete
-// Felder beim Deserialisieren auf Schema-Standard materialisiert werden.
+// WAS DAS DENKBUDGET AM 10.08. ZURUECKGESETZT HAT, IST WEITERHIN OFFEN.
+// Widerlegt ist die Erklaerung, nicht die Beobachtung -- der Unterschied ist
+// wichtig, sonst gilt der Vorfall faelschlich als abgeschlossen. Der
+// wahrscheinlichste verbliebene Kandidat: die Einstellung war nie gesetzt. Die
+// Oberflaeche zeigt bei fehlendem Feld moeglicherweise etwas anderes an als bei
+// gesetztem, und was nach dem Sync sichtbar wurde, war der erste ehrliche
+// Serverwert nach einem Neuladen. Nachweisbar ist das rueckwirkend nicht: die
+// Rueckleseprüfung, die es festgehalten haette, gibt es erst seit dem 11.08.
+// Siehe #932.
 //
-// Belegstatus nach AGENTS.md: Punkt 1 ist Tatsache (beobachtet). Punkt 2 ist
-// eine Ableitung aus einer Nicht-Beobachtung -- gut gestuetzt, aber nicht
-// gemessen. Die Rueckleseprüfung in elevenlabs-sync.js misst beides ab dem
-// ersten Produktivlauf und macht die Ableitung damit ueberpruefbar, statt sie
-// als Annahme stehen zu lassen.
+// ── Warum der Sync trotzdem nur den Ausschnitt sendet ────────────────────────
 //
-// ── Die Konsequenz, die gewollt ist ───────────────────────────────────────────
+// Weil der Grund fuer #932 damit entfallen ist. Der vollstaendige Sollzustand
+// waere jetzt ein Risiko ohne Gegenwert: er wuerde Handeinstellungen
+// ueberschreiben, ausgeloest schon durch eine Kundenaenderung im Dashboard.
+// Der Sync sendet deshalb wieder den Ausschnitt -- siehe buildSyncPatch().
+//
+// Das hat einen Preis, und der gehoert hierher: von 75 Blaettern, die die
+// Provisionierung setzt, sendet der Sync 7. Die uebrigen 68 werden genau
+// einmal geschrieben, beim Anlegen, und nie wieder geprueft. Fuer die
+// kundenunabhaengigen Konstanten ist das gewollt. Fuer kundenABHAENGIGE Felder
+// ist es ein Defekt: sie koennen sich nach dem Anlegen aendern, und nichts
+// zieht sie nach. Genau ein solches Feld gibt es heute --
+// `conversation_config.agent.language` aus `customers.ai_language`. Siehe die
+// Anmerkung an CUSTOMER_SPECIFIC_PATHS.
+//
+// ── Was bleibt ───────────────────────────────────────────────────────────────
 //
 // Bewusst NICHT Read-Modify-Write. RMW haette den laufenden Agenten zur
 // massgeblichen Quelle gemacht: eine falsche Handeinstellung bliebe dann fuer
 // immer, stuende in keinem Repository und tauchte in keinem Diff auf -- ein
 // sichtbarer Fehler waere gegen einen unsichtbaren getauscht.
 //
-// Stattdessen ist diese Datei der Sollzustand. Jeder Sync sendet ihn
-// vollstaendig. Handeinstellungen in der ElevenLabs-Oberflaeche halten damit
-// nicht mehr -- das ist die beabsichtigte Wirkung, nicht ein Nebeneffekt.
-// Kundenspezifisch bleiben genau die Felder in CUSTOMER_SPECIFIC_PATHS.
+// Und die Rueckleseprüfung. Sie ist der Teil von #932, der Bestand hat: sie
+// hat die Frage entschieden, an der #932 gescheitert ist.
 
 // Die Aufbewahrungsdauer fuer Audio und Transkript. Lag vorher doppelt vor
 // (Provisionierung und Sync); hier ist sie einmal.
@@ -74,9 +88,22 @@ const CUSTOMER_SPECIFIC_PATHS = Object.freeze([
   'conversation_config.tts.voice_id',          // die Stimme
   // `language` steht nicht im urspruenglichen Auftragstext ("nur Prompt,
   // Begruessung und Stimme"), ist aber nachweislich kundenspezifisch: die
-  // Provisionierung setzt es aus `customers.ai_language` (de/fr/it/en). Es hier
-  // auf eine Konstante zu ziehen wuerde jeden fr/it/en-Agenten auf Deutsch
-  // stellen -- genau die Klasse Schaden, die #932 abstellt.
+  // Provisionierung setzt es aus `customers.ai_language` (de/fr/it/en).
+  //
+  // ACHTUNG -- diese Liste ist eine Zusicherung, die der Sync heute NICHT
+  // einloest. `buildSyncPatch()` sendet die vier anderen Pfade, `language`
+  // nicht. Damit ist es das einzige kundenabhaengige Feld, das genau einmal
+  // geschrieben wird: beim Anlegen. Aendert ein Kunde danach seine Sprache --
+  // etwa beim Wechsel auf den Professional-Plan, der die Sprachwahl im Wizard
+  // erst freischaltet --, spricht der Agent dauerhaft weiter Deutsch, ohne dass
+  // irgendetwas es korrigiert oder meldet.
+  //
+  // Nicht in diesem Commit behoben, weil der Fix die Sync-Nutzlast aendert und
+  // vor dem naechsten Testanruf nichts an ihr geaendert werden soll. Der Fix
+  // hat zwei Teile und beide gehoeren zusammen: `language` in
+  // `buildSyncPatch()` aufnehmen, UND eine Pruefung, die genau diese Liste
+  // gegen die Pfade der Nutzlast haelt. Ohne den zweiten Teil faellt das
+  // naechste kundenabhaengige Feld genauso lautlos heraus.
   'conversation_config.agent.language',
   // Dynamisch aus der Kalender-Provisionierung, nicht aus dem Kundensatz.
   'conversation_config.agent.prompt.tool_ids'
@@ -88,7 +115,35 @@ const CUSTOMER_SPECIFIC_PATHS = Object.freeze([
  *
  * Uebernommen aus AGENT_TEMPLATE in elevenlabs-provision-agent.js, damit der
  * Umstieg fuer bestehende Agenten wertidentisch ist. Wer hier etwas aendert,
- * aendert es fuer alle Agenten beim naechsten Sync.
+ * aendert es fuer alle Agenten beim naechsten Anlegen.
+ *
+ * ── Herkunft der Werte: [E] und [M] ─────────────────────────────────────────
+ *
+ * Diese Datei ist heute die einzige Stelle, an der der Sollzustand steht, und
+ * sie mischt zwei voellig verschiedene Arten von Wert. Wer das nicht sieht,
+ * haelt in drei Monaten einen Messwert fuer eine Entscheidung und dreht ihn
+ * beim naechsten Aufraeumen zurueck.
+ *
+ *   [E]  ENTSCHIEDEN. Von Umut am 10./11.08.2026 nach Testanrufen abgestimmt.
+ *        Diese Werte haben einen Grund, der nicht im Code steht, sondern in
+ *        einem Anruf. Nicht ohne Ruecksprache aendern.
+ *
+ *   [M]  GEMESSEN. Am 11.08. aus dem laufenden Agenten zurueckgelesen
+ *        (observeAgentState(), Sync 20:36 UTC) und uebernommen, damit
+ *        Provisionierung und laufender Agent nicht auseinanderlaufen. Das ist
+ *        eine Beschreibung des Ist-Zustands, keine Festlegung. Wer einen
+ *        besseren Wert hat, darf ihn setzen.
+ *
+ * Ohne Markierung: unveraendert aus dem urspruenglichen AGENT_TEMPLATE, nie
+ * bewusst entschieden und nie geprueft. Das ist die dritte Klasse, und sie ist
+ * die groesste -- sie hier nicht als [E] auszuweisen ist Absicht.
+ *
+ * Warum die [E]-Werte ueberhaupt hier stehen muessen: Der Sync sendet sie nicht
+ * (siehe buildSyncPatch()). Sie kommen also ausschliesslich beim Anlegen an.
+ * Stuende hier weiter der Stand von vor dem 10.08., bekaeme jeder neu angelegte
+ * Kunde einen Agenten mit Turn V2, drei Sekunden Wartefloskel und
+ * eingeschaltetem Denkbudget -- also genau die Konfiguration, die wir an
+ * unserem eigenen Agenten von Hand abgestellt haben.
  */
 const AGENT_DEFINITION = Object.freeze({
   conversation_config: {
@@ -99,28 +154,50 @@ const AGENT_DEFINITION = Object.freeze({
       keywords: []
     },
     turn: {
-      turn_timeout: 3,
+      turn_timeout: 5,                    // [E] 10.08. — vorher 3
       silence_end_call_timeout: -1,
       mode: 'turn',
-      turn_eagerness: 'eager',
+      turn_eagerness: 'eager',            // [M]
       spelling_patience: 'auto',
-      speculative_turn: true,
+      speculative_turn: true,             // [M]
       retranscribe_on_turn_timeout: false,
-      turn_model: 'turn_v2',
+      turn_model: 'turn_v3',              // [E] 10.08. — vorher turn_v2
+
+      // [E] AUS. Die Wartefloskel ist abgeschaltet (-1), nicht verkuerzt.
+      //
+      // Sie sprang nach drei Sekunden an und sagte "Einen Moment". Das klang
+      // nach einer Reaktion, war aber eine Ansage darueber, dass keine kommt:
+      // sie hat ein Latenzproblem kaschiert, statt es zu loesen. Wer sie
+      // hoert, wartet danach genauso lange -- nur mit dem Eindruck, es liege
+      // an ihm. Ein Fuellsatz, der immer denselben Wortlaut hat, wird ausserdem
+      // beim zweiten Mal im selben Gespraech als Defekt gehoert.
+      //
+      // Was beim Abschalten sichtbar wurde, gehoert dazu, sonst wird der
+      // naechste Befund falsch gelesen: Die Floskel war zugleich ein
+      // Zughaltesignal. Solange sie sprach, wusste die anrufende Person, dass
+      // die Leitung steht und sie nicht dran ist. Ohne sie entstehen an
+      // derselben Stelle drei Sekunden Stille -- und die Rueckmeldung darauf
+      // war "das ist nervig". Das ist keine Gegenanzeige zum Abschalten,
+      // sondern der Beleg, dass zwei Aufgaben in einem Feld staken.
+      //
+      // Die Latenz ist damit unverdeckt und weiterhin offen. Ein Ersatz fuer
+      // das Zughaltesignal -- falls einer kommt -- gehoert nicht hierher,
+      // sondern dorthin, wo er nicht zugleich eine Verzoegerung verschweigt.
+      //
+      // `message` bleibt stehen: bei timeout_seconds -1 ist sie wirkungslos,
+      // und ein geleertes Feld saehe aus wie ein vergessener Wert.
       soft_timeout_config: {
-        timeout_seconds: 3,
-        message: 'Einen Moment',
+        timeout_seconds: -1,              // [E] 10.08. — vorher 3
+        message: 'Einen Moment',          // wirkungslos, solange -1
         use_llm_generated_message: false  // Statisch — nie LLM-generiert
       }
     },
     tts: {
       model_id: 'eleven_v3_conversational',
-      expressive_mode: true,
-      suggested_audio_tags: [
-        { tag: 'Geduldig',   description: '' },
-        { tag: 'Einfühlsam', description: '' },
-        { tag: 'Herzlich',   description: '' }
-      ],
+      // [E] Keine Audio-Tags. Der Agent sprach Klammerausdruecke wie
+      // "[Geduldig]" laut mit, statt sie als Regieanweisung zu behandeln.
+      expressive_mode: false,             // [E] 10.08. — vorher true
+      suggested_audio_tags: [],           // [E] 10.08. — vorher Geduldig/Einfühlsam/Herzlich
       agent_output_audio_format: 'pcm_16000',
       optimize_streaming_latency: 3,
       stability: 0.5,
@@ -137,9 +214,10 @@ const AGENT_DEFINITION = Object.freeze({
     agent: {
       disable_first_message_interruptions: false,
       prompt: {
-        // Genau die sieben Felder, die #932 verloren gingen.
+        // Die sieben Felder, um die es in #932 ging. Dass sie ein Sync je
+        // verloren haette, ist inzwischen widerlegt -- siehe Kopf der Datei.
         llm: 'gemini-2.5-flash',
-        thinking_budget: 1024,
+        thinking_budget: 0,               // [E] 10.08. — vorher 1024
         temperature: 0.19,
         max_tokens: 1200,
         timezone: 'Europe/Zurich',
