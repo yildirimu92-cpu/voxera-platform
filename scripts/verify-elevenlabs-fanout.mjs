@@ -30,8 +30,9 @@ const check = (name, passed, detail) => {
 };
 
 // ── Supabase-Stub ───────────────────────────────────────────────────────────
-// Bildet die Kette from().select().eq()/.in()/.lt()/.lte()/.not()/.order()/
-// .limit()/.maybeSingle() ab und liefert je Tabelle eine vorbereitete Antwort.
+// Bildet die Kette from().select().eq()/.neq()/.in()/.lt()/.lte()/.not()/
+// .order()/.limit()/.maybeSingle() ab und liefert je Tabelle eine vorbereitete
+// Antwort.
 function makeSb(tables, { onInsert, onUpdate } = {}) {
   // Die Filter werden wirklich angewandt, nicht ignoriert: master_prompt und
   // core_field_steps liegen beide in system_config und unterscheiden sich nur
@@ -39,6 +40,9 @@ function makeSb(tables, { onInsert, onUpdate } = {}) {
   // beantworten und die neue Fingerprint-Eingabe faelschlich gruen melden.
   const matches = (row, filters) => filters.every(([kind, col, val]) => {
     if (kind === 'eq') return String(row[col]) === String(val);
+    // Wie PostgREST auf einer NOT-NULL-Spalte: fehlt der Wert im Fixture,
+    // gilt die Zeile als "nicht gleich" und bleibt drin.
+    if (kind === 'neq') return String(row[col]) !== String(val);
     if (kind === 'in') return val.map(String).includes(String(row[col]));
     // wave/attempts sind Zahlen, ends_at/last_attempt_at Zeitstempel.
     const cmp = (a, b) => (typeof b === 'number'
@@ -58,6 +62,7 @@ function makeSb(tables, { onInsert, onUpdate } = {}) {
     const chain = {
       select: () => chain,
       eq: (col, val) => { filters.push(['eq', col, val]); return chain; },
+      neq: (col, val) => { filters.push(['neq', col, val]); return chain; },
       in: (col, val) => { filters.push(['in', col, val]); return chain; },
       lt: (col, val) => { filters.push(['lt', col, val]); return chain; },
       lte: (col, val) => { filters.push(['lte', col, val]); return chain; },
@@ -120,6 +125,67 @@ const CURRENT = promptFingerprint({
   check('Kunde ohne Agent wird nicht eingeplant', !byId.has('c_noagent'));
   check('Soll-Fingerprint wird mitgeliefert',
     byId.get('c_stale')?.expected_fingerprint === CURRENT);
+}
+
+// ── 1a. Gekuendigte Kunden bleiben aussen vor ───────────────────────────────
+// Beide Kuendigungswege setzen nur `operational_status` und lassen die
+// `elevenlabs_agent_id` stehen. Ohne den neq-Filter waere ein gekuendigter
+// Kunde dauerhaft "veraltet" und sein Geschaeftsprofil wuerde jede Nacht neu
+// zu ElevenLabs in die USA geschrieben.
+{
+  const sb = makeSb({
+    customers: [
+      { id: 'c_aktiv', customer_name: 'Aktiv AG', elevenlabs_agent_id: 'ag1', prompt_fingerprint: 'v1.2.1.deadbeefdead.cafecafecafe', industry_template_id: 'it', elevenlabs_last_sync_at: '2026-08-01T10:00:00Z', operational_status: 'active' },
+      { id: 'c_gekuendigt', customer_name: 'Gekuendigt AG', elevenlabs_agent_id: 'ag2', prompt_fingerprint: 'v1.2.1.deadbeefdead.cafecafecafe', industry_template_id: 'it', elevenlabs_last_sync_at: '2026-08-01T10:00:00Z', operational_status: 'terminated' }
+    ],
+    system_config: [
+      { key: 'prompt_master_l1', value: MASTER },
+      { key: 'core_field_steps', value: CORE }
+    ],
+    industry_templates: [{ id: 'it', prompt_block: INDUSTRY, extra_steps: EXTRA }],
+    customer_operational_updates: []
+  });
+
+  const stale = await fanout.findStaleCustomers(sb);
+  const byId = new Map(stale.map((row) => [row.customer_id, row]));
+
+  check('gekuendigter Kunde wird nicht eingeplant, obwohl sein Agent veraltet ist',
+    !byId.has('c_gekuendigt'));
+  check('aktiver Kunde mit identischem Stand wird weiterhin eingeplant',
+    byId.get('c_aktiv')?.reason === 'fingerprint_stale');
+}
+
+// ── 1c. Zweite Verteidigungslinie vor dem Sync ──────────────────────────────
+// Der Filter in findStaleCustomers() greift zur Planungszeit. Zeilen warten
+// aber in der Warteschlange -- hinter dem Canary, oder als Wiederholung nach
+// einem Fehlschlag. Wird der Kunde in dieser Zeit gekuendigt, traegt die Zeile
+// seine IDs unveraendert weiter. syncBlockedReason() liest deshalb direkt an
+// der Quelle nach, statt der eingefrorenen Zeile zu glauben.
+{
+  const sb = makeSb({
+    customers: [
+      { id: 'c_aktiv', operational_status: 'active' },
+      { id: 'c_gekuendigt', operational_status: 'terminated' }
+    ]
+  });
+
+  check('aktiver Kunde wird durchgelassen',
+    (await fanout.syncBlockedReason(sb, 'c_aktiv')) === null);
+  check('nach der Einplanung gekuendigter Kunde wird geblockt',
+    (await fanout.syncBlockedReason(sb, 'c_gekuendigt')) === 'customer_terminated');
+  check('geloeschter Kunde wird geblockt',
+    (await fanout.syncBlockedReason(sb, 'c_weg')) === 'customer_missing');
+
+  // Ein Lesefehler darf nicht als "darf syncen" durchgehen. Die Zeile soll in
+  // den Wiederholungspfad, nicht ungeprueft zu ElevenLabs.
+  const sbBroken = {
+    from: () => ({
+      select: () => ({ eq: () => ({ maybeSingle: () => Promise.resolve({ data: null, error: { message: 'boom' } }) }) })
+    })
+  };
+  let threw = false;
+  try { await fanout.syncBlockedReason(sbBroken, 'c_aktiv'); } catch { threw = true; }
+  check('Lesefehler wird geworfen statt als unbedenklich gewertet', threw);
 }
 
 // ── 1b. S3: abgelaufene Betriebsinformationen ───────────────────────────────

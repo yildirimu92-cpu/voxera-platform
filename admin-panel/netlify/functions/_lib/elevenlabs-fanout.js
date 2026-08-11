@@ -40,12 +40,22 @@ const REASON_LABELS = Object.freeze({
 /**
  * Alle Kunden mit Agent, die nicht auf dem aktuellen Stand sind.
  * Reine Leseoperation.
+ *
+ * Gekuendigte Kunden bleiben aussen vor. Ohne diesen Filter waehlt die Abfrage
+ * allein nach gesetzter `elevenlabs_agent_id` aus -- und weil beide
+ * Kuendigungswege (contract-terminate.js, lifecycle-runner.js) nur Supabase
+ * anfassen und die Agent-ID stehen lassen, wuerde der naechtliche Planer das
+ * Geschaeftsprofil eines gekuendigten Kunden immer weiter zu ElevenLabs in die
+ * USA schreiben. `operational_status` ist NOT NULL mit Default 'active', ein
+ * einfaches neq() laesst also keine Zeile faelschlich weg.
+ * Siehe DATENRESIDENZ_DIAGNOSE_2026-08-11.md, F.3.
  */
 async function findStaleCustomers(sb) {
   const [{ data: customers, error: customerError }, context] = await Promise.all([
     sb.from('customers')
       .select('id, customer_name, elevenlabs_agent_id, prompt_fingerprint, industry_template_id, elevenlabs_last_sync_at')
-      .not('elevenlabs_agent_id', 'is', null),
+      .not('elevenlabs_agent_id', 'is', null)
+      .neq('operational_status', 'terminated'),
     loadFingerprintContext(sb)
   ]);
   if (customerError) throw customerError;
@@ -74,6 +84,36 @@ async function findStaleCustomers(sb) {
     });
   }
   return stale;
+}
+
+/**
+ * Zweite Verteidigungslinie, unmittelbar vor dem Sync.
+ *
+ * findStaleCustomers() filtert zur PLANUNGSZEIT. Zwischen Einplanung und
+ * Ausfuehrung liegt aber eine Luecke: Zeilen warten in `elevenlabs_sync_queue`,
+ * Welle 2 haengt hinter dem Canary, fehlgeschlagene Zeilen werden bis
+ * FANOUT_MAX_ATTEMPTS erneut versucht. Wird ein Kunde in dieser Zeit
+ * gekuendigt, traegt die Warteschlange seine customer_id und agent_id
+ * unveraendert weiter -- der Worker wuerde sein Geschaeftsprofil dann doch noch
+ * in die USA schreiben.
+ *
+ * Deshalb wird der Zustand hier direkt an der Quelle nachgelesen, statt der
+ * eingefrorenen Zeile zu glauben.
+ *
+ * Rueckgabe: ein Grund als Zeichenkette, wenn NICHT synchronisiert werden darf,
+ * sonst null. Ein Lesefehler wird geworfen und NICHT als "darf syncen"
+ * gewertet -- im Zweifel wartet die Zeile auf den naechsten Versuch, statt die
+ * Pruefung stillschweigend zu ueberspringen.
+ */
+async function syncBlockedReason(sb, customerId) {
+  const { data, error } = await sb.from('customers')
+    .select('operational_status')
+    .eq('id', customerId)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) return 'customer_missing';
+  if (String(data.operational_status || '') === 'terminated') return 'customer_terminated';
+  return null;
 }
 
 // S3: Betriebsinformationen, die seit dem letzten Sync abgelaufen sind, stehen
@@ -269,6 +309,7 @@ module.exports = {
   CANARY_WAVE_SIZE,
   REASON_LABELS,
   findStaleCustomers,
+  syncBlockedReason,
   findExpiredOperationalUpdates,
   enqueueFanout,
   runSummary,
