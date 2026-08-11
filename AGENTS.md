@@ -22,10 +22,54 @@ For bugs, unstable behavior, process flaws, and unclear product logic:
 6. Propose the minimal fix.
 7. Only after approval, implement the fix.
 8. Remove or neutralize old competing logic.
+   - **A duplicate source can also be a fallback path.** Before removing one,
+     check whether it is the only remaining source in some failure case. See
+     the rule below.
 9. Do not add new end-of-file hotfix blocks.
 10. Keep the diff minimal.
 11. Provide acceptance tests.
 12. State remaining risks and anything that could not be tested.
+
+---
+
+## Removing a Duplicate Source
+
+A value stored in two places is a defect: the two drift apart, and the surface
+that displays the losing one lies to whoever reads it. Removing the losing
+source is usually right.
+
+**But a duplicate source can also be a fallback path.** Before removing one,
+establish whether it is the only remaining source in some failure case — not
+in the normal case, where by definition the winning source works.
+
+Ask:
+
+1. Which code path reads the source that stays?
+2. What happens if *that* path fails, is misconfigured, or returns nothing?
+3. Does the source being removed cover exactly that case today?
+
+If the answer to 3 is yes, the removal needs a replacement for the failure
+case before it lands — not after.
+
+### Where this came from
+
+2026-08-10, #930. The appointment mode was stored twice: as the typed column
+`customers.ai_appointment_mode` and inside the `[PROMPT_V2]` note in
+`ai_internal_notes`. The column had been the leading source since J4, the note
+was ignored — and for one customer they disagreed, so the admin UI showed
+"Terminanfrage" while the agent was booking directly. Removing the note was
+clearly correct.
+
+It was also nearly a regression. The column is not read directly: the schema
+in `system_config.core_field_steps` maps field keys to column names, so a
+broken schema means the column cannot be reached at all. Until that day the
+note was what kept the appointment mode alive in exactly that case. Removing
+it would have made a broken schema silently drop the booking authority —
+without an error, and without any output that looks wrong.
+
+An existing test caught it, which is luck, not method. The fix was to read the
+column directly when the schema does not map it. Same single source, one less
+dependency.
 
 ---
 
