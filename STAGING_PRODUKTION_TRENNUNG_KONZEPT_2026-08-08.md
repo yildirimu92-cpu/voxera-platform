@@ -220,8 +220,24 @@ Gefunden am 10.08.2026 beim Prüfen des offenen Review-Threads auf PR #896
 (`db_security_invariants`, TRUNCATE-Sweep). Zwei Befunde, beide gegen die
 Live-Datenbanken gemessen, nicht aus dem Repo hergeleitet.
 
-**Befund A — der TRUNCATE-Sweep aus PR #892 war grantor-gebunden und hat nur
-die Hälfte erreicht.**
+**Befund A — der TRUNCATE-Sweep aus PR #892 war grantor-gebunden. Für TRUNCATE
+war das bekannt und abgesichert; für die vier übrigen Verben nicht.**
+
+*Korrektur gegenüber der ersten Fassung dieses Abschnitts:* Beim genaueren Lesen
+von `2026-08-09_truncate_grant_sweep.sql` und dem zugehörigen Katalog-Check
+(im Rahmen von PR #892) stellte sich heraus, dass der `supabase_admin`-Rest
+**kein unbemerkter blinder Fleck war**, sondern im Migrationskommentar
+ausdrücklich als „bekannte Restluecke, bewusst so belassen" dokumentiert ist —
+inklusive des Versuchs, sie zu schliessen (`42501 permission denied to change
+default privileges`, ausprobiert und dokumentiert, nicht vermutet) und einer
+benannten Kompensation. Die Kompensation ist real: der „Bestandscheck" im
+Katalog (`db_security_invariants_catalog.sql`, der `pg_class`-Sweep über alle
+Tabellen in `public`) misst die **effektive** TRUNCATE-Berechtigung je Tabelle
+via `has_table_privilege()` — unabhängig davon, welcher Default-ACL-Eintrag sie
+verursacht hat. Entstünde je eine Tabelle unter `supabase_admin`, würde dieser
+Check sie beim nächsten Lauf melden. Für TRUNCATE gilt der ursprüngliche Satz
+„trifft nur zur Hälfte zu" also nicht — die andere Hälfte ist bewusst
+akzeptiert und beobachtet, nicht übersehen.
 
 ```sql
 select pg_get_userbyid(defaclrole) as grantor, defaclobjtype, defaclacl::text
@@ -236,20 +252,24 @@ Gemessen auf `ulcofbgrovgcvowdjrge` (Produktion):
 | `postgres` | `arwdxtm` |
 | `supabase_admin` | `arwd**D**xtm` |
 
-`D` = TRUNCATE. Unter `postgres` ist es weg — der Sweep
-(`20260809164858_truncate_grant_sweep.sql:92-93`, `alter default privileges …
-revoke truncate … from anon/authenticated`) hat gewirkt. Unter `supabase_admin`
-steht es weiterhin, weil `alter default privileges` ohne `for role` nur für die
-ausführende Rolle gilt. Der Kommentar in der Migration — „Wurzel: kuenftige
-Tabellen erben kein TRUNCATE mehr" — trifft damit nur zur Hälfte zu.
+**Was tatsächlich offen bleibt:** Dieselbe Rundum-Absicherung existiert nur für
+TRUNCATE. Für INSERT, SELECT, UPDATE, DELETE (`arwd`) — die für **beide**
+Grantoren weiterhin an künftige Tabellen gehen — gibt es weder einen
+Default-ACL-Wurzelcheck noch einen `pg_class`-Bestandscheck über alle Tabellen.
+Jeder andere `has_table_privilege`/`has_column_privilege`-Aufruf im Katalog
+zielt auf eine feste, benannte Tabelle (`customers`, `calls`, `system_config`)
+— eine Positivliste, kein Sweep. Eine neu angelegte Tabelle mit offenem SELECT
+für `authenticated` würde von nichts im Repo erfasst, bis sie jemand von Hand
+in eine dieser Listen einträgt. Das ist die substanzielle Lücke, nicht die
+`supabase_admin`-Restluecke bei TRUNCATE.
 
-Ausserdem gehen für **beide** Grantoren weiterhin INSERT, SELECT, UPDATE, DELETE
-(`arwd`) an künftige Tabellen — der Sweep hat ausschliesslich TRUNCATE
-adressiert. Jede neu angelegte Tabelle in `public` erbt diese vier Rechte für
-`anon`/`authenticated`, bis eine Migration sie einzeln zurücknimmt. Der
-Rundum-Wächter (`db_security_invariants_catalog.sql:370-371`) prüft nur
-TRUNCATE und nur auf bereits existierenden Tabellen — eine neue Tabelle mit
-offenem SELECT würde keine Prüfung auslösen.
+Zusätzlich am 10.08. frisch gemessen, zwei kleinere, unbestätigte Verdachtsmomente
+aus PR #892 ausgeräumt: Aktuell trägt kein Default-ACL für `public` einen Eintrag
+für die Pseudorolle `PUBLIC` (jeder Grantee ist eine benannte Rolle), und es
+existiert keine partitionierte Tabelle (`relkind='p'`) in `public`. Beide
+Codex-Befunde auf #892 sind damit heute nicht ausgenutzt, aber die zugrunde
+liegende Prüflücke im Katalog (nur `relkind='r'`, nur benannte Rollen als
+Grantee) besteht weiter.
 
 **Befund B — Staging ist für genau diese Prüfung ungeeignet.** Dieselbe
 Abfrage gegen `voxera-staging` (`hzqiyyqfchvfcmmbemvd`, angelegt 08.08.)
