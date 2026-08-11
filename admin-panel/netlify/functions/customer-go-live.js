@@ -79,7 +79,7 @@ async function loadCustomerContext(sbAdmin, customerId) {
     sbAdmin.from('contracts').select('id, status, updated_at').eq('customer_id', customerId).order('updated_at', { ascending: false }).limit(50),
     sbAdmin.from('offers').select('id, status, accepted_at, contract_id, updated_at').eq('customer_id', customerId).order('updated_at', { ascending: false }).limit(50),
     sbAdmin.from('elevenlabs_sync_log')
-      .select('id, agent_id, status, triggered_by, prompt_length, error_message, created_at')
+      .select('id, agent_id, status, triggered_by, prompt_length, error_message, config_drift, created_at')
       .eq('customer_id', customerId)
       .order('created_at', { ascending: false })
       .limit(1)
@@ -123,12 +123,25 @@ function syncEvidence(context) {
   const latestStatus = textValue(latest?.status).toLowerCase();
   const latestAgentId = textValue(latest?.agent_id);
   const agentMatches = Boolean(currentAgentId && latestAgentId && currentAgentId === latestAgentId);
+  // #932: 'drift' bedeutet "Agent aktualisiert, weicht aber in mindestens einem
+  // Feld vom Sollzustand ab". Das zaehlt hier weiterhin als Sync-Beleg -- ein
+  // Agent, der laeuft und einen Prompt hat, ist startbereit.
+  //
+  // Bewusst nicht als Startsperre: die Rueckleseprüfung ist neu und gegen die
+  // Anbieter-API noch nicht im Betrieb gemessen. Wuerde eine Normalisierung auf
+  // Anbieterseite (etwa ein Gleitkommawert, der anders zurueckkommt, als er
+  // gesendet wurde) faelschlich als Abweichung gelten, blockierte das
+  // Kundenstarts -- ein teurer Fehlschlag fuer einen Vergleich, der sich erst
+  // noch bewaehren muss. Die Abweichung ist ueber `latest_config_drift` sichtbar
+  // und steht im Sync-Log; wenn sich der Vergleich als treffsicher erweist,
+  // genuegt hier eine Zeile, um daraus doch eine Sperre zu machen.
+  const SYNC_REACHED_AGENT = new Set(['success', 'drift']);
   const success = Boolean(
     currentAgentId &&
-    customerStatus === 'success' &&
+    SYNC_REACHED_AGENT.has(customerStatus) &&
     customerLastSync &&
     latest &&
-    latestStatus === 'success' &&
+    SYNC_REACHED_AGENT.has(latestStatus) &&
     agentMatches
   );
 
@@ -142,6 +155,11 @@ function syncEvidence(context) {
     latest_log_agent_id: latestAgentId || null,
     latest_log_error: latest?.error_message || null,
     latest_prompt_length: latest?.prompt_length ?? null,
+    // Feldnamen der Abweichung, damit der Startdialog sie zeigen kann, ohne
+    // dass jemand dafuer ins Sync-Log steigen muss.
+    latest_config_drift: Array.isArray(latest?.config_drift?.deviations)
+      ? latest.config_drift.deviations.map((deviation) => deviation.path)
+      : null,
     agent_matches: agentMatches
   };
 }
