@@ -301,6 +301,50 @@ Every commit summary must mention whether it was audit-only or implementation.
 
 ---
 
+## Merge Rules
+
+### Code and migration must not be merged apart
+
+When a change consists of code **and** a migration, one of these must hold
+before the merge:
+
+1. the migration is already applied to the target database, **or**
+2. the code works without it.
+
+Anything else creates a third state that is neither the old one nor the new
+one — and no rule, test, or check describes that state. The old code is gone,
+the new code is live, and the schema it was written for does not exist yet.
+
+Note that (2) is a real option and often the cheaper one: a reader that
+tolerates both shapes, a feature flag, a guard that treats a missing column as
+"not configured". Choose it deliberately rather than by accident.
+
+State in the pull request which of the two applies. "The migration is included"
+does not answer the question — it says where the file is, not whether the
+database has it.
+
+### Where this came from
+
+2026-08-11, #940. The pull request enforced booking hours from
+`calendar_settings.business_hours` and shipped the migration that makes the
+column nullable, so that an unconfirmed value stops restricting anything. Both
+were reviewed, CI was green, and the merge was approved on that basis.
+
+The migration was not applied. Between the merge and the manual apply, the new
+code read a `not null` column carrying a default of Mon–Fri 08:00–17:00 that no
+customer had chosen and no customer could change — exactly the failure the
+migration existed to prevent, and exactly the one the review had flagged as a
+blocker. The pull request text itself described why that state is unacceptable.
+
+**It was caught by looking, not by a guard.** Nothing reports "code on main,
+migration not applied". The window was short and one customer wide, which is
+luck, not design.
+
+Until such a check exists, this rule is the only thing standing in that gap —
+so state the answer in the pull request, every time.
+
+---
+
 ## Acceptance Test Rules
 
 Each fix needs a specific acceptance checklist.
