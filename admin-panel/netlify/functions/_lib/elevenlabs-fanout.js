@@ -40,12 +40,22 @@ const REASON_LABELS = Object.freeze({
 /**
  * Alle Kunden mit Agent, die nicht auf dem aktuellen Stand sind.
  * Reine Leseoperation.
+ *
+ * Gekuendigte Kunden bleiben aussen vor. Ohne diesen Filter waehlt die Abfrage
+ * allein nach gesetzter `elevenlabs_agent_id` aus -- und weil beide
+ * Kuendigungswege (contract-terminate.js, lifecycle-runner.js) nur Supabase
+ * anfassen und die Agent-ID stehen lassen, wuerde der naechtliche Planer das
+ * Geschaeftsprofil eines gekuendigten Kunden immer weiter zu ElevenLabs in die
+ * USA schreiben. `operational_status` ist NOT NULL mit Default 'active', ein
+ * einfaches neq() laesst also keine Zeile faelschlich weg.
+ * Siehe DATENRESIDENZ_DIAGNOSE_2026-08-11.md, F.3.
  */
 async function findStaleCustomers(sb) {
   const [{ data: customers, error: customerError }, context] = await Promise.all([
     sb.from('customers')
       .select('id, customer_name, elevenlabs_agent_id, prompt_fingerprint, industry_template_id, elevenlabs_last_sync_at')
-      .not('elevenlabs_agent_id', 'is', null),
+      .not('elevenlabs_agent_id', 'is', null)
+      .neq('operational_status', 'terminated'),
     loadFingerprintContext(sb)
   ]);
   if (customerError) throw customerError;
