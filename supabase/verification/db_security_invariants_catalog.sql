@@ -411,11 +411,16 @@ select case when pg_catalog.count(*) = 0 then 'PASS' else 'FAIL' end,
        coalesce(pg_catalog.string_agg(detail, '; '),
                 'Erzeuger postgres: anon und authenticated ohne D')
 from (
-  select pg_get_userbyid(d.defaclrole) || ': ' || pg_catalog.array_to_string(d.defaclacl, ' | ') as detail
+  select coalesce(n.nspname, '<global>') || '/' || pg_get_userbyid(d.defaclrole)
+         || ': ' || pg_catalog.array_to_string(d.defaclacl, ' | ') as detail
   from pg_catalog.pg_default_acl as d
-  join pg_catalog.pg_namespace as n on n.oid = d.defaclnamespace
+  -- LEFT JOIN wie beim DML-Check darunter, aus demselben Grund: ein
+  -- `alter default privileges` ohne `in schema` traegt defaclnamespace = 0 und
+  -- gilt trotzdem fuer public. Nachgezogen am 11.08.2026 -- die Luecke war seit
+  -- #892 drin und ist beim Bau des DML-Checks aufgefallen.
+  left join pg_catalog.pg_namespace as n on n.oid = d.defaclnamespace
   cross join lateral pg_catalog.aclexplode(d.defaclacl) as ac
-  where n.nspname = 'public'
+  where (n.nspname = 'public' or d.defaclnamespace = 0)
     and d.defaclobjtype = 'r'
     and pg_get_userbyid(d.defaclrole) = 'postgres'
     and ac.grantee::regrole::text in ('anon', 'authenticated')
@@ -438,12 +443,18 @@ select case when pg_catalog.count(*) = 0 then 'PASS' else 'FAIL' end,
        coalesce(pg_catalog.string_agg(detail, '; '),
                 'Erzeuger postgres: anon und authenticated ohne a/w/d')
 from (
-  select pg_get_userbyid(d.defaclrole) || ' vergibt ' || ac.privilege_type
+  select coalesce(n.nspname, '<global>') || '/' || pg_get_userbyid(d.defaclrole)
+         || ' vergibt ' || ac.privilege_type
          || ' an ' || ac.grantee::regrole::text as detail
   from pg_catalog.pg_default_acl as d
-  join pg_catalog.pg_namespace as n on n.oid = d.defaclnamespace
+  -- LEFT JOIN, nicht JOIN: `alter default privileges` OHNE `in schema` legt
+  -- einen Eintrag mit defaclnamespace = 0 an. Der gilt fuer JEDES Schema, also
+  -- auch fuer public -- ein INNER JOIN auf pg_namespace wirft ihn weg, und der
+  -- Check meldete PASS, waehrend neue Tabellen in public das Recht weiterhin
+  -- erben. Genau die Bauform, gegen die dieser Check gerichtet ist.
+  left join pg_catalog.pg_namespace as n on n.oid = d.defaclnamespace
   cross join lateral pg_catalog.aclexplode(d.defaclacl) as ac
-  where n.nspname = 'public'
+  where (n.nspname = 'public' or d.defaclnamespace = 0)
     and d.defaclobjtype = 'r'
     and pg_get_userbyid(d.defaclrole) = 'postgres'
     and ac.grantee::regrole::text in ('anon', 'authenticated')
@@ -478,7 +489,11 @@ select case when pg_catalog.count(*) = 0 then 'PASS' else 'FAIL' end,
 from pg_catalog.pg_class as c
 join pg_catalog.pg_namespace as n on n.oid = c.relnamespace
 where n.nspname = 'public'
-  and c.relkind = 'r'
+  -- 'p' MUSS mit: eine partitionierte Tabelle wird als Elternteil mit
+  -- relkind = 'p' gefuehrt, nicht 'r'. Sie erbt die Default-Privilegien
+  -- genauso -- ein Filter auf 'r' allein liesse ausgerechnet den Fall durch,
+  -- den dieser Check abfangen soll.
+  and c.relkind in ('r', 'p')
   and pg_get_userbyid(c.relowner) = 'supabase_admin';
 
 -- Die uebrigen Schreibrechte auf system_config. Sie waren durch RLS bereits
