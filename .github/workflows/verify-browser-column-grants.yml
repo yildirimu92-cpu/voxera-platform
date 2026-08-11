@@ -1,0 +1,84 @@
+# Prueft, ob der Browser Spalten schreibt, auf die er kein UPDATE-Recht hat.
+#
+# Anlass (2026-08-11): 2026-08-06_p0_rls_tenant_isolation_hardening.sql entzog
+# UPDATE auf public.calls und vergab es spaltenweise neu -- korrekt, aus jeder
+# damals vorhandenen Aufrufstelle abgeleitet. Zwei Tage spaeter kam mit PR #847
+# `.update({ callback_requested: false })` dazu, ohne dass die Allowlist
+# nachgezogen wurde. Der Aufruf scheitert seither mit 403, der Code loggt
+# console.warn, die Oberflaeche zeigt nichts -- die Rueckrufliste leert sich
+# nicht.
+#
+# Keine der beiden Ebenen war falsch. Sie sind auseinandergedriftet, und
+# niemand hat sie gegeneinander gehalten.
+name: Verify Browser-Spaltenrechte
+
+# ZWEI JOBS, und die Aufteilung ist der Punkt.
+#
+# Der Abgleich braucht die Produktions-Zugangsdaten. Genau deshalb darf er
+# NICHT bei `pull_request` laufen -- dieselbe Begruendung wie in
+# verify-db-security-invariants.yml: `actions/checkout` holt beim PR den
+# PR-Stand, und erst danach kommt das Secret in die Umgebung. Ein PR koennte
+# das Skript so aendern, dass es den Connection-String ausgibt.
+#
+# Die Extraktion braucht dagegen keine Datenbank. Sie laeuft deshalb bei jedem
+# PR -- OHNE Pfadfilter, nach AGENTS.md ("A verify script without a workflow is
+# a script that never runs") und der Regel aus #941. Ein Pfadfilter waere hier
+# doppelt falsch: Die Schreibstellen koennen in Dateien wandern, die der Filter
+# nicht kennt, und die Rechte koennen sich ganz ohne Codeaenderung verschieben.
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  schedule:
+    - cron: '23 */6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: browser-column-grants-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # Laeuft immer, auch bei PRs: keine Zugangsdaten noetig.
+  extraktion:
+    name: Extraktion und Selbsttest
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      # Der Selbsttest prueft die Extraktion gegen einen fingierten Schnipsel
+      # UND gegen den echten Repo-Stand. Er ist rot, wenn die Extraktion nichts
+      # mehr findet -- ein Regex, der ins Leere laeuft, ist verdaechtig, nicht
+      # beruhigend.
+      - name: Selbsttest der Extraktion
+        run: node scripts/verify-browser-column-grants.mjs --selbsttest
+
+  # Laeuft nur auf Code, der bereits in main steht.
+  abgleich:
+    name: Abgleich gegen die Produktions-DB
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: production-db-readonly
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: psql bereitstellen
+        run: |
+          if ! command -v psql >/dev/null 2>&1; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq postgresql-client
+          fi
+          psql --version
+      - name: Spaltenrechte gegen den Browser-Code halten
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL_CI_VERIFIER }}
+        run: node scripts/verify-browser-column-grants.mjs

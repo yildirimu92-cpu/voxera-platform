@@ -1,0 +1,83 @@
+-- callback_requested in die Spalten-Allowlist von public.calls aufnehmen.
+--
+-- ─── Der Befund ────────────────────────────────────────────────────────────
+--
+-- 2026-08-06_p0_rls_tenant_isolation_hardening.sql hat das Tabellenrecht
+-- UPDATE auf public.calls entzogen und stattdessen SPALTENWEISE neu vergeben:
+--
+--     grant update (read_at, notes_customer_voxera, dashboard_status, updated_at)
+--       on table public.calls to authenticated;
+--
+-- Die Liste war korrekt. Sie stammt laut Kommentar dort aus "every direct
+-- .from('calls').update(...) call site found in customer-dashboard/index.html,
+-- not inferred" -- also aus dem damaligen Code, nicht aus einer Annahme.
+--
+-- Zwei Tage spaeter, am 2026-08-08, kam mit PR #847 eine neue Aufrufstelle
+-- dazu (customer-dashboard/index.html:19634):
+--
+--     sb.from('calls').update({ callback_requested: false }).eq('id', callId)
+--
+-- Niemand hat die Allowlist nachgezogen. `authenticated` hat auf
+-- callback_requested nur SELECT -- der Aufruf scheitert seither mit 403.
+--
+-- ─── Was seither nicht funktioniert ────────────────────────────────────────
+--
+-- Legt ein Kunde zu einem Anruf mit callback_requested = true eine Folgeaufgabe
+-- an, die KEIN Rueckruf ist (Offerte, Termin, Aufgabe), soll der Rueckruf-Status
+-- am Anruf zurueckgesetzt werden. Genau das schlaegt fehl. Der Anruf bleibt in
+-- der Rueckrufliste und in der KPI stehen -- die Doppelzaehlung, die PR #847
+-- beseitigen sollte, besteht weiter.
+--
+-- Der Fehler ist fuer den Kunden unsichtbar: Der Code faengt ihn ab und
+-- schreibt bestenfalls console.warn (Zeile 19639). Die Oberflaeche zeigt nichts.
+--
+-- Betroffen ist "Rueckruf-Management" -- das Merkmal, das den Business-Plan vom
+-- Starter unterscheidet.
+--
+-- ─── Warum das Recht fachlich richtig ist (belegt, nicht plausibel) ────────
+--
+-- 1. WER SETZT ES. Auf `true` setzt es ausschliesslich das System beim
+--    Anrufeingang (customer-dashboard/netlify/functions/call-intake-webhook.js:152).
+--    Der Browser setzt es NUR auf `false`, und nur im oben beschriebenen Fall.
+--    Der Kunde kann sich damit keinen Rueckruf herbeischreiben, er kann einen
+--    erledigten abhaken.
+--
+-- 2. WAS ES STEUERT. Das Feld ist reine Kundenansicht: Es entscheidet an fuenf
+--    Stellen im Dashboard (index.html:9606, 9680, 9721, 9780, 9914), ob ein
+--    Anruf als "Rueckruf" dargestellt und in der Rueckrufliste gezaehlt wird.
+--    Es traegt keine Abrechnungs-, Rechte- oder Systembedeutung.
+--
+-- 3. WIE ES BEGRENZT IST -- der entscheidende Punkt. Auf public.calls existiert
+--    genau EINE UPDATE-Policy fuer `authenticated`:
+--
+--      calls_update_own
+--        USING       (customer_id = current_customer_id() AND is_customer_entitled(customer_id))
+--        WITH CHECK  (customer_id = current_customer_id() AND is_customer_entitled(customer_id))
+--
+--    Das Spaltenrecht wirkt also nur auf eigene Anrufe eines berechtigten
+--    Kunden. Beides geprueft, USING und WITH CHECK -- ein Kunde kann weder
+--    fremde Zeilen aendern noch eine fremde hineinschreiben.
+--
+-- ─── Warum ein Grant und keine Function ────────────────────────────────────
+--
+-- Die Alternative waere, den Schreibzugriff in eine Netlify-Function mit
+-- service_role zu verlegen. Das waere ein neuer Schreibweg an RLS vorbei --
+-- dasselbe Muster, das bei activate_customer_addon_v1 mit Aufwand eingegrenzt
+-- wurde. Die Allowlist ist die richtige Konstruktion; sie ist nur nicht
+-- mitgewachsen. Ein Grant fuer genau eine Spalte ist die kleinere und
+-- ehrlichere Aenderung.
+--
+-- ─── Damit es nicht wieder passiert ────────────────────────────────────────
+--
+-- scripts/verify-browser-column-grants.mjs vergleicht ab sofort bei jedem PR
+-- die Spalten aus jedem .update({...}) im Browser-Code gegen
+-- information_schema.column_privileges. Genau dieser Fall ist die Gegenprobe
+-- des Waechters.
+--
+-- Idempotent: mehrfaches Ausfuehren aendert nichts.
+
+begin;
+
+grant update (callback_requested) on table public.calls to authenticated;
+
+commit;
