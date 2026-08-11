@@ -1,5 +1,5 @@
 {
-  "version": 6,
+  "version": 7,
   "webhook_env": "MAKE_MAIL_WEBHOOK",
   "canonical_mail_types": [
     "offer_email",
@@ -33,7 +33,7 @@
     "password_reset": ["email", "activation_link"],
     "password_changed_email": ["recipient.email"],
     "assistant_updated_email": ["recipient.email"],
-    "ai_change_request": ["customer_id", "message"],
+    "ai_change_request": ["customer_id", "message", "recipient.email"],
     "call_notification_email": ["recipient.email", "customer_id", "caller_phone"],
     "callback_request_email": ["recipient.email", "customer_id", "caller_phone"]
   },
@@ -42,6 +42,7 @@
     "contract_signed_email": "A PDF is attached when contract.signed_pdf_url is available; otherwise the signed page link remains the fallback.",
     "call_notification_email": "Replaces the notification half of Make scenario 01, which sent through its own SMTP module past the outbox. The payload keeps scenario 01's field names (caller_name, caller_phone, call_summary, category, lead_quality, duration_seconds) so its HTML template transplants into scenario 09 unchanged; only the recipient moves from the resolver response into the nested recipient.email that every other mail type already uses.",
     "callback_request_email": "The callback_requested branch of the same path. Split into its own mail_type because it carries a different template than call_notification_email.",
-    "call_notification_gating": "Which of the two types fires is decided by decideMail() in customer-dashboard/netlify/functions/_lib/call-notification.js. It reads customers.notification_mode (none | callback_only | all_calls) -- the only column the customer settings page writes. The interim state described during the migration (gating on the legacy booleans notification_active / new_log_email_active for behaviour parity with Make scenario 01) has been replaced by the notification-settings work as the agreed follow-up step. The Make routes are unaffected either way: scenario 09 filters on mail_type only, and both types stayed the same."
+    "call_notification_gating": "Which of the two types fires is decided by decideMail() in customer-dashboard/netlify/functions/_lib/call-notification.js. It reads customers.notification_mode (none | callback_only | all_calls) -- the only column the customer settings page writes. The interim state described during the migration (gating on the legacy booleans notification_active / new_log_email_active for behaviour parity with Make scenario 01) has been replaced by the notification-settings work as the agreed follow-up step. The Make routes are unaffected either way: scenario 09 filters on mail_type only, and both types stayed the same.",
+    "ai_change_request": "recipient.email added 2026-08-11 (#900): ai-change-request-create.js has sent it nested since admin_notification_settings replaced the shared mailbox, but this manifest and scenario 09's route 7 module 52 'to' field (which read the flat, nonexistent 1.admin_email) were never updated to match -- every notification silently went to the fallback info@voxera.ch regardless of the admin's selection. Documentation only: no runtime code enforces required_payloads for this mail_type, only verify-call-notification-migration.mjs does, and only for the two call-notification types."
   }
 }
