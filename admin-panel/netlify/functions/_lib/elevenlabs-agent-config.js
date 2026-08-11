@@ -487,8 +487,43 @@ function buildSyncPatch({ customer = {}, prompt = '', firstMessage = null, toolI
 // Die Schluessellisten beantworten nebenbei eine zweite offene Frage: ob die
 // neue Oberflaechen-Einstellung "Standardpersoenlichkeit" ueberhaupt ein Feld
 // im Koerper ist. Steht sie in `_keys`, ist sie eins.
+//
+// ── Nachtrag 11.08.: die Frage nach weiteren Promptquellen ───────────────────
+//
+// Beide Fragen sind beantwortet. `timezone` hat die Ersetzung widerlegt. Und
+// das Schluesselinventar hat `ignore_default_personality` sichtbar gemacht --
+// einen Schalter in `agent.prompt`, der auf `false` steht. Ein Feld
+// `default_personality` gibt es im Koerper NICHT. Es existiert also eine
+// Persoenlichkeit, die auf den Agenten wirkt, nicht abgeschaltet ist, und
+// deren Text an keiner Stelle liegt, die wir lesen koennen.
+//
+// Das ist die eigentlich beunruhigende Klasse: nicht ein Feld mit falschem
+// Wert, sondern eine Promptquelle ausserhalb unserer drei Ebenen. Fuer C25
+// zaehlt das doppelt -- eine Offenlegungspflicht laesst sich nicht gegen einen
+// Text absichern, den man nicht kennt.
+//
+// Die Felder unten stehen unter demselben Verdacht. Ihre Namen stammen aus dem
+// Schluesselinventar; ihr Inhalt ist unbekannt, und die beiden mit "overrides"
+// im Namen sind die naechstliegenden Kandidaten. Sie werden hier NUR gemessen:
+// kein Vergleich, keine Zusicherung, keine Aenderung an der Nutzlast. Was sie
+// tragen, steht ab dem naechsten Sync in `config_drift.observed.platform`.
 const OBSERVED_TURN_FIELDS = ['turn_model', 'turn_timeout', 'turn_eagerness', 'speculative_turn', 'soft_timeout_config'];
 const OBSERVED_TTS_FIELDS = ['model_id', 'expressive_mode', 'suggested_audio_tags', 'stability', 'speed', 'similarity_boost', 'text_normalisation_type'];
+const OBSERVED_PLATFORM_FIELDS = ['overrides', 'workspace_overrides', 'guardrails', 'safety', 'trust_context'];
+
+// Diese Felder koennen beliebig gross sein -- wir wissen ja gerade nicht, was
+// drinsteht. Ein Log, das eine unbekannte Konfiguration ungedeckelt mitnimmt,
+// ist beim ersten grossen Wert unlesbar. Gekuerzt wird sichtbar, nicht still:
+// die Laenge bleibt stehen, damit man weiss, dass man nur den Anfang sieht.
+const OBSERVED_RAW_LIMIT = 4000;
+
+function captureRaw(value) {
+  if (value === null || value === undefined) return null;
+  const text = JSON.stringify(value);
+  if (text === undefined) return null;
+  if (text.length <= OBSERVED_RAW_LIMIT) return value;
+  return { _gekuerzt_zeichen: text.length, _anfang: text.slice(0, OBSERVED_RAW_LIMIT) };
+}
 
 function observeAgentState(agentState) {
   const cc = agentState?.conversation_config;
@@ -509,12 +544,27 @@ function observeAgentState(agentState) {
     return out;
   };
 
+  // Gedeckelt, weil unbekannt: siehe captureRaw(). Nur vorhandene Schluessel --
+  // ein Feld, das der Anbieter gar nicht fuehrt, soll als fehlend erkennbar
+  // bleiben und nicht als `null` erscheinen wie ein leeres.
+  const platformSettings = agentState.platform_settings || {};
+  const platform = {};
+  for (const key of OBSERVED_PLATFORM_FIELDS) {
+    if (key in platformSettings) platform[key] = captureRaw(platformSettings[key]);
+  }
+
   return {
     agent_prompt: promptFields,
     agent_language: cc.agent?.language ?? null,
+    // Der zweite Kandidat fuer eine ungelesene Promptquelle, neben der
+    // Standardpersoenlichkeit: er steht in `agent`, nicht in `platform_settings`.
+    agent_text_behavior_overrides: 'text_behavior_overrides' in (cc.agent || {})
+      ? captureRaw(cc.agent.text_behavior_overrides)
+      : null,
     turn: pick(cc.turn, OBSERVED_TURN_FIELDS),
     tts: pick(cc.tts, OBSERVED_TTS_FIELDS),
     asr_provider: cc.asr?.provider ?? null,
+    platform,
     // Schluesselinventar: zeigt Felder, die wir gar nicht kennen.
     _keys: {
       conversation_config: Object.keys(cc).sort(),
