@@ -87,16 +87,38 @@ Antwort entscheidet, ob der Rest ein Nachmittag ist oder eine Woche. **Sie zuers
 ### 2.2 Wiedervorlage — nicht auf Gedächtnis gebaut
 
 Ein Datum in einem Dokument ist keine Wiedervorlage: Es wirkt nur, wenn jemand das Dokument am
-richtigen Tag öffnet. Deshalb ist für den **15.09.2026, 08:00 Uhr (Europe/Zurich)** eine
-automatische Wiedervorlage eingerichtet, die unabhängig von dieser Sitzung feuert und die drei
-Dokumente, den ersten Schritt und die Frist mitbringt.
+richtigen Tag öffnet.
 
-**Wenn diese Zeile ohne Bestätigung dasteht, ist die Wiedervorlage nicht aktiv** — dann gilt nur
-das Datum oben, und jemand muss daran denken. Der Zustand ist in dem Fall ausdrücklich zu
-korrigieren, nicht zu tolerieren: Genau diese Klasse von Zusage ohne Deckung räumt dieser Strang
-gerade auf.
+**Gebaut am 11.08.2026, im Repository statt in einer Sitzung:**
 
-- [ ] Wiedervorlage bestätigt aktiv (Datum eintragen: ______)
+| | |
+|---|---|
+| Register | `config/fristen.json`, Eintrag `dse-paragraf-7-und-datenexport` |
+| Wächter | `scripts/verify-fristen.mjs` |
+| Lauf | `.github/workflows/verify-fristen.yml` — **täglich 06:17 UTC**, dazu bei PRs und auf Zuruf |
+
+**Wie es wirkt:** Ab dem **15.09.** wird der tägliche Lauf rot — ein fehlgeschlagener geplanter
+Workflow benachrichtigt den Besitzer, ohne dass jemand ein Dokument öffnet oder einen PR stellt. Ab
+dem **02.11.** scheitert zusätzlich jeder Pull Request.
+
+Die Zweistufigkeit ist Absicht: Ein verstrichener Starttermin soll erinnern, aber nicht wochenlang
+jede unbeteiligte Änderung blockieren. **Ein Wächter, den man wegklickt, ist schlimmer als keiner.**
+
+**Belegt statt behauptet** — vier Läufe gegen verschobene Termine:
+
+| Fall | erwartet | gemessen |
+|---|---|---|
+| heute | still | ✅ OK, nennt den nächsten Termin |
+| 15.09., täglicher Lauf | rot | ✅ Exit 1, mit voller Begründung |
+| 15.09., PR-Modus | blockiert nicht | ✅ Exit 0, nur Hinweis |
+| 02.11., PR-Modus | blockiert | ✅ Exit 1 |
+| Tippfehler im Datum | rot | ✅ Exit 1 statt still nie fällig |
+
+**Erledigt heisst erledigt.** Wer `erledigtAm` einträgt, ohne dass die Arbeit getan ist, baut genau
+die Zusage ohne Deckung wieder ein, gegen die das Register gerichtet ist — dann lieber das Datum
+verschieben und den Grund vermerken.
+
+- [x] Wiedervorlage aktiv, im Repository verankert — **11.08.2026**
 
 > **Ein Hinweis zur Dringlichkeit:** Auch Weg A (nichts an der Technik ändern) verlangt eine
 > Entscheidung **vor** dem 2. November — nämlich die Textänderung. Wer die Frist verstreichen

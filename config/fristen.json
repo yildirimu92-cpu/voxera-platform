@@ -1,0 +1,63 @@
+{
+  "_hinweis": [
+    "Datierte Zusagen, die nicht an jemandes Gedaechtnis haengen duerfen.",
+    "",
+    "Warum es diese Datei gibt: Ein Datum in einem Dokument wirkt nur, wenn jemand",
+    "das Dokument am richtigen Tag oeffnet. Waehrend des Datenresidenz-Strangs",
+    "(11.08.2026) sind gleich mehrere Zusagen aufgefallen, die genau daran",
+    "gescheitert sind -- eine Loeschfrist ohne Prozess, eine Aufbewahrungszusage,",
+    "die die Technik nicht einhielt, ein Datenexport, den es nie gab.",
+    "",
+    "Dieselbe Bauform wie AKTION.gueltigBis in preise.ts: ein Datum, das ohne",
+    "Deploy still verstreicht, darf es nicht geben. Der Waechter dazu ist",
+    "scripts/verify-fristen.mjs.",
+    "",
+    "Felder je Eintrag:",
+    "  id          stabil, wird nie geaendert",
+    "  was         eine Zeile, was zu tun ist -- nicht was das Thema ist",
+    "  erinnernAb  ab hier meldet sich der taegliche Lauf (Startdatum)",
+    "  faelligAm   ab hier scheitert AUCH jeder Pull Request (harte Frist)",
+    "  quelle      wo die Begruendung steht",
+    "  erledigtAm  Datum eintragen, wenn erledigt -- dann schweigt der Eintrag",
+    "",
+    "Erledigt heisst erledigt, nicht 'in Arbeit'. Wer ein Datum eintraegt, das",
+    "nicht stimmt, baut genau die Zusage ohne Deckung wieder ein, gegen die",
+    "diese Datei gerichtet ist."
+  ],
+
+  "fristen": [
+    {
+      "id": "dse-paragraf-7-und-datenexport",
+      "was": "Paragraf 7 der Datenschutzerklaerung auf 90/180 Tage korrigieren UND einen erreichbaren Datenexport mit Transkript bauen",
+      "erinnernAb": "2026-09-15",
+      "faelligAm": "2026-11-02",
+      "quelle": "docs/TICKET_TRANSKRIPT_AUFBEWAHRUNG_2026-08-11.md (2.1), docs/TICKET_DATENEXPORT_2026-08-11.md",
+      "erledigtAm": null,
+      "warumHart": [
+        "Am 02.11.2026 um 03:17 loescht enforce-data-retention.js das erste",
+        "Transkript -- aeltester Anruf 04.08.2026 plus 90 Tage. Ab diesem Moment",
+        "brechen zwei Zusagen gleichzeitig: Paragraf 7 sichert die Vertragsdauer",
+        "zu, und Paragraf 10 verspricht Datenuebertragbarkeit, fuer die es keinen",
+        "Weg gibt. Die erste laesst sich durch Text heilen, die zweite nicht --",
+        "Datenuebertragbarkeit ist ein gesetzliches Recht.",
+        "",
+        "Der 15.09. ist der Starttermin, nicht die Frist: Der Export ist auf eine",
+        "Stunde geschaetzt worden, bevor bekannt war, dass gar keiner existiert."
+      ]
+    },
+    {
+      "id": "elevenlabs-eu-residenz-wiedervorlage",
+      "was": "Entscheidung EU-Residenz neu bewerten -- Angebot einholen, Plan-Tier (G.2) und Zielsegment pruefen",
+      "erinnernAb": "2026-11-30",
+      "faelligAm": "2026-12-31",
+      "quelle": "docs/ENTSCHEID_ELEVENLABS_EU_RESIDENZ_2026-08-11.md (Abschnitt 4)",
+      "erledigtAm": null,
+      "warumHart": [
+        "Bewusst zurueckgestellt, nicht verworfen. Die Wiedervorlage ist der",
+        "Ersatz fuer die Ausloeser aus Abschnitt 4, die niemand ueberwacht.",
+        "Warten kostet: Die Migration in eine isolierte Umgebung wird pro Kunde",
+        "teurer, ab etwa 25 Kunden ist der Umbau der Hauptkostenblock."
+      ]
+    }
+  ]
+}

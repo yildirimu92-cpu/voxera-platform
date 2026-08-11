@@ -1,0 +1,41 @@
+name: Verify Fristen
+
+# Der taegliche Lauf IST die Wiedervorlage.
+#
+# Ein Lauf, der nur bei Pull Requests feuert, meldet einen verstrichenen Termin
+# erst, wenn ohnehin jemand arbeitet -- also genau dann nicht, wenn das Thema
+# vergessen wurde. Der geplante Lauf haengt dagegen an keinem Menschen: er wird
+# rot, und ein fehlgeschlagener geplanter Workflow benachrichtigt den Besitzer.
+#
+# 06:17 UTC statt 06:00: ein voller Stundenschlag ist der Zeitpunkt, an dem die
+# halbe Welt ihre Cronjobs startet, und GitHub verschiebt geplante Laeufe unter
+# Last teils erheblich.
+on:
+  schedule:
+    - cron: '17 6 * * *'
+  pull_request:
+    paths:
+      - 'config/fristen.json'
+      - 'scripts/verify-fristen.mjs'
+      - '.github/workflows/verify-fristen.yml'
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      # Pull Requests scheitern nur an harten Fristen. Ein verstrichener
+      # Starttermin soll erinnern, aber nicht wochenlang jede unbeteiligte
+      # Aenderung blockieren -- ein Waechter, den man wegklickt, ist schlimmer
+      # als keiner.
+      - name: Fristen pruefen
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            node scripts/verify-fristen.mjs --nur-fristen
+          else
+            node scripts/verify-fristen.mjs
+          fi
