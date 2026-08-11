@@ -118,8 +118,8 @@ function buildToolConfig(secretId) {
           agent_id: dynamicProperty('string', 'system__agent_id'),
           conversation_id: dynamicProperty('string', 'system__conversation_id'),
           agent_turns: dynamicProperty('number', 'system__agent_turns'),
-          start: llmProperty('string', 'Beginn als vollständiger ISO-8601-Zeitstempel mit Schweizer Offset, zum Beispiel 2026-08-05T10:00:00+02:00. Erforderlich für availability, book und reschedule.'),
-          end: llmProperty('string', 'Ende als vollständiger ISO-8601-Zeitstempel mit Schweizer Offset. Erforderlich für availability, book und reschedule.'),
+          start: llmProperty('string', 'Beginn als vollständiger ISO-8601-Zeitstempel mit Schweizer Offset, zum Beispiel 2026-08-05T10:00:00+02:00. Der Zeitraum start bis end darf höchstens 8 Stunden umfassen; frage sonst nach einem Halbtag. Bei cancel wird der Wert nicht ausgewertet — sende dort den Zeitraum des betroffenen Termins und erfinde keinen.'),
+          end: llmProperty('string', 'Ende als vollständiger ISO-8601-Zeitstempel mit Schweizer Offset. Bei book und reschedule ist es genau die konfigurierte Termindauer nach start.'),
           title: llmProperty('string', 'Kurzer Kalendertitel für book oder reschedule.'),
           description: llmProperty('string', 'Optionale sachliche Terminbeschreibung mit Name, Telefonnummer und Anliegen.'),
           attendees: llmProperty('array', 'Optionale Liste bestätigter E-Mail-Adressen für Einladungen.', {
@@ -127,7 +127,20 @@ function buildToolConfig(secretId) {
           }),
           external_event_id: llmProperty('string', 'Von Voxera zurückgegebene Kalendertermin-ID. Für reschedule und cancel zwingend; niemals erfinden.')
         },
-        required: ['action', 'agent_id', 'conversation_id']
+        // #930 Schritt C: start und end sind verbindlich.
+        //
+        // Vorher standen sie nur in der Beschreibungsprosa ("Erforderlich fuer
+        // availability, book und reschedule"). Das Modell durfte availability
+        // also ohne Zeitraum aufrufen -- `new Date(null)` ergibt fuer start und
+        // end denselben Zeitpunkt, `end <= start` greift, und der Anrufende
+        // hoerte eine Fehlermeldung. Prosa ist fuer ein Schema keine Vorgabe.
+        //
+        // `cancel` braucht die beiden Werte fachlich nicht. Ein eigenes Schema
+        // je Aktion gibt dieses Werkzeugformat aber nicht her, und "erfinde
+        // zwei Zeitstempel" waere die schlechtere Loesung: die Beschreibung
+        // sagt deshalb, bei cancel den Zeitraum des betroffenen Termins zu
+        // senden -- eine wahre Angabe, die der Server ignoriert.
+        required: ['action', 'agent_id', 'conversation_id', 'start', 'end']
       },
       request_headers: {
         Authorization: { secret_id: String(secretId).trim() },
@@ -217,13 +230,14 @@ function calendarPromptBlock(settings = {}, appointmentMode = '') {
     'Direkte Termine sind freigeschaltet. Verwende das Tool manage_voxera_calendar für jeden konkreten Terminwunsch.',
     '1. Kläre Datum, Uhrzeit, Anliegen und falls nötig die Kontaktdaten.',
     '2. Verwende die Zeitzone ' + timezone + '. Jeder Termin dauert genau ' + duration + ' Minuten -- eine andere Dauer ist nicht buchbar, auch nicht auf Wunsch.',
-    '3. Prüfe den gewünschten Zeitraum immer zuerst mit action=availability. Erfinde keine freien Zeiten.',
-    '4. Bei belegtem Zeitraum: Sage nur, dass dieser Zeitraum nicht verfügbar ist, und frage nach einer Alternative.',
-    '5. Bei freiem Zeitraum: Wiederhole Datum, Uhrzeit und Dauer und hole eine ausdrückliche Bestätigung ein.',
-    '6. Buche erst nach dieser Bestätigung mit action=book.',
-    '7. Bestätige einen Termin erst, wenn das Tool ok=true zurückgibt.',
-    '8. Verwende reschedule oder cancel nur mit einer echten external_event_id aus einer früheren Voxera-Buchung. Erfinde diese ID niemals.',
-    '9. Bei Toolfehlern keine Buchung versprechen; nimm stattdessen eine vollständige Rückrufanfrage auf.'
+    '3. Prüfe den gewünschten Zeitraum immer zuerst mit action=availability, mit vollständigem start und end. Erfinde keine freien Zeiten.',
+    '4. Ein Zeitraum darf höchstens 8 Stunden umfassen — ein ganzer Arbeitstag ist oft länger. Nennt jemand einen ganzen Tag, eine Woche oder "irgendwann", frage nach einem Halbtag und prüfe Vormittag und Nachmittag getrennt.',
+    '5. Bei belegtem Zeitraum: Sage nur, dass dieser Zeitraum nicht verfügbar ist, und frage nach einer Alternative.',
+    '6. Bei freiem Zeitraum: Wiederhole Datum, Uhrzeit und Dauer und hole eine ausdrückliche Bestätigung ein.',
+    '7. Buche erst nach dieser Bestätigung mit action=book.',
+    '8. Bestätige einen Termin erst, wenn das Tool ok=true zurückgibt.',
+    '9. Verwende reschedule oder cancel nur mit einer echten external_event_id aus einer früheren Voxera-Buchung. Erfinde diese ID niemals.',
+    '10. Antwortet das Tool nicht mit ok=true, sprich nie über den Fehler, das Werkzeug oder den Kalender. Sage, dass du den Termin nicht selbst bestätigen kannst, und nimm eine vollständige Rückrufanfrage auf. Die Wörter Fehler, System, Tool, Schnittstelle und Kalender kommen dabei nicht vor.'
   ].join('\n');
 }
 

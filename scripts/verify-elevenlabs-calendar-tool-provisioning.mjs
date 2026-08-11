@@ -85,6 +85,18 @@ for (const token of [
   if (!restoreBody.includes(token)) failures.push('Rollback calendar tool handling missing: ' + token);
 }
 
+// #930 Schritt C: availability hinterlaesst eine Spur. Vorher schrieb die
+// Aktion weder bei Erfolg noch bei Fehlschlag eine Zeile -- der einzige Beleg
+// des gescheiterten Aufrufs vom 10.08. war eine Netlify-Logzeile.
+for (const token of [
+  "action,\n        actor_type: 'assistant',\n        status: 'success'",
+  "status: 'failed'",
+  'if (!claimedAuditId && customerId)',
+  'let customerId = null;'
+]) {
+  if (!source.core.includes(token)) failures.push('Calendar tool audit missing: ' + token);
+}
+
 for (const token of [
   "require('./calendar-tool')",
   'stableRequestId',
@@ -162,6 +174,38 @@ try {
   assert.equal(typeof helper.findWorkspaceToolId, 'function');
   assert.equal(helper.mergedAgentToolIds, undefined,
     'Die additive Vorgaengerfunktion darf nicht daneben bestehen bleiben');
+
+  // ── #930 Schritt C: der Werkzeugvertrag ────────────────────────────────────
+  //
+  // Alle drei Zusicherungen haengen an einem einzigen Testanruf vom 10.08., bei
+  // dem der Agent "ich schaue nach, welche Termine naechste Woche verfuegbar
+  // sind" sagte und der Anrufende danach "es tut mir leid, da ist ein Fehler
+  // aufgetreten" hoerte.
+  const body = helper.buildToolConfig('secret_1').api_schema.request_body_schema;
+
+  // start/end standen nur in der Beschreibungsprosa. Ein Modell darf Prosa
+  // ignorieren; ein required-Array nicht.
+  assert.ok(body.required.includes('start'), 'start ist nicht verbindlich');
+  assert.ok(body.required.includes('end'), 'end ist nicht verbindlich');
+
+  // Die 8-Stunden-Grenze stand ausschliesslich im Servercode. Das Modell konnte
+  // sie nicht kennen und lief mit "naechste Woche" hinein.
+  const block = helper.calendarPromptBlock(verbunden, 'direct');
+  assert.match(block, /höchstens 8 Stunden/, 'Die Fenstergrenze fehlt im Prompt');
+  assert.match(block, /Halbtag/, 'Es fehlt die Anweisung, in kleineren Fenstern zu fragen');
+  assert.match(body.properties.start.description, /8 Stunden/,
+    'Die Fenstergrenze fehlt in der Feldbeschreibung');
+
+  // Ein Arbeitstag von 08-17 sind neun Stunden. "Frag tageweise" waere deshalb
+  // eine Anweisung, die verlaesslich in die Grenze laeuft -- der Prompt muss
+  // Halbtage nennen und darf keine Tagesfenster empfehlen.
+  assert.ok(!/in Tagesfenstern|tageweise|ganzen Tag prüfe/.test(block),
+    'Der Prompt empfiehlt Tagesfenster, die an der 8-Stunden-Grenze scheitern');
+
+  // Der Anrufende hoerte den Fehler woertlich. Schritt 9 verbot nur das
+  // Buchungsversprechen, nicht das Aussprechen.
+  assert.match(block, /sprich nie über den Fehler/, 'Das Aussprechen von Fehlern ist nicht verboten');
+  assert.match(block, /Rückrufanfrage/, 'Der Ersatzweg bei Toolfehlern fehlt');
 } catch (error) {
   failures.push('Provisioning helper contract failed: ' + error.message);
 }

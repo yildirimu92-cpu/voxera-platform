@@ -201,9 +201,17 @@ exports.handler = async (event) => {
     return reply(400, { ok: false, error: 'calendar_request_id_required' });
   }
   let claimedAuditId = null;
+  // Ausserhalb des try deklariert, damit der catch-Block sie sehen kann. Der
+  // Fehlerpfad schreibt seit #930 Schritt C selbst eine Audit-Zeile -- mit
+  // `const` innerhalb des try haette er dabei einen ReferenceError erzeugt und
+  // damit die echte Fehlerursache ueberschrieben. Ein Fehlerpfad, der beim
+  // Scheitern selbst scheitert, ist schlimmer als gar keiner.
+  let customerId = null;
+  let settings = null;
+  let connection = null;
 
   try {
-    const customerId = await resolveCustomer(sb, body);
+    customerId = await resolveCustomer(sb, body);
     if (!calendarEnabledForCustomer(customerId)) {
       return reply(403, { ok: false, error: 'calendar_customer_not_enabled' });
     }
@@ -217,12 +225,14 @@ exports.handler = async (event) => {
       if (previous?.status === 'processing') return reply(409, { ok: false, error: 'calendar_request_in_progress' });
       if (previous?.status === 'failed') return reply(409, { ok: false, error: 'calendar_request_id_already_failed' });
     }
-    const { data: settings, error: settingsError } = await sb.from('calendar_settings').select('*').eq('customer_id', customerId).maybeSingle();
+    const { data: settingsRow, error: settingsError } = await sb.from('calendar_settings').select('*').eq('customer_id', customerId).maybeSingle();
     if (settingsError) throw settingsError;
+    settings = settingsRow;
     if (!settings?.feature_enabled || !settings.active_provider) return reply(409, { ok: false, error: 'calendar_not_enabled_for_customer' });
 
-    const { data: connection, error: connectionError } = await sb.from('calendar_connections').select('*').eq('customer_id', customerId).eq('provider', settings.active_provider).eq('status', 'connected').maybeSingle();
+    const { data: connectionRow, error: connectionError } = await sb.from('calendar_connections').select('*').eq('customer_id', customerId).eq('provider', settings.active_provider).eq('status', 'connected').maybeSingle();
     if (connectionError) throw connectionError;
+    connection = connectionRow;
     if (!connection?.selected_calendar_id) return reply(409, { ok: false, error: 'calendar_connection_not_ready' });
 
     // Buchungszeiten sind eine Teilmenge der Oeffnungszeiten -- siehe
@@ -306,6 +316,33 @@ exports.handler = async (event) => {
         const result = await checkAvailability(connection.provider, token.accessToken, connection.selected_calendar_id, window.start, window.end);
         responsePayload = { ok: true, action, available: result.available, requested_start: startIso, requested_end: endIso, busy: result.busy };
       }
+      // #930 Schritt C: availability hinterlaesst jetzt eine Spur.
+      //
+      // Vorher schrieb diese Aktion weder bei Erfolg noch bei Fehlschlag eine
+      // Zeile: der claim-Pfad greift nur bei book, reschedule und cancel, weil
+      // nur die eine request_id fuehren. Als der Agent am 10.08. im Gespraech
+      // scheiterte, war der einzige Beleg eine Zeile im Netlify-Funktionslog --
+      // in der Datenbank stand nichts, und die Diagnose musste ohne die Antwort
+      // auskommen, die das Werkzeug tatsaechlich gegeben hat.
+      //
+      // Bewusst schlank: kein busy-Array, keine Rohantwort. Die Zeile soll die
+      // Frage "wurde geprueft, mit welchem Fenster, mit welchem Ergebnis"
+      // beantworten und nicht den Kalender des Kunden spiegeln.
+      await audit(sb, {
+        customer_id: customerId,
+        connection_id: connection.id,
+        provider: connection.provider,
+        action,
+        actor_type: 'assistant',
+        status: 'success',
+        details: {
+          available: responsePayload.available,
+          requested_start: startIso,
+          requested_end: endIso,
+          reason: responsePayload.reason || null,
+          busy_count: Array.isArray(responsePayload.busy) ? responsePayload.busy.length : 0
+        }
+      });
     } else if (action === 'book') {
       const input = eventInput(body, settings);
       assertBookable(input.start, input.end, settings, openingHours, blockingUpdates);
@@ -377,6 +414,26 @@ exports.handler = async (event) => {
           failed_at: new Date().toISOString()
         }
       }).eq('id', claimedAuditId);
+    }
+    // Ohne request_id gibt es keinen claim -- und damit bis #930 Schritt C auch
+    // keine Zeile im Fehlerfall. Genau die fehlte bei der Diagnose am 10.08.
+    // `audit()` schluckt eigene Fehler bewusst (console.warn), der Aufrufer
+    // bekommt also weiterhin seine urspruengliche Fehlerantwort.
+    if (!claimedAuditId && customerId) {
+      await audit(sb, {
+        customer_id: customerId,
+        connection_id: connection?.id || null,
+        provider: connection?.provider || settings?.active_provider || 'google',
+        action,
+        actor_type: 'assistant',
+        status: 'failed',
+        details: {
+          error: error?.message || 'calendar_tool_failed',
+          requested_start: body?.start || null,
+          requested_end: body?.end || null,
+          failed_at: new Date().toISOString()
+        }
+      });
     }
     console.error('[calendar-tool] failed', { action, request_id: requestId, error: error?.message || String(error) });
     return reply(error.status >= 400 && error.status < 600 ? error.status : 400, {
