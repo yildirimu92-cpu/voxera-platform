@@ -38,7 +38,13 @@
 //
 // Wirkt bei jedem Kunden, dessen Freitext Regelzeilen traegt -- also bei allen
 // mit Vorlagentext. Der Bump ist damit nicht nur formal noetig.
-const PROMPT_BUILDER_VERSION = '2.9';
+// 3.0 (10.08., #930): Der Terminmodus steuert jetzt den Kalenderblock und die
+// Werkzeugzuweisung. Bei `none` und `request` faellt der Block "KALENDER &
+// DIREKTE TERMINBUCHUNG" weg, den bisher jeder Kunde mit verbundenem Kalender
+// bekam -- unabhaengig davon, ob er direkt buchen durfte. Ausserdem liest der
+// Builder den Terminmodus nicht mehr aus der [PROMPT_V2]-Notiz. Beides aendert
+// die Ausgabe fuer betroffene Kunden, der Bump gehoert also dazu.
+const PROMPT_BUILDER_VERSION = '3.0';
 const PROFILE_MARKER = 'PROMPT_V2';
 const WIZARD_MARKER = 'WIZARD';
 
@@ -324,8 +330,18 @@ function parsePromptProfile(notes) {
   const requestedFunctions = Array.isArray(raw.functions) ? raw.functions : [];
   const functions = [...new Set(requestedFunctions.filter(item => Object.prototype.hasOwnProperty.call(FUNCTION_TEXT, item)))];
   if (!functions.length && LEGACY_GOAL_FUNCTION[raw.goal]) functions.push(LEGACY_GOAL_FUNCTION[raw.goal]);
-  const appointmentMode = Object.prototype.hasOwnProperty.call(APPOINTMENT_TEXT, raw.appointmentMode) ? raw.appointmentMode : '';
   const unknownHandling = Object.prototype.hasOwnProperty.call(UNKNOWN_TEXT, raw.unknownHandling) ? raw.unknownHandling : '';
+  // `appointmentMode` wird hier seit dem 2026-08-10 NICHT mehr gelesen.
+  //
+  // Der Terminmodus lag doppelt: als typisierte Spalte `ai_appointment_mode`
+  // (Schicht A, seit J4 fuehrend) und als Feld in dieser [PROMPT_V2]-Notiz. Bei
+  // E2E Test AG standen dort zwei verschiedene Werte -- die Spalte sagte
+  // `direct`, die Notiz `request`, und die Oberflaeche zeigte die Notiz. Der
+  // Betreiber sah "Terminanfrage" und bekam Direktbuchung.
+  //
+  // Eine zweite Quelle, die verliert, ist keine harmlose Redundanz: sie sieht
+  // wie eine Einstellung aus. Deshalb faellt sie weg, statt nur ignoriert zu
+  // werden -- die Notiz wird im selben Zug auch aus den Daten entfernt.
   return {
     version: 2,
     functions,
@@ -333,7 +349,6 @@ function parsePromptProfile(notes) {
     functionInstructions: text(raw.functionInstructions),
     requiredInformation: text(raw.requiredInformation),
     successDefinition: text(raw.successDefinition),
-    appointmentMode,
     unknownHandling
   };
 }
@@ -603,6 +618,7 @@ function placeholderKeys(value) {
 // Zeilen-Renderer (branchSchemaLines). Genau das ist die Antwort auf
 // Auftragsfrage 4: gleicher Mechanismus, getrennter Speicher.
 const CORE_KEY_APPOINTMENT = 'appointment_mode';
+const CORE_APPOINTMENT_COLUMN = 'ai_appointment_mode';
 const CORE_KEY_BOOKING_URL = 'online_booking_url';
 
 // Rueckfall fuer das Zeitfenster zwischen Migration und Deploy. Live geprueft
@@ -658,8 +674,19 @@ function coreAnswers(customer, steps, wizard, profile) {
     const value = text(raw);
     if (value) values[key] = value;
   });
-  if (!values[CORE_KEY_APPOINTMENT] && profile.appointmentMode) {
-    values[CORE_KEY_APPOINTMENT] = profile.appointmentMode;
+  // Der Rueckfall auf profile.appointmentMode ist am 2026-08-10 entfallen --
+  // siehe parsePromptProfile(). Live geprueft: von vier Kunden hat einer die
+  // Spalte gesetzt und keiner eine Notiz ohne Spalte. Es gibt also nichts
+  // nachzutragen; ein Backfill waere ein Eingriff ohne Fall gewesen.
+  //
+  // Der Terminmodus wird dafuer direkt aus der Spalte gelesen, wenn das Schema
+  // ihn nicht abbildet. Ohne diesen Pfad haette ein kaputtes core_field_steps
+  // die Terminbefugnis stillschweigend fallen lassen -- bisher fing die
+  // [PROMPT_V2]-Notiz das ab, und genau die faellt hier weg. Die Quelle bleibt
+  // dieselbe Spalte; nur ihre Erreichbarkeit haengt nicht mehr am Schema.
+  if (!values[CORE_KEY_APPOINTMENT]) {
+    const direkt = text(customer[CORE_APPOINTMENT_COLUMN]);
+    if (Object.prototype.hasOwnProperty.call(APPOINTMENT_TEXT, direkt)) values[CORE_KEY_APPOINTMENT] = direkt;
   }
   Object.entries(LEGACY_CORE_ANSWERS).forEach(([key, read]) => {
     if (!values[key]) {
@@ -1022,6 +1049,12 @@ function buildPromptV2({ customer = {}, masterPrompt = '', industryPrompt = '', 
     prompt: prompt.trim(),
     firstMessage,
     profile,
+    // Der wirksame Terminmodus wird hier mitgegeben, statt ihn beim Aufrufer ein
+    // zweites Mal aus den Kundendaten abzuleiten. Der Kalenderblock und die
+    // Werkzeugzuweisung haengen daran (elevenlabs-sync.js) -- zwei Auswertungen
+    // derselben Rangfolge waeren genau die Doppelung, die dieser Auftrag
+    // aufloest.
+    appointmentMode,
     quality: qualityReport(customer, profile, industryPrompt, appointmentMode, core)
   };
 }

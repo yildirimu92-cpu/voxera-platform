@@ -50,6 +50,10 @@ const customer = {
   ai_fallback_escalation:'Bei Unsicherheit eine Rückrufanfrage aufnehmen.',
   ai_response_constraints:'Keine Preise oder Verfügbarkeiten erfinden.',
   ai_internal_notes:'[PROMPT_V2] {"version":2,"functions":["information","consulting","lead","appointment","quote","callback"],"functionInstructions":"Beratung: Passenden Voxera-Plan anhand des Bedarfs erklären.\\nLead: Branche, Teamgrösse und Anrufvolumen erfragen.","requiredInformation":"Name\\nFirma\\nTelefonnummer\\nAnliegen","successDefinition":"Der Lead ist qualifiziert und der nächste Schritt bestätigt.","appointmentMode":"request","unknownHandling":"callback"}\n[WIZARD] {"sprachen":"de_en","haeufigste_anliegen":"Produktfragen"}',
+  // #930: Der Terminmodus steht in der typisierten Spalte, nicht mehr in der
+  // [PROMPT_V2]-Notiz. Die Notiz traegt das Feld hier bewusst weiterhin --
+  // so belegen die Tests unten, dass es folgenlos geworden ist.
+  ai_appointment_mode:'request',
   ai_emergency_number:'144'
 };
 
@@ -106,7 +110,7 @@ check('quality report is deterministic and ready', () => {
 check('malformed profile marker fails safely', () => assert.deepEqual(parsePromptProfile('[PROMPT_V2] invalid').functions, []));
 check('legacy single goals remain backward compatible', () => assert.deepEqual(parsePromptProfile('[PROMPT_V2] {"goal":"service"}').functions, ['information']));
 check('direct booking remains tool-confirmation gated', () => {
-  const direct = buildPromptV2({ customer:{...customer, ai_internal_notes:customer.ai_internal_notes.replace('"request"','"direct"')}, masterPrompt:'{{CUSTOMER_LAYER}}' });
+  const direct = buildPromptV2({ customer:{...customer, ai_appointment_mode:'direct'}, masterPrompt:'{{CUSTOMER_LAYER}}' });
   assert.match(direct.prompt, /nur dann verbindlich bestätigen/);
   assert.match(direct.prompt, /Erfinde niemals freie Zeiten/);
 });
@@ -362,9 +366,27 @@ check('J4: the column beats the legacy marker line', () => {
   assert.ok(!built.prompt.includes('bestätige keinen Termin'), 'Die [PROMPT_V2]-Zeile uebersteuert die typisierte Spalte');
 });
 
-check('J4: without a column value the marker line still applies', () => {
-  const built = buildPromptV2({ customer, masterPrompt:'{{CUSTOMER_LAYER}}', coreFields:CORE_STEPS_JSON });
+// #930 (10.08.): Die Umkehrung des frueheren Tests "without a column value the
+// marker line still applies". Die [PROMPT_V2]-Notiz ist keine Quelle mehr --
+// sie hat bei E2E Test AG `request` gesagt, waehrend die Spalte `direct` sagte,
+// und die Oberflaeche zeigte die Notiz. Eine zweite Quelle, die verliert, sieht
+// trotzdem wie eine Einstellung aus.
+check('#930: die [PROMPT_V2]-Notiz erzeugt keine Terminbefugnis mehr', () => {
+  const nurNotiz = { ...customer };
+  delete nurNotiz.ai_appointment_mode;
+  const built = buildPromptV2({ customer:nurNotiz, masterPrompt:'{{CUSTOMER_LAYER}}', coreFields:CORE_STEPS_JSON });
+  assert.ok(!built.prompt.includes('bestätige keinen Termin'), 'Die Notiz wirkt weiterhin');
+  assert.ok(!built.prompt.includes('## TERMINBEFUGNIS'), 'Ohne Quelle darf kein Abschnitt entstehen');
+  assert.equal(built.appointmentMode, '');
+});
+
+// Gegenstueck: die Spalte bleibt auch dann erreichbar, wenn das Schema sie
+// nicht abbildet. Ohne diesen Pfad haette der Wegfall der Notiz die
+// Terminbefugnis bei kaputtem core_field_steps stillschweigend geloescht.
+check('#930: die typisierte Spalte wirkt auch ohne Schema', () => {
+  const built = buildPromptV2({ customer, masterPrompt:'{{CUSTOMER_LAYER}}', coreFields:'[]' });
   assert.match(built.prompt, /bestätige keinen Termin/);
+  assert.equal(built.appointmentMode, 'request');
 });
 
 check('J4: a legacy "direkt" answer never grants calendar booking authority', () => {

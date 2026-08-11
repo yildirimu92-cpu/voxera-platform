@@ -4,6 +4,7 @@ const crypto = require('crypto');
 const { createClient } = require('@supabase/supabase-js');
 const { safeEqual } = require('./_lib/calendar-crypto');
 const { calendarEnabledForCustomer } = require('./_lib/calendar-rollout');
+const { bookingWindowError } = require('./_lib/booking-window');
 const { ensureAccessToken, checkAvailability, createEvent, updateEvent, deleteEvent } = require('./_lib/calendar-providers');
 
 const headers = { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' };
@@ -61,10 +62,51 @@ function bufferedWindow(startIso, endIso, settings) {
   };
 }
 
+// Die konfigurierte Termindauer war bis zum 2026-08-10 eine reine Mitteilung an
+// das Modell: der Kalenderblock nannte sie, durchgesetzt hat sie niemand.
+// `start` und `end` kamen beide vom Modell, die einzige Schranke war das
+// 8-Stunden-Fenster. Ein Anrufer, der "zwei Stunden" sagte, bekam zwei Stunden.
+// Fuer "verbindlich buchen" ist das zu weit -- ein Modus, der technisch greift
+// und fachlich unsinnige Termine erzeugt, ist schlechter als gar keiner.
+//
+// Geprueft wird nur bei book und reschedule. Bei availability darf das Fenster
+// weiterhin groesser sein: "haben Sie am Dienstagnachmittag etwas frei" ist
+// eine legitime Frage nach einem Zeitraum, keine Buchung.
+function assertDuration(startIso, endIso, settings) {
+  const expected = Number(settings?.appointment_duration_minutes || 0);
+  if (!expected) return;
+  const actual = Math.round((new Date(endIso).getTime() - new Date(startIso).getTime()) / 60000);
+  if (actual !== expected) {
+    const error = new Error('calendar_duration_mismatch');
+    error.details = { expected_minutes: expected, requested_minutes: actual };
+    throw error;
+  }
+}
+
+// Beim Buchen und Verschieben ist "ausserhalb der Zeiten" kein Verhandlungs-
+// ergebnis, sondern eine Ablehnung. Anders als bei availability, wo dieselbe
+// Lage als "nicht verfuegbar" beantwortet wird.
+function assertBookable(startIso, endIso, settings, openingHours, blockingUpdates) {
+  const blocked = blockingUpdateFor(blockingUpdates, startIso, endIso);
+  if (blocked) {
+    const error = new Error('calendar_operational_block');
+    error.status = 409;
+    error.details = { block_type: blocked.type, block_title: blocked.title, block_until: blocked.ends_at };
+    throw error;
+  }
+  const windowError = bookingWindowError(startIso, endIso, settings, openingHours);
+  if (windowError) {
+    const error = new Error(windowError);
+    error.status = 409;
+    throw error;
+  }
+}
+
 function eventInput(body, settings) {
   const start = iso(body.start, 'start');
   const end = iso(body.end, 'end');
   validateWindow(start, end, settings);
+  assertDuration(start, end, settings);
   return {
     title: String(body.title || settings.appointment_title_template || 'Termin via Voxera').slice(0, 160),
     description: String(body.description || '').slice(0, 4000),
@@ -73,6 +115,39 @@ function eventInput(body, settings) {
     timezone: String(settings.timezone || 'Europe/Zurich'),
     attendees: Array.isArray(body.attendees) ? body.attendees.map((value) => String(value || '').trim()).filter((value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)).slice(0, 10) : []
   };
+}
+
+// Betriebsinformationen erreichten bis zum 2026-08-10 nur den Prompt, nie
+// dieses Werkzeug. Ein Kunde, der "Terminannahme pausieren" einschaltet, bekam
+// von der Oberflaeche eine Zusage -- und der Agent buchte weiter. Der
+// Google-Freebusy faengt das nicht ab: eine in Voxera gepflegte Schliessung
+// steht nicht im verbundenen Kalender.
+//
+// Nur `closure` und `appointment_pause` sperren. `absence` betrifft eine Person
+// und nicht den Betrieb, `special_hours` aendert Zeiten statt sie zu streichen
+// -- beide brauchen eine eigene Entscheidung und sperren hier bewusst nicht.
+const BLOCKING_UPDATE_TYPES = Object.freeze(['closure', 'appointment_pause']);
+
+async function loadBlockingUpdates(sb, customerId) {
+  const { data, error } = await sb.from('customer_operational_updates')
+    .select('type,title,starts_at,ends_at')
+    .eq('customer_id', customerId)
+    .eq('status', 'published')
+    .in('type', BLOCKING_UPDATE_TYPES)
+    .gt('ends_at', new Date().toISOString())
+    .limit(50);
+  if (error) throw error;
+  return data || [];
+}
+
+function blockingUpdateFor(updates, startIso, endIso) {
+  const start = new Date(startIso).getTime();
+  const end = new Date(endIso).getTime();
+  return (updates || []).find((item) => {
+    const from = new Date(item.starts_at).getTime();
+    const to = new Date(item.ends_at).getTime();
+    return Number.isFinite(from) && Number.isFinite(to) && from < end && to > start;
+  }) || null;
 }
 
 async function audit(sb, input) {
@@ -141,6 +216,16 @@ exports.handler = async (event) => {
     if (connectionError) throw connectionError;
     if (!connection?.selected_calendar_id) return reply(409, { ok: false, error: 'calendar_connection_not_ready' });
 
+    // Buchungszeiten sind eine Teilmenge der Oeffnungszeiten -- siehe
+    // _lib/booking-window.js. Dafuer braucht dieses Werkzeug das
+    // Wochenraster aus dem Geschaeftsprofil, das bisher nur der Prompt kannte.
+    const { data: customerRow, error: customerError } = await sb.from('customers')
+      .select('ai_opening_hours')
+      .eq('id', customerId)
+      .maybeSingle();
+    if (customerError) throw customerError;
+    const openingHours = customerRow?.ai_opening_hours || null;
+
     let externalEventId = String(body.external_event_id || '').trim() || null;
     if (['reschedule', 'cancel'].includes(action)) {
       if (!externalEventId) throw new Error('external_event_id_required');
@@ -186,13 +271,35 @@ exports.handler = async (event) => {
     const endIso = body.end ? iso(body.end, 'end') : null;
     let responsePayload;
 
+    const blockingUpdates = await loadBlockingUpdates(sb, customerId);
+
     if (action === 'availability') {
       validateWindow(startIso, endIso, settings);
-      const window = bufferedWindow(startIso, endIso, settings);
-      const result = await checkAvailability(connection.provider, token.accessToken, connection.selected_calendar_id, window.start, window.end);
-      responsePayload = { ok: true, action, available: result.available, requested_start: startIso, requested_end: endIso, busy: result.busy };
+      // Ausserhalb der Buchungszeiten oder waehrend einer Schliessung ist der
+      // Zeitraum nicht verfuegbar -- das ist eine Antwort, kein Fehler. Ein
+      // Werkzeugfehler zwingt den Agenten in den Fehlerpfad; "nicht verfuegbar,
+      // frag nach einer Alternative" steht als Schritt 4 im Kalenderblock und
+      // ist genau das gewuenschte Gespraech.
+      const windowError = bookingWindowError(startIso, endIso, settings, openingHours);
+      const blocked = blockingUpdateFor(blockingUpdates, startIso, endIso);
+      if (windowError || blocked) {
+        responsePayload = {
+          ok: true,
+          action,
+          available: false,
+          requested_start: startIso,
+          requested_end: endIso,
+          busy: [],
+          reason: blocked ? 'operational_block' : windowError
+        };
+      } else {
+        const window = bufferedWindow(startIso, endIso, settings);
+        const result = await checkAvailability(connection.provider, token.accessToken, connection.selected_calendar_id, window.start, window.end);
+        responsePayload = { ok: true, action, available: result.available, requested_start: startIso, requested_end: endIso, busy: result.busy };
+      }
     } else if (action === 'book') {
       const input = eventInput(body, settings);
+      assertBookable(input.start, input.end, settings, openingHours, blockingUpdates);
       const window = bufferedWindow(input.start, input.end, settings);
       const availability = await checkAvailability(connection.provider, token.accessToken, connection.selected_calendar_id, window.start, window.end);
       if (!availability.available) {
@@ -210,6 +317,7 @@ exports.handler = async (event) => {
       };
     } else if (action === 'reschedule') {
       const input = eventInput(body, settings);
+      assertBookable(input.start, input.end, settings, openingHours, blockingUpdates);
       const window = bufferedWindow(input.start, input.end, settings);
       const availability = await checkAvailability(connection.provider, token.accessToken, connection.selected_calendar_id, window.start, window.end, externalEventId);
       if (!availability.available) {

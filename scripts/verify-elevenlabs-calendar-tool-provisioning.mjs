@@ -55,8 +55,11 @@ for (const forbidden of [
 for (const token of [
   "require('./elevenlabs-calendar-tool')",
   'ensureWorkspaceTool()',
-  'mergedAgentToolIds(agentId, calendarToolId)',
-  'calendarPromptBlock(inputs.calendarSettings || {})',
+  'agentToolIds(agentId, calendarToolId, { attach: true })',
+  'agentToolIds(agentId, calendarToolId, { attach: false })',
+  'findWorkspaceToolId()',
+  'calendarPromptBlock(inputs.calendarSettings || {}, appointmentMode)',
+  'compiled.appointmentMode',
   'promptPatch.tool_ids = toolIds',
   'calendar_tool_status'
 ]) {
@@ -106,13 +109,33 @@ try {
     description: 'Bestätigte E-Mail-Adresse eines Teilnehmers.'
   });
 
-  assert.match(helper.calendarPromptBlock({
+  const verbunden = {
     feature_enabled: true,
     active_provider: 'google',
     timezone: 'Europe/Zurich',
     appointment_duration_minutes: 60
-  }), /Standarddauer von 60 Minuten/);
-  assert.equal(helper.calendarPromptBlock({ feature_enabled: false }), '');
+  };
+
+  assert.match(helper.calendarPromptBlock(verbunden, 'direct'), /Standarddauer von 60 Minuten/);
+  assert.equal(helper.calendarPromptBlock({ feature_enabled: false }, 'direct'), '');
+
+  // #930: Der Block haengt am Terminmodus, nicht nur am Anschlussstatus. Bis
+  // zum 2026-08-10 bekam jeder Kunde mit verbundenem Kalender den Satz
+  // "Direkte Termine sind freigeschaltet" -- auch bei "Terminwunsch aufnehmen"
+  // und bei "keine Termine".
+  assert.equal(helper.calendarPromptBlock(verbunden, 'request'), '',
+    'request darf keine Direktbuchungs-Anleitung erhalten');
+  assert.equal(helper.calendarPromptBlock(verbunden, 'none'), '',
+    'none darf keine Direktbuchungs-Anleitung erhalten');
+  assert.equal(helper.calendarPromptBlock(verbunden), '',
+    'ohne Modus gilt der sichere Fall');
+
+  // Das Werkzeug muss auch wieder abgehaengt werden koennen. Die
+  // Vorgaengerfunktion mergedAgentToolIds() konnte nur hinzufuegen.
+  assert.equal(typeof helper.agentToolIds, 'function');
+  assert.equal(typeof helper.findWorkspaceToolId, 'function');
+  assert.equal(helper.mergedAgentToolIds, undefined,
+    'Die additive Vorgaengerfunktion darf nicht daneben bestehen bleiben');
 } catch (error) {
   failures.push('Provisioning helper contract failed: ' + error.message);
 }
