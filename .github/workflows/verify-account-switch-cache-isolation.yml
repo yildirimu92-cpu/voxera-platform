@@ -1,0 +1,27 @@
+name: Verify account switch cache isolation
+
+# Guards against a customer-data leak between two accounts in the same tab:
+# resolveCustomerContext() memoizes customerContext, and until this fix
+# vxHandleSignedOut() (the general SIGNED_OUT handler -- token expiry,
+# server-terminated session, failed auto-refresh, not only the explicit
+# "Abmelden" button) never cleared it. A second account signing in before the
+# next forced reload could render the first account's name, email, invoices,
+# contract and voice selection into the second account's own dashboard.
+
+on:
+  pull_request:
+    paths:
+      - 'customer-dashboard/index.html'
+      - 'customer-dashboard/tests/account-switch-cache-isolation.test.cjs'
+      - '.github/workflows/verify-account-switch-cache-isolation.yml'
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: node --test customer-dashboard/tests/account-switch-cache-isolation.test.cjs

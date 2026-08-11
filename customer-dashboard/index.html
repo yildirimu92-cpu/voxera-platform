@@ -11342,6 +11342,31 @@ let customerContractState = {
   effectiveContract: null
 };
 let customerContext = { authUserId: null, usersCustomerId: null, customerId: null, customerRecord: null };
+
+// Bei jedem Kontowechsel im selben Tab noetig -- explizites Abmelden
+// (doLogout) UND jedes SIGNED_OUT-Ereignis ohne Zutun des Nutzers
+// (Token-Ablauf, serverseitig beendete Sitzung, fehlgeschlagener
+// Auto-Refresh). Ohne diesen Reset ueberlebt der zwischengespeicherte
+// Zustand von Konto A einen stillen Sitzungsabbruch: resolveCustomerContext()
+// liefert ohne forceReload weiterhin A's customerRecord, und
+// vxLoadCustomerDocuments() ohne forceReload weiterhin A's Rechnungen und
+// Vertrag. Konto B saehe beim naechsten Login im selben Tab A's Stammdaten,
+// bevor der naechste erzwungene Reload sie korrigiert.
+//
+// Eine Funktion statt zwei Kopien: doLogout() und vxHandleSignedOut() riefen
+// vorher je ihre eigene Reset-Zeile -- genau diese Art von Divergenz (der
+// allgemeine Pfad raeumt weniger auf als der explizite) war die Ursache des
+// Fehlers.
+function resetPerAccountCaches() {
+  customerContext = { authUserId: null, usersCustomerId: null, customerId: null, customerRecord: null };
+  customerDocumentsState = { loading: false, loaded: false, invoices: [], contract: null, error: null };
+  window._vxAssistantVoicesLoaded = false;
+  window._vxAssistantVoicesLoading = false;
+  window._vxAssistantVoicesPromise = null;
+  window.assistantVoiceOptions = [];
+  window.assistantSelectedVoiceId = null;
+}
+
 const AVG_CALL_DURATION = 2.5;
 const ACTIVE_CONTRACT_STATUSES = new Set(['active', 'signed']);
 const MANUAL_TASK_TYPE_OPTIONS = Object.freeze({
@@ -16742,13 +16767,19 @@ async function loadCustomerContractMeta(customerId, subscriptionId) {
   }
 }
 
-async function loadCustomerMeta() {
-  const context = await resolveCustomerContext();
+// forceReload wird an resolveCustomerContext() und vxLoadCustomerDocuments()
+// durchgereicht -- beide cachen sonst kontouebergreifend, siehe
+// resetPerAccountCaches(). Der Reset bei SIGNED_OUT ist die eine
+// Absicherung; diese Weitergabe ist die andere und wichtigere: sie macht
+// jeden Aufrufer, der forceReload=true uebergibt, unabhaengig davon, ob der
+// Reset im konkreten Fall bereits gegriffen hat.
+async function loadCustomerMeta(forceReload) {
+  const context = await resolveCustomerContext(forceReload);
   const rec = context.customerRecord;
   if (!rec) return customerMeta;
   const f = rec || {};
   await loadCustomerContractMeta(context.customerId || f.id || '', f.subscription_id || null);
-  await vxLoadCustomerDocuments();
+  await vxLoadCustomerDocuments(forceReload);
   const commercialContract = selectCommercialContractRow();
   const contractUsage = resolveContractUsageConfig(commercialContract);
   const planFallback = getPlanConfigEntryForPlan(contractUsage.plan || f.plan || customerMeta.plan || '') || PLAN_CONFIG['Business'] || { monthlyPrice: 0, minutes: 0, extraRate: 0 };
@@ -20350,7 +20381,11 @@ async function loadData(onMilestone) {
   if (btn) { btn.textContent = '↻ Lädt...'; btn.style.opacity = '.6'; }
 
   try {
-    await loadCustomerMeta().catch(()=>{});
+    // forceReload: loadData() ist der eine Pfad, der bei jedem Kontowechsel
+    // garantiert durchlaeuft (Boot und Polling). Ohne den Reset bei
+    // SIGNED_OUT gegen sich selbst abzusichern, gehoert die Garantie hierher,
+    // nicht nur in den Reset -- siehe Kommentar an loadCustomerMeta().
+    await loadCustomerMeta(true).catch(()=>{});
     applyContractAccessStateToUI();
     await loadPlanConfigFromSupabase().catch(()=>{});
     const context = await resolveCustomerContext(true);
@@ -29540,7 +29575,7 @@ async function doLogout() {
   }
   resetSetupSessionState();
   setupStateCustomerId = '';
-  customerContext = { authUserId: null, usersCustomerId: null, customerId: null, customerRecord: null };
+  resetPerAccountCaches();
   showLogin();
   document.getElementById('login-password').value = '';
   // Re-enable login button in case it was disabled from a previous attempt
@@ -29601,6 +29636,12 @@ async function vxHandleSignedOut() {
   var wasOwnLogout = isLogoutInProgress;
   isAuthTransition = false;
   currentUser = null;
+  // Trifft auch Sitzungsabbrueche ohne Zutun des Nutzers (Token-Ablauf,
+  // serverseitig beendet) -- nicht nur den expliziten "Abmelden"-Pfad in
+  // doLogout(). Ohne diesen Aufruf hier ueberlebt der zwischengespeicherte
+  // Kontext von Konto A genau die Faelle, die dieser Handler abdeckt, und
+  // wird beim naechsten Login desselben Tabs (Konto B) mitgerendert.
+  resetPerAccountCaches();
   if (autoRefreshTimer) clearInterval(autoRefreshTimer);
   teardownDashboardRealtime();
   showLogin(wasOwnLogout ? '' : 'Ihre Sitzung wurde beendet. Bitte melden Sie sich erneut an.');
@@ -29808,7 +29849,11 @@ function showApp(user) {
     // customerMeta-Aufbau heraus geoeffnet, nicht von hier.
     setTimeout(function() {
       if (typeof vxPreloadAssistantVoices === 'function') {
-        vxPreloadAssistantVoices().catch(function(){});
+        // forceReload: derselbe Boot-Aufruf wie loadCustomerMeta(true) oben,
+        // gleiche Klasse -- eine bereits geladene Stimmenliste eines
+        // vorherigen Kontos im selben Tab darf hier nicht wiederverwendet
+        // werden, siehe resetPerAccountCaches().
+        vxPreloadAssistantVoices(true).catch(function(){});
       }
     }, 300);
   }).catch(function(err) {
