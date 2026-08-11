@@ -19,19 +19,88 @@
 
 ---
 
+## Vorprüfung: Warum die Einstufung fehlt — beantwortet
+
+**Weder noch.** Das Feld wird abgefragt. Es bleibt leer, weil die Anweisung dem Modell sagt, sich zu enthalten.
+
+`admin-panel/netlify/functions/_lib/elevenlabs-agent-config.js:191`:
+
+```js
+urgency: {
+  type: 'string',
+  description: 'Dringlichkeit: hoch / mittel / niedrig. Nur aus Anrufer-Aussagen ableiten.'
+}
+```
+
+Drei Dinge stehen da — und alle drei drücken die Quote:
+
+1. **Kein `enum`.** `category` hat eine geschlossene Liste, `urgency` nicht.
+2. **Keine Rückfallregel.** `callback_requested` sagt „Im Zweifel false", `lead_quality` sagt „Im Zweifel warm", `urgency` sagt nichts.
+3. **Eine ausdrückliche Enthaltung:** *„Nur aus Anrufer-Aussagen ableiten."* Sagt der Anrufer nicht „es ist dringend", lässt das Modell das Feld leer — genau wie angewiesen.
+
+### Der Beleg: die Quote folgt der Anweisungsform
+
+| Feld | `enum` | Rückfallregel | Befüllt |
+|---|---|---|---|
+| `category` | **ja** | — | 33/33 — **100 %** |
+| `callback_requested` | (boolean) | „Im Zweifel false" | 33/33 — **100 %** |
+| `lead_quality` | nein | „Im Zweifel warm" | 29/33 — 88 % |
+| **`urgency`** | **nein** | **keine, dafür Enthaltung** | **14/33 — 42 %** |
+| `caller_name` | nein | „Niemals raten" | 5/33 — 15 % |
+| `intent` | nicht konfiguriert | — | 0/33 — 0 % |
+
+Felder mit geschlossener Liste oder Rückfallregel liegen bei 100 %. Felder mit Enthaltungsanweisung liegen bei 42 % und 15 %. `intent` zeigt zum Vergleich, wie ein *nicht* konfiguriertes Feld aussieht: null.
+
+Ergänzend: Die 14 gesetzten Werte sind **ausnahmslos gültig** (`niedrig` 10, `mittel` 3, `hoch` 1). Wenn das Modell einstuft, stuft es sauber ein — es stuft nur zu selten ein.
+
+### Der Prompt nennt Dringlichkeit überhaupt nicht
+
+In `prompt-builder-v2.js` kommt weder „Dringlichkeit" noch „urgency" vor; der einzige Treffer ist `notfallnummer_dringend`, also eine Telefonnummer. **Die einzeilige Feldbeschreibung ist die vollständige Spezifikation.**
+
+### Ist die Konfiguration live?
+
+Ja. `buildAgentConfig()` liefert `platform_settings.data_collection`, der Sync PATCHt genau diesen Körper, und der Agent des Pilotkunden steht auf `elevenlabs_sync_status = 'success'`, zuletzt synchronisiert am 2026-08-11 20:36. Was im Repo steht, ist der Live-Stand.
+
+### Folge für den Aufwand
+
+**Zwei Stunden, nicht ein Tag** — für die Feldmechanik. Die Änderung liegt in einer Datei, in einem Objekt: `enum` ergänzen, den Enthaltungssatz durch Massstab und beide Grenzfälle ersetzen. Ausgerollt wird über den bestehenden Sync, keine Migration, kein neues Bauteil.
+
+Was übrig bleibt, ist Textarbeit am Kriterienblock und die Nachmessung.
+
+### Eine Spannung, die die Messung erzeugt hat
+
+Die Daten zeigen: Ohne Rückfallregel bleibt ein Feld leer. Entschieden ist aber, **nicht** „im Zweifel mittel" vorzugeben — eine erfundene Einstufung wäre nicht als Lücke erkennbar.
+
+Beides lässt sich vereinbaren, wenn man zwei Fälle trennt, die heute zusammenfallen:
+
+- **Kein Eile-Signal** ist selbst ein Befund. „Der Anrufer hat nichts genannt, was auf Eile hindeutet" rechtfertigt `niedrig` — das ist ein Urteil, keine Erfindung.
+- **Keine verwertbare Information** (Anrufer legt nach drei Sekunden auf) bleibt leer.
+
+Vorschlag für die Anweisung: *„Stufe immer ein, sobald das Gespräch ein Anliegen enthält. Lass das Feld nur leer, wenn kein Anliegen erkennbar ist."* Damit fällt die Enthaltung weg, ohne dass etwas erfunden wird.
+
+### Und eine Kopplung, die die Reihenfolge betrifft
+
+Beim Abschleppdienst hängt die Einstufung am **Ort**: Dasselbe Fahrzeug ist *hoch* auf der Autobahn und *niedrig* im Hof. Fragt der Assistent den Standort nicht ab, kann er nach dem eigenen Massstab gar nicht einstufen — und ein Modell, das trotzdem einstufen soll, rät.
+
+Das Ortsfeld (`TICKET_ORT_UND_RUECKRUFNUMMER_2026-08-11.md`) wurde hinter dieses Ticket gestellt. Für die *generische* Einstufung ist das richtig. Für die *Abschleppdienst-Liste* — den ersten Ausbau-Wurf — sind beide dasselbe Arbeitspaket: Ohne Standortabfrage trägt die beste Kriterienliste nicht.
+
+*Zu entscheiden:* Ob die Standortabfrage in den Abschleppdienst-Ausbau vorgezogen wird. Das Minimum ist davon nicht betroffen.
+
+---
+
 ## Der Schnitt: Minimum gegen Ausbau
 
 Zwei Tage sind zu viel für einen Blocker. Der Auftrag zerfällt sauber, und der Grund dafür ist inhaltlich, nicht organisatorisch: **Der Massstab ist branchenunabhängig, nur die Beispiele sind es nicht.**
 
 Die SMS trägt bereits, sobald der Assistent überhaupt zuverlässig einstuft. Branchenspezifische Listen machen die Einstufung *treffsicherer*, nicht erst *möglich*.
 
-### Minimum — der Blocker (≈ 1 Tag)
+### Minimum — der Blocker (≈ 0,75 Tag)
 
 | Schritt | Aufwand |
 |---|---|
-| `urgency` als Pflichtfeld, geschlossene Werteliste `hoch\|mittel\|niedrig` | ~0,5 Tag |
-| Generischer Prompt-Baustein: **Massstab + beide Grenzfälle**, für alle Vorlagen gleich | ~0,25 Tag |
-| Nachmessen an echten Anrufen, Anteil „nicht eingestuft" prüfen | ~0,25 Tag |
+| `enum` ergänzen, Enthaltungssatz ersetzen (eine Datei, ein Objekt) | **~2 Stunden** |
+| Kriterientext: Massstab + beide Grenzfälle, für alle Vorlagen gleich | ~2 Stunden |
+| Ausrollen über den bestehenden Sync + Nachmessen | ~2 Stunden |
 
 Die beiden Grenzfälle gehören ausdrücklich ins Minimum, obwohl sie aus zwei konkreten Branchen stammen. Sie sind die einzige Stelle, an der der Massstab *vorgeführt* statt nur behauptet wird — dasselbe Auto ist *hoch* auf dem Pannenstreifen und *niedrig* in der Garage, dieselbe Menge Wasser ist *mittel* mit Eimer und *hoch* auf Parkett. Wer sie weglässt, behält eine Definition ohne Beispiel, und genau daran scheitern Einstufungen.
 
@@ -164,7 +233,7 @@ Aufgeteilt, siehe „Der Schnitt" oben. Kurzfassung:
 
 | Teil | Aufwand | Blocker? |
 |---|---|---|
-| **Minimum** — Pflichtfeld, generischer Massstab, beide Grenzfälle, Nachmessung | **≈ 1 Tag** | **ja** |
+| **Minimum** — Feldmechanik, generischer Massstab, beide Grenzfälle, Nachmessung | **≈ 0,75 Tag** (nach Vorprüfung, war 1 Tag) | **ja** |
 | Ausbau — Branchenlisten Gruppe (a), E-Mail-Betreff | ≈ 1 Tag | nein |
 | Dashboard-Sortierung | eigener Auftrag | nein |
 
