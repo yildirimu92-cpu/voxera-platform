@@ -206,12 +206,34 @@ dass die zweite Tür bewusst offen steht statt vergessen wurde. Kostet eine Abfr
 
 ---
 
-## 7. Nebenbefund beim Verifizieren: Staging trägt den Zustand vor #892
+## 7. Nebenbefund beim Verifizieren: Staging ist keine Vorstufe, sondern eine andere Linie
 
 Beim Versuch, die Migration auf Staging zu proben statt ihre Wirkung zu behaupten, ist etwas
 aufgefallen, das nicht Teil des Auftrags war.
 
-**Gemessen am 11.08.2026 auf `voxera-staging` (`hzqiyyqfchvfcmmbemvd`):**
+> **Korrektur an der ersten Fassung dieses Abschnitts.** Zuerst stand hier, die beiden
+> Sicherheitsmigrationen vom 09.08. „fehlten" im Staging-Ledger, während spätere durchgelaufen
+> seien. Der vollständige Ledger-Vergleich zeigt: **Das ist zu harmlos formuliert.** Es wurde nichts
+> ausgelassen — die beiden Ledger haben **überhaupt nichts gemeinsam.**
+
+### 7.1 Der Ledger-Vergleich
+
+| | Produktion | Staging |
+|---|---|---|
+| Einträge in `supabase_migrations.schema_migrations` | 38 | 40 |
+| **Gemeinsame Versionen** | **0** | **0** |
+
+Nicht eine einzige Version kommt in beiden vor. Staging ist **nicht hinter** Produktion — es ist
+eine **eigene Linie**. Die Zeitstempel liegen zwar im selben Zeitraum (08.–11.08.), aber es sind
+durchweg andere Migrationen: Produktion beginnt bei `20260808031625`, Staging bei `20260808180914`.
+
+**Damit ist die Frage „welche Migrationen fehlen auf Staging?" nicht sinnvoll beantwortbar.** Die
+Antwort nach Version lautet „alle 38", und sie sagt nichts. Die beiden Umgebungen lassen sich **nur
+über ihren Zustand vergleichen, nicht über ihre Ledger.**
+
+### 7.2 Der Zustandsvergleich — und der bleibt gültig
+
+Gemessen am 11.08.2026:
 
 | | Produktion | **Staging** |
 |---|---|---|
@@ -221,31 +243,75 @@ aufgefallen, das nicht Teil des Auftrags war.
 | **TRUNCATE für Browser-Rollen** | **0** ✅ | **29** 🔴 |
 | Default-ACL-Einträge für Tabellen | 2 (postgres, supabase_admin) | **keine** |
 
-**Die beiden Sicherheitsmigrationen vom 09.08. fehlen im Staging-Ledger** — direkt abgefragt, nicht
-aus dem Bestand geschlossen:
+Auf Staging kann `anon` 29 Tabellen truncieren — der Zustand, den #892 auf Produktion beseitigt hat.
+Der Katalogcheck läuft offenbar nur gegen Produktion, sonst wäre das rot.
 
-- `20260809164858_truncate_grant_sweep` — **fehlt**
-- `20260809174824_revoke_browser_grants_rls_no_policy` — **fehlt**
+### 7.3 Was daraus folgt
 
-Spätere Migrationen sind dagegen da, bis `20260811184207`. Es ist also **kein** stehengebliebenes
-Projekt: Staging bekommt Fachmigrationen, aber die beiden Grant-Migrationen sind übersprungen
-worden.
+1. **Staging taugt für diese Klasse von Änderung nicht als Probe.** Sein `pg_default_acl` ist leer;
+   die Wurzelmigration wäre dort ein No-op. Deshalb wurde die Wirkung dieser Migration **auf
+   Produktion gemessen** (Abschnitt 8), nicht auf Staging simuliert.
+2. **Der Sicherheitsstand beider Umgebungen ist auseinandergelaufen** — und zwar nicht durch
+   Vergessen, sondern strukturell, weil es nie eine gemeinsame Linie gab.
+3. **Die eigentliche Konsequenz ist nicht der Bestand, sondern das Vertrauen:** Jede Migration, die
+   auf Staging als „sauber" geprüft wurde, wurde gegen einen anderen Zustand geprüft als den, der in
+   Produktion herrscht. Staging trägt keine Kundendaten — das Problem ist nicht das Risiko dort,
+   sondern die Aussagekraft von allem, was dort geprüft wurde.
 
-> **Was daraus folgt — zwei Dinge:**
->
-> 1. **Staging taugt für diese Klasse von Änderung nicht als Probe.** Sein `pg_default_acl` ist
->    leer; die Wurzelmigration wäre dort ein No-op und würde nichts beweisen. Deshalb ist die
->    Wirkung dieser Migration in Abschnitt 5 **hergeleitet und nicht gemessen** — das ist offen
->    gesagt, statt eine Probe zu behaupten, die keine wäre.
-> 2. **Der Sicherheitsstand der beiden Umgebungen ist auseinandergelaufen.** Auf Staging kann
->    `anon` 29 Tabellen truncieren — genau der Zustand, den #892 auf Produktion beseitigt hat. Der
->    Katalogcheck läuft offenbar nur gegen Produktion, sonst wäre es rot.
+**Nicht angefasst.** Eigenes Ticket: `docs/TICKET_STAGING_LEDGER_DIVERGENZ_2026-08-11.md`.
 
-**Nicht angefasst.** Das ist ein eigener Auftrag, und er ist grösser als er aussieht: Zu klären ist
-nicht nur, ob die beiden Migrationen nachgezogen werden, sondern **warum sie ausgelassen wurden** —
-und ob der Katalogcheck künftig gegen beide Umgebungen laufen soll. Ohne die zweite Frage wiederholt
-sich der Zustand mit der nächsten Sicherheitsmigration.
+---
 
-**Für den hier vorgeschlagenen Ablauf heisst das:** Die Wurzelmigration gehört auf **beide**
-Umgebungen — auf Staging allerdings erst sinnvoll, nachdem die beiden ausgelassenen Migrationen dort
-nachgezogen sind. Sonst schliesst man eine Wurzel, während der Bestand daneben unbehandelt liegt.
+## 8. Massnahme 1 angewendet — gemessen, nicht behauptet
+
+Angewendet auf Produktion am 11.08.2026 in der vereinbarten Reihenfolge: Ausgangsmessung, anwenden,
+Check danach, plus direkter Vorher-Nachher-Vergleich der ACL-Zeile selbst. Der Check hatte auf
+Produktion nie PASS gemeldet — dass er danach grün ist, wäre allein kein Beleg.
+
+### 8.1 Die ACL-Zeile, vorher und nachher
+
+```
+VORHER   postgres  {postgres=arwdDxtm, anon=arwdxtm, authenticated=arwdxtm, service_role=arwdDxtm}
+NACHHER  postgres  {postgres=arwdDxtm, anon=rxtm,    authenticated=rxtm,    service_role=arwdDxtm}
+                                            ^^^^                  ^^^^
+                                   a, w, d entfernt -- r, x, t, m bleiben
+```
+
+Genau die drei Buchstaben des Auftrags, kein vierter. `service_role` und `postgres` unverändert.
+Der `supabase_admin`-Eintrag ebenfalls unverändert `arwdDxtm` — erwartet, er ist aus dieser Rolle
+nicht änderbar.
+
+### 8.2 Die Checks
+
+| Check | vorher | nachher |
+|---|---|---|
+| Default-Privilegien ohne INSERT/UPDATE/DELETE | **FAIL** (6 Verursacher namentlich) | **PASS** |
+| Default-Privilegien ohne TRUNCATE (#892) | PASS | **PASS** (unberührt) |
+| Keine Tabelle gehört `supabase_admin` | PASS | **PASS** |
+
+### 8.3 Die Kontrollmessung — der wichtigere Beleg
+
+Die Migration behauptet, **kein bestehendes Recht** zu ändern. Gemessen über alle 47 Tabellen:
+
+| Rolle | Recht | vorher | nachher |
+|---|---|---|---|
+| `anon` | INSERT / UPDATE / DELETE / SELECT | 18 / 17 / 18 / 18 | **18 / 17 / 18 / 18** |
+| `authenticated` | INSERT / UPDATE / DELETE / SELECT | 20 / 19 / 21 / 28 | **20 / 19 / 21 / 28** |
+| `service_role` | INSERT / UPDATE / DELETE / SELECT / TRUNCATE | 47 / 47 / 47 / 47 / 47 | **47 / 47 / 47 / 47 / 47** |
+
+**Zeile für Zeile identisch.** Die Wurzel ist zu, der Bestand unangetastet — genau die Trennung, auf
+der die Reihenfolge beruht.
+
+### 8.4 Was ab jetzt gilt
+
+Jede neu in `public` angelegte Tabelle vergibt an `anon` und `authenticated` **kein**
+INSERT/UPDATE/DELETE mehr. Wer eine Tabelle braucht, die das Portal beschreibt, vergibt das Recht
+in **ihrer** Migration ausdrücklich — derselbe Weg, den `elevenlabs_sync_queue` schon geht.
+
+> Das ist die Absicht, nicht ein Nebeneffekt: **ein ausdrückliches Grant ist eine Entscheidung, ein
+> geerbtes ist keine.**
+
+**Offener Entscheidungspunkt:** Die Zeile lautet jetzt `anon=rxtm` — SELECT, REFERENCES, TRIGGER,
+MAINTAIN. `x` und `t` sind ebenfalls fragwürdig; `TRIGGER` erlaubt das Anlegen von Triggern. Bewusst
+nicht mitgenommen, weil der Auftrag INSERT/UPDATE/DELETE lautete. **Zu entscheiden, wenn sichtbar
+ist, ob `rxtm` irgendwo gebraucht wird.**
