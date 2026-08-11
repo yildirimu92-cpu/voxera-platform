@@ -26,15 +26,15 @@ Der Deploy dieses Standes ändert für keinen Bestandskunden etwas. Das ist Absi
 |---|---|---|
 | 1 | **Twilio-Guthaben aufladen** | Stand bei der Freigabe auf **3.67 USD**. Bei sechs SMS je Anruf ist das im niedrigen zweistelligen Anrufbereich aufgebraucht. Ein leeres Guthaben ist im Code als *wiederholbarer* Fehler eingestuft (nicht endgültig) — die Nachricht geht also nicht verloren, sie kommt nur zu spät. Bei einem Notfall ist das dasselbe wie verloren. |
 | 2 | **SMS Pumping Protection aktivieren** | Steht auf **deaktiviert**. Der Anrufer-Versand nimmt die Nummer entgegen, die der Anrufer selbst mitbringt — also eine automatisch verwendete, nicht kuratierte Zielnummer. Genau das ist das Muster, gegen das die Schutzfunktion gebaut ist. Ohne sie ist eine Serie manipulierter Anrufe ein direkter Kostenhebel. |
-| 3 | **`DATA_RETENTION_ENFORCEMENT_ENABLED` prüfen** | Siehe `BEFUND_TWILIO_DATENRESIDENZ_2026-08-11.md`. Steht das Flag auf `false`, greift die 90-Tage-Frist nirgends. |
+| ~~3~~ | ~~`DATA_RETENTION_ENFORCEMENT_ENABLED` prüfen~~ | **Erledigt:** steht auf `true` (Netlify, 2026-08-10). Die 90-Tage-Frist greift. |
 | 4 | **Preisentscheid** | `TICKET_SMS_KOSTEN_PAKETMERKMAL_2026-08-11.md`. `sms_notify` zu CHF 9 trägt fünf Empfänger nicht (Break-even ≈ 18–26 Anrufe/Monat). |
 
 ### Empfohlen
 
 | # | Punkt | Warum |
 |---|---|---|
-| 5 | **Datenresidenz entscheiden** | 400 Tage Twilio (USA) gegen 90 Tage eigen. Vor dem ersten Message Record billiger zu klären als danach. |
-| 6 | **Ortsfeld bauen** | `TICKET_ORT_UND_RUECKRUFNUMMER_2026-08-11.md`. Die Team-SMS lässt die Ortszeile heute weg, weil `calls` kein Feld dafür hat — beim Abschleppdienst die zweitwichtigste Angabe. |
+| 5 | **Datenresidenz: Rest klären** | Teilweise entschieden — die Team-SMS trägt kein Anliegen mehr, damit entsteht bei Twilio kein Inhaltsdatum. Offen bleibt vor allem, ob die **privaten Mobilnummern der Mitarbeiter** im Auftragsverarbeitungsvertrag und in der Datenschutzerklärung abgedeckt sind. Sie sind der einzige wirklich neue personenbezogene Bestand, den der Kanal bei Twilio erzeugt — Rufnummer und Zeitpunkt des Anrufers liegen dort ohnehin schon aus dem Sprachanruf. |
+| 6 | **Ortsfeld bauen** | `TICKET_ORT_UND_RUECKRUFNUMMER_2026-08-11.md`. **Nicht mehr für die SMS** — der Ort gehört seit der Datenresidenz-Entscheidung ohnehin nicht in die Nachricht. Für **Dashboard und E-Mail** unverändert wichtig: Wer dem Link aus der SMS folgt, soll dort den Ort finden. Damit rückt das Ticket sogar näher an den Piloten, nicht weiter weg. |
 | 7 | **Zustellbelege** | Heute wird `accepted` (Twilio hat angenommen) protokolliert, nicht `delivered`. Für einen belastbaren Nachweis je Nachricht braucht es Status-Callbacks. |
 
 ---

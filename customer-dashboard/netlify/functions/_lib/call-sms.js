@@ -150,20 +150,35 @@ async function ladeTeamEmpfaenger(sbAdmin, customerId) {
   return empfaenger;
 }
 
-/** Anlass fuer die Kopfzeile der Team-SMS. */
-function anlassAusAnruf(call) {
-  if (call.callback_requested === true) return 'Rueckrufwunsch';
-  const kategorie = toStr(call.category).toLowerCase();
-  const karte = {
-    rueckrufanfrage: 'Rueckrufwunsch',
-    terminanfrage: 'Terminanfrage',
-    preisanfrage: 'Preisanfrage',
-    reklamation: 'Reklamation',
-    notfall: 'NOTFALL'
-  };
-  if (karte[kategorie]) return karte[kategorie];
-  if (toStr(call.urgency).toLowerCase() === 'hoch') return 'Dringend';
-  return 'Neuer Anruf';
+// Ziel des Links in der Team-SMS.
+//
+// Einen Tiefenlink auf einen einzelnen Anruf gibt es im Dashboard nicht; der
+// Navigationsparameter (?tab=requests, index.html:26225-26236) fuehrt aber
+// direkt in die Anfragenliste, und der neueste Anruf steht dort oben. Das ist
+// nah genug und kostet keine Aenderung an der Oberflaeche.
+//
+// Bewusst OHNE Anruf-Kennung: eine ID im Link waere fuer Twilio zwar
+// bedeutungslos, wuerde aber einen dauerhaften Verweis auf genau diesen
+// Vorgang in einem fremden Bestand hinterlassen.
+const DASHBOARD_BASIS = (process.env.DASHBOARD_URL || 'https://dashboard.voxera.ch').replace(/\/+$/, '');
+const DASHBOARD_ANFRAGEN_URL = `${DASHBOARD_BASIS}/?tab=requests`;
+
+/**
+ * Dringlichkeit fuer die Team-SMS.
+ *
+ * Die einzige Einstufung, die mitgeht -- sie sagt, wie schnell zu reagieren
+ * ist, ohne zu sagen, worum es geht. Kategorie, Anliegen und Zusammenfassung
+ * bleiben bewusst draussen (siehe Kopf von sms-templates.js).
+ *
+ * `callback_requested` faellt ebenfalls weg. Es steuert weiterhin den
+ * AUSLOESER (sms_notify_trigger = 'callback_only'), steht aber nicht mehr im
+ * Text: ob jemand zurueckgerufen werden will, ist eine Aussage ueber sein
+ * Anliegen.
+ */
+function dringlichkeitAusAnruf(call) {
+  const roh = toStr(call.urgency).toLowerCase();
+  const karte = { hoch: 'hoch', mittel: 'mittel', niedrig: 'niedrig' };
+  return karte[roh] || '';
 }
 
 /**
@@ -254,14 +269,15 @@ async function sendCallSms(sbAdmin, { callRowId = null, customerId = null, call 
         log('warn', 'sms_team_ohne_empfaenger', { call_row_id: callRowId, customer_id: kundeId });
       }
 
+      // Zusammenfassung, Name, Kategorie und Ort werden hier NICHT uebergeben
+      // und von buildTeamSms auch nicht mehr entgegengenommen. Der Grund ist
+      // Datenresidenz, nicht Platz: Twilio bewahrt den Nachrichtentext 400
+      // Tage in den USA auf, die eigene Frist betraegt 90 Tage. Was nicht
+      // gesendet wird, liegt dort auch nicht.
       const nachricht = buildTeamSms({
-        anlass: anlassAusAnruf(call),
+        dringlichkeit: dringlichkeitAusAnruf(call),
         rueckrufnummer: rueckrufnummerFuerTeam(call),
-        // `caller_location` existiert heute noch nicht -- die Zeile faellt
-        // dann weg und der Platz geht an die Zusammenfassung.
-        ort: toStr(call.caller_location),
-        zusammenfassung: toStr(call.call_summary_short) || toStr(call.call_summary),
-        anruferName: toStr(call.caller_name),
+        dashboardUrl: DASHBOARD_ANFRAGEN_URL,
         zeitpunkt
       });
 
@@ -390,8 +406,9 @@ module.exports = {
   ADDON_TEAM,
   ADDON_CALLER,
   MAX_TEAM_EMPFAENGER,
+  DASHBOARD_ANFRAGEN_URL,
   ausloeserTrifftZu,
-  anlassAusAnruf,
+  dringlichkeitAusAnruf,
   rueckrufnummerFuerTeam,
   rueckrufnummerFuerAnrufer,
   sendCallSms

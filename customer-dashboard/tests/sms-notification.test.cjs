@@ -70,43 +70,69 @@ test('Erweiterungszeichen zaehlen doppelt', () => {
 // Team-Vorlage
 // ───────────────────────────────────────────────────────────────────────────
 
-test('Team-SMS bleibt ein Segment, auch bei ueberlanger Zusammenfassung', () => {
+test('Team-SMS bleibt ein Segment', () => {
   const m = vorlagen.buildTeamSms({
-    anlass: 'Abschlepp-Anfrage',
+    dringlichkeit: 'hoch',
     rueckrufnummer: '+41791234567',
-    ort: 'A1 Richtung Bern, kurz nach Ausfahrt Muri',
-    zusammenfassung: 'x'.repeat(400),
-    anruferName: 'M. Keller',
+    dashboardUrl: callSms.DASHBOARD_ANFRAGEN_URL,
     zeitpunkt: ZEIT
   });
   assert.equal(m.segmente, 1);
   assert.ok(m.laenge <= 160, `laenge ${m.laenge}`);
 });
 
-test('Team-SMS nennt Rueckrufnummer und Ort vor der Zusammenfassung', () => {
+test('Team-SMS traegt Rueckrufnummer, Dringlichkeit und Link -- sonst nichts', () => {
   const m = vorlagen.buildTeamSms({
-    anlass: 'Abschlepp-Anfrage',
+    dringlichkeit: 'hoch',
     rueckrufnummer: '+41791234567',
-    ort: 'A1 Ri. Bern',
-    zusammenfassung: 'PW nicht fahrbereit',
+    dashboardUrl: 'https://dashboard.voxera.ch/?tab=requests',
     zeitpunkt: ZEIT
   });
-  const iNummer = m.text.indexOf('+41791234567');
-  const iOrt = m.text.indexOf('A1 Ri. Bern');
-  const iText = m.text.indexOf('PW nicht fahrbereit');
-  assert.ok(iNummer > -1 && iOrt > -1 && iText > -1);
-  assert.ok(iNummer < iOrt, 'Rueckrufnummer vor Ort');
-  assert.ok(iOrt < iText, 'Ort vor Zusammenfassung');
+  assert.match(m.text, /\+41791234567/);
+  assert.match(m.text, /Dringlichkeit: hoch/);
+  assert.match(m.text, /dashboard\.voxera\.ch/);
+  assert.match(m.text, /Neuer Anruf/);
+});
+
+test('die Vorlage nimmt Anliegen-Felder gar nicht mehr entgegen', () => {
+  // Wer sie wieder hineinschreiben will, muss die Signatur aendern -- und
+  // stoesst dabei auf die Begruendung im Kopf von sms-templates.js.
+  const m = vorlagen.buildTeamSms({
+    rueckrufnummer: '+41791234567',
+    dashboardUrl: 'https://dashboard.voxera.ch/?tab=requests',
+    zeitpunkt: ZEIT,
+    // Alles Folgende wird ignoriert:
+    zusammenfassung: 'PW nach Panne nicht fahrbereit',
+    anruferName: 'M. Keller',
+    ort: 'A1 Ri. Bern, Ausf. Muri',
+    anlass: 'Abschlepp-Anfrage'
+  });
+  assert.doesNotMatch(m.text, /Panne|fahrbereit/i);
+  assert.doesNotMatch(m.text, /Keller/i);
+  assert.doesNotMatch(m.text, /A1|Muri/);
+  assert.doesNotMatch(m.text, /Abschlepp/i);
 });
 
 test('fehlende Rueckrufnummer wird benannt, nicht verschwiegen', () => {
-  const m = vorlagen.buildTeamSms({ anlass: 'Anruf', zusammenfassung: 'Panne', zeitpunkt: ZEIT });
+  const m = vorlagen.buildTeamSms({ dashboardUrl: 'https://d.example/?tab=requests', zeitpunkt: ZEIT });
   assert.match(m.text, /keine Nummer uebermittelt/);
 });
 
-test('fehlender Ort laesst die Zeile weg statt sie leer zu zeigen', () => {
-  const m = vorlagen.buildTeamSms({ anlass: 'Anruf', rueckrufnummer: '+41791234567', zusammenfassung: 'Panne', zeitpunkt: ZEIT });
-  assert.doesNotMatch(m.text, /Ort:/);
+test('fehlende Dringlichkeit laesst die Zeile weg statt sie leer zu zeigen', () => {
+  const m = vorlagen.buildTeamSms({ rueckrufnummer: '+41791234567', zeitpunkt: ZEIT });
+  assert.doesNotMatch(m.text, /Dringlichkeit/);
+});
+
+test('nur eingestufte Dringlichkeiten gehen mit', () => {
+  assert.equal(callSms.dringlichkeitAusAnruf({ urgency: 'hoch' }), 'hoch');
+  assert.equal(callSms.dringlichkeitAusAnruf({ urgency: 'MITTEL' }), 'mittel');
+  assert.equal(callSms.dringlichkeitAusAnruf({ urgency: null }), '');
+  assert.equal(callSms.dringlichkeitAusAnruf({ urgency: 'Kunde will Termin' }), '',
+    'ein Freitext darf nicht als Dringlichkeit durchrutschen');
+});
+
+test('der Link traegt keine Anruf-Kennung', () => {
+  assert.match(callSms.DASHBOARD_ANFRAGEN_URL, /\?tab=requests$/);
 });
 
 // ───────────────────────────────────────────────────────────────────────────
@@ -331,6 +357,44 @@ test('alle Team-Empfaenger bekommen die SMS, der Anrufer danach', async () => {
   assert.equal(gesendet.length, 4, 'drei Team plus ein Anrufer');
   assert.equal(gesendet[3].to, '+41794444444', 'Anrufer zuletzt');
   assert.ok(gesendet.every(g => g.from === 'Voxera'));
+});
+
+test('die versendete Team-SMS enthaelt kein Inhaltsdatum', async () => {
+  // Der Regressionsschutz fuer die Datenresidenz-Entscheidung vom 2026-08-11:
+  // Twilio bewahrt den Nachrichtentext 400 Tage in den USA auf, die eigene
+  // Frist betraegt 90 Tage. Was hier hineinrutscht, laesst sich nachtraeglich
+  // nicht mehr einsammeln.
+  const gesendet = stubFetch(() => ({ status: 201, body: { sid: 'SM1' } }));
+  const sb = fakeSb({
+    customer: { ...KUNDE_VOLL, sms_caller_enabled: false },
+    addons: ADDONS_BEIDE,
+    empfaenger: DREI_EMPFAENGER
+  });
+
+  await callSms.sendCallSms(sb, {
+    callRowId: 'call_dsg', customerId: 'cust_1',
+    call: {
+      ...ANRUF,
+      caller_name: 'Martina Kellerhals',
+      call_summary: 'Anruferin steht mit Motorschaden auf der A1 bei Muri und braucht sofort einen Abschleppwagen.',
+      call_summary_short: 'Motorschaden A1, Abschleppwagen noetig',
+      caller_location: 'A1 Richtung Bern, Ausfahrt Muri',
+      category: 'notfall',
+      urgency: 'hoch'
+    }
+  });
+
+  assert.ok(gesendet.length > 0);
+  for (const { body } of gesendet) {
+    assert.doesNotMatch(body, /Kellerhals|Martina/i, 'Name des Anrufers');
+    assert.doesNotMatch(body, /Motorschaden|Abschlepp/i, 'Anliegen');
+    assert.doesNotMatch(body, /A1|Muri|Bern/, 'Ort');
+    assert.doesNotMatch(body, /notfall/i, 'Kategorie');
+    // Was drinstehen darf und muss:
+    assert.match(body, /\+41794444444/, 'Rueckrufnummer');
+    assert.match(body, /Dringlichkeit: hoch/);
+    assert.match(body, /dashboard\.voxera\.ch/);
+  }
 });
 
 test('ein fehlgeschlagener Empfaenger reisst die uebrigen nicht mit', async () => {

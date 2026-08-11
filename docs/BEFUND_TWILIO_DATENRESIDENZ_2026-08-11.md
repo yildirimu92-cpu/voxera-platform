@@ -1,7 +1,7 @@
 # Befund — Twilio speichert SMS-Inhalte 400 Tage in den USA
 
 **Datum:** 2026-08-11
-**Art:** Befund zur Weitergabe (Datenresidenz-Strang). Keine Entscheidung, keine Umsetzung.
+**Art:** Befund zur Weitergabe (Datenresidenz-Strang) — **mit einer bereits getroffenen Entscheidung**, siehe Abschnitt „Entscheidung".
 **Herkunft:** Twilio-Konsole, geprüft im Zuge der Absenderfreigabe für die SMS-Benachrichtigung.
 **Betrifft:** `docs/SMS_BENACHRICHTIGUNG_DIAGNOSE_2026-08-11.md` — der Kanal ist gebaut, aber noch nicht scharfgeschaltet.
 
@@ -44,7 +44,7 @@ Damit entsteht ein zweiter Bestand desselben Materials, der:
 
 Ein Löschbegehren nach DSG/DSGVO, das im eigenen Bestand sauber erfüllt wird, bliebe im Twilio-Bestand unerfüllt.
 
-## Zusatzbeobachtung
+## Zusatzbeobachtung — geklärt
 
 `enforce-data-retention.js:28` läuft nur, wenn `DATA_RETENTION_ENFORCEMENT_ENABLED === 'true'`:
 
@@ -54,7 +54,60 @@ if (process.env.DATA_RETENTION_ENFORCEMENT_ENABLED !== 'true') {
 }
 ```
 
-Ob das Flag in Produktion gesetzt ist, habe ich **nicht geprüft** — es gehört in denselben Strang. Steht es auf `false`, greift die 90-Tage-Frist heute nirgends, und der Vergleich lautet nicht 400 gegen 90, sondern 400 gegen unbegrenzt.
+**Das Flag steht in Produktion auf `true`** (in Netlify geprüft am 2026-08-10). Die 90-Tage-Frist greift also tatsächlich. Der Vergleich lautet **400 gegen 90**, nicht 400 gegen unbegrenzt.
+
+---
+
+## Entscheidung vom 2026-08-11: Die Team-SMS trägt kein Anliegen
+
+Aus diesem Befund ist eine Konsequenz bereits gezogen und umgesetzt.
+
+**Vorher** hätte die Team-SMS so ausgesehen:
+
+```
+Voxera 03:14 Abschlepp-Anfrage
+Rueckruf: +41791234567
+Ort: A1 Ri. Bern, Ausf. Muri
+M. Keller
+PW nicht fahrbereit, eine Person wartet im Fahrzeug
+```
+
+**Jetzt sieht sie so aus:**
+
+```
+Voxera 03:14 Neuer Anruf
+Dringlichkeit: hoch
+Rueckruf: +41791234567
+Details: https://dashboard.voxera.ch/?tab=requests
+```
+
+Entfallen sind: **Name des Anrufers, Anliegen, Zusammenfassung, Kategorie, Ort.** Wer wissen will, worum es geht, öffnet das Dashboard — dort greift die eigene 90-Tage-Frist.
+
+`buildTeamSms()` nimmt diese Felder nicht mehr entgegen. Wer sie wieder hineinschreiben will, muss die Signatur ändern und stösst dabei auf die Begründung. Ein Test (`sms-notification.test.cjs`) prüft zusätzlich am fertig versendeten Text, dass kein Inhaltsdatum durchrutscht.
+
+**Der Preis ist real:** Um drei Uhr nachts einen Link zu öffnen ist mehr Aufwand als eine SMS zu lesen. Der Nutzenverlust ist bewusst in Kauf genommen, nicht übersehen.
+
+Die **Anrufer-SMS** bleibt unverändert — sie enthielt nie ein Anliegen, sondern nur die Eingangsbestätigung, die Rückrufnummer des Betriebs und die Notfallnummer.
+
+---
+
+## Was nach der Entscheidung noch bei Twilio liegt
+
+Wichtig für die Beurteilung: Die Änderung reduziert, sie beseitigt nicht.
+
+| Datum | Wo | Anmerkung |
+|---|---|---|
+| Private Mobilnummern der Mitarbeiter | Empfänger der Team-SMS | **neu durch SMS** |
+| Grobe Dringlichkeitsstufe | Text der Team-SMS | **neu durch SMS** |
+| Rufnummer des Anrufers | Text der Team-SMS **und** Empfänger der Anrufer-SMS | siehe unten |
+| Zeitpunkt des Anrufs | beide Nachrichten | siehe unten |
+| Firmenname des Kunden | Text der Anrufer-SMS | öffentlich |
+
+**Der entscheidende Punkt:** Rufnummer und Zeitpunkt des Anrufers liegen **ohnehin schon bei Twilio** — der Anruf selbst läuft über Twilio (`twilio-inbound-router.js`), und die Call Records tragen `From`, `To` und Zeitstempel unabhängig von jeder SMS.
+
+Der marginale Zuwachs durch die SMS beschränkt sich damit im Wesentlichen auf **die Mobilnummern der Mitarbeiter** und **eine dreistufige Dringlichkeitsangabe**.
+
+Was durch die Entscheidung *nicht* mehr entsteht, ist der eigentliche Kern: eine Beschreibung der Lage einer identifizierbaren Person zu einem konkreten Zeitpunkt an einem konkreten Ort.
 
 ## Was zu klären ist
 
@@ -66,17 +119,12 @@ Ich formuliere das als Fragen, nicht als Empfehlungen — die Entscheidung liegt
 | 2 | Bietet Twilio eine Unterdrückung des Nachrichtentextes (Body-Redaction) an, sodass nur Metadaten bleiben? Falls ja: verträgt sich das mit der Fehlersuche? |
 | 3 | Gibt es eine EU-Datenregion für Messaging, und wäre sie mit der alphanumerischen Absenderkennung nutzbar? |
 | 4 | Muss der Twilio-Bestand in den Löschprozess aufgenommen werden (API-seitiges Löschen einzelner Message Records)? |
-| 5 | Ist die Verarbeitung in den USA im Auftragsverarbeitungsvertrag und in der Datenschutzerklärung abgedeckt — inklusive der Mitarbeiter-Mobilnummern? |
-| 6 | Steht `DATA_RETENTION_ENFORCEMENT_ENABLED` in Produktion auf `true`? |
+| 5 | Ist die Verarbeitung in den USA im Auftragsverarbeitungsvertrag und in der Datenschutzerklärung abgedeckt — insbesondere die **Mitarbeiter-Mobilnummern**? Nach der Entscheidung oben ist das die verbleibende Hauptfrage. |
+| ~~6~~ | ~~Steht `DATA_RETENTION_ENFORCEMENT_ENABLED` in Produktion auf `true`?~~ **Beantwortet: ja**, in Netlify geprüft am 2026-08-10. |
 
-## Gestaltungsspielraum, der bereits genutzt wird
+Die Fragen 1 bis 4 bleiben offen, verlieren durch die Entscheidung aber an Schärfe: Ohne Inhaltsdatum im Text ist eine Body-Redaction (Frage 2) weniger dringlich, und der Löschprozess (Frage 4) hätte weniger einzusammeln.
 
-Zwei Dinge begrenzen die Menge des Materials schon jetzt — nicht als Lösung, aber als Randbedingung für die Entscheidung:
-
-- Die Team-SMS trägt **`call_summary_short`**, nicht das Transkript und nicht die lange Zusammenfassung. Sie ist auf 160 Zeichen begrenzt.
-- Die Anrufer-SMS enthält **keine Angaben zum Anliegen**. Sie bestätigt nur den Eingang und nennt Rückruf- und Notfallnummer.
-
-Wer die Menge weiter senken will, hätte den grössten Hebel bei der Zusammenfassung in der Team-SMS — allerdings auf Kosten genau der Information, für die der Kanal gebaut wurde.
+**Frage 5 gewinnt dagegen an Gewicht.** Die Mitarbeiter-Mobilnummern sind der einzige wirklich neue personenbezogene Bestand, den der Kanal bei Twilio erzeugt — und Mitarbeiter haben der Verarbeitung ihrer privaten Nummer nicht schon dadurch zugestimmt, dass ihr Arbeitgeber ein Produkt bucht.
 
 ## Status
 

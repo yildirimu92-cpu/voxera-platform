@@ -37,7 +37,9 @@ Die Absenderfrage aus Abschnitt 5.1 ist beantwortet. Alles darunter bleibt unver
 |---|---|
 | Guthaben **3.67 USD** | Vor dem Piloten aufladen. Ein leeres Guthaben ist im Code als *wiederholbarer* Fehler eingestuft — die Nachricht geht nicht verloren, kommt aber zu spät, und bei einem Notfall ist das dasselbe. |
 | **SMS Pumping Protection deaktiviert** | Vor dem Livegang aktivieren. Der Anrufer-Versand nutzt eine automatisch übernommene Zielnummer — genau das Muster, gegen das die Funktion schützt. |
-| **Message Records 400 Tage** Aufbewahrung (USA) | Gegen 90 Tage im eigenen Bestand. Eigener Befund zur Weitergabe: `BEFUND_TWILIO_DATENRESIDENZ_2026-08-11.md` |
+| **Message Records 400 Tage** Aufbewahrung (USA) | Gegen 90 Tage im eigenen Bestand — bestätigt, `DATA_RETENTION_ENFORCEMENT_ENABLED` steht auf `true`. **Hat den Inhalt der Team-SMS verändert**, siehe unten und `BEFUND_TWILIO_DATENRESIDENZ_2026-08-11.md`. |
+
+**Folgeentscheidung vom selben Tag:** Die Team-SMS trägt **kein Anliegen** mehr — nur noch, dass ein Anruf da ist, die Dringlichkeit, die Rückrufnummer und einen Link ins Dashboard. Name, Zusammenfassung, Kategorie und Ort entfallen, damit das Inhaltsdatum gar nicht erst bei Twilio entsteht. Abschnitt 6.1 ist entsprechend fortgeschrieben; die Anrufer-SMS bleibt unverändert.
 
 **Der Kanal ist gebaut, aber nicht scharfgeschaltet.** Ohne gebuchte Erweiterung, ohne eingetragene Empfänger und mit ausgeschalteten Schaltern versendet er nichts — der Merge ändert für keinen Bestandskunden etwas. Die Schritte zur Scharfschaltung stehen in `SMS_INBETRIEBNAHME_CHECKLISTE_2026-08-11.md`.
 
@@ -228,7 +230,9 @@ Der Segmentpreis ist an Twilios aktueller Preisliste zu verifizieren; hier als G
 
 ### 6.1 Team (4–5 Empfänger)
 
-Rückrufnummer und Ort zuerst — auf dem Sperrbildschirm um drei Uhr nachts ist nur der Anfang sichtbar. Die Zusammenfassung zuletzt, weil sie der Teil ist, den man abschneiden darf.
+> **Überholt durch die Datenresidenz-Entscheidung vom 2026-08-11.** Der Vorschlag unten war richtig gedacht, solange die 400-Tage-Aufbewahrung bei Twilio nicht bekannt war. Er ist **nicht umgesetzt**. Was gebaut wurde, steht darunter.
+
+Ursprünglicher Vorschlag — Rückrufnummer und Ort zuerst, Zusammenfassung zuletzt:
 
 ```
 Voxera 03:14 | Abschlepp-Anfrage
@@ -237,11 +241,26 @@ Ort: A1 Ri. Bern, Ausf. Muri
 PW nicht fahrbereit, 1 Person
 ```
 
-≈ 105 Zeichen, ein Segment.
+**Gebaut wurde stattdessen dies:**
 
-Für die letzte Zeile ist **`call_summary_short`** das richtige Feld (auf allen 16 geprüften Anrufen befüllt), nicht `call_summary` — das lag zwischen 74 und 329 Zeichen und sprengt jede SMS.
+```
+Voxera 03:14 Neuer Anruf
+Dringlichkeit: hoch
+Rueckruf: +41791234567
+Details: https://dashboard.voxera.ch/?tab=requests
+```
 
-**Was die Vorlage nicht lösen kann:** Es gibt auf `calls` **kein Feld für den Ort**. „Ort zuerst" ist heute nicht lieferbar. → eigenes Ticket, siehe 8.2.
+118 Zeichen, ein Segment.
+
+Entfallen sind **Name, Anliegen, Zusammenfassung, Kategorie und Ort**. Grund: Twilio bewahrt den Nachrichtentext 400 Tage in den USA auf, die eigene Frist beträgt 90 Tage (`TRANSCRIPT_RETENTION_DAYS`), und `enforce-data-retention.js` erreicht Twilio nicht. Was nicht gesendet wird, liegt dort auch nicht.
+
+Die Nachricht ist damit ein **Wecker mit Rückrufnummer, kein Bericht**. Wer wissen will, worum es geht, öffnet das Dashboard — dort greift die eigene Frist.
+
+Der Nutzenverlust ist real und bewusst in Kauf genommen: Um drei Uhr nachts einen Link zu öffnen ist mehr Aufwand als eine SMS zu lesen.
+
+Begründung und verbleibender Datenbestand: `BEFUND_TWILIO_DATENRESIDENZ_2026-08-11.md`.
+
+**Nebenwirkung:** Das fehlende Ortsfeld (Ticket, siehe 8.2) blockiert die SMS nicht mehr — der Ort gehört jetzt ohnehin nicht in die Nachricht. Für Dashboard und E-Mail bleibt das Ticket unverändert wichtig.
 
 ### 6.2 Anrufer (1 Empfänger)
 

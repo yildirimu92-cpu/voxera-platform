@@ -5,11 +5,35 @@
 //
 // Zwei Nachrichten, zwei Empfaengergruppen, zwei Zwecke:
 //
-//   Team    (4-5 Nummern) -- wer hat angerufen, worum geht es, Rueckrufnummer,
-//                            Ort. Fuer jemanden, der um drei Uhr nachts auf
-//                            einen Sperrbildschirm schaut.
+//   Team    (4-5 Nummern) -- dass ein Anruf da ist, wie dringend, unter welcher
+//                            Nummer zurueckzurufen ist, und ein Link ins
+//                            Dashboard. KEIN Anliegen.
 //   Anrufer (1 Nummer)    -- Bestaetigung, dass die Anfrage aufgenommen ist.
 //                            Fuer jemanden, der am Strassenrand steht.
+//
+//
+// WARUM DIE TEAM-SMS KEIN ANLIEGEN TRAEGT
+//
+// Twilio bewahrt Message Records 400 Tage auf, in den USA, INKLUSIVE
+// Nachrichtentext. Dem stehen 90 Tage im eigenen Bestand gegenueber
+// (TRANSCRIPT_RETENTION_DAYS in enforce-data-retention.js), und diese Funktion
+// raeumt Supabase auf, nicht Twilio.
+//
+// Eine Team-SMS mit Zusammenfassung haette damit einen zweiten Bestand
+// erzeugt, der laenger lebt als der erste, in einer anderen Jurisdiktion liegt
+// und vom eigenen Loeschprozess nicht erreicht wird -- gefuellt mit Name,
+// Aufenthaltsort und Notlage des Anrufers.
+//
+// Entscheidung vom 2026-08-11: Das Inhaltsdatum entsteht dort gar nicht erst.
+// Die Team-SMS ist ein Wecker mit Rueckrufnummer, kein Bericht. Wer wissen
+// will, worum es geht, oeffnet das Dashboard -- dort greift die eigene Frist.
+//
+// Das kostet Nutzen, und zwar echten: um drei Uhr nachts einen Link zu oeffnen
+// ist mehr Aufwand als eine SMS zu lesen. Der Verlust ist bewusst in Kauf
+// genommen, nicht uebersehen. Wer die Zusammenfassung wieder hineinschreiben
+// will, aendert damit die Rechtslage -- nicht bloss den Text.
+//
+// Siehe docs/BEFUND_TWILIO_DATENRESIDENZ_2026-08-11.md.
 //
 //
 // DER ABSENDER IST EINWEG
@@ -150,52 +174,48 @@ function uhrzeit(datum) {
 const ZIEL_LAENGE = 160;
 
 /**
- * Team-SMS.
+ * Team-SMS. Ein Wecker mit Rueckrufnummer, kein Bericht.
  *
- * Reihenfolge ist hier kein Geschmack, sondern Funktion. Auf einem
- * Sperrbildschirm sind zwei bis drei Zeilen sichtbar; was dahinter steht,
- * liest nur, wer entsperrt. Also:
+ * Vier Zeilen, und jede beantwortet genau eine Frage, die um drei Uhr nachts
+ * gestellt wird:
  *
- *   1. Absender und Anlass -- damit klar ist, warum das Telefon geklingelt hat
- *   2. Rueckrufnummer      -- die eine Angabe, die zum Handeln fuehrt
- *   3. Ort                 -- beim Abschleppdienst die zweitwichtigste
- *   4. Zusammenfassung     -- der Teil, den man abschneiden darf
+ *   1. Ist etwas passiert?      -- Absender und Uhrzeit
+ *   2. Wie eilig?               -- Dringlichkeit, sofern eingestuft
+ *   3. Wen rufe ich an?         -- Rueckrufnummer
+ *   4. Wo steht der Rest?       -- Link ins Dashboard
  *
- * Der Ort steht heute noch nicht zur Verfuegung (calls hat kein Feld dafuer,
- * siehe TICKET_ORT_UND_RUECKRUFNUMMER_2026-08-11.md). Die Zeile faellt dann
- * weg, statt leer dazustehen -- und der gewonnene Platz geht an die
- * Zusammenfassung.
+ * BEWUSST NICHT ENTHALTEN: Name des Anrufers, Anliegen, Zusammenfassung,
+ * Kategorie, Ort. Das ist keine Sparsamkeit aus Platzgruenden -- die Nachricht
+ * hat Platz uebrig -- sondern die Entscheidung aus dem Kopf dieser Datei: Was
+ * nicht gesendet wird, liegt auch nicht 400 Tage bei Twilio.
+ *
+ * Die Parameterliste nimmt diese Felder deshalb gar nicht mehr entgegen. Wer
+ * sie wieder hineinschreiben will, muss die Signatur aendern und stoesst dabei
+ * auf diesen Kommentar -- das ist der Zweck.
  */
 function buildTeamSms({
-  anlass = '',
+  dringlichkeit = '',
   rueckrufnummer = '',
-  ort = '',
-  zusammenfassung = '',
-  anruferName = '',
+  dashboardUrl = '',
   zeitpunkt = null
 } = {}) {
   const zeit = uhrzeit(zeitpunkt);
-  const kopf = ['Voxera', zeit, s(anlass) || 'Neuer Anruf'].filter(Boolean).join(' ');
+  const zeilen = [['Voxera', zeit, 'Neuer Anruf'].filter(Boolean).join(' ')];
 
-  const zeilen = [kopf];
+  // Die einzige Einstufung, die mitgeht. Sie sagt, wie schnell zu reagieren
+  // ist, ohne zu sagen, worum es geht.
+  if (s(dringlichkeit)) zeilen.push(`Dringlichkeit: ${s(dringlichkeit)}`);
 
-  // Ohne Rueckrufnummer ist die Nachricht nicht handlungsfaehig. Das muss
-  // dastehen, sonst sucht das Team im Dashboard nach etwas, das es nicht gibt.
+  // Ohne Rueckrufnummer ist die Nachricht nicht handlungsfaehig. Dass sie
+  // fehlt, muss dastehen -- sonst sucht das Team auf dem Sperrbildschirm nach
+  // etwas, das nicht kommt.
   zeilen.push(s(rueckrufnummer)
     ? `Rueckruf: ${s(rueckrufnummer)}`
     : 'Rueckruf: keine Nummer uebermittelt');
 
-  if (s(ort)) zeilen.push(`Ort: ${s(ort)}`);
-  if (s(anruferName)) zeilen.push(s(anruferName));
-
-  const bisher = toGsm7(zeilen.join('\n')).text;
-  const platz = ZIEL_LAENGE - gsm7Laenge(bisher) - 1; // -1 fuer den Zeilenumbruch
-
-  // Die Zusammenfassung bekommt, was uebrig ist. Unter 20 Zeichen lohnt sich
-  // kein Rest -- ein abgeschnittener Halbsatz hilft niemandem.
-  if (s(zusammenfassung) && platz >= 20) {
-    zeilen.push(kuerzen(toGsm7(zusammenfassung).text, platz));
-  }
+  // Der Link ersetzt die Zusammenfassung. Er traegt kein Inhaltsdatum -- und
+  // hinter ihm greift die eigene Aufbewahrungsfrist statt Twilios.
+  if (s(dashboardUrl)) zeilen.push(`Details: ${s(dashboardUrl)}`);
 
   return finalisieren(zeilen.join('\n'), 'team');
 }
