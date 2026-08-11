@@ -128,6 +128,12 @@ Weder A noch B, sondern: **Die Frist wird konfigurierbar und Teil des Plans.**
 > **Die Zahlen oben sind Platzhalter zur Veranschaulichung der Staffelung, keine Festlegung.**
 > Entschieden wird gemeinsam mit der Preisstruktur — die Aufbewahrungsfrist gehört in dieselbe
 > Rechnung wie Inklusivminuten und Zusatzminutenpreis, nicht in eine eigene.
+>
+> **Die drei Vorgaben, die unabhängig von den Zahlen gelten, stehen als
+> `AUFBEWAHRUNG_VORGABE` in `docs/website-relaunch/build/src/config/preise.ts`** — also dort, wo
+> die Preisarbeit tatsächlich stattfindet, und nicht nur hier. Die Datei bezeichnet sich selbst als
+> einzige Quelle für Preise; eine Vorgabe, die nur in einem Ticket steht, wird beim Ausfüllen der
+> Preistabelle niemand lesen. Ändert sich unten etwas, gehört es dort mitgeändert.
 
 Dazu in §7: „Transkripte: entsprechend der im gebuchten Plan vereinbarten Aufbewahrungsfrist
 (90 Tage bis 24 Monate), längstens bis 30 Tage nach Vertragsende."

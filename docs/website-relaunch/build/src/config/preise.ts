@@ -103,3 +103,47 @@ export const KONDITIONEN = [
 export const GEPLANT: { plan: Plan['id']; was: string }[] = [
   { plan: 'professional', was: 'Erweiterte Auswertungen' },
 ];
+
+/**
+ * VORGABE fuer die kommende Preisarbeit — Aufbewahrung als Planmerkmal.
+ * Entschieden am 11.08.2026. Grundlage:
+ * docs/TICKET_TRANSKRIPT_AUFBEWAHRUNG_2026-08-11.md (Weg C).
+ *
+ * Die Aufbewahrungsfrist soll nach Plan gestaffelt werden. Die Werte stehen
+ * bewusst noch NICHT hier: sie werden gemeinsam mit Grundpreis und
+ * Zusatzminutenpreis entschieden, nicht separat. Drei Vorgaben gelten aber
+ * unabhaengig davon, welche Zahlen es werden.
+ *
+ * 1. AUFNAHME IST NICHT MITSTAFFELBAR.
+ *    ElevenLabs kennt genau EINEN Aufbewahrungswert fuer Gespraechsdaten und
+ *    Audio gemeinsam (90 Tage, geprueft am 11.08.2026), und die Aufnahme liegt
+ *    ausschliesslich dort -- Voxera hat keine eigene Kopie. Verlaengerbar ist
+ *    deshalb nur, was in Zuerich liegt: Transkript, Zusammenfassung, Metadaten.
+ *
+ *    Folge fuer den Text: "12 Monate Verlauf" ist ohne Zusatz FALSCH und muss
+ *    ueberall ausgeschrieben werden als "12 Monate Transkript und
+ *    Zusammenfassung, 90 Tage Aufnahme". An drei Stellen gleich: Preistabelle,
+ *    Paragraf 7 der Datenschutzerklaerung, Beschreibung im Dashboard. Wer
+ *    "Verlauf" hoert, denkt an das Gespraech -- und meint im Zweifel das
+ *    Anhoerbare.
+ *
+ * 2. "UPGRADE WIRKT NUR NACH VORNE" GEHOERT AN DIE UPGRADE-STELLE.
+ *    Eine hoehere Stufe holt keine bereits geloeschte Aufnahme und kein
+ *    geloeschtes Transkript zurueck. Dieser Hinweis gehoert dorthin, wo jemand
+ *    tatsaechlich upgraden kann -- Preistabelle und Upgrade-Dialog im
+ *    Dashboard --, nicht in die Konditionen-Liste und nicht in eine Fussnote.
+ *    Er ist im Moment der Entscheidung relevant, nicht beim Nachlesen.
+ *
+ * 3. DIE STAFFELUNG VERKAUFT NACHVOLLZIEHBARKEIT, NICHT GESPRAECHSDAUER.
+ *    Die 90-Tage-Aufnahme ist in JEDEM Plan gleich. Was ein hoeherer Plan
+ *    bringt, ist ein laengerer nachlesbarer Verlauf -- die Grundlage fuer die
+ *    "Erweiterten Auswertungen" aus GEPLANT.
+ *    Gegenueber Arztpraxen und Anwaltskanzleien ist die kurze, in allen
+ *    Plaenen gleiche Aufnahmefrist ein ARGUMENT, kein Zugestaendnis: das
+ *    heikelste Datum liegt ueberall gleich kurz. Entsprechend formulieren --
+ *    nicht entschuldigend ("nur 90 Tage"), sondern als Eigenschaft.
+ */
+export const AUFBEWAHRUNG_VORGABE = {
+  aufnahmeTageAlleplaene: 90,
+  transkriptTageProPlan: null as Record<Plan['id'], number> | null,
+} as const;
