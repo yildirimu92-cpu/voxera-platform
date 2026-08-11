@@ -23,7 +23,8 @@ const { buildPromptV2 } = require('./prompt-builder-v2');
 const {
   configured: calendarToolProvisioningConfigured,
   ensureWorkspaceTool,
-  mergedAgentToolIds,
+  findWorkspaceToolId,
+  agentToolIds,
   calendarPromptBlock
 } = require('./elevenlabs-calendar-tool');
 const { ensureAgentPhoneNumber } = require('./elevenlabs-phone-number');
@@ -261,14 +262,52 @@ async function syncCustomerToElevenLabs({
       operationalUpdates: inputs.operationalUpdates
     });
 
-    const calendarBlock = calendarPromptBlock(inputs.calendarSettings || {});
+    // ── Welcher Schalter beantwortet welche Frage ───────────────────────────
+    //
+    // Festgelegt am 2026-08-10 (#930), nachdem vier Schalter unabhaengig
+    // voneinander dieselbe Frage beantwortet hatten und keiner den anderen
+    // kannte. Wer hier einen fuenften ergaenzen will, ordnet ihn bitte zuerst
+    // in diese Liste ein:
+    //
+    //   customers.ai_appointment_mode   FACHLICH FUEHREND. "Was darf der
+    //                                   Assistent bei Terminwuenschen tun?"
+    //                                   none | request | direct. Steuert
+    //                                   Kalenderblock und Werkzeugzuweisung.
+    //   calendar_settings.feature_enabled
+    //                                   Technischer Anschlussstatus. "Ist ein
+    //                                   Kalender verbunden und nutzbar?" Sagt
+    //                                   nichts darueber, ob gebucht werden darf.
+    //   CALENDAR_ROLLOUT_CUSTOMER_IDS   Erprobungs-Allowlist. Entfaellt mit dem
+    //                                   Ende der Erprobung.
+    //   voxera_addons.coming_soon       Reine Preisangabe. Ohne Sperrwirkung --
+    //                                   customer_addons ist systemweit leer, die
+    //                                   Tabelle wirkt im Betrieb nicht.
+    //
+    // Der Modus kommt aus buildPromptV2() und wird hier NICHT neu abgeleitet:
+    // die Rangfolge zwischen typisierter Spalte und Altbestand steht an genau
+    // einer Stelle.
+    const appointmentMode = compiled.appointmentMode || '';
+    const calendarBlock = calendarPromptBlock(inputs.calendarSettings || {}, appointmentMode);
     fullPrompt = [compiled.prompt, calendarBlock].filter(Boolean).join('\n\n');
 
+    // Nur bei `direct` gehoert das Werkzeug an den Agenten. Bei `none` und
+    // `request` wird es aktiv ENTFERNT, nicht bloss nicht hinzugefuegt -- sonst
+    // bliebe es haengen, sobald es einmal dran war, und der Modus waere ein
+    // Schalter mit nur einer Richtung.
     let toolIds;
     if (calendarToolProvisioningConfigured()) {
-      calendarToolId = await ensureWorkspaceTool();
-      toolIds = await mergedAgentToolIds(agentId, calendarToolId);
-      calendarToolStatus = 'configured';
+      if (appointmentMode === 'direct') {
+        calendarToolId = await ensureWorkspaceTool();
+        toolIds = await agentToolIds(agentId, calendarToolId, { attach: true });
+        calendarToolStatus = 'configured';
+      } else {
+        // findWorkspaceToolId() statt ensureWorkspaceTool(): zum Entfernen
+        // genuegt die ID, und ein Kunde ohne Direktbuchung ist kein Anlass, das
+        // Werkzeug im Arbeitsbereich anzulegen.
+        calendarToolId = await findWorkspaceToolId();
+        toolIds = await agentToolIds(agentId, calendarToolId, { attach: false });
+        calendarToolStatus = 'detached';
+      }
     } else if (calendarBlock) {
       throw new Error('calendar_tool_provisioning_configuration_missing');
     }
@@ -548,10 +587,20 @@ async function restoreAgentPrompt({ sb, apiKey, customerId, agentId, prompt }) {
   // `tool_ids` auf demselben Weg wie im Sync. Ist die Kalender-Provisionierung
   // nicht konfiguriert, bleibt das Feld weg statt leer -- buildAgentConfig()
   // erklaert, warum ein leeres Array hier die falsche Aussage waere.
+  //
+  // #930: Ob das Kalenderwerkzeug drangehoert, entscheidet auch hier der
+  // Terminmodus -- ein Rollback darf keine Direktbuchung wiederherstellen, die
+  // der Kunde abgewaehlt hat. Gelesen wird die typisierte Spalte, also dieselbe
+  // fuehrende Quelle wie im Sync. Die schemagestuetzte Herleitung aus
+  // buildPromptV2() waere hier unverhaeltnismaessig: der Rollback dreht einen
+  // Prompt zurueck, er baut keinen. Weicht das Ergebnis doch einmal ab,
+  // korrigiert es der naechste regulaere Sync.
   let toolIds = null;
   try {
     if (calendarToolProvisioningConfigured()) {
-      toolIds = await mergedAgentToolIds(agentId, await ensureWorkspaceTool());
+      const attach = customer.ai_appointment_mode === 'direct';
+      const calendarToolId = attach ? await ensureWorkspaceTool() : await findWorkspaceToolId();
+      toolIds = await agentToolIds(agentId, calendarToolId, { attach });
     }
   } catch (error) {
     return { ok: false, error: `tool_ids_lookup_failed: ${error?.message || String(error)}` };

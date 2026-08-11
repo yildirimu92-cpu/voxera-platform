@@ -55,8 +55,11 @@ for (const forbidden of [
 for (const token of [
   "require('./elevenlabs-calendar-tool')",
   'ensureWorkspaceTool()',
-  'mergedAgentToolIds(agentId, calendarToolId)',
-  'calendarPromptBlock(inputs.calendarSettings || {})',
+  'agentToolIds(agentId, calendarToolId, { attach: true })',
+  'agentToolIds(agentId, calendarToolId, { attach: false })',
+  'findWorkspaceToolId()',
+  'calendarPromptBlock(inputs.calendarSettings || {}, appointmentMode)',
+  'compiled.appointmentMode',
   // #932: Frueher setzte der Sync `promptPatch.tool_ids = toolIds` von Hand.
   // Seit der Sollzustand geteilt ist, reicht er `toolIds` an buildAgentConfig()
   // durch, das sie an conversation_config.agent.prompt.tool_ids setzt.
@@ -73,7 +76,10 @@ for (const token of [
 const restoreBody = syncPath.slice(syncPath.indexOf('async function restoreAgentPrompt'));
 for (const token of [
   'calendarToolProvisioningConfigured()',
-  'mergedAgentToolIds(agentId, await ensureWorkspaceTool())',
+  // #930: Auch der Rollback haengt am Terminmodus -- er darf keine
+  // Direktbuchung wiederherstellen, die der Kunde abgewaehlt hat.
+  "const attach = customer.ai_appointment_mode === 'direct';",
+  'agentToolIds(agentId, calendarToolId, { attach })',
   'buildAgentConfig({ customer, prompt, toolIds })'
 ]) {
   if (!restoreBody.includes(token)) failures.push('Rollback calendar tool handling missing: ' + token);
@@ -122,13 +128,40 @@ try {
     description: 'Bestätigte E-Mail-Adresse eines Teilnehmers.'
   });
 
-  assert.match(helper.calendarPromptBlock({
+  const verbunden = {
     feature_enabled: true,
     active_provider: 'google',
     timezone: 'Europe/Zurich',
     appointment_duration_minutes: 60
-  }), /Standarddauer von 60 Minuten/);
-  assert.equal(helper.calendarPromptBlock({ feature_enabled: false }), '');
+  };
+
+  // #930: feste Dauer statt "sofern nichts anderes vereinbart wurde". Der
+  // Zusatz war ein Versprechen ohne Deckung -- book() lehnt jede
+  // abweichende Dauer ab, und ein Agent, der einen Zeitraum als frei
+  // meldet und ihn dann nicht buchen kann, ist schlechter als einer, der
+  // gleich das Raster nennt.
+  assert.match(helper.calendarPromptBlock(verbunden, 'direct'), /genau 60 Minuten/);
+  assert.ok(!/sofern nichts anderes vereinbart/.test(helper.calendarPromptBlock(verbunden, 'direct')),
+    'Der Prompt erlaubt weiterhin eine abweichende Dauer, die book() ablehnt');
+  assert.equal(helper.calendarPromptBlock({ feature_enabled: false }, 'direct'), '');
+
+  // #930: Der Block haengt am Terminmodus, nicht nur am Anschlussstatus. Bis
+  // zum 2026-08-10 bekam jeder Kunde mit verbundenem Kalender den Satz
+  // "Direkte Termine sind freigeschaltet" -- auch bei "Terminwunsch aufnehmen"
+  // und bei "keine Termine".
+  assert.equal(helper.calendarPromptBlock(verbunden, 'request'), '',
+    'request darf keine Direktbuchungs-Anleitung erhalten');
+  assert.equal(helper.calendarPromptBlock(verbunden, 'none'), '',
+    'none darf keine Direktbuchungs-Anleitung erhalten');
+  assert.equal(helper.calendarPromptBlock(verbunden), '',
+    'ohne Modus gilt der sichere Fall');
+
+  // Das Werkzeug muss auch wieder abgehaengt werden koennen. Die
+  // Vorgaengerfunktion mergedAgentToolIds() konnte nur hinzufuegen.
+  assert.equal(typeof helper.agentToolIds, 'function');
+  assert.equal(typeof helper.findWorkspaceToolId, 'function');
+  assert.equal(helper.mergedAgentToolIds, undefined,
+    'Die additive Vorgaengerfunktion darf nicht daneben bestehen bleiben');
 } catch (error) {
   failures.push('Provisioning helper contract failed: ' + error.message);
 }

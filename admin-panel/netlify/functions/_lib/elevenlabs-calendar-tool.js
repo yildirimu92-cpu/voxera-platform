@@ -170,13 +170,45 @@ async function ensureWorkspaceTool() {
   return cachedToolId;
 }
 
-async function mergedAgentToolIds(agentId, requiredToolId) {
-  const current = await elevenLabsRequest('/agents/' + encodeURIComponent(agentId));
-  const existing = current?.conversation_config?.agent?.prompt?.tool_ids;
-  return [...new Set([...(Array.isArray(existing) ? existing : []), requiredToolId].filter(Boolean))];
+// Sucht das Werkzeug, ohne es anzulegen. Gebraucht fuer den Entzugspfad: um das
+// Kalender-Werkzeug von einem Agenten zu nehmen, braucht man seine ID -- aber
+// kein ensureWorkspaceTool(), das es bei dieser Gelegenheit erst erzeugen wuerde.
+async function findWorkspaceToolId() {
+  if (cachedToolId) return cachedToolId;
+  const tools = await listAll('/tools', 'tools');
+  return String(tools.find((item) => item?.tool_config?.name === TOOL_NAME)?.id || '').trim() || null;
 }
 
-function calendarPromptBlock(settings = {}) {
+// Setzt die Werkzeugliste des Agenten so, dass das Kalender-Werkzeug entweder
+// dran ist oder nicht -- und laesst alle uebrigen Werkzeuge unberuehrt.
+//
+// Hiess bis zum 2026-08-10 mergedAgentToolIds() und konnte nur hinzufuegen.
+// Damit blieb das Werkzeug am Agenten haengen, sobald es einmal dran war, auch
+// wenn die Direktbuchung wieder abgewaehlt wurde. Ein Terminmodus, der nur in
+// eine Richtung wirkt, ist kein Schalter.
+async function agentToolIds(agentId, calendarToolId, { attach }) {
+  const current = await elevenLabsRequest('/agents/' + encodeURIComponent(agentId));
+  const existing = current?.conversation_config?.agent?.prompt?.tool_ids;
+  const others = (Array.isArray(existing) ? existing : []).filter((id) => id && id !== calendarToolId);
+  return attach && calendarToolId ? [...new Set([...others, calendarToolId])] : others;
+}
+
+// Der Kalenderblock haengt am Terminmodus, nicht am Anschlussstatus.
+//
+// Bis zum 2026-08-10 hing weder dieser Block noch die Werkzeugzuweisung am
+// Modus: geprueft wurden nur feature_enabled und active_provider. Ein Kunde mit
+// verbundenem Kalender und Terminmodus "Terminwunsch aufnehmen" bekam trotzdem
+// "Direkte Termine sind freigeschaltet" samt neunstufiger Buchungsanleitung --
+// im Widerspruch zum Abschnitt TERMINBEFUGNIS weiter oben, der dasselbe
+// Gespraech anders regelte.
+//
+// Fuer `request` steht hier bewusst KEIN eigener Block. Das Verhalten
+// "Wunschzeit und Kontakt aufnehmen, nichts bestaetigen" formuliert
+// APPOINTMENT_TEXT.request im Abschnitt TERMINBEFUGNIS bereits vollstaendig.
+// Ein zweiter Text dazu waere eine weitere Doppelquelle -- genau die Bauform,
+// die diesen Befund verursacht hat.
+function calendarPromptBlock(settings = {}, appointmentMode = '') {
+  if (appointmentMode !== 'direct') return '';
   if (!settings.feature_enabled || !settings.active_provider) return '';
   const duration = Number(settings.appointment_duration_minutes || 30);
   const timezone = String(settings.timezone || 'Europe/Zurich');
@@ -184,7 +216,7 @@ function calendarPromptBlock(settings = {}) {
     '## KALENDER & DIREKTE TERMINBUCHUNG',
     'Direkte Termine sind freigeschaltet. Verwende das Tool manage_voxera_calendar für jeden konkreten Terminwunsch.',
     '1. Kläre Datum, Uhrzeit, Anliegen und falls nötig die Kontaktdaten.',
-    '2. Verwende die Zeitzone ' + timezone + ' und eine Standarddauer von ' + duration + ' Minuten, sofern nichts anderes vereinbart wurde.',
+    '2. Verwende die Zeitzone ' + timezone + '. Jeder Termin dauert genau ' + duration + ' Minuten -- eine andere Dauer ist nicht buchbar, auch nicht auf Wunsch.',
     '3. Prüfe den gewünschten Zeitraum immer zuerst mit action=availability. Erfinde keine freien Zeiten.',
     '4. Bei belegtem Zeitraum: Sage nur, dass dieser Zeitraum nicht verfügbar ist, und frage nach einer Alternative.',
     '5. Bei freiem Zeitraum: Wiederhole Datum, Uhrzeit und Dauer und hole eine ausdrückliche Bestätigung ein.',
@@ -207,7 +239,8 @@ module.exports = {
   buildToolConfig,
   ensureWorkspaceSecret,
   ensureWorkspaceTool,
-  mergedAgentToolIds,
+  findWorkspaceToolId,
+  agentToolIds,
   calendarPromptBlock,
   resetCache,
   _test: { elevenLabsRequest, listAll, llmProperty, dynamicProperty }
