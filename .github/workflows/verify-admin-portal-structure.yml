@@ -19,6 +19,7 @@ on:
       - 'admin-panel/shared/**'
       - 'admin-panel/netlify/functions/admin-mutate.js'
       - 'supabase/migrations/2026-08-10_standalone_credit_notes.sql'
+      - 'supabase/migrations/20260811210000_standalone_credit_note_issued_at.sql'
       - 'supabase/migrations/2026-08-10_calls_admin_review.sql'
       - 'supabase/migrations/2026-08-10_invoice_items_credit_note_sign.sql'
       - 'admin-panel/netlify/functions/_lib/invoice-service.js'
