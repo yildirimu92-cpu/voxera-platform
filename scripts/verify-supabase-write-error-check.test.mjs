@@ -6,8 +6,10 @@ import { dirname, join } from 'node:path';
 
 import {
   BEKANNTE_STELLEN,
+  BASISLINIE_NICHT_KONFORM,
   pruefeStelle,
   klassifiziereRohbefund,
+  klassifiziereRestschuld,
   pruefeBegruendung,
   zaehleSchreibstellen
 } from './verify-supabase-write-error-check.mjs';
@@ -126,6 +128,47 @@ test('Gegenprobe: Auto-Apply-Flow admin_notes (Stand 2026-08-11, kein Helfer) wi
   assert.equal(ergebnis.ok, false);
 });
 
+// ── Positivkontrolle Codex-P2-Fund: eine Stelle mit einer Konstante statt
+// eines String-Literals als Tabellenname (sb.from(CALLS_TABLE)) muss erkannt
+// werden -- die urspruengliche Fassung von SCHREIBMUSTER (nur Literale) haette
+// sie unsichtbar gelassen, und eine ungeprueft gebliebene neue Konstanten-
+// Schreibstelle waere nie als Waise aufgefallen.
+
+test('Positivkontrolle: sb.from(KONSTANTE) wird als Schreibstelle erkannt (Codex-P2-Fund)', () => {
+  const fixture = `
+async function vxBestEffortPatchCallLifecycle(recordId, fields) {
+  if (!recordId || !fields || typeof fields !== 'object') return null;
+  try {
+    var sb = (typeof getSupabaseAuthClient === 'function') ? getSupabaseAuthClient() : _sb;
+    if (!sb || !CALLS_TABLE) return null;
+    var res = await sb.from(CALLS_TABLE).update(fields).eq('id', recordId).select('*').maybeSingle();
+    if (res && res.error) throw res.error;
+  } catch(e) {}
+}`;
+  assert.equal(zaehleSchreibstellen(fixture), 1, 'sb.from(CALLS_TABLE) ist eine echte Schreibstelle, auch ohne String-Literal');
+  const ergebnis = pruefeStelle(fixture, stelle('vxBestEffortPatchCallLifecycle'));
+  assert.equal(ergebnis.ok, true);
+});
+
+test('Positivkontrolle: Array.from(x) gefolgt von einem unabhaengigen .delete() an anderer Stelle zaehlt nicht mit', () => {
+  // Realer Fund waehrend des Baus dieses Wächters: Array.from(window.vxScrollLocks
+  // || []) in vxDebugLog(...), gefolgt (im selben 250-Zeichen-Fenster, aber
+  // hinter einem Semikolon und Funktionsende) von window.vxScrollLocks.delete(...)
+  // in einer voelling anderen Funktion. Ohne die Semikolon-Grenze im Fenster
+  // haette das als Supabase-Schreibzugriff gezaehlt.
+  const fixture = `
+function vxLogScrollLockState(locked) {
+  vxDebugLog('[scroll-lock] apply', locked, Array.from(window.vxScrollLocks || []));
+}
+
+function vxSetScrollLock(reason, locked) {
+  if (!window.vxScrollLocks) window.vxScrollLocks = new Set();
+  if (locked) window.vxScrollLocks.add(String(reason));
+  else window.vxScrollLocks.delete(String(reason));
+}`;
+  assert.equal(zaehleSchreibstellen(fixture), 0, 'Array.from(...) ist kein Supabase-Schreibzugriff');
+});
+
 // ── Positivkontrolle: der Detektor darf nicht einfach immer "nicht konform"
 // melden. Ein bereits korrektes Muster (vxDv2SaveNote, frei nacherzaehlt) und
 // ein hypothetischer vxSbWrite()-Aufruf muessen als konform durchgehen.
@@ -198,6 +241,29 @@ test('zaehleSchreibstellen findet mehrere Stellen unabhaengig von Zeilenumbruech
   assert.equal(zaehleSchreibstellen(fixture), 2, 'select() darf nicht als Schreibstelle zaehlen');
 });
 
+// ── Ratsche statt Dauerrot (Codex-P1-Fund auf PR #973): bekannte Restschuld
+// darf sich nur mit nachgezogener Basislinie bewegen, sonst waere jeder
+// zukuenftige, thematisch unabhaengige Pull Request bis zum Sechs-Fixes-Schritt
+// permanent rot -- ein Dauerrot, das niemand mehr liest.
+
+test('klassifiziereRestschuld: unveraendert gegenueber der Basislinie ist OK', () => {
+  assert.equal(klassifiziereRestschuld(6, 6), 'ok');
+});
+
+test('klassifiziereRestschuld: mehr Restschuld als die Basislinie ist eine Regression', () => {
+  assert.equal(klassifiziereRestschuld(7, 6), 'regression');
+});
+
+test('klassifiziereRestschuld: weniger Restschuld als die Basislinie heisst "Basislinie nachziehen"', () => {
+  assert.equal(klassifiziereRestschuld(3, 6), 'unaktualisiert');
+});
+
+test('BASISLINIE_NICHT_KONFORM entspricht der heutigen, echten Restschuld (6)', () => {
+  // Kein Live-Scan der Dateien -- nur die Konstante selbst gegen den in
+  // diesem Test-File dokumentierten, vom Betreiber bestaetigten Stand.
+  assert.equal(BASISLINIE_NICHT_KONFORM, 6);
+});
+
 // ── Ausnahme-Begruendung: ein Platzhalter darf nicht durchgehen.
 
 test('pruefeBegruendung lehnt leere und vertroestende Begruendungen ab', () => {
@@ -220,10 +286,11 @@ test('pruefeBegruendung akzeptiert eine tatsaechliche Begruendung', () => {
 // ── Registry-Vollstaendigkeit gegen den echten Rohbefund (heutiger Stand).
 // Dieser Block prueft die Live-Dateien und ist absichtlich vom eingefrorenen
 // Gegenprobe-Block oben getrennt: er dokumentiert den *aktuellen* Ausgangs-
-// zustand (6 offene Stellen) und muss ueberarbeitet werden, sobald die sechs
-// Fixes (naechste Runde, eigenes Go) gelandet sind -- dann wird aus FAIL PASS.
+// zustand (19 Stellen, 6 davon als Restschuld gegen die Basislinie erlaubt)
+// und muss ueberarbeitet werden, sobald die sechs Fixes (naechste Runde,
+// eigenes Go) gelandet sind -- dann sinkt BASISLINIE_NICHT_KONFORM auf 0.
 
-test('Live-Smoke-Test: das Skript laeuft heute mit exit 1 (6 bekannte offene Stellen)', () => {
+test('Live-Smoke-Test: das Skript laeuft heute PASS (19 Stellen, Restschuld = Basislinie)', () => {
   let exitCode = 0;
   let ausgabe = '';
   try {
@@ -232,7 +299,8 @@ test('Live-Smoke-Test: das Skript laeuft heute mit exit 1 (6 bekannte offene Ste
     exitCode = e.status;
     ausgabe = (e.stdout || '') + (e.stderr || '');
   }
-  assert.equal(exitCode, 1, 'Stand heute: sechs Stellen sind noch nicht auf die Helfer umgestellt.');
-  assert.match(ausgabe, /FAIL: 6 Pruefung\(en\) fehlgeschlagen\./);
-  assert.doesNotMatch(ausgabe, /^PASS/m, 'ein FAIL darf niemals gleichzeitig als PASS gedruckt werden');
+  assert.equal(exitCode, 0, 'Stand heute: 6 bekannte, dokumentierte Stellen entsprechen der Basislinie -- PASS.');
+  assert.match(ausgabe, /PASS: keine unbekannten Stellen, kein Vakuum, Restschuld = Basislinie \(6\)\./);
+  assert.match(ausgabe, /6 bekannte Stelle\(n\) ohne Helfer\/Pruefung -- unveraendert gegenueber der Basislinie\./,
+    'die Restschuld muss weiterhin sichtbar im Log stehen, nicht nur im Exit-Code');
 });

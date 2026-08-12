@@ -35,11 +35,26 @@
  * (Helfer oder bereits vorhandene, explizite {error}-Pruefung) im Quelltext
  * noch traegt.
  *
+ * Ratsche statt Dauerrot
+ * ----------------------
+ * Sechs der 19 Stellen sind am 2026-08-11 noch nicht auf einen Helfer
+ * umgestellt (BASISLINIE_NICHT_KONFORM). Ein Wächter, der deshalb ab sofort
+ * JEDEN Pull Request in diesem Repo rot markiert, bis alle sechs gefixt sind,
+ * loest genau das Problem nicht, das er beheben soll: ein Dauerrot, das
+ * niemand mehr liest, ist von "nichts wird geprueft" nicht zu unterscheiden
+ * (P1-Fund aus dem Codex-Review auf PR #973). Die bekannte Restschuld zaehlt
+ * deshalb nicht einzeln als Fehler, sondern wird gegen eine Basislinie
+ * geprueft: PASS, solange die Zahl unveraendert bleibt; FAIL, wenn sie steigt
+ * (Regression) oder sinkt, ohne dass die Basislinie im selben Commit
+ * nachgezogen wurde (sonst koennte sie unbemerkt wieder steigen). Eine neue,
+ * nicht eingetragene Stelle bleibt davon unberuehrt -- siehe Rohbefund unten.
+ *
  * Dreiwertiges Ergebnis, kein Vakuum-Pass:
- *   PASS  -- Schreibstellen gefunden, alle bekannt, alle konform.
- *   FAIL  -- eine bekannte Stelle ist nicht mehr konform, ihr Anker ist nicht
- *            eindeutig auffindbar, es gibt unbekannte (nicht eingetragene)
- *            Stellen, oder ein Ausnahme-Eintrag hat keine echte Begruendung.
+ *   PASS  -- Schreibstellen gefunden, alle bekannt, Restschuld = Basislinie.
+ *   FAIL  -- ein Anker ist nicht mehr eindeutig auffindbar, die Restschuld
+ *            weicht von der Basislinie ab (in beide Richtungen), es gibt
+ *            unbekannte (nicht eingetragene) Stellen, oder ein
+ *            Ausnahme-Eintrag hat keine echte Begruendung.
  *   SKIP  -- in einer der beiden Dateien wurde ueberhaupt keine Schreibstelle
  *            gefunden. Ein Regex, der nichts findet, ist verdaechtig, nicht
  *            bestanden -- das waere von einem echten Befund ununterscheidbar,
@@ -207,6 +222,22 @@ export const BEKANNTE_STELLEN = [
     anker: '// 5. Save admin note',
     fenster: 300,
     konform: /adminSbWrite\(/
+  },
+  {
+    datei: 'customer-dashboard/index.html',
+    funktion: 'vxBestEffortPatchCallLifecycle',
+    status: 'explizit',
+    anker: 'async function vxBestEffortPatchCallLifecycle(recordId, fields) {',
+    fenster: 500,
+    konform: /var res = await sb\.from\(CALLS_TABLE\)\.update\(fields\)[\s\S]{0,150}if \(res && res\.error\) throw res\.error;/
+  },
+  {
+    datei: 'customer-dashboard/index.html',
+    funktion: 'vxBestEffortPatchTaskLifecycle',
+    status: 'explizit',
+    anker: 'async function vxBestEffortPatchTaskLifecycle(recordId, fields) {',
+    fenster: 800,
+    konform: /var res = await sb\.from\(CASES_TABLE\)\.update\(fields\)[\s\S]{0,150}if \(res && res\.error\) throw res\.error;/
   }
 ];
 
@@ -228,8 +259,19 @@ export function pruefeBegruendung(eintrag) {
   return null;
 }
 
-/** Alle rohen `.from(TABLE).{insert,update,upsert,delete}(...)`-Treffer in einer Datei. */
-export const SCHREIBMUSTER = /\.from\(['"][a-z_]+['"]\)[\s\S]{0,250}?\.(insert|update|upsert|delete)\(/g;
+/**
+ * Alle rohen `.from(...).{insert,update,upsert,delete}(...)`-Treffer in einer
+ * Datei. Das Argument von `.from(` ist bewusst nicht auf String-Literale
+ * eingeschraenkt (`[^)]*`) -- eine Stelle wie `sb.from(CALLS_TABLE).update(...)`
+ * mit einer Konstante statt eines Literals waere sonst unsichtbar fuer die
+ * Selbstsuche und koennte unbemerkt durchrutschen (siehe
+ * vxBestEffortPatchCallLifecycle/-TaskLifecycle). Das Fenster schliesst dafuer
+ * an der naechsten Anweisungsgrenze (`;`), damit `Array.from(x); ... .delete(y)`
+ * an einer voellig anderen Stelle im Code nicht als Supabase-Schreibzugriff
+ * missverstanden wird -- ein echter Fluent-Chain-Aufruf hat kein Semikolon
+ * zwischen `.from(...)` und dem Schreibverb.
+ */
+export const SCHREIBMUSTER = /\.from\([^)]*\)[^;]{0,250}?\.(insert|update|upsert|delete)\(/g;
 
 export function zaehleSchreibstellen(inhalt) {
   const treffer = inhalt.match(SCHREIBMUSTER) || [];
@@ -262,6 +304,34 @@ export function klassifiziereRohbefund(gefunden, eingetragen) {
   return 'ok';
 }
 
+/**
+ * Ratsche statt Dauerrot: die sechs am 2026-08-11 gefundenen, noch offenen
+ * Stellen (siehe Dateikopf) sind bekannte, dokumentierte Restschuld -- kein
+ * Grund, ab sofort JEDEN Pull Request in diesem Repo rot zu markieren, bis
+ * sie gefixt sind (das waere selbst ein Vakuum-Pass: ein Dauerrot, das
+ * niemand mehr liest, ist von "nichts geprueft" nicht zu unterscheiden).
+ * Stattdessen: PASS, solange die Zahl der nicht-konformen bekannten Stellen
+ * GENAU dieser Basislinie entspricht. Steigt sie (Regression) oder sinkt sie
+ * (Fix gelandet, Basislinie nicht nachgezogen), schlaegt die Pruefung fehl --
+ * in beide Richtungen mit eigener, klarer Meldung. Eine neue, nicht
+ * eingetragene Stelle (Rohbefund-Abweichung weiter unten) bleibt davon
+ * unberuehrt und schlaegt immer hart fehl.
+ *
+ * Wer eine der sechs Stellen fixt, senkt diese Zahl im selben Commit --
+ * sonst faengt das Skript das selbst ab.
+ */
+export const BASISLINIE_NICHT_KONFORM = 6;
+
+/**
+ * Vergleicht die tatsaechliche Restschuld mit der Basislinie. Reine Funktion,
+ * damit alle drei Faelle unabhaengig vom Live-Stand der Dateien testbar sind.
+ */
+export function klassifiziereRestschuld(anzahl, basislinie) {
+  if (anzahl === basislinie) return 'ok';
+  if (anzahl > basislinie) return 'regression';
+  return 'unaktualisiert';
+}
+
 const DATEIEN = ['customer-dashboard/index.html', 'admin-panel/index.html'];
 
 function main() {
@@ -282,24 +352,46 @@ function main() {
   /* ── 1 · Jede bekannte Stelle: Anker eindeutig, Behandlung noch da ─────────── */
   console.log('  Bekannte Schreibstellen');
   console.log('  ' + '─'.repeat(76));
+  const nichtKonformeStellen = [];
   for (const stelle of BEKANNTE_STELLEN) {
     const inhalt = inhalte[stelle.datei];
     if (inhalt === undefined) continue;
 
     const ergebnis = pruefeStelle(inhalt, stelle);
     if (ergebnis.grund === 'anker_fehlt' || ergebnis.grund === 'anker_mehrdeutig') {
+      // Anker-Integritaet ist keine Ratsche: das Skript selbst kann hier
+      // nicht mehr verlaesslich pruefen, das ist immer ein harter Fehler.
       fehler += 1;
       console.log(`  ✗ ${stelle.funktion.padEnd(42)} ${stelle.datei}`);
       console.log(`      Anker ${ergebnis.grund === 'anker_fehlt' ? 'nicht gefunden' : `${ergebnis.ankerTreffer}x gefunden (nicht eindeutig)`}: "${stelle.anker}"`);
       continue;
     }
 
-    if (!ergebnis.ok) fehler += 1;
+    if (!ergebnis.ok) nichtKonformeStellen.push(stelle);
     console.log(`  ${ergebnis.ok ? '✓' : '✗'} ${stelle.funktion.padEnd(42)} ${stelle.status.padEnd(9)} ${stelle.datei}`);
     if (!ergebnis.ok) {
-      console.log('      Die zugesagte Fehlerbehandlung ist im Fenster nach dem Anker nicht mehr zu finden.');
-      console.log('      Entweder wurde der Code hier ohne die Pruefung umgeschrieben, oder das Muster ist veraltet.');
+      console.log('      Bekannte, dokumentierte Restschuld (siehe BASISLINIE_NICHT_KONFORM unten) --');
+      console.log('      zaehlt nicht einzeln als Fehler, aber in die Ratsche.');
     }
+  }
+
+  /* ── 1b · Ratsche: Restschuld darf sich nur mit nachgezogener Basislinie bewegen ── */
+  console.log('\n  Bekannte Restschuld (Ratsche)');
+  console.log('  ' + '─'.repeat(76));
+  const restschuldKlasse = klassifiziereRestschuld(nichtKonformeStellen.length, BASISLINIE_NICHT_KONFORM);
+  if (restschuldKlasse === 'ok') {
+    console.log(`  ✓ ${nichtKonformeStellen.length} bekannte Stelle(n) ohne Helfer/Pruefung -- unveraendert gegenueber der Basislinie.`);
+    nichtKonformeStellen.forEach((s) => console.log(`      · ${s.funktion} (${s.datei})`));
+  } else if (restschuldKlasse === 'regression') {
+    fehler += 1;
+    console.log(`  ✗ ${nichtKonformeStellen.length} bekannte Stelle(n) ohne Behandlung, Basislinie war ${BASISLINIE_NICHT_KONFORM}.`);
+    console.log('      Regression: eine zuvor konforme Stelle wurde ohne die Pruefung umgeschrieben.');
+    nichtKonformeStellen.forEach((s) => console.log(`      · ${s.funktion} (${s.datei})`));
+  } else {
+    fehler += 1;
+    console.log(`  ✗ Nur noch ${nichtKonformeStellen.length} bekannte Stelle(n) ohne Behandlung, Basislinie steht noch auf ${BASISLINIE_NICHT_KONFORM}.`);
+    console.log('      Fortschritt gelandet, aber BASISLINIE_NICHT_KONFORM in diesem Skript nicht nachgezogen --');
+    console.log('      sonst koennte die Zahl unbemerkt wieder bis zur alten Basislinie steigen. Bitte senken.');
   }
 
   /* ── 2 · Rohe Treffer je Datei vs. eingetragene Menge ───────────────────────── */
@@ -350,7 +442,7 @@ function main() {
     console.error(`FAIL: ${fehler} Pruefung(en) fehlgeschlagen.`);
     process.exit(1);
   }
-  console.log('PASS: alle bekannten Schreibstellen konform, keine unbekannten, kein Vakuum.');
+  console.log(`PASS: keine unbekannten Stellen, kein Vakuum, Restschuld = Basislinie (${BASISLINIE_NICHT_KONFORM}).`);
 }
 
 if (IS_MAIN) main();
