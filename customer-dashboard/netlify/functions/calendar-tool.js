@@ -366,9 +366,17 @@ exports.handler = async (event) => {
       //
       // `kalenderGefragt` ist Bedingung: ohne Abfrage ist das busy-Array leer,
       // weil nichts geholt wurde, und nicht, weil nichts da ist.
+      //
+      // Der Vorlauf gehoert seit dem Verschieben aus validateWindow() hier
+      // ausdruecklich dazu. Sonst faellt das Feld genau dort um, wo die
+      // Verschiebung wirkt: ein Fenster, das im Vorlauf beginnt und darueber
+      // hinausreicht, behaelt seine spaeteren Termine -- und haette "ganzer
+      // Zeitraum frei" gemeldet, obwohl der Anfang nicht buchbar ist und die
+      // alte Fassung die Anfrage ganz abgelehnt haette.
       const wholeWindowFree = kalenderGefragt
         && busy.length === 0
         && !bookingWindowError(startIso, endIso, settings, openingHours)
+        && !bookingTimingError(startIso, settings)
         && !blockingUpdateFor(blockingUpdates, startIso, endIso);
       responsePayload = {
         ok: true,

@@ -295,6 +295,24 @@ await check('Zu kurzfristig ist eine Antwort, kein Werkzeugfehler', async () => 
   assert.deepEqual(payload.free_slots, []);
 });
 
+// Codex-Befund vom 12.08., direkt nach dem Verschieben des Vorlaufs: ein
+// Fenster, das IM Vorlauf beginnt und darueber hinausreicht, behaelt seine
+// spaeteren Termine -- und meldete "ganzer Zeitraum frei", obwohl der Anfang
+// nicht buchbar ist. Die alte Fassung haette die Anfrage ganz abgelehnt.
+await check('Ein Vorlauf mitten im Fenster nimmt whole_window_free weg', async () => {
+  verfuegbarkeit = { available: true, busy: [] };
+  // Der Vorlauf wird so gewaehlt, dass die Grenze auf 09:59 des Testtags
+  // faellt -- unabhaengig davon, wann der Test laeuft.
+  const bisKurzVorZehn = Math.round((new Date(DI('10:00')).getTime() - Date.now()) / 60000) - 1;
+  const { payload } = await ruf({
+    action: 'availability', agent_id: 'agent_1', start: DI('08:00'), end: DI('12:00')
+  }, { settings: { ...SETTINGS, minimum_notice_minutes: bisKurzVorZehn } });
+  assert.equal(payload.available, true, 'die spaeteren Termine muessen buchbar bleiben');
+  assert.equal(payload.free_slots_total, 4, 'erwartet 10:00, 10:30, 11:00, 11:30');
+  assert.equal(payload.whole_window_free, false,
+    'whole_window_free behauptet den ganzen Zeitraum, obwohl der Anfang im Vorlauf liegt');
+});
+
 // ── Punkt 2 am Handler: Absage ohne Zeitangaben ─────────────────────────────
 
 await check('cancel kommt ohne start und end durch', async () => {
