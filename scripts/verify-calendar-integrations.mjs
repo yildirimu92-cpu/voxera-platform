@@ -122,8 +122,42 @@ try {
       failures.push('Unerwarteter Fehler am Seitendeckel (Google): ' + error.message);
     }
   } finally { globalThis.fetch = echtesFetch3; }
+  // Scope-Fix: Google wird ausschliesslich ueber die Terminliste gefragt.
+  // `calendar.events` autorisiert `freebusy.query` NICHT, und die angeforderten
+  // Scopes sind genau calendarlist.readonly + events. Ein breiterer Scope haette
+  // jeden verbundenen Kunden zur erneuten Zustimmung gezwungen.
+  gefragt = [];
+  globalThis.fetch = async (url) => {
+    gefragt.push(String(url));
+    return antwort({ items: [{ id: 'g1', start: { dateTime: '2026-08-11T08:00:00Z' }, end: { dateTime: '2026-08-11T08:30:00Z' } }] });
+  };
+  try {
+    // Ohne excludeEventId -- genau der Weg, der vorher auf freeBusy ging.
+    await providers.checkAvailability('google', 'token', 'cal_1', '2026-08-11T08:00:00Z', '2026-08-11T12:00:00Z');
+    if (gefragt.some((url) => url.includes('freeBusy'))) {
+      failures.push('Google-Verfuegbarkeit fragt wieder freeBusy -- der Scope calendar.events deckt das nicht ab');
+    }
+    if (!gefragt.some((url) => url.includes('/events?'))) {
+      failures.push('Google-Verfuegbarkeit fragt nicht die Terminliste');
+    }
+  } finally { globalThis.fetch = echtesFetch; }
 } catch (error) {
   failures.push('Calendar availability paging test failed: ' + error.message);
+}
+
+// Der Quelltext darf freeBusy nicht mehr aufrufen. Die Suche schliesst
+// Kommentarzeilen aus, damit die Begruendung stehen bleiben darf.
+{
+  const aufrufe = source.providers
+    .split('\n')
+    .filter((zeile) => !zeile.trim().startsWith('//'))
+    .filter((zeile) => zeile.includes('freeBusy'));
+  if (aufrufe.length) {
+    failures.push('calendar-providers.js ruft weiterhin freeBusy auf: ' + aufrufe[0].trim());
+  }
+}
+if (!/calendar\.events/.test(source.providers)) {
+  failures.push('Der Scope calendar.events fehlt');
 }
 
 process.env.CALENDAR_OAUTH_REDIRECT_URI = 'https://dashboard.voxera.ch/.netlify/functions/calendar-oauth-callback';

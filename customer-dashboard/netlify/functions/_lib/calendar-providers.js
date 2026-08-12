@@ -218,17 +218,27 @@ async function accountSnapshot(provider, accessToken) {
 // Ein Fehler ist an dieser Stelle die ehrlichere Antwort.
 const MAX_BUSY_PAGES = 20;
 
+// Google wird ausschliesslich ueber die Terminliste gefragt, nicht ueber
+// freeBusy.
+//
+// Grund sind die Scopes. Angefordert werden `calendar.calendarlist.readonly`
+// und `calendar.events` -- und `calendar.events` autorisiert `freebusy.query`
+// NICHT. Der freeBusy-Zweig lief bisher nur bei availability ohne
+// excludeEventId, also im haeufigsten Fall ueberhaupt, und haette dort einen
+// Scope-Fehler erzeugt.
+//
+// Der Fehler war bisher verdeckt: `validateWindow()` warf bei fehlendem
+// Zeitraum, bevor Google ueberhaupt gefragt wurde. Mit verbindlichem
+// start/end wird der Aufruf erreicht -- die Luecke waere also genau mit dem
+// Werkzeugvertrag sichtbar geworden.
+//
+// Der Ausweg ueber einen breiteren Scope (`calendar.readonly` oder
+// `calendar.freebusy`) haette jeden verbundenen Kunden zur erneuten
+// Zustimmung gezwungen; bestehende Refresh-Tokens tragen den neuen Scope
+// nicht. Die Terminliste deckt `calendar.events` ab und liefert dieselbe
+// Auskunft: `transparency: 'transparent'` entspricht "frei", abgesagte
+// Termine fallen heraus.
 async function checkAvailability(provider, accessToken, calendarId, startIso, endIso, excludeEventId = '') {
-  if (provider === 'google' && !excludeEventId) {
-    const payload = await apiFetch('https://www.googleapis.com/calendar/v3/freeBusy', accessToken, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ timeMin: startIso, timeMax: endIso, items: [{ id: calendarId }] })
-    });
-    const busy = payload.calendars?.[calendarId]?.busy || [];
-    return { available: busy.length === 0, busy };
-  }
-
   if (provider === 'google') {
     const items = [];
     let pageToken = '';

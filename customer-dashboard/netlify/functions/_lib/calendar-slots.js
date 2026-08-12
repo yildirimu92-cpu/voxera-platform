@@ -77,6 +77,17 @@ function slotDurationMinutes(startIso, endIso, settings) {
   return Math.max(1, Math.round((to - from) / 60000));
 }
 
+// Ortszeit eines Zeitpunkts als fortlaufende Minutenzahl. Traegt das Datum mit,
+// damit sich zwei Termine ueber Mitternacht hinweg vergleichen lassen.
+function localMinutes(iso, timeZone) {
+  let parts;
+  try { parts = zonedParts(iso, timeZone); }
+  catch (_error) { return null; }
+  const tagesbeginn = Date.parse(parts.date + 'T00:00:00Z');
+  if (!Number.isFinite(tagesbeginn)) return null;
+  return Math.round(tagesbeginn / 60000) + parts.minutes;
+}
+
 // Die Startpunkte, von denen aus durchgezaehlt wird: der Fensteranfang und der
 // Anfang jeder erlaubten Zeitspanne des Tages, die im Fenster liegt.
 //
@@ -185,9 +196,13 @@ function blockingUpdateFor(updates, startIso, endIso) {
 // Grund.
 function bookableSlots(startIso, endIso, settings, openingHours, blockingUpdates, now = Date.now()) {
   const duration = slotDurationMinutes(startIso, endIso, settings);
+  const timeZone = String(settings?.timezone || 'Europe/Zurich');
   const anchors = slotAnchors(startIso, endIso, settings, openingHours);
   const candidates = slotCandidates(startIso, endIso, duration, anchors);
   const slots = [];
+  // Ortszeit-Beginn der bereits aufgenommenen Termine -- siehe die
+  // Zeitumstellungspruefung weiter unten.
+  const gesehenLokal = new Set();
   let windowReason = null;
   for (const slot of candidates) {
     if (blockingUpdateFor(blockingUpdates, slot.start, slot.end)) {
@@ -210,6 +225,25 @@ function bookableSlots(startIso, endIso, settings, openingHours, blockingUpdates
       windowReason = windowReason || timingError;
       continue;
     }
+    // Die Zeitumstellung im Herbst wiederholt eine Stunde, im Fruehjahr faellt
+    // eine aus. Weil die Kandidaten in festen Millisekundenschritten laufen,
+    // entstehen dort Termine, deren ORTSZEIT nicht um die Termindauer
+    // fortschreitet -- am 2027-10-31 in Zuerich zum Beispiel "02:30 bis 02:00".
+    // bookingWindowError() nimmt sie an, weil es nur Minutenwerte vergleicht.
+    //
+    // Ein Termin, dessen Ortszeit rueckwaerts laeuft, ist am Telefon nicht
+    // nennbar. Er faellt deshalb weg.
+    const startLokal = localMinutes(slot.start, timeZone);
+    const endLokal = localMinutes(slot.end, timeZone);
+    if (startLokal === null || endLokal === null || endLokal - startLokal !== duration) {
+      windowReason = windowReason || 'calendar_clock_change';
+      continue;
+    }
+    // Dieselbe wiederholte Stunde erzeugt zwei Termine mit identischer
+    // Ortszeit. "Viertel nach zwei" waere an diesem Tag zweideutig; angeboten
+    // wird der frueheste, die Kandidaten sind aufsteigend sortiert.
+    if (gesehenLokal.has(startLokal)) continue;
+    gesehenLokal.add(startLokal);
     slots.push(slot);
   }
   return { slots, candidates, duration, windowReason };

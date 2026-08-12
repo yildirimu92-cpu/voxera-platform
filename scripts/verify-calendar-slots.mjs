@@ -299,6 +299,48 @@ check('Termine jenseits des Buchungshorizonts werden nicht angeboten', () => {
   }
 });
 
+// Codex-Befund vom 12.08.: die Kandidaten laufen in festen
+// Millisekundenschritten. An der Zeitumstellung entstehen dadurch Termine,
+// deren ORTSZEIT nicht um die Termindauer fortschreitet -- und die wiederholte
+// Stunde erzeugt zwei Termine mit identischer Ortszeit.
+// bookingWindowError() nimmt beides an, weil es nur Minutenwerte vergleicht.
+check('Die Rueckstellung erzeugt keine rueckwaerts laufenden Termine', () => {
+  // 2027-10-31 ist ein Sonntag und der Tag der Rueckstellung in Europa:
+  // 02:00-03:00 Ortszeit gibt es zweimal.
+  const nachts = { mon: [], tue: [], wed: [], thu: [], fri: [], sat: [], sun: [['02:15', '02:45']] };
+  const plan = bookableSlots('2027-10-31T00:00:00+02:00', '2027-10-31T08:00:00+01:00',
+    settings({ business_hours: nachts, booking_horizon_days: 3650 }), nachts, [], JETZT);
+  // Vor dem Fix waren es vier: 02:15, das rueckwaerts laufende 02:30->02:00,
+  // das rueckwaerts laufende 02:45->02:15, und ein zweites 02:15 in Winterzeit.
+  assert.equal(plan.slots.length, 1, 'die Zeitumstellung erzeugt weiterhin unnennbare Termine');
+  const ortszeit = (iso) => new Date(iso).toLocaleTimeString('de-CH',
+    { timeZone: 'Europe/Zurich', hour: '2-digit', minute: '2-digit' });
+  assert.equal(ortszeit(plan.slots[0].start), '02:15');
+  assert.equal(ortszeit(plan.slots[0].end), '02:45');
+  // Angeboten wird der frueheste der beiden gleich benannten Termine.
+  assert.equal(plan.slots[0].start, '2027-10-31T00:15:00.000Z');
+});
+
+check('Ueber die Umstellung hinweg bleibt die Ortszeit stimmig', () => {
+  // Ein Fenster, das die Umstellung ueberspannt, bei durchgehend offenen
+  // Zeiten: jeder angebotene Termin muss in Ortszeit um die Dauer fortschreiten
+  // und darf keine Uhrzeit doppelt nennen.
+  const offen = { mon: [['00:00', '23:59']], tue: [['00:00', '23:59']], wed: [['00:00', '23:59']],
+    thu: [['00:00', '23:59']], fri: [['00:00', '23:59']], sat: [['00:00', '23:59']], sun: [['00:00', '23:59']] };
+  const plan = bookableSlots('2027-10-31T00:00:00+02:00', '2027-10-31T06:00:00+01:00',
+    settings({ business_hours: offen, booking_horizon_days: 3650 }), offen, [], JETZT);
+  const gesehen = new Set();
+  for (const slot of plan.slots) {
+    const von = new Date(slot.start).toLocaleString('de-CH', { timeZone: 'Europe/Zurich' });
+    const bis = new Date(slot.end).toLocaleString('de-CH', { timeZone: 'Europe/Zurich' });
+    assert.ok(!gesehen.has(von), `Ortszeit ${von} wird doppelt angeboten`);
+    gesehen.add(von);
+    assert.ok(new Date(slot.end).getTime() > new Date(slot.start).getTime());
+    assert.ok(bis > von || bis.slice(0, 10) !== von.slice(0, 10), `Ortszeit laeuft rueckwaerts: ${von} -> ${bis}`);
+  }
+  assert.ok(plan.slots.length > 0);
+});
+
 check('Die Kandidatenzahl ist nach oben begrenzt', () => {
   // Schutz gegen eine Endlosschleife, falls die 8-Stunden-Schranke aus
   // validateWindow() je wegfaellt.
