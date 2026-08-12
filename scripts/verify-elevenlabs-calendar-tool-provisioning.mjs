@@ -128,6 +128,26 @@ for (const token of [
   if (!source.core.includes(token)) failures.push('Anbieter-Rateverbot fehlt: ' + token);
 }
 
+// #951 P1: availability antwortet mit einzelnen Terminen statt binaer fuer den
+// ganzen Block. Die Slot-Zerlegung selbst prueft verify-calendar-slots.mjs;
+// hier steht nur, dass das Werkzeug sie auch benutzt und die Antwort die Felder
+// traegt, auf die der Prompt den Agenten verweist.
+for (const token of [
+  "require('./_lib/calendar-slots')",
+  'bookableSlots(startIso, endIso, settings, openingHours, blockingUpdates)',
+  'freeSlots(plan.slots, busy, settings)',
+  'free_slots:',
+  'free_slots_total:',
+  'whole_window_free:'
+]) {
+  if (!source.core.includes(token)) failures.push('Slot-Zerlegung fehlt im Werkzeug: ' + token);
+}
+
+// Die alte binaere Antwort. Kommt sie zurueck, ist der P1 rueckgaengig gemacht.
+if (/available: result\.available/.test(source.core)) {
+  failures.push('availability antwortet wieder binaer fuer den ganzen Zeitraum');
+}
+
 for (const token of [
   "require('./calendar-tool')",
   'stableRequestId',
@@ -237,6 +257,28 @@ try {
   // Buchungsversprechen, nicht das Aussprechen.
   assert.match(block, /sprich nie über den Fehler/, 'Das Aussprechen von Fehlern ist nicht verboten');
   assert.match(block, /Rückrufanfrage/, 'Der Ersatzweg bei Toolfehlern fehlt');
+
+  // ── #951 P1: der Halbtag ist teilbar ──────────────────────────────────────
+  //
+  // Die Zerlegung im Werkzeug nuetzt nichts, wenn der Prompt weiter von einem
+  // "belegten Zeitraum" spricht. Beides gehoert zusammen: das Werkzeug liefert
+  // free_slots, der Agent muss angewiesen sein, daraus vorzulesen.
+  assert.match(block, /free_slots/, 'Der Prompt kennt die Einzeltermine nicht');
+  assert.match(block, /höchstens drei/, 'Es fehlt die Begrenzung der vorgelesenen Vorschläge');
+
+  // Der gefaehrlichste Satz: `available` heisst seit dem 2026-08-12 "es gibt
+  // mindestens einen buchbaren Termin", nicht "der ganze Zeitraum ist frei".
+  // Ohne diesen Hinweis bietet der Agent bei available=true einen halben Tag an.
+  assert.match(block, /available=true heisst nicht/,
+    'Der Prompt erklärt die neue Bedeutung von available nicht');
+
+  // Der alte Wortlaut hat den Halbtag als Ganzes abgelehnt. Kommt er zurueck,
+  // ist der Fix im Prompt rueckgaengig gemacht, auch wenn das Werkzeug noch
+  // zerlegt.
+  assert.ok(!/Bei belegtem Zeitraum/.test(block),
+    'Der Prompt behandelt den Zeitraum wieder als unteilbaren Block');
+  assert.match(body.properties.action.description, /free_slots/,
+    'Die Feldbeschreibung nennt das Ergebnis von availability nicht');
 } catch (error) {
   failures.push('Provisioning helper contract failed: ' + error.message);
 }

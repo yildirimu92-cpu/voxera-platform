@@ -6,6 +6,7 @@ const { safeEqual } = require('./_lib/calendar-crypto');
 const { calendarEnabledForCustomer } = require('./_lib/calendar-rollout');
 const { bookingWindowError } = require('./_lib/booking-window');
 const { ensureAccessToken, checkAvailability, createEvent, updateEvent, deleteEvent } = require('./_lib/calendar-providers');
+const { SLOT_LIMIT, blockingUpdateFor, bookableSlots, freeSlots } = require('./_lib/calendar-slots');
 
 const headers = { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' };
 const reply = (statusCode, payload) => ({ statusCode, headers, body: JSON.stringify(payload) });
@@ -149,16 +150,6 @@ async function loadBlockingUpdates(sb, customerId, startIso, endIso) {
   return data || [];
 }
 
-function blockingUpdateFor(updates, startIso, endIso) {
-  const start = new Date(startIso).getTime();
-  const end = new Date(endIso).getTime();
-  return (updates || []).find((item) => {
-    const from = new Date(item.starts_at).getTime();
-    const to = new Date(item.ends_at).getTime();
-    return Number.isFinite(from) && Number.isFinite(to) && from < end && to > start;
-  }) || null;
-}
-
 async function audit(sb, input) {
   const { error } = await sb.from('calendar_booking_audit').insert(input);
   if (error) console.warn('[calendar-tool] audit failed', { error: error.message, action: input.action });
@@ -300,25 +291,52 @@ exports.handler = async (event) => {
       // Ausserhalb der Buchungszeiten oder waehrend einer Schliessung ist der
       // Zeitraum nicht verfuegbar -- das ist eine Antwort, kein Fehler. Ein
       // Werkzeugfehler zwingt den Agenten in den Fehlerpfad; "nicht verfuegbar,
-      // frag nach einer Alternative" steht als Schritt 4 im Kalenderblock und
+      // frag nach einer Alternative" steht als Schritt 5 im Kalenderblock und
       // ist genau das gewuenschte Gespraech.
-      const windowError = bookingWindowError(startIso, endIso, settings, openingHours);
-      const blocked = blockingUpdateFor(blockingUpdates, startIso, endIso);
-      if (windowError || blocked) {
-        responsePayload = {
-          ok: true,
-          action,
-          available: false,
-          requested_start: startIso,
-          requested_end: endIso,
-          busy: [],
-          reason: blocked ? 'operational_block' : windowError
-        };
-      } else {
+      //
+      // Seit dem 2026-08-12 wird der Zeitraum dafuer in einzelne Termine
+      // zerlegt (siehe _lib/calendar-slots.js). Vorher war die Antwort binaer
+      // fuer den ganzen Block: ein einziger Termin um 09:00 machte den
+      // kompletten Vormittag "unverfuegbar" -- und Schritt 4 lenkt vage
+      // Terminwuensche systematisch in genau diese Halbtage.
+      const plan = bookableSlots(startIso, endIso, settings, openingHours, blockingUpdates);
+      let slots = [];
+      let busy = [];
+      if (plan.slots.length) {
+        // Der Kalender wird nur befragt, wenn ueberhaupt ein Termin in Frage
+        // kommt. Ist der ganze Zeitraum geschlossen oder gesperrt, steht die
+        // Antwort schon fest -- das spart denselben API-Aufruf, den vorher die
+        // Kurzschluss-Abfrage auf das ganze Fenster gespart hat.
         const window = bufferedWindow(startIso, endIso, settings);
         const result = await checkAvailability(connection.provider, token.accessToken, connection.selected_calendar_id, window.start, window.end);
-        responsePayload = { ok: true, action, available: result.available, requested_start: startIso, requested_end: endIso, busy: result.busy };
+        busy = result.busy;
+        slots = freeSlots(plan.slots, busy, settings);
       }
+      // Warum nichts frei ist, sind drei verschiedene Auskuenfte: der Zeitraum
+      // ist kuerzer als ein Termin, er liegt ganz ausserhalb, oder er ist
+      // belegt. Ein einzelnes "nicht verfuegbar" wuerde alle drei gleich
+      // klingen lassen.
+      const reason = slots.length
+        ? null
+        : (plan.candidates.length ? (plan.slots.length ? 'calendar_no_free_slot' : plan.windowReason) : 'calendar_time_window_shorter_than_appointment');
+      responsePayload = {
+        ok: true,
+        action,
+        available: slots.length > 0,
+        requested_start: startIso,
+        requested_end: endIso,
+        // Die alte Bedeutung von `available` -- ist der GANZE angefragte
+        // Zeitraum frei -- bleibt als eigenes Feld erhalten: jeder Termin
+        // darin ist buchbar und frei. Bei einer Anfrage in Termindauer sind
+        // beide Felder gleich; bei einem Halbtag ist genau diese
+        // Unterscheidung der Punkt.
+        whole_window_free: plan.candidates.length > 0 && slots.length === plan.candidates.length,
+        appointment_duration_minutes: plan.duration,
+        free_slots: slots.slice(0, SLOT_LIMIT).map((slot) => ({ start: slot.start, end: slot.end })),
+        free_slots_total: slots.length,
+        busy,
+        ...(reason ? { reason } : {})
+      };
       // #930 Schritt C: availability hinterlaesst jetzt eine Spur.
       //
       // Vorher schrieb diese Aktion weder bei Erfolg noch bei Fehlschlag eine
@@ -352,7 +370,13 @@ exports.handler = async (event) => {
           requested_start: startIso,
           requested_end: endIso,
           reason: responsePayload.reason || null,
-          busy_count: Array.isArray(responsePayload.busy) ? responsePayload.busy.length : 0
+          busy_count: Array.isArray(responsePayload.busy) ? responsePayload.busy.length : 0,
+          // Zahlen, keine Zeitstempel: die Zeile soll belegen, wie die Antwort
+          // zustande kam, und nicht den Kalender des Kunden in unsere
+          // Audit-Tabelle spiegeln.
+          free_slot_count: responsePayload.free_slots_total,
+          bookable_slot_count: plan.slots.length,
+          candidate_slot_count: plan.candidates.length
         }
       });
     } else if (action === 'book') {

@@ -112,7 +112,7 @@ function buildToolConfig(secretId) {
         type: 'object',
         description: 'Kalenderaktion für den aktuell sprechenden Voxera-Agenten.',
         properties: {
-          action: llmProperty('string', 'Aktion: availability prüft einen Zeitraum, book erstellt einen bestätigten Termin, reschedule verschiebt einen von Voxera erstellten Termin, cancel storniert einen von Voxera erstellten Termin.', {
+          action: llmProperty('string', 'Aktion: availability prüft einen Zeitraum und liefert in free_slots die buchbaren Anfangszeiten darin, book erstellt einen bestätigten Termin, reschedule verschiebt einen von Voxera erstellten Termin, cancel storniert einen von Voxera erstellten Termin.', {
             enum: ['availability', 'book', 'reschedule', 'cancel']
           }),
           agent_id: dynamicProperty('string', 'system__agent_id'),
@@ -220,6 +220,22 @@ async function agentToolIds(agentId, calendarToolId, { attach }) {
 // APPOINTMENT_TEXT.request im Abschnitt TERMINBEFUGNIS bereits vollstaendig.
 // Ein zweiter Text dazu waere eine weitere Doppelquelle -- genau die Bauform,
 // die diesen Befund verursacht hat.
+// Schritte 5 bis 8 sprechen seit dem 2026-08-12 von einzelnen Terminen statt
+// von einem Zeitraum.
+//
+// Vorher hiess Schritt 5 "Bei belegtem Zeitraum: Sage nur, dass dieser Zeitraum
+// nicht verfuegbar ist" -- und das Werkzeug meldete "belegt", sobald IRGENDEIN
+// Termin im geprueften Fenster lag. Zusammen mit Schritt 4, der vage
+// Terminwuensche in Halbtage lenkt, hiess das: ein einziger Termin um 09:00
+// liess den Agenten "am Vormittag ist leider nichts frei" sagen, obwohl sieben
+// von acht Zeiten frei waren. Die Zerlegung steckt in
+// customer-dashboard/.../\_lib/calendar-slots.js; hier steht, wie der Agent das
+// Ergebnis lesen soll.
+//
+// Wichtig ist der zweite Satz von Schritt 5: `available` heisst jetzt "es gibt
+// mindestens einen buchbaren Termin", nicht mehr "der ganze Zeitraum ist frei".
+// Ohne diesen Hinweis wuerde der Agent bei available=true einen halben Tag als
+// frei anbieten.
 function calendarPromptBlock(settings = {}, appointmentMode = '') {
   if (appointmentMode !== 'direct') return '';
   if (!settings.feature_enabled || !settings.active_provider) return '';
@@ -232,12 +248,13 @@ function calendarPromptBlock(settings = {}, appointmentMode = '') {
     '2. Verwende die Zeitzone ' + timezone + '. Jeder Termin dauert genau ' + duration + ' Minuten -- eine andere Dauer ist nicht buchbar, auch nicht auf Wunsch.',
     '3. Prüfe den gewünschten Zeitraum immer zuerst mit action=availability, mit vollständigem start und end. Erfinde keine freien Zeiten.',
     '4. Ein Zeitraum darf höchstens 8 Stunden umfassen — ein ganzer Arbeitstag ist oft länger. Nennt jemand einen ganzen Tag, eine Woche oder "irgendwann", frage nach einem Halbtag und prüfe Vormittag und Nachmittag getrennt.',
-    '5. Bei belegtem Zeitraum: Sage nur, dass dieser Zeitraum nicht verfügbar ist, und frage nach einer Alternative.',
-    '6. Bei freiem Zeitraum: Wiederhole Datum, Uhrzeit und Dauer und hole eine ausdrückliche Bestätigung ein.',
-    '7. Buche erst nach dieser Bestätigung mit action=book.',
-    '8. Bestätige einen Termin erst, wenn das Tool ok=true zurückgibt.',
-    '9. Verwende reschedule oder cancel nur mit einer echten external_event_id aus einer früheren Voxera-Buchung. Erfinde diese ID niemals.',
-    '10. Antwortet das Tool nicht mit ok=true, sprich nie über den Fehler, das Werkzeug oder den Kalender. Sage, dass du den Termin nicht selbst bestätigen kannst, und nimm eine vollständige Rückrufanfrage auf. Die Wörter Fehler, System, Tool, Schnittstelle und Kalender kommen dabei nicht vor.'
+    '5. Die Antwort zerlegt den geprüften Zeitraum in einzelne Termine. In free_slots stehen die tatsächlich buchbaren Anfangszeiten, in free_slots_total ihre Gesamtzahl. Nur diese Zeiten sind buchbar. available=true heisst nicht, dass der ganze geprüfte Zeitraum frei ist.',
+    '6. Steht etwas in free_slots: Nenne höchstens drei dieser Zeiten als Vorschlag. Gibt es mehr, sage das, ohne alle aufzuzählen. Wiederhole zur gewählten Zeit Datum, Uhrzeit und Dauer und hole eine ausdrückliche Bestätigung ein.',
+    '7. Ist free_slots leer: Sage nur, dass in diesem Zeitraum nichts frei ist, und frage nach einer Alternative — zum Beispiel nach dem anderen Halbtag oder einem anderen Tag.',
+    '8. Buche erst nach dieser Bestätigung mit action=book, und zwar genau eine Zeit aus free_slots. Erfinde keine anderen Zeiten.',
+    '9. Bestätige einen Termin erst, wenn das Tool ok=true zurückgibt.',
+    '10. Verwende reschedule oder cancel nur mit einer echten external_event_id aus einer früheren Voxera-Buchung. Erfinde diese ID niemals.',
+    '11. Antwortet das Tool nicht mit ok=true, sprich nie über den Fehler, das Werkzeug oder den Kalender. Sage, dass du den Termin nicht selbst bestätigen kannst, und nimm eine vollständige Rückrufanfrage auf. Die Wörter Fehler, System, Tool, Schnittstelle und Kalender kommen dabei nicht vor.'
   ].join('\n');
 }
 

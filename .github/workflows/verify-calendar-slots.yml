@@ -1,0 +1,34 @@
+name: Verify Calendar Slots
+
+# Ohne Pfad-Filter, gleiche Begruendung wie bei verify-booking-window: wer eine
+# gelesene Datei anfasst, sie aber nicht in die Pfadliste eingetragen hat,
+# bekommt einen uebersprungenen statt eines bestandenen Laufs -- und
+# uebersprungen sieht in der PR-Ansicht nicht nach einer Luecke aus.
+#
+# Der Check sichert den P1 aus #951: ein Halbtag ist teilbar. Vorher
+# beantwortete `checkAvailability()` die Frage "ist dieser Zeitraum frei" mit
+# `busy.length === 0` fuer den ganzen Block -- ein einziger Termin um 09:00
+# machte den kompletten Vormittag "unverfuegbar". Schritt 4 des Kalenderblocks
+# lenkt vage Terminwuensche systematisch in genau diese Halbtage, der Fehler
+# traf also bevorzugt die unklaren Faelle.
+#
+# Mitgeprueft wird die Zeitzonenrechnung. Die Slot-Zerlegung selbst rechnet
+# bewusst nur in Millisekunden; ob ein Termin in den erlaubten Zeiten liegt,
+# entscheidet weiterhin booking-window.js. Diese Arbeitsteilung ist der Grund,
+# warum es hier keine zweite Stelle mit eigener Sommerzeitlogik gibt -- die
+# Faelle halten sie fest.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: node scripts/verify-calendar-slots.mjs
