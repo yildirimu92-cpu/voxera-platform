@@ -218,8 +218,19 @@ exports.handler = async (event) => {
 
   try {
     customerId = await resolveCustomer(sb, body);
+    // Geworfen statt `return reply(...)`, damit auch dieser Ausgang eine Spur
+    // hinterlaesst -- derselbe Codex-Befund wie bei den Einrichtungsfehlern,
+    // nur eine Stufe frueher.
+    //
+    // Eine Audit-ZEILE entsteht hier nicht: der Anbieter ist noch unbekannt,
+    // und die Spalte laesst keinen Ersatzwert zu (siehe N4). Der catch schreibt
+    // stattdessen die laute Logzeile mit Kunde, Aktion und Grund. Das ist der
+    // Fall "Werkzeug haengt am Agenten, Kunde aber nicht freigeschaltet" -- er
+    // faellt sonst voellig lautlos aus.
     if (!calendarEnabledForCustomer(customerId)) {
-      return reply(403, { ok: false, error: 'calendar_customer_not_enabled' });
+      const error = new Error('calendar_customer_not_enabled');
+      error.status = 403;
+      throw error;
     }
     if (requestId) {
       const { data: previous } = await sb.from('calendar_booking_audit')

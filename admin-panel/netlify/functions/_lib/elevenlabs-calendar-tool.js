@@ -156,13 +156,27 @@ function buildToolConfig(secretId) {
         type: 'object',
         description: 'Kalenderaktion für den aktuell sprechenden Voxera-Agenten.',
         properties: {
-          action: llmProperty('string', 'Aktion: availability prüft einen Zeitraum und liefert in free_slots die buchbaren Anfangszeiten darin, book erstellt einen bestätigten Termin, reschedule verschiebt einen von Voxera erstellten Termin. Für Absagen dieses Werkzeug nicht verwenden.', {
-            enum: ['availability', 'book', 'reschedule']
+          // `cancel` steht hier noch, obwohl es ein eigenes Werkzeug hat.
+          //
+          // Codex-Befund vom 12.08. (P1): dieses Werkzeug ist
+          // ARBEITSBEREICHSWEIT geteilt. Ein PATCH nimmt `cancel` sofort allen
+          // Agenten weg -- das Absagewerkzeug haengt aber immer nur an dem
+          // einen Agenten, der gerade synchronisiert wird (agentToolIds() im
+          // Sync). Zwischen dem ersten Kundensync und dem letzten haetten alle
+          // uebrigen Direktbuchungs-Agenten also GAR KEINEN Absageweg mehr.
+          //
+          // Deshalb in zwei Schritten: jetzt beide Wege nebeneinander, der
+          // Prompt schickt das Modell zum eigenen Werkzeug. Entfernt wird
+          // `cancel` hier erst, wenn jeder betroffene Agent das neue Werkzeug
+          // traegt -- siehe Nachtrag N9 im PR-Text. Bis dahin ist der alte Weg
+          // ein funktionierender Rueckfall und kein Widerspruch.
+          action: llmProperty('string', 'Aktion: availability prüft einen Zeitraum und liefert in free_slots die buchbaren Anfangszeiten darin, book erstellt einen bestätigten Termin, reschedule verschiebt einen von Voxera erstellten Termin. Für Absagen gibt es das eigene Werkzeug ' + CANCEL_TOOL_NAME + ' — verwende bevorzugt dieses.', {
+            enum: ['availability', 'book', 'reschedule', 'cancel']
           }),
           agent_id: dynamicProperty('string', 'system__agent_id'),
           conversation_id: dynamicProperty('string', 'system__conversation_id'),
           agent_turns: dynamicProperty('number', 'system__agent_turns'),
-          start: llmProperty('string', 'Beginn als vollständiger ISO-8601-Zeitstempel mit Schweizer Offset, zum Beispiel 2026-08-05T10:00:00+02:00. Der Zeitraum start bis end darf höchstens 8 Stunden umfassen; frage sonst nach einem Halbtag.'),
+          start: llmProperty('string', 'Beginn als vollständiger ISO-8601-Zeitstempel mit Schweizer Offset, zum Beispiel 2026-08-05T10:00:00+02:00. Der Zeitraum start bis end darf höchstens 8 Stunden umfassen; frage sonst nach einem Halbtag. Für Absagen ' + CANCEL_TOOL_NAME + ' verwenden, das ohne Zeitangaben auskommt.'),
           end: llmProperty('string', 'Ende als vollständiger ISO-8601-Zeitstempel mit Schweizer Offset. Bei book und reschedule ist es genau die konfigurierte Termindauer nach start.'),
           title: llmProperty('string', 'Kurzer Kalendertitel für book oder reschedule.'),
           description: llmProperty('string', 'Optionale sachliche Terminbeschreibung mit Name, Telefonnummer und Anliegen.'),

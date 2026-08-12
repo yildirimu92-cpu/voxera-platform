@@ -388,6 +388,35 @@ await check('Nicht bereite Verbindung schreibt eine Zeile', async () => {
   assert.equal(zeilen[0].row.provider, 'google');
 });
 
+// Codex-Befund vom 12.08.: der Rollout-Ausgang kehrte vor allem anderen zurueck
+// -- weder Audit-Zeile noch Logzeile. Es ist der Fall "Werkzeug haengt am
+// Agenten, Kunde aber nicht freigeschaltet", und der fiel voellig lautlos aus.
+await check('Ein nicht freigeschalteter Kunde hinterlaesst wenigstens eine Logzeile', async () => {
+  const geloggt = [];
+  const echtesError = console.error;
+  const vorher = process.env.CALENDAR_ROLLOUT_CUSTOMER_IDS;
+  console.error = (...args) => geloggt.push(args);
+  process.env.CALENDAR_ROLLOUT_CUSTOMER_IDS = 'ein-anderer-kunde';
+  try {
+    const supabase = makeSupabase({ answers: antworten() });
+    aktuellerClient = supabase.client;
+    const response = await handler({
+      httpMethod: 'POST', headers: { Authorization: 'Bearer test-secret' },
+      body: JSON.stringify({ action: 'availability', agent_id: 'agent_1', start: DI('08:00'), end: DI('12:00') })
+    });
+    assert.equal(response.statusCode, 403);
+    assert.deepEqual(JSON.parse(response.body), { ok: false, error: 'calendar_customer_not_enabled' });
+    // Eine Audit-ZEILE geht hier nicht: der Anbieter ist noch unbekannt und die
+    // Spalte laesst keinen Ersatzwert zu. Die laute Logzeile muss aber da sein.
+    assert.deepEqual(auditZeilen(supabase), []);
+    assert.ok(geloggt.some((args) => String(args[0]).includes('audit_uebersprungen_anbieter_unbekannt')),
+      'der Rollout-Ausgang faellt weiterhin lautlos aus');
+  } finally {
+    console.error = echtesError;
+    process.env.CALENDAR_ROLLOUT_CUSTOMER_IDS = vorher;
+  }
+});
+
 // ── Punkt 4: kein geratener Anbieter im Fehlerpfad ──────────────────────────
 
 await check('Ohne bekannten Anbieter wird kein Anbieter erfunden', async () => {

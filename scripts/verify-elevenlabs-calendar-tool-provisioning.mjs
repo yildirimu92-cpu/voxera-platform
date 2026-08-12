@@ -340,12 +340,23 @@ try {
   assert.deepEqual(cancelBody.properties.agent_turns,
     { type: 'number', dynamic_variable: 'system__agent_turns' });
 
-  // Umgekehrt: das Buchungswerkzeug darf cancel nicht mehr anbieten, sonst
-  // steht der Weg mit den erfundenen Zeitstempeln weiter offen.
-  assert.ok(!body.properties.action.enum.includes('cancel'),
-    'Das Buchungswerkzeug bietet cancel weiterhin an');
-  assert.ok(!/cancel/.test(body.properties.start.description),
-    'Die start-Beschreibung erklärt weiterhin den cancel-Sonderfall');
+  // Und `cancel` steht im Buchungswerkzeug ABSICHTLICH noch drin.
+  //
+  // Codex-Befund (P1) vom 12.08.: das Werkzeug ist arbeitsbereichsweit geteilt.
+  // Ein PATCH nimmt `cancel` sofort allen Agenten weg, das Absagewerkzeug haengt
+  // aber immer nur an dem einen Agenten, der gerade synchronisiert wird. Wird
+  // beides in derselben Auslieferung gemacht, haben alle uebrigen
+  // Direktbuchungs-Agenten bis zu ihrem naechsten Sync GAR KEINEN Absageweg.
+  //
+  // Diese Zusicherung ist deshalb bewusst herum: sie haelt Schritt 1 der
+  // zweistufigen Umstellung fest. Wer sie umdreht, macht Schritt 2 -- und muss
+  // vorher belegen, dass jeder betroffene Agent das neue Werkzeug traegt.
+  assert.ok(body.properties.action.enum.includes('cancel'),
+    'cancel ist aus dem geteilten Werkzeug entfernt, bevor alle Agenten das Absagewerkzeug haben');
+  assert.match(body.properties.action.description, /bevorzugt/,
+    'Die Feldbeschreibung lenkt nicht auf das eigene Absagewerkzeug');
+  assert.match(body.properties.start.description, /cancel_voxera_appointment/,
+    'Die start-Beschreibung nennt den Weg ohne Zeitangaben nicht');
 
   // Codex-Befund vom 12.08.: dieselbe Auslieferung, die `cancel` aus der
   // Aufzaehlung von manage_voxera_calendar nimmt, legt das Absagewerkzeug erst
