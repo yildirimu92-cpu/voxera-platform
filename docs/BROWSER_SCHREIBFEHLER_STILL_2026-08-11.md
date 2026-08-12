@@ -119,6 +119,64 @@ genauso entsteht.
 
 ---
 
+## 4b. Nachtrag 12.08. — der zweite Fall derselben Klasse, und er ist schlimmer
+
+Der Waechter aus Abschnitt 5 sah ihn zunaechst **nicht**. Sein Muster verlangte einen Tabellennamen
+in Anfuehrungszeichen; der Code schreibt aber `sb.from(CALLS_TABLE)`. Die Stelle war damit weder
+Treffer noch Hinweis — sie war fuer den Waechter nicht vorhanden. Gefunden im Review von PR #948,
+behoben in derselben PR (Konstantenaufloesung, und jede nicht auswertbare Stelle faerbt jetzt rot).
+
+**Was dahinter zum Vorschein kam — zwei Funktionen, gleiche Bauform:**
+
+| Funktion | Tabelle | geschriebene Spalten | Recht vorhanden? |
+|---|---|---|---|
+| `vxBestEffortPatchCallLifecycle` (`:17305`) | `calls` | `updated_at`, `completed_at`, `archived_at` | `updated_at` ja, **`completed_at` und `archived_at` nein** |
+| `vxBestEffortPatchTaskLifecycle` (`:17328`) | `customer_tasks` | dieselben drei | ungeprueft |
+
+Die Allowlist auf `calls` lautet nachweislich (Produktionslauf 31571552658, 12.08. 06:50):
+`callback_requested, dashboard_status, notes_customer_voxera, read_at, updated_at`.
+`completed_at` und `archived_at` stehen nicht darin.
+
+**PostgREST lehnt das gesamte UPDATE ab, nicht nur die beiden Spalten.** Damit scheitert auch das
+`updated_at`, fuer das ein Recht besteht — jeder Statuswechsel im Dashboard schreibt seit Einfuehrung
+dieser Funktionen keinen einzigen Lifecycle-Zeitstempel.
+
+**Und dann kommt der Teil, der ihn schlimmer macht als `callback_requested`:**
+
+```js
+} catch (err) {
+  console.warn('[voxera] lifecycle timestamp update skipped', err && (err.message || err));
+  var local = (allRecords || []).find(...);
+  if (local && local.fields) Object.assign(local.fields, fields);   // <── im Fehlerfall
+  return null;
+}
+```
+
+Der Fehlerpfad schreibt den Wert **lokal trotzdem**. Die Oberflaeche zeigt danach den Zustand, den
+die Datenbank nicht hat — nicht aus Versehen, sondern absichtlich als „best effort". Das ist
+derselbe Mechanismus wie in Abschnitt 2, nur nicht latent, sondern **heute wirksam**.
+
+`AGENTS.md`, Datenbankregel 6, sagt dazu woertlich: *„Never update state locally as successful
+before the write result is confirmed."* Hier geschieht es, nachdem der Fehlschlag bereits feststeht.
+
+**Zu entscheiden (nicht Teil dieser PR, Produktionsaenderung):**
+
+| | Weg | |
+|---|---|---|
+| **A** | `grant update (completed_at, archived_at) on public.calls to authenticated` — plus dasselbe fuer `customer_tasks` | macht den Schreibvorgang echt; erweitert die Kundenschreibrechte um zwei Zeitstempel |
+| **B** | Die Zeitstempel serverseitig setzen, wo der Status ohnehin autoritativ gesetzt wird (`call-update-status`), und den Browser-Patch entfernen | keine neuen Kundenrechte; die richtige Stelle |
+| **C** | Nichts schreiben und den lokalen Fallback entfernen | ehrlich, aber die Zeitstempel bleiben leer |
+
+**Empfehlung: B.** Der Kommentar im Code nennt `call-update-status` selbst „die autoritative
+Status-Function"; die Zeitstempel gehoeren dorthin, nicht in einen Browser-Patch, der sie nebenbei
+mitschreibt. A waere schneller, vergroessert aber die Kundenschreibflaeche fuer etwas, das der
+Server ohnehin weiss.
+
+**In jedem Fall zuerst:** den lokalen Schreibvorgang im `catch` entfernen. Solange er steht, zeigt
+die Oberflaeche einen Zustand, den es nicht gibt — und das gilt fuer jede der drei Varianten.
+
+---
+
 ## 5. Abgrenzung
 
 `scripts/verify-browser-column-grants.mjs` fängt ab sofort den **Grant**-Teil der Verkettung

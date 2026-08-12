@@ -44,10 +44,10 @@
 // Die DB-Verbindung kommt aus SUPABASE_DB_URL, wie bei
 // verify-db-security-invariants.mjs.
 
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, readdirSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
-import { globSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
+import path from 'node:path';
 
 // Dateien, die den Supabase-Client IM BROWSER benutzen. Netlify-Functions sind
 // bewusst nicht dabei: die laufen mit service_role und unterliegen weder RLS
@@ -56,32 +56,121 @@ const BROWSER_DATEIEN = [
   'customer-dashboard/index.html',
   'admin-panel/index.html',
 ];
-const BROWSER_GLOBS = ['customer-dashboard/shared/*.js', 'admin-panel/shared/*.js'];
+const BROWSER_VERZEICHNISSE = ['customer-dashboard/shared', 'admin-panel/shared'];
 
 const ROLLE = 'authenticated';
 
 /**
- * Findet `.from('x') ... .update({ a: ..., b: ... })` und liefert je Fund
+ * Verzeichnis nach *.js absuchen -- bewusst OHNE fs.globSync.
+ *
+ * globSync gibt es erst ab Node 22. Der `import` haette den Modulstart auf
+ * Node 20 zerlegt, und zwar VOR jedem try/catch: ein fehlender Named Export
+ * eines Builtins ist ein Link-Fehler, kein Laufzeitfehler. Der Waechter waere
+ * damit in genau der Umgebung nie gelaufen, in der er laufen soll -- 38 der 43
+ * Workflows dieses Repos stehen auf Node 20.
+ *
+ * Gefunden im Review von PR #948. Ein `catch { /* Node < 22 *\/ }` um den
+ * Aufruf half nicht: der Fehler entsteht beim Laden, nicht beim Aufrufen.
+ */
+function jsDateien(verzeichnis) {
+  if (!existsSync(verzeichnis)) return [];
+  return readdirSync(verzeichnis)
+    .filter((f) => f.endsWith('.js'))
+    .map((f) => path.join(verzeichnis, f))
+    .sort();
+}
+
+/**
+ * Schreibstellen, deren Tabelle oder Payload sich statisch nicht aufloesen
+ * laesst, die aber bekannt und von Hand nachgetragen sind.
+ *
+ * Warum eine gepflegte Liste und nicht "still ueberspringen": Eine Stelle, die
+ * der Waechter nicht auswerten kann, ist ein Loch in ihm. Als blosser HINWEIS
+ * gedruckt liest sie niemand; als Eintrag hier wird sie GEPRUEFT wie jede
+ * andere, weil die Spalten danebenstehen.
+ *
+ * Die Liste prueft sich selbst in beide Richtungen: Ein Eintrag ohne
+ * zugehoerige Fundstelle ist veraltet und faerbt den Lauf rot. Eine nicht
+ * auswertbare Fundstelle ohne Eintrag ebenfalls. Sonst waere das hier eine
+ * Ausnahmeliste, in der ein Befund dauerhaft ruhen kann.
+ */
+const HANDGEPFLEGTE_STELLEN = [
+  {
+    datei: 'customer-dashboard/index.html',
+    tabelle: 'calls',
+    funktion: 'vxBestEffortPatchCallLifecycle',
+    spalten: ['updated_at', 'completed_at', 'archived_at'],
+    grund: 'Payload wird beim Aufrufer applyStatusTransition als `lifecyclePatch` '
+      + 'gebaut und als Parameter durchgereicht -- am Aufruf selbst steht nur '
+      + '`.update(fields)`. Die drei Spalten sind dort abschliessend aufgezaehlt.',
+  },
+  {
+    datei: 'customer-dashboard/index.html',
+    tabelle: 'customer_tasks',
+    funktion: 'vxBestEffortPatchTaskLifecycle',
+    spalten: ['updated_at', 'completed_at', 'archived_at'],
+    grund: 'Gleiche Bauform: `taskLifecyclePatch` entsteht beim Aufrufer und wird '
+      + 'als Parameter uebergeben. CASES_TABLE ist customer_tasks.',
+  },
+];
+
+/**
+ * Sammelt Konstanten der Form `const CALLS_TABLE = 'calls';`.
+ *
+ * Ohne sie war `sb.from(CALLS_TABLE)` fuer die Extraktion NICHT VORHANDEN --
+ * der Tabellenname stand nicht in Anfuehrungszeichen, also griff das Muster
+ * nicht, und die Stelle fiel weder als Treffer noch als unklar auf. Genau so
+ * uebersah die erste Fassung dieses Waechters den zweiten Fall derselben
+ * Fehlerklasse, den zu finden er gebaut wurde (Review PR #948).
+ */
+function sammleTabellenkonstanten(quelle) {
+  const konst = new Map();
+  const re = /\b(?:const|let|var)\s+([A-Z][A-Z0-9_]*)\s*=\s*['"]([a-z_][a-z0-9_]*)['"]\s*;/g;
+  let m;
+  while ((m = re.exec(quelle)) !== null) konst.set(m[1], m[2]);
+  return konst;
+}
+
+/**
+ * Findet `.from(<tabelle>) ... .update({ a: ..., b: ... })` und liefert je Fund
  * Tabelle, Spalten und Fundstelle.
  *
- * Bewusst konservativ: Nur Objektliterale werden gelesen. Ein `.update(payload)`
- * mit einer Variablen ist NICHT auswertbar -- solche Stellen werden getrennt
- * gemeldet, statt sie stillschweigend als "keine Spalten" zu zaehlen. Eine
- * unauswertbare Stelle ist ein Loch im Waechter und gehoert sichtbar gemacht.
+ * `<tabelle>` ist entweder ein Stringliteral oder ein Bezeichner, der oben in
+ * der Datei auf ein Literal gesetzt wurde.
+ *
+ * Drei Ausgaenge, und die Trennung ist der Punkt:
+ *   treffer  -- Tabelle UND Spalten aufgeloest, wird gegen die Rechte geprueft.
+ *   unklar   -- Stelle erkannt, aber nicht auswertbar (Payload in einer
+ *               Variablen, Tabellenname aus einem Ausdruck). Diese Stellen
+ *               MUESSEN in HANDGEPFLEGTE_STELLEN stehen, sonst ist der Lauf
+ *               rot. Stillschweigend uebergehen hiesse: der Waechter meldet
+ *               PASS fuer Code, den er nie angesehen hat.
+ *   (nichts)  -- keine .update()-Stelle im Fenster.
  */
 export function extrahiereSchreibstellen(quelle, dateiname = '<inline>') {
   const treffer = [];
   const unklar = [];
-  const re = /\.from\(\s*['"]([a-z_]+)['"]\s*\)/g;
+  const konst = sammleTabellenkonstanten(quelle);
+  // Literal ODER Bezeichner -- der zweite Zweig ist die Lehre aus dem Review.
+  const re = /\.from\(\s*(?:['"]([a-z_][a-z0-9_]*)['"]|([A-Za-z_$][\w$]*))\s*\)/g;
   let m;
   while ((m = re.exec(quelle)) !== null) {
-    const tabelle = m[1];
+    const literal = m[1];
+    const bezeichner = m[2];
+    const tabelle = literal || konst.get(bezeichner) || null;
     const fenster = quelle.slice(m.index, m.index + 400);
     const upd = fenster.match(/\.update\(\s*(\{[^}]*\}|[A-Za-z_$][\w$]*)/);
     if (!upd) continue;
     const zeile = quelle.slice(0, m.index).split('\n').length;
+
+    if (!tabelle) {
+      unklar.push({ tabelle: `<${bezeichner}?>`, datei: dateiname, zeile,
+        ausdruck: `from(${bezeichner})`, grundfehlt: 'Tabellenname nicht aufloesbar' });
+      continue;
+    }
     if (!upd[1].startsWith('{')) {
-      unklar.push({ tabelle, datei: dateiname, zeile, ausdruck: upd[1] });
+      unklar.push({ tabelle, datei: dateiname, zeile, ausdruck: upd[1],
+        grundfehlt: 'Payload in einer Variablen' });
       continue;
     }
     const spalten = [...upd[1].matchAll(/([A-Za-z_][\w]*)\s*:/g)].map((s) => s[1]);
@@ -92,9 +181,7 @@ export function extrahiereSchreibstellen(quelle, dateiname = '<inline>') {
 
 function sammleAusRepo() {
   const dateien = [...BROWSER_DATEIEN];
-  for (const g of BROWSER_GLOBS) {
-    try { dateien.push(...globSync(g)); } catch { /* Node < 22 */ }
-  }
+  for (const v of BROWSER_VERZEICHNISSE) dateien.push(...jsDateien(v));
   const alle = [];
   const alleUnklar = [];
   let gelesen = 0;
@@ -134,9 +221,12 @@ if (direktAufgerufen && process.argv.includes('--selbsttest')) {
   };
 
   const fingiert = `
+    const CALLS_TABLE = 'calls';
     sb.from('calls').update({ callback_requested: false }).eq('id', x)
     sb.from('calls').update({ read_at: iso, updated_at: n }).eq('id', y)
     sb.from('kunden').update(payload).eq('id', z)
+    sb.from(CALLS_TABLE).update(fields).eq('id', w)
+    sb.from(unbekannteVariable).update({ irgendwas: 1 }).eq('id', v)
   `;
   const { treffer, unklar } = extrahiereSchreibstellen(fingiert, '<fingiert>');
   pruefe('Objektliteral wird gelesen',
@@ -144,17 +234,46 @@ if (direktAufgerufen && process.argv.includes('--selbsttest')) {
   pruefe('mehrere Spalten in einem Aufruf',
     treffer.some((t) => t.spalten.includes('read_at') && t.spalten.includes('updated_at')));
   pruefe('Variable statt Literal wird als unklar gemeldet, nicht verschluckt',
-    unklar.length === 1 && unklar[0].ausdruck === 'payload');
+    unklar.some((u) => u.tabelle === 'kunden' && u.ausdruck === 'payload'));
+
+  // Die beiden Gegenproben zum Review von PR #948. Vorher war `.from(KONST)`
+  // fuer die Extraktion schlicht nicht vorhanden -- kein Treffer, kein Hinweis.
+  pruefe('.from(KONSTANTE) wird zur Tabelle aufgeloest',
+    unklar.some((u) => u.tabelle === 'calls' && u.ausdruck === 'fields'),
+    'sb.from(CALLS_TABLE).update(fields) -> calls, Payload unklar');
+  pruefe('.from(unaufloesbar) faellt auf, statt unsichtbar zu bleiben',
+    unklar.some((u) => u.grundfehlt === 'Tabellenname nicht aufloesbar'));
+
+  // Gegenprobe zur Selbstpruefung der gepflegten Liste: ein Eintrag, der auf
+  // keine Fundstelle passt, MUSS auffallen.
+  {
+    const schluessel = new Set(HANDGEPFLEGTE_STELLEN.map((s) => `${s.datei}|${s.tabelle}`));
+    const erfunden = { datei: 'gibt-es-nicht.html', tabelle: 'nirgends' };
+    pruefe('veralteter Eintrag waere erkennbar',
+      !schluessel.has(`${erfunden.datei}|${erfunden.tabelle}`));
+  }
 
   // Die eigentliche Gegenprobe: der echte Repo-Stand muss den bekannten Fall
   // enthalten. Findet die Extraktion ihn nicht, misst der Waechter am
   // Gegenstand vorbei -- unabhaengig davon, was die DB sagt.
-  const { alle, gelesen } = sammleAusRepo();
+  const { alle, alleUnklar, gelesen } = sammleAusRepo();
   pruefe('Browser-Dateien gefunden', gelesen > 0, `${gelesen} Dateien`);
   pruefe('bekannter Fall callback_requested wird im echten Code gefunden',
     alle.some((t) => t.tabelle === 'calls' && t.spalten.includes('callback_requested')),
     'customer-dashboard/index.html:19634');
   pruefe('Extraktion liefert ueberhaupt Schreibstellen', alle.length > 0, `${alle.length} Stellen`);
+
+  // Der zweite bekannte Fall -- der, den die erste Fassung uebersah.
+  pruefe('vxBestEffortPatchCallLifecycle wird im echten Code erkannt',
+    alleUnklar.some((u) => u.tabelle === 'calls' && u.datei.endsWith('customer-dashboard/index.html')),
+    'sb.from(CALLS_TABLE).update(fields)');
+
+  // Jede nicht auswertbare Fundstelle muss gedeckt sein, sonst ist der
+  // Regullauf rot -- das hier sagt frueh, WELCHE fehlt.
+  const gedeckt = new Set(HANDGEPFLEGTE_STELLEN.map((s) => `${s.datei}|${s.tabelle}`));
+  const offen = alleUnklar.filter((u) => !gedeckt.has(`${u.datei}|${u.tabelle}`));
+  pruefe('jede unauswertbare Stelle ist nachgetragen', offen.length === 0,
+    offen.map((u) => `${u.datei}:${u.zeile} ${u.tabelle}`).join('; ') || 'keine offen');
 
   console.log(fehler ? `\n${fehler} Selbsttest(s) fehlgeschlagen.` : '\nSelbsttest ok.');
   process.exit(fehler ? 1 : 0);
@@ -185,6 +304,23 @@ if (rechte === null) {
   process.exit(1);
 }
 
+// Nicht auswertbare Stellen gegen die gepflegte Liste halten -- in BEIDE
+// Richtungen. Eine Ausnahmeliste, die sich nicht selbst prueft, ist der Ort,
+// an dem ein Befund dauerhaft ruht.
+const zuUnklar = (u) => `${u.datei}|${u.tabelle}`;
+const gepflegt = new Map(HANDGEPFLEGTE_STELLEN.map((s) => [`${s.datei}|${s.tabelle}`, s]));
+const benutzt = new Set();
+const ungedeckt = [];
+for (const u of alleUnklar) {
+  const s = gepflegt.get(zuUnklar(u));
+  if (!s) { ungedeckt.push(u); continue; }
+  benutzt.add(zuUnklar(u));
+  // Der Nachtrag wird geprueft wie jede andere Stelle -- das ist sein Zweck.
+  alle.push({ tabelle: s.tabelle, spalten: s.spalten, datei: s.datei, zeile: u.zeile,
+    nachgetragen: s.funktion });
+}
+const veraltet = HANDGEPFLEGTE_STELLEN.filter((s) => !benutzt.has(`${s.datei}|${s.tabelle}`));
+
 const fehlend = [];
 for (const t of alle) {
   for (const sp of t.spalten) {
@@ -192,23 +328,39 @@ for (const t of alle) {
   }
 }
 
-if (alleUnklar.length) {
-  console.log(`HINWEIS — ${alleUnklar.length} Schreibstelle(n) mit variablem Payload, nicht auswertbar:`);
-  for (const u of alleUnklar) console.log(`  ${u.datei}:${u.zeile}  ${u.tabelle}.update(${u.ausdruck})`);
-  console.log('  Diese Stellen deckt der Waechter NICHT ab.\n');
-}
-
-if (!fehlend.length) {
+if (!fehlend.length && !ungedeckt.length && !veraltet.length) {
   console.log(`PASS — alle ${alle.length} Schreibstellen haben ein passendes Spaltenrecht.`);
   process.exit(0);
 }
 
-console.log(`FAIL — ${fehlend.length} Spalte(n) ohne UPDATE-Recht fuer ${ROLLE}:\n`);
-for (const f of fehlend) {
-  console.log(`  ${f.tabelle}.${f.spalte}`);
-  console.log(`      geschrieben in ${f.datei}:${f.zeile}`);
+if (ungedeckt.length) {
+  console.log(`FAIL — ${ungedeckt.length} Schreibstelle(n) sind nicht auswertbar und nirgends nachgetragen:\n`);
+  for (const u of ungedeckt) {
+    console.log(`  ${u.datei}:${u.zeile}  ${u.tabelle}.update(${u.ausdruck})  [${u.grundfehlt}]`);
+  }
+  console.log('');
+  console.log('Das ist bewusst rot und kein Hinweis: Der Waechter hat diese Stellen NICHT');
+  console.log('geprueft. Als blosse Anmerkung gedruckt haette er PASS gemeldet fuer Code,');
+  console.log('den er nie angesehen hat -- genau der Fehlermodus, gegen den er gebaut ist.');
+  console.log('Behebung: Stelle in HANDGEPFLEGTE_STELLEN eintragen, mit den Spalten, die');
+  console.log('sie tatsaechlich schreibt. Danach wird sie geprueft wie jede andere.\n');
 }
-console.log('');
+
+if (veraltet.length) {
+  console.log(`FAIL — ${veraltet.length} Eintrag/Eintraege in HANDGEPFLEGTE_STELLEN passen auf keine Fundstelle:\n`);
+  for (const s of veraltet) console.log(`  ${s.datei}  ${s.tabelle}  (${s.funktion})`);
+  console.log('  Der Code hat sich geaendert; der Eintrag entschaerft sonst still eine Pruefung.\n');
+}
+
+if (fehlend.length) {
+  console.log(`FAIL — ${fehlend.length} Spalte(n) ohne UPDATE-Recht fuer ${ROLLE}:\n`);
+  for (const f of fehlend) {
+    console.log(`  ${f.tabelle}.${f.spalte}`);
+    console.log(`      geschrieben in ${f.datei}:${f.zeile}`
+      + (f.nachgetragen ? `  (${f.nachgetragen}, nachgetragen)` : ''));
+  }
+  console.log('');
+}
 console.log('Der Aufruf scheitert zur Laufzeit mit 403. Je nach Aufrufstelle bemerkt');
 console.log('der Kunde davon nichts -- pruefe, ob der Fehlschlag sichtbar wird.');
 console.log('');
