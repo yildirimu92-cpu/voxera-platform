@@ -54,11 +54,12 @@ function iso(value, field) {
 // spaetere Termine buchbar sind -- dieselbe Unteilbarkeit, die dieser PR beim
 // Kalender behebt.
 //
-// Die Spanne selbst rechnet booking-window.js. Sie sass bis zum 2026-08-12 auf
-// dem ANGEFRAGTEN Zeitraum, waehrend bufferedWindow() weiter abfragte -- die
-// Schranke bewachte etwas anderes als das, was passierte.
-function validateWindow(startIso, endIso, settings) {
-  const spanError = windowSpanError(startIso, endIso, settings);
+// Die Spanne selbst rechnet booking-window.js -- dort ist sie ohne
+// Abhaengigkeiten pruefbar. Gemessen wird der ANGEFRAGTE Zeitraum: die Schranke
+// bewacht die Zusage an das Modell ("hoechstens 8 Stunden"), nicht die Abfrage
+// beim Anbieter. Begruendung steht an windowSpanError().
+function validateWindow(startIso, endIso) {
+  const spanError = windowSpanError(startIso, endIso);
   if (spanError) throw new Error(spanError);
 }
 

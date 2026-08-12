@@ -158,14 +158,14 @@ function bookingTimingError(startIso, settings, now = Date.now()) {
 // Terminkandidaten an den erlaubten Zeiten auszurichten. Der Alternativweg
 // waere eine zweite Zeitzonenrechnung im Slot-Modul gewesen -- also genau die
 // Doppelquelle, die dieses Modul vermeidet.
-// ── Die Spanne eines abgefragten Zeitraums ──────────────────────────────────
+// ── Die Spanne des ANGEFRAGTEN Zeitraums ────────────────────────────────────
 //
 // Steht hier und nicht in calendar-tool.js, weil dort `@supabase/supabase-js`
 // haengt: die Pruefskripte koennen die Datei nicht laden, und die Regel waere
 // nur ueber eine Textsuche im Quelltext pruefbar. Was sich rechnen laesst,
 // gehoert dorthin, wo man es rechnen lassen kann.
 
-// Obergrenze fuer einen abgefragten Zeitraum. Steht als "hoechstens 8 Stunden"
+// Obergrenze fuer den angefragten Zeitraum. Steht als "hoechstens 8 Stunden"
 // auch im Kalenderblock und in der Feldbeschreibung des Werkzeugs -- wer sie
 // hier aendert, muss dort mitziehen.
 const MAX_WINDOW_MS = 8 * 60 * 60 * 1000;
@@ -181,32 +181,42 @@ function bufferedWindow(startIso, endIso, settings = {}) {
 }
 
 /**
- * Prueft die SPANNE eines Zeitraums -- nicht seine Lage im Kalender, das macht
- * bookingWindowError(), und nicht seinen Vorlauf, das macht bookingTimingError().
+ * Prueft die SPANNE des angefragten Zeitraums -- nicht seine Lage im Kalender,
+ * das macht bookingWindowError(), und nicht seinen Vorlauf, das macht
+ * bookingTimingError().
  *
- * Gemessen wird der Zeitraum MIT Puffern, also der, der tatsaechlich beim
- * Anbieter abgefragt wird. Bis zum 2026-08-12 sass die Schranke auf der
- * angefragten Spanne, waehrend bufferedWindow() daraus etwas Groesseres machte:
- * bei `buffer_after_minutes` = 10 ging eine Anfrage ueber genau 8 Stunden durch
- * und fragte 8 Stunden 10 Minuten ab. Die Schranke bewachte etwas anderes als
- * das, was passierte. Aufgefallen an einem Testanruf, der die Grenze um null
- * Sekunden unterschritt.
+ * ── Gemessen wird der ANGEFRAGTE Zeitraum, NICHT der gepufferte ─────────────
+ *
+ * Diese Schranke bewacht die ZUSAGE an das Modell, nicht die Abfrage beim
+ * Anbieter. Der Werkzeugvertrag sagt "start bis end hoechstens 8 Stunden" -- ein
+ * Modell, das sich daran haelt, muss durchkommen. Wuerde hier die gepufferte
+ * Spanne gemessen, scheiterte eine vertragskonforme Anfrage ueber genau acht
+ * Stunden, sobald ein Puffer konfiguriert ist: das Modell bekaeme
+ * `calendar_time_window_too_large` fuer etwas, das der Prompt ihm ausdruecklich
+ * erlaubt, und haette keine Moeglichkeit, es zu vermeiden.
+ *
+ * Am 12.08. war genau das kurzzeitig gebaut -- mit der Begruendung, die
+ * Schranke muesse bewachen, was tatsaechlich abgefragt wird. Die Begruendung
+ * war falsch herum: eine Zusage und eine Abfragegrenze sind zwei verschiedene
+ * Dinge, und diese Funktion ist die Zusage.
  *
  * `>` und nicht `>=`: "hoechstens 8 Stunden" heisst, dass genau 8 Stunden
- * erlaubt sind, und der Kalenderblock sagt dem Modell genau das. Der Fehler lag
- * nie am Vergleich, sondern an der Spanne, auf der er sass -- ein `>=` haette
- * den Code gegen den Prompt gestellt und die Ursache stehen gelassen.
+ * erlaubt sind. Der Kalenderblock sagt dem Modell genau das.
+ *
+ * Dass die Abfrage um die Puffer groesser ausfaellt, ist damit unbeaufsichtigt.
+ * Bei zehn Minuten ist das folgenlos; bei zwei Stunden Puffer wird aus acht
+ * Stunden eine Zwoelfstundenabfrage. Das braucht eine ZWEITE, groessere Grenze
+ * oder eine Schranke auf den Puffern selbst -- nicht das Schrumpfen dieser hier.
+ * Eigenes Ticket.
  *
  * @returns {null|'calendar_time_window_invalid'|'calendar_time_window_too_large'}
  */
-function windowSpanError(startIso, endIso, settings = {}) {
+function windowSpanError(startIso, endIso) {
   const start = new Date(startIso).getTime();
   const end = new Date(endIso).getTime();
   if (!Number.isFinite(start) || !Number.isFinite(end)) return 'calendar_time_window_invalid';
   if (end <= start) return 'calendar_time_window_invalid';
-  const gepuffert = bufferedWindow(startIso, endIso, settings);
-  const spanne = new Date(gepuffert.end).getTime() - new Date(gepuffert.start).getTime();
-  return spanne > MAX_WINDOW_MS ? 'calendar_time_window_too_large' : null;
+  return (end - start) > MAX_WINDOW_MS ? 'calendar_time_window_too_large' : null;
 }
 
 module.exports = {
