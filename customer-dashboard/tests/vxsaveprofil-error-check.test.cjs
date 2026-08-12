@@ -86,7 +86,9 @@ function freshSandbox(updateResult) {
         return {
           update() {
             return {
-              eq: async () => updateResult
+              eq() {
+                return { select: async () => updateResult };
+              }
             };
           }
         };
@@ -117,8 +119,25 @@ test('vxSaveProfil(): ein Schreibfehlschlag zeigt keinen Erfolg und uebernimmt d
   assert.equal(elements['fb-profil-page'].dataset.state, 'error');
 });
 
+// Codex-Fund auf #971: customers_customer_update_own kann die Zeile filtern
+// (z.B. Berechtigung laeuft waehrend offenem Dashboard ab), ohne dass
+// PostgREST das als Fehler meldet -- error: null, aber keine betroffene
+// Zeile. Ohne .select() zurueckzulesen und die leere Antwort zu pruefen,
+// waere das vom echten Erfolg nicht zu unterscheiden.
+test('vxSaveProfil(): eine durch RLS gefilterte Zeile (error:null, keine Zeile) zeigt keinen Erfolg', async () => {
+  const { context, elements, customerMeta } = freshSandbox({ error: null, data: [] });
+
+  await vm.runInContext('vxSaveProfil()', context);
+
+  assert.equal(customerMeta.customerName, 'Alter Name',
+    'PostgREST meldet error:null bei 0 betroffenen Zeilen -- ohne Laengenpruefung waere das ein falscher Erfolg');
+  assert.equal(elements['profil-name-display'].textContent, '');
+  assert.match(elements['fb-profil-page'].textContent, /nicht gespeichert/);
+  assert.equal(elements['fb-profil-page'].dataset.state, 'error');
+});
+
 test('vxSaveProfil(): ein erfolgreicher Schreibvorgang uebernimmt den Namen wie zuvor', async () => {
-  const { context, elements, customerMeta } = freshSandbox({ error: null });
+  const { context, elements, customerMeta } = freshSandbox({ error: null, data: [{ id: 'cust-a' }] });
 
   await vm.runInContext('vxSaveProfil()', context);
 

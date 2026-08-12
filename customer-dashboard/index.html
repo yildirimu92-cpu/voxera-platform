@@ -15083,8 +15083,18 @@ async function vxSaveProfil() {
       // .update() meldet einen Fehlschlag im Ergebnis, nicht per Rejection --
       // ohne diese Pruefung haette der Knopf "Gespeichert ✓" gezeigt, waehrend
       // der Name nicht geschrieben wurde. Dasselbe Muster wie vxDv2SaveNote().
-      const { error: nameError } = await _sb.from('customers').update({ contact_first_name: name, updated_at: new Date().toISOString() }).eq('id', customerMeta.customerId);
+      //
+      // .select('id') zusaetzlich noetig: greift customers_customer_update_own
+      // nicht (z.B. Berechtigung laeuft waehrend offenem Dashboard ab), meldet
+      // PostgREST error: null bei null betroffenen Zeilen -- kein SQL-Fehler,
+      // nur "WHERE traf nichts". Ohne Rueckgabe waere das nicht von Erfolg zu
+      // unterscheiden. customers_customer_select_own nutzt dieselbe Bedingung
+      // wie customers_customer_update_own (2026-04-12_customer_dashboard_
+      // entitlement_decouple_billing.sql), die Rueckleseabfrage liefert also
+      // bei jedem echten Erfolg auch tatsaechlich eine Zeile.
+      const { data: nameRows, error: nameError } = await _sb.from('customers').update({ contact_first_name: name, updated_at: new Date().toISOString() }).eq('id', customerMeta.customerId).select('id');
       if (nameError) throw new Error(nameError.message);
+      if (!nameRows || nameRows.length === 0) throw new Error('Profil konnte nicht gespeichert werden (kein Zugriff auf diesen Kunden).');
     }, { savingLabel: 'Speichert …', doneLabel: 'Gespeichert ✓' });
     customerMeta.customerName = name;
     customerMeta.customerEmail = email;
