@@ -74,6 +74,13 @@
 -- information_schema.column_privileges. Genau dieser Fall ist die Gegenprobe
 -- des Waechters.
 --
+-- Dateiname traegt die vom Ledger vergebene Version (20260811194700), nicht den
+-- beim Schreiben gewaehlten Praefix. apply_migration ueber MCP vergibt eine
+-- eigene Version -- den Zeitstempel der Anwendung --, und der Ledger-Check
+-- ordnet ueber genau diesen Praefix zu (verify-db-security-invariants.mjs:268).
+-- Ohne die Umbenennung meldet er die Migration gleichzeitig als Waise auf der DB
+-- und als nie angewandte Datei im Repo.
+--
 -- Idempotent: mehrfaches Ausfuehren aendert nichts.
 
 begin;
