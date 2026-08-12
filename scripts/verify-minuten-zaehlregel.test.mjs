@@ -8,7 +8,8 @@ import {
   REGELBESTANDTEILE,
   ABRECHNUNGSPFADE,
   pruefeRegel,
-  pruefePfad
+  pruefePfad,
+  ohneKommentare
 } from './verify-minuten-zaehlregel.mjs';
 
 const SCRIPT = fileURLToPath(new URL('./verify-minuten-zaehlregel.mjs', import.meta.url));
@@ -129,4 +130,64 @@ test('Live-Smoke-Test: der Waechter laeuft heute PASS', () => {
 test('Registry ist nicht leer -- ein Waechter ohne Pruefobjekte prueft nichts', () => {
   assert.ok(REGELBESTANDTEILE.length >= 3);
   assert.ok(ABRECHNUNGSPFADE.length >= 2);
+});
+
+// ── Codex-Fund auf #982 (P2): der Waechter darf nicht auf Kommentaren
+// zuenden. Sonst haette er eine Blindstelle in genau der Form des Problems,
+// das er loesen soll -- die geloeschte Regel wuerde durch ihre eigene
+// Dokumentation bestaetigt.
+
+test('Blindstelle geschlossen: eine SQL-Datei, in der die Regel NUR im Kommentar steht, faellt durch', () => {
+  // Genau das Szenario aus dem Review: die ausfuehrbare Regel ist entfernt,
+  // die erklaerenden Kommentare stehen noch da.
+  const nurKommentare = `
+    -- Die Regel lautet: nur live_status = 'completed' zaehlt,
+    -- und zwar ab duration_seconds >= 10 Sekunden.
+    -- Gerundet wird einmal am Ende: ceil(g.sek / 60.0)
+    create or replace function public.customer_usage_for_period(...)
+    returns table (used_minutes integer)
+    language sql as $$
+      select count(*)::integer from public.calls;
+    $$;
+  `;
+  const bereinigt = ohneKommentare(nurKommentare);
+  for (const teil of pruefeRegel(bereinigt)) {
+    assert.equal(teil.ok, false,
+      `"${teil.name}" darf nicht allein durch einen Kommentar als erfuellt gelten`);
+  }
+});
+
+test('Blindstelle geschlossen: ein Abrechnungspfad, der die Zaehlfunktion nur im JSDoc nennt, faellt durch', () => {
+  const nurImKommentar = `
+    /**
+     * Zaehlt ueber rpc('customer_usage_for_period') -- so stand es hier mal.
+     */
+    async function loadCustomerMinutesForPeriod(sbAdmin, customerId, von, bis) {
+      const { data } = await sbAdmin.from('calls').select('duration_seconds');
+      return { ok: true, usedMinutes: data.length };
+    }
+  `;
+  const bereinigt = ohneKommentare(nurImKommentar);
+  for (const p of ABRECHNUNGSPFADE) {
+    const e = pruefePfad(bereinigt, p);
+    assert.equal(e.nutztZaehlfunktion, false,
+      `${p.zweck}: ein JSDoc-Hinweis darf nicht als Aufruf zaehlen`);
+  }
+});
+
+test('ohneKommentare entfernt Zeilen- und Blockkommentare, laesst Code stehen', () => {
+  const gemischt = [
+    "-- live_status = 'completed'",
+    "select 1 where live_status = 'completed';",
+    '/* duration_seconds >= 10 */',
+    'and duration_seconds >= 10',
+    "// rpc('customer_usage_for_period')",
+    "await sbAdmin.rpc('customer_usage_for_period', {});"
+  ].join('\n');
+  const bereinigt = ohneKommentare(gemischt);
+
+  // Je einmal -- der Code bleibt, der Kommentar ist weg.
+  assert.equal((bereinigt.match(/live_status = 'completed'/g) || []).length, 1);
+  assert.equal((bereinigt.match(/duration_seconds >= 10/g) || []).length, 1);
+  assert.equal((bereinigt.match(/customer_usage_for_period/g) || []).length, 1);
 });

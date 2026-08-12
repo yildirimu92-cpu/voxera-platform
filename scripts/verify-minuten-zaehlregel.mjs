@@ -107,10 +107,35 @@ export const VERTRAGSQUELLE = [
   }
 ];
 
+/**
+ * Entfernt Kommentare, bevor geprueft wird.
+ *
+ * Ohne diesen Schritt haette der Waechter eine Blindstelle in genau der
+ * Form des Problems, das er loesen soll: die Muster wuerden auch in
+ * Kommentaren zuenden. Da dieselbe Datei die Regel ausfuehrlich in
+ * Kommentaren erklaert -- inklusive live_status = 'completed',
+ * duration_seconds >= 10 und rpc('customer_usage_for_period') --, haette
+ * jemand die ausfuehrbare Regel entfernen koennen und der Waechter waere
+ * gruen geblieben, getragen allein von der Dokumentation der geloeschten
+ * Regel. Ein Beleg, der sich selbst bestaetigt, belegt nichts.
+ *
+ * Bewusst einfach gehalten: Zeilenkommentare (-- und //) und Blockkommentare.
+ * String-Literale mit Kommentarzeichen darin wuerden mitentfernt -- das
+ * macht die Pruefung strenger, nie laxer, und ist damit die sichere
+ * Richtung fuer einen Waechter.
+ */
+export function ohneKommentare(text) {
+  return String(text)
+    .replace(/\/\*[\s\S]*?\*\//g, ' ')   // /* ... */  (SQL und JS)
+    .replace(/^[ \t]*--.*$/gm, ' ')      // -- Zeilenkommentar (SQL)
+    .replace(/^[ \t]*\/\/.*$/gm, ' ')    // // Zeilenkommentar (JS)
+    .replace(/([^:])\/\/.*$/gm, '$1');   // // am Zeilenende, ohne URLs zu zerreissen
+}
+
 export function lies(datei) {
   const pfad = join(ROOT, datei);
   if (!existsSync(pfad)) return null;
-  return readFileSync(pfad, 'utf8');
+  return ohneKommentare(readFileSync(pfad, 'utf8'));
 }
 
 export function pruefeRegel(sql) {

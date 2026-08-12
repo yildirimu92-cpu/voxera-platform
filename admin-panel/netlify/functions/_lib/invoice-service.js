@@ -533,7 +533,28 @@ async function createSubscriptionInvoice({
     extraRate: contractExtraRate
   });
 
-  const overageAmount = usageResult.ok ? money(usageResult.usage.overage_amount) : 0;
+  // Eine fehlgeschlagene Verbrauchsmessung darf NICHT als "keine
+  // Ueberschreitung" durchgehen.
+  //
+  // Bis zum 12.08.2026 stand hier `usageResult.ok ? ... : 0`. Schlug die
+  // Messung fehl -- etwa weil customer_usage_for_period noch nicht angewandt
+  // ist, waehrend der Code bereits ausgeliefert wurde -- entstand daraus
+  // stillschweigend eine Rechnung ohne Ueberschreitungsposition. Schlimmer:
+  // createSubscriptionInvoice schreibt danach next_invoice_date fort, der
+  // Zeitraum gilt also als abgerechnet und wird nie nachgeholt. Der Verbrauch
+  // waere unwiederbringlich unfakturiert geblieben, ohne dass irgendwo ein
+  // Fehler auftaucht.
+  //
+  // Dieselbe Fehlerklasse wie ein ungeprueftes {error} aus Supabase: eine
+  // Ebene behandelt das Scheitern als erledigt, waehrend die naechste darauf
+  // baut. Deshalb hier hart abbrechen -- lieber keine Rechnung als eine
+  // stillschweigend zu niedrige.
+  if (!usageResult.ok) {
+    throw new Error(
+      `Verbrauchsmessung fehlgeschlagen, Rechnung wird nicht erstellt: ${usageResult.error || 'unbekannter Fehler'}`
+    );
+  }
+  const overageAmount = money(usageResult.usage.overage_amount);
   const items = [
     {
       itemType: 'subscription_base',
@@ -546,15 +567,19 @@ async function createSubscriptionInvoice({
     }
   ];
 
+  // Ab hier ist usageResult.ok garantiert wahr (sonst waere oben geworfen
+  // worden). Die frueheren usageResult.ok-Verzweigungen an dieser Stelle
+  // sind damit entfallen -- sie haetten sonst eine Alternative vorgetaeuscht,
+  // die es nicht mehr gibt.
   if (overageAmount > 0) {
     items.push({
       itemType: 'overage',
       title: 'Overage Minuten',
-      description: usageResult.ok ? `${usageResult.usage.overage_minutes} zusätzliche Minuten` : 'Zusatzverbrauch',
-      quantity: usageResult.ok ? usageResult.usage.overage_minutes : 1,
-      unitPrice: usageResult.ok ? contractExtraRate : overageAmount,
+      description: `${usageResult.usage.overage_minutes} zusätzliche Minuten`,
+      quantity: usageResult.usage.overage_minutes,
+      unitPrice: contractExtraRate,
       lineTotal: overageAmount,
-      metadata: usageResult.ok ? usageResult.usage : {}
+      metadata: usageResult.usage
     });
   }
 
