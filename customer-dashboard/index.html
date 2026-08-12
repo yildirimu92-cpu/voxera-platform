@@ -17333,42 +17333,24 @@ async function apiUpdateCallStatus(recordId, status) {
 
 async function applyStatusTransition(recordId, fromStatus, toStatus) {
   const target = normalizeStatus(toStatus);
-  await apiUpdateCallStatus(recordId, target);
 
-  // PATCH v3.3 — Lifecycle-Zeitstempel zusätzlich speichern.
-  // call-update-status bleibt die autoritative Status-Function; direkte Supabase-Updates
-  // sind bewusst best-effort, damit ältere RLS/Function-Umgebungen nicht brechen.
-  var lifecyclePatch = { updated_at: new Date().toISOString() };
-  if (target === CALL_STATUS.CLOSED) {
-    lifecyclePatch.completed_at = new Date().toISOString();
-    lifecyclePatch.archived_at = null;
-  } else if (target === CALL_STATUS.ARCHIVED) {
-    lifecyclePatch.archived_at = new Date().toISOString();
-  } else if (target === CALL_STATUS.NEW) {
-    lifecyclePatch.completed_at = null;
-    lifecyclePatch.archived_at = null;
+  // Die Lifecycle-Zeitstempel (completed_at, archived_at) setzt seit 2026-08-12
+  // call-update-status serverseitig. Vorher stand die Logik hier und lief ins
+  // Leere: `authenticated` hat auf calls ein spaltenweises UPDATE-Recht, in dem
+  // weder completed_at noch archived_at stehen — PostgREST lehnte das ganze
+  // Update ab, auch das updated_at, für das ein Recht besteht.
+  //
+  // Der lokale Stand kommt jetzt aus der ANTWORT der Function, nicht aus dem,
+  // was wir zu schreiben versucht haben. Das ist der Unterschied, den
+  // AGENTS.md-Datenbankregel 6 meint.
+  const res = await apiUpdateCallStatus(recordId, target);
+
+  const bestaetigt = res && res.call ? res.call : null;
+  if (bestaetigt) {
+    const rec = (allRecords || []).find(function(r){ return String(r.id) === String(recordId); });
+    if (rec && rec.fields) Object.assign(rec.fields, bestaetigt);
   }
-  await vxBestEffortPatchCallLifecycle(recordId, lifecyclePatch);
-}
-
-
-async function vxBestEffortPatchCallLifecycle(recordId, fields) {
-  if (!recordId || !fields || typeof fields !== 'object') return null;
-  try {
-    var sb = (typeof getSupabaseAuthClient === 'function') ? getSupabaseAuthClient() : _sb;
-    if (!sb || !CALLS_TABLE) return null;
-    var res = await sb.from(CALLS_TABLE).update(fields).eq('id', recordId).select('*').maybeSingle();
-    if (res && res.error) throw res.error;
-    var updated = res && res.data ? res.data : null;
-    var rec = (allRecords || []).find(function(r){ return String(r.id) === String(recordId); });
-    if (rec && rec.fields) Object.assign(rec.fields, fields, updated || {});
-    return updated;
-  } catch (err) {
-    console.warn('[voxera] lifecycle timestamp update skipped', err && (err.message || err));
-    var local = (allRecords || []).find(function(r){ return String(r.id) === String(recordId); });
-    if (local && local.fields) Object.assign(local.fields, fields);
-    return null;
-  }
+  return bestaetigt;
 }
 
 async function vxBestEffortPatchTaskLifecycle(recordId, fields) {
@@ -17393,7 +17375,13 @@ async function vxBestEffortPatchTaskLifecycle(recordId, fields) {
     return updatedRec || updatedRaw;
   } catch (err) {
     console.warn('[voxera] task lifecycle timestamp update skipped', err && (err.message || err));
-    if (rec && rec.fields) Object.assign(rec.fields, fields);
+    // KEIN lokales Schreiben im Fehlerfall. Vorher stand hier
+    // `Object.assign(rec.fields, fields)` — die Oberfläche zeigte danach einen
+    // Zustand, den die Datenbank nicht hat, und das ausgerechnet in dem Moment,
+    // in dem der Fehlschlag bereits feststand. AGENTS.md, Datenbankregel 6:
+    // "Never update state locally as successful before the write result is
+    // confirmed." Auf customer_tasks greifen die Rechte heute (Tabellen-Grant),
+    // der Zweig ist also selten — aber wenn er greift, soll er ehrlich sein.
     return null;
   }
 }
