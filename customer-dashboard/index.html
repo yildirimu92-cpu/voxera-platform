@@ -17292,44 +17292,24 @@ async function apiUpdateCallStatus(recordId, status) {
   });
 }
 
+// Die Function `call-update-status` schreibt seit 2026-08-12 auch die
+// Lifecycle-Zeitstempel — `completed_at`, `archived_at` und `updated_at`. Der
+// Browser trägt hier nichts mehr nach.
+//
+// Vorher stand an dieser Stelle `vxBestEffortPatchCallLifecycle()`: ein
+// Supabase-Update auf `completed_at`/`archived_at`, für die `authenticated`
+// kein Schreibrecht hat und nie hatte. Der Aufruf schlug jedes Mal fehl, nicht
+// gelegentlich — 5 erledigte Anrufe in Produktion, keiner mit `completed_at`.
+// Sein Fehlerzweig schrieb die abgelehnten Felder anschliessend trotzdem in den
+// lokalen Datensatz. Damit war die Anzeige nicht bloss unvollständig, sondern
+// nachweislich falsch: Sie zeigte einen Zeitstempel, den die Datenbank abgelehnt
+// hatte, bis der nächste Poll ihn neun bis zwölf Sekunden später wieder entfernte.
+//
+// Ein Schreibvorgang, der nicht gelingen kann, gehört nicht abgesichert, sondern
+// an die Stelle, die das Recht dazu hat.
 async function applyStatusTransition(recordId, fromStatus, toStatus) {
   const target = normalizeStatus(toStatus);
   await apiUpdateCallStatus(recordId, target);
-
-  // PATCH v3.3 — Lifecycle-Zeitstempel zusätzlich speichern.
-  // call-update-status bleibt die autoritative Status-Function; direkte Supabase-Updates
-  // sind bewusst best-effort, damit ältere RLS/Function-Umgebungen nicht brechen.
-  var lifecyclePatch = { updated_at: new Date().toISOString() };
-  if (target === CALL_STATUS.CLOSED) {
-    lifecyclePatch.completed_at = new Date().toISOString();
-    lifecyclePatch.archived_at = null;
-  } else if (target === CALL_STATUS.ARCHIVED) {
-    lifecyclePatch.archived_at = new Date().toISOString();
-  } else if (target === CALL_STATUS.NEW) {
-    lifecyclePatch.completed_at = null;
-    lifecyclePatch.archived_at = null;
-  }
-  await vxBestEffortPatchCallLifecycle(recordId, lifecyclePatch);
-}
-
-
-async function vxBestEffortPatchCallLifecycle(recordId, fields) {
-  if (!recordId || !fields || typeof fields !== 'object') return null;
-  try {
-    var sb = (typeof getSupabaseAuthClient === 'function') ? getSupabaseAuthClient() : _sb;
-    if (!sb || !CALLS_TABLE) return null;
-    var res = await sb.from(CALLS_TABLE).update(fields).eq('id', recordId).select('*').maybeSingle();
-    if (res && res.error) throw res.error;
-    var updated = res && res.data ? res.data : null;
-    var rec = (allRecords || []).find(function(r){ return String(r.id) === String(recordId); });
-    if (rec && rec.fields) Object.assign(rec.fields, fields, updated || {});
-    return updated;
-  } catch (err) {
-    console.warn('[voxera] lifecycle timestamp update skipped', err && (err.message || err));
-    var local = (allRecords || []).find(function(r){ return String(r.id) === String(recordId); });
-    if (local && local.fields) Object.assign(local.fields, fields);
-    return null;
-  }
 }
 
 async function vxBestEffortPatchTaskLifecycle(recordId, fields) {

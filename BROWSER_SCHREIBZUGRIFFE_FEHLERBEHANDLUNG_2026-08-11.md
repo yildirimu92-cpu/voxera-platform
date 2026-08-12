@@ -47,7 +47,7 @@ Aufräum-Diagnose, nicht in diese Liste.
 | # | Stelle | Was bei 403 passiert | Sieht die Kundin etwas? |
 | --- | --- | --- | --- |
 | B1 | `vxNotifPersistReadIds` `:10502` | Gelesen-Status übersteht das Neuladen nicht | Nein. Läuft nach dem Speichern nebenher |
-| B2 | `vxBestEffortPatchCallLifecycle` `:17220`, `…TaskLifecycle` `:17243` | Zeitstempel fehlt in der DB, lokal gesetzt → Anzeige und Datenbank driften auseinander | Nein, und das ist hier **bewusst** — die Funktionen heissen so |
+| B2 | `vxBestEffortPatchTaskLifecycle` `:17243` | Zeitstempel fehlt in der DB, lokal gesetzt → Anzeige und Datenbank driften auseinander | Nein, und das ist hier **bewusst** — die Funktion heisst so. Auf `customer_tasks` hat `authenticated` alle Spaltenrechte, der Schreibvorgang gelingt also normalerweise |
 | B3 | `vxMarkCallAsRead` `:18997` | Nichts Bleibendes: die Stelle **nimmt den lokalen Zustand zurück** und zeichnet neu | Nein, aber konsistent. Der sauberste Umgang im ganzen Korpus |
 
 ## Was stattdessen passieren müsste
@@ -95,6 +95,74 @@ dieselbe Lücke ein viertes Mal entsteht.
 
 ---
 
+# C — Der Schreibvorgang, der nie gelingen konnte
+
+Eigener Punkt, keine Fussnote der Ursachensuche unten. Er gehört zur selben
+Klasse wie die Gruppen A und B — nur war er nicht übersehen, sondern so gebaut.
+
+## Der Befund (Fakt, in Produktion gemessen)
+
+`applyStatusTransition()` rief nach der autoritativen Function noch
+`vxBestEffortPatchCallLifecycle(recordId, { updated_at, completed_at, archived_at })`
+auf. `authenticated` darf auf `public.calls` schreiben: `callback_requested`,
+`dashboard_status`, `notes_customer_voxera`, `read_at`, `updated_at`. **Nicht**
+`completed_at`, **nicht** `archived_at`.
+
+Der Aufruf schlug damit bei jedem einzelnen Mal fehl. Die Gegenprobe an den
+Daten, unmittelbar vor der Korrektur:
+
+| Messung | Ergebnis |
+| --- | --- |
+| Anrufe mit `dashboard_status = 'closed'` | 5 |
+| davon mit `completed_at` | **0** |
+| Anrufe mit `dashboard_status = 'archived'` | 1 |
+| davon mit `archived_at` | **0** |
+
+Keine der beiden Spalten wurde je aus dem Dashboard befüllt. Auch die beiden
+Netlify Functions schrieben sie nicht — dieser Aufruf war der einzige Kandidat.
+
+## Warum das schlimmer ist als ein gescheiterter Schreibvorgang
+
+```js
+} catch (err) {
+  console.warn('[voxera] lifecycle timestamp update skipped', …);
+  var local = (allRecords || []).find(…);
+  if (local && local.fields) Object.assign(local.fields, fields);   // ← setzt lokal, was die DB abgelehnt hat
+```
+
+Der Fehlerzweig schrieb die **abgelehnten** Felder in den lokalen Datensatz.
+Die Anzeige war damit nicht unvollständig, sondern nachweislich falsch: Sie
+führte einen Zeitstempel, den die Datenbank zurückgewiesen hatte, bis der
+nächste Poll ihn neun bis zwölf Sekunden später wieder entfernte. Zwei Stellen
+werten dieses Feld mit aus — `vxTodayIsOpenCallForAttention()` (`:12451`) und
+`vxRowActionLifecycle()` (`:12557`).
+
+Das Wort „best effort" im Funktionsnamen hat den Zustand dreizehn Wochen lang
+gedeckt. Es beschreibt einen Schreibvorgang, der gelingen darf oder auch nicht.
+Dieser konnte nicht gelingen — der Name hat den Unterschied verdeckt.
+
+## Behoben (2026-08-12)
+
+- **`call-update-status.js`** setzt die Zeitstempel jetzt selbst:
+  `completed_at` beim Schliessen, `archived_at` beim Archivieren, beide auf
+  `null` beim Wiedereröffnen. Die Function läuft mit dem
+  Service-Role-Schlüssel und kennt den Zielstatus ohnehin — sie ist die einzige
+  Stelle, an der die Zeitstempel zuverlässig entstehen können.
+- **`applyStatusTransition()`** trägt nichts mehr nach.
+  `vxBestEffortPatchCallLifecycle()` ist damit ohne Aufrufer und entfernt,
+  statt als toter Code liegenzubleiben.
+
+Der Spaltenrecht-Wächter zählt danach 14 statt 15 Schreibstellen; auf `calls`
+bleiben ausschliesslich Spalten, für die das Recht besteht.
+
+**Die Regel dahinter:** Ein Schreibvorgang, der nicht gelingen kann, gehört
+nicht abgesichert, sondern an die Stelle, die das Recht dazu hat. Und ein
+Fehlerzweig darf den lokalen Zustand nie über das hinausschreiben, was die
+Datenbank angenommen hat — sonst ist die Anzeige nicht bloss veraltet, sondern
+unwahr.
+
+---
+
 # Nachtrag: „Braucht dich" — erledigt markieren, Eintrag kommt zurück
 
 Gemeldet aus einem Test in der Nacht auf 2026-08-12. Erste Frage war, ob es
@@ -113,40 +181,11 @@ und beide melden Fehler durch Werfen statt durch ein stilles `{ error }`. Der
 gemeinsame Schreibweg hat diese Stellen deshalb weder berührt noch geheilt.
 **Der Test von gestern lief nicht gegen einen veralteten Stand.** Eigener Befund.
 
-## Was auf diesem Pfad trotzdem kaputt ist (Fakt, nachgemessen)
+## Der Nebenbefund ist ausgezogen
 
-`applyStatusTransition()` (`:17295`) ruft nach der Function noch
-`vxBestEffortPatchCallLifecycle(recordId, { updated_at, completed_at, archived_at })`
-auf. Die Spaltenrechte in Produktion:
-
-| Spalte | `authenticated` darf UPDATE |
-| --- | --- |
-| `dashboard_status` | ja |
-| `updated_at` | ja |
-| **`completed_at`** | **nein** |
-| **`archived_at`** | **nein** |
-
-Dieser Schreibvorgang schlägt also **immer** fehl, nicht gelegentlich. Und der
-Fehlerzweig (`:17325`) macht die Sache schlimmer als ein blosses Scheitern:
-
-```js
-} catch (err) {
-  console.warn('[voxera] lifecycle timestamp update skipped', …);
-  var local = (allRecords || []).find(…);
-  if (local && local.fields) Object.assign(local.fields, fields);   // ← schreibt lokal, was die DB abgelehnt hat
-```
-
-Danach trägt der lokale Datensatz ein `completed_at`, die Datenbank keines.
-Zwei Stellen entscheiden anhand genau dieses Feldes mit:
-`vxTodayIsOpenCallForAttention()` (`:12451`) und `vxRowActionLifecycle()`
-(`:12557`). Nach dem nächsten Poll (9–12 s) ist das Feld wieder weg.
-
-**Ehrliche Einschränkung:** Das erklärt den gemeldeten Ablauf **nicht
-vollständig.** Beide Stellen prüfen vor `completed_at` auch den Status, und
-`dashboard_status = 'closed'` hat die Function persistiert — der Eintrag müsste
-also auch nach dem Poll als erledigt gelten. Der Befund oben ist echt und
-gehört behoben, aber ich habe ihn nicht als Ursache des Wiederauftauchens
-belegt. Dafür fehlt eine Reproduktion.
+Auf demselben Pfad stand ein Schreibvorgang, der nie gelingen konnte. Er wird
+jetzt als **Abschnitt C** eigenständig geführt und ist behoben — er war nicht
+die Ursache des Wiederauftauchens, aber ein Fehler derselben Klasse.
 
 ## Was als Nächstes nötig ist
 

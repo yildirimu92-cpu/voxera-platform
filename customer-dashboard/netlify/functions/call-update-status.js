@@ -129,7 +129,31 @@ exports.handler = async (event) => {
       dashboard_status: status,
       updated_at: new Date().toISOString()
     };
-    if (status === CALL_STATUS.CLOSED) patch.follow_up_at = null;
+    // Die Lifecycle-Zeitstempel gehoeren hierher, nicht in den Browser.
+    //
+    // Bis 2026-08-12 hat das Dashboard sie nach dieser Function selbst
+    // nachgetragen (vxBestEffortPatchCallLifecycle) und ist dabei jedes Mal an
+    // den Spaltenrechten gescheitert: `authenticated` darf `completed_at` und
+    // `archived_at` nicht schreiben. Nicht gelegentlich -- immer. Messung in
+    // Produktion unmittelbar vor dieser Aenderung: 5 Anrufe mit
+    // dashboard_status='closed', davon 0 mit completed_at; 1 archivierter,
+    // davon 0 mit archived_at.
+    //
+    // Diese Function laeuft mit dem Service-Role-Schluessel und kennt den
+    // Zielstatus ohnehin. Sie ist die einzige Stelle, an der die Zeitstempel
+    // ueberhaupt zuverlaessig entstehen koennen.
+    if (status === CALL_STATUS.CLOSED) {
+      patch.follow_up_at = null;
+      patch.completed_at = new Date().toISOString();
+      patch.archived_at = null;
+    } else if (status === CALL_STATUS.ARCHIVED) {
+      patch.archived_at = new Date().toISOString();
+    } else if (status === CALL_STATUS.NEW) {
+      // Wiedereroeffnen raeumt beide Marken ab, sonst gilt der Anruf in jeder
+      // Auswertung, die auf den Zeitstempel schaut, weiterhin als erledigt.
+      patch.completed_at = null;
+      patch.archived_at = null;
+    }
 
     const { data, error } = await sbAdmin
       .from('calls')
