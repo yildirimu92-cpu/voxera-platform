@@ -198,37 +198,84 @@ async function accountSnapshot(provider, accessToken) {
   };
 }
 
-async function checkAvailability(provider, accessToken, calendarId, startIso, endIso, excludeEventId = '') {
-  if (provider === 'google' && !excludeEventId) {
-    const payload = await apiFetch('https://www.googleapis.com/calendar/v3/freeBusy', accessToken, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ timeMin: startIso, timeMax: endIso, items: [{ id: calendarId }] })
-    });
-    const busy = payload.calendars?.[calendarId]?.busy || [];
-    return { available: busy.length === 0, busy };
-  }
+// Eine unvollstaendige Belegungsliste ist gefaehrlicher als gar keine.
+//
+// Codex-Befund vom 12.08.: die Terminlisten wurden ohne Blaetterung geholt.
+// Microsoft Graph liefert fuer `calendarView` ohne `$top` nur ZEHN Eintraege
+// pro Seite -- ein voller Vormittag passt da nicht hinein.
+//
+// Solange `available` als `busy.length === 0` definiert war, war das
+// ungefaehrlich: eine abgeschnittene Liste war immer noch nicht leer, die
+// Antwort blieb "nicht verfuegbar". Erst durch die Slot-Zerlegung wird die
+// Luecke schaedlich -- ein Termin auf der zweiten Seite sieht dann frei aus,
+// und der Agent bietet eine Zeit an, die `book` anschliessend ablehnt.
+//
+// Der Deckel ist grosszuegig, aber er ist eine echte Grenze: es gibt keine
+// Zusicherung, wie dicht die Termine eines Kunden liegen duerfen. Wird er
+// erreicht und der Anbieter bietet weiter an, wird deshalb GEWORFEN statt eine
+// Teilliste zurueckzugeben. Eine abgebrochene Belegungsliste sieht wie eine
+// vollstaendige aus, und der Aufrufer wuerde belegte Zeiten als frei anbieten.
+// Ein Fehler ist an dieser Stelle die ehrlichere Antwort.
+const MAX_BUSY_PAGES = 20;
 
+// Google wird ausschliesslich ueber die Terminliste gefragt, nicht ueber
+// freeBusy.
+//
+// Grund sind die Scopes. Angefordert werden `calendar.calendarlist.readonly`
+// und `calendar.events` -- und `calendar.events` autorisiert `freebusy.query`
+// NICHT. Der freeBusy-Zweig lief bisher nur bei availability ohne
+// excludeEventId, also im haeufigsten Fall ueberhaupt, und haette dort einen
+// Scope-Fehler erzeugt.
+//
+// Der Fehler war bisher verdeckt: `validateWindow()` warf bei fehlendem
+// Zeitraum, bevor Google ueberhaupt gefragt wurde. Mit verbindlichem
+// start/end wird der Aufruf erreicht -- die Luecke waere also genau mit dem
+// Werkzeugvertrag sichtbar geworden.
+//
+// Der Ausweg ueber einen breiteren Scope (`calendar.readonly` oder
+// `calendar.freebusy`) haette jeden verbundenen Kunden zur erneuten
+// Zustimmung gezwungen; bestehende Refresh-Tokens tragen den neuen Scope
+// nicht. Die Terminliste deckt `calendar.events` ab und liefert dieselbe
+// Auskunft: `transparency: 'transparent'` entspricht "frei", abgesagte
+// Termine fallen heraus.
+async function checkAvailability(provider, accessToken, calendarId, startIso, endIso, excludeEventId = '') {
   if (provider === 'google') {
-    const params = new URLSearchParams({
-      timeMin: startIso,
-      timeMax: endIso,
-      singleEvents: 'true',
-      showDeleted: 'false',
-      maxResults: '250'
-    });
-    const payload = await apiFetch('https://www.googleapis.com/calendar/v3/calendars/' + encodeURIComponent(calendarId) + '/events?' + params.toString(), accessToken);
-    const busy = (payload.items || [])
+    const items = [];
+    let pageToken = '';
+    for (let page = 0; page < MAX_BUSY_PAGES; page += 1) {
+      const params = new URLSearchParams({
+        timeMin: startIso,
+        timeMax: endIso,
+        singleEvents: 'true',
+        showDeleted: 'false',
+        maxResults: '250'
+      });
+      if (pageToken) params.set('pageToken', pageToken);
+      const payload = await apiFetch('https://www.googleapis.com/calendar/v3/calendars/' + encodeURIComponent(calendarId) + '/events?' + params.toString(), accessToken);
+      items.push(...(payload.items || []));
+      pageToken = String(payload.nextPageToken || '').trim();
+      if (!pageToken) break;
+      if (page === MAX_BUSY_PAGES - 1) throw new Error('calendar_busy_list_truncated');
+    }
+    const busy = items
       .filter((item) => item.id !== excludeEventId && item.status !== 'cancelled' && item.transparency !== 'transparent')
       .map((item) => ({ id: item.id, start: item.start?.dateTime || item.start?.date, end: item.end?.dateTime || item.end?.date }));
     return { available: busy.length === 0, busy };
   }
 
-  const params = new URLSearchParams({ startDateTime: startIso, endDateTime: endIso, '$select': 'id,start,end,showAs,isCancelled' });
-  const payload = await apiFetch('https://graph.microsoft.com/v1.0/me/calendars/' + encodeURIComponent(calendarId) + '/calendarView?' + params.toString(), accessToken, {
-    headers: { Prefer: 'outlook.timezone="UTC"' }
-  });
-  const busy = (payload.value || [])
+  // `$top` ist hier nicht kosmetisch: ohne die Angabe blaettert Graph in
+  // Zehnerschritten. Der nextLink ist eine vollstaendige URL und traegt die
+  // Abfrageparameter bereits mit.
+  const params = new URLSearchParams({ startDateTime: startIso, endDateTime: endIso, '$select': 'id,start,end,showAs,isCancelled', '$top': '250' });
+  let nextUrl = 'https://graph.microsoft.com/v1.0/me/calendars/' + encodeURIComponent(calendarId) + '/calendarView?' + params.toString();
+  const events = [];
+  for (let page = 0; page < MAX_BUSY_PAGES && nextUrl; page += 1) {
+    const payload = await apiFetch(nextUrl, accessToken, { headers: { Prefer: 'outlook.timezone="UTC"' } });
+    events.push(...(payload.value || []));
+    nextUrl = String(payload['@odata.nextLink'] || '').trim();
+    if (nextUrl && page === MAX_BUSY_PAGES - 1) throw new Error('calendar_busy_list_truncated');
+  }
+  const busy = events
     .filter((item) => item.id !== excludeEventId && !item.isCancelled && !['free', 'workingElsewhere'].includes(item.showAs))
     .map((item) => ({ id: item.id, start: item.start?.dateTime, end: item.end?.dateTime }));
   return { available: busy.length === 0, busy };

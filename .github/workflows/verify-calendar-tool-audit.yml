@@ -1,0 +1,31 @@
+name: Verify Calendar Tool Audit
+
+# Ohne Pfad-Filter, gleiche Begruendung wie bei verify-booking-window: wer eine
+# gelesene Datei anfasst, sie aber nicht in die Pfadliste eingetragen hat,
+# bekommt einen uebersprungenen statt eines bestandenen Laufs -- und
+# uebersprungen sieht in der PR-Ansicht nicht nach einer Luecke aus.
+#
+# Dieser Check laeuft gegen den Handler, nicht gegen den Quelltext. Anlass ist
+# der Codex-Befund vom 12.08. auf #951: jeder availability-Aufruf schrieb ZWEI
+# Erfolgszeilen. Beide waren einzeln betrachtet korrekt -- falsch war erst ihre
+# Anzahl, und das kann eine Zeichenkettensuche nicht sehen. Supabase und die
+# Kalenderanbieter sind gestellt; geprueft wird die Verdrahtung im Werkzeug.
+#
+# Mitgeprueft: der Fehlerpfad raet keinen Anbieter, availability antwortet mit
+# einzelnen Terminen statt binaer fuer den ganzen Block, und cancel kommt ohne
+# start und end durch.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: node scripts/verify-calendar-tool-audit.mjs

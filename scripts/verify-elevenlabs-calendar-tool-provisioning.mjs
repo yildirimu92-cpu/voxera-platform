@@ -26,6 +26,7 @@ for (const key of Object.keys(files)) {
 
 for (const token of [
   "TOOL_NAME = 'manage_voxera_calendar'",
+  "CANCEL_TOOL_NAME = 'cancel_voxera_appointment'",
   "SECRET_NAME = 'voxera_calendar_authorization'",
   "'/secrets'",
   "'/tools'",
@@ -54,10 +55,13 @@ for (const forbidden of [
 
 for (const token of [
   "require('./elevenlabs-calendar-tool')",
-  'ensureWorkspaceTool()',
-  'agentToolIds(agentId, calendarToolId, { attach: true })',
-  'agentToolIds(agentId, calendarToolId, { attach: false })',
-  'findWorkspaceToolId()',
+  // #951: Mehrzahl. Der Entzugspfad muss BEIDE Kalenderwerkzeuge abhaengen
+  // koennen -- bliebe das Absagewerkzeug haengen, waere der Terminmodus wieder
+  // ein Schalter mit nur einer Richtung.
+  'ensureWorkspaceTools()',
+  'agentToolIds(agentId, calendarToolIds, { attach: true })',
+  'agentToolIds(agentId, calendarToolIds, { attach: false })',
+  'findWorkspaceToolIds()',
   'calendarPromptBlock(inputs.calendarSettings || {}, appointmentMode)',
   'compiled.appointmentMode',
   // #932: Frueher setzte der Sync `promptPatch.tool_ids = toolIds` von Hand.
@@ -79,10 +83,73 @@ for (const token of [
   // #930: Auch der Rollback haengt am Terminmodus -- er darf keine
   // Direktbuchung wiederherstellen, die der Kunde abgewaehlt hat.
   "const attach = customer.ai_appointment_mode === 'direct';",
-  'agentToolIds(agentId, calendarToolId, { attach })',
+  'agentToolIds(agentId, calendarToolIds, { attach })',
   'buildSyncPatch({ customer, prompt, toolIds })'
 ]) {
   if (!restoreBody.includes(token)) failures.push('Rollback calendar tool handling missing: ' + token);
+}
+
+// #930 Schritt C: availability hinterlaesst eine Spur. Vorher schrieb die
+// Aktion weder bei Erfolg noch bei Fehlschlag eine Zeile -- der einzige Beleg
+// des gescheiterten Aufrufs vom 10.08. war eine Netlify-Logzeile.
+for (const token of [
+  "action,\n        actor_type: 'assistant',\n        status: 'success'",
+  "status: 'failed'",
+  'if (!claimedAuditId && customerId && providerBekannt)',
+  'let customerId = null;'
+]) {
+  if (!source.core.includes(token)) failures.push('Calendar tool audit missing: ' + token);
+}
+
+// Codex-Befund P2 auf #951: availability schrieb ZWEI Erfolgszeilen. Die neue
+// Zeile stand vor dem generischen Nachlauf, und der pruefte `claimedAuditId` --
+// ein Signal, das availability nie setzt, weil die Aktion keine request_id
+// fuehrt. Ein eigener Marker loest das; diese Pruefung haelt ihn fest.
+for (const token of [
+  'let auditGeschrieben = false;',
+  'auditGeschrieben = true;',
+  '} else if (!auditGeschrieben) {'
+]) {
+  if (!source.core.includes(token)) failures.push('Doppelte Audit-Zeile nicht verhindert: ' + token);
+}
+
+// Codex-Befund P2 auf #951: der Fehlerpfad liess `provider` auf den Vorgabewert
+// google zurueckfallen. Bei unbekanntem Anbieter ist das ein erfundener
+// Diagnosesatz -- in genau dem Pfad, der Beweise sichern soll. Ein Ersatzwert
+// wie unknown geht nicht: die Spalte traegt CHECK (provider IN
+// ('google','microsoft')), der INSERT wuerde scheitern und die Zeile still
+// verschwinden.
+//
+// Der Test sucht den Rueckfall-Operator, nicht das Wort -- damit er auch eine
+// umformulierte Variante faengt und nicht an einem Kommentar haengenbleibt.
+if (/\|\|\s*'(google|microsoft)'/.test(source.core)) {
+  failures.push('Fehlerpfad raet wieder einen Anbieter (Rueckfall auf einen festen Wert)');
+}
+for (const token of [
+  'const providerBekannt =',
+  'audit_uebersprungen_anbieter_unbekannt'
+]) {
+  if (!source.core.includes(token)) failures.push('Anbieter-Rateverbot fehlt: ' + token);
+}
+
+// #951 P1: availability antwortet mit einzelnen Terminen statt binaer fuer den
+// ganzen Block. Die Slot-Zerlegung selbst prueft verify-calendar-slots.mjs;
+// hier steht nur, dass das Werkzeug sie auch benutzt und die Antwort die Felder
+// traegt, auf die der Prompt den Agenten verweist.
+for (const token of [
+  "require('./_lib/calendar-slots')",
+  'bookableSlots(startIso, endIso, settings, openingHours, blockingUpdates)',
+  'freeSlots(plan.slots, busy, settings)',
+  'free_slots:',
+  'free_slots_total:',
+  'whole_window_free:'
+]) {
+  if (!source.core.includes(token)) failures.push('Slot-Zerlegung fehlt im Werkzeug: ' + token);
+}
+
+// Die alte binaere Antwort. Kommt sie zurueck, ist der P1 rueckgaengig gemacht.
+if (/available: result\.available/.test(source.core)) {
+  failures.push('availability antwortet wieder binaer fuer den ganzen Zeitraum');
 }
 
 for (const token of [
@@ -159,9 +226,185 @@ try {
   // Das Werkzeug muss auch wieder abgehaengt werden koennen. Die
   // Vorgaengerfunktion mergedAgentToolIds() konnte nur hinzufuegen.
   assert.equal(typeof helper.agentToolIds, 'function');
-  assert.equal(typeof helper.findWorkspaceToolId, 'function');
+  assert.equal(typeof helper.findWorkspaceToolIds, 'function');
   assert.equal(helper.mergedAgentToolIds, undefined,
     'Die additive Vorgaengerfunktion darf nicht daneben bestehen bleiben');
+  // Die Einzahl-Varianten duerfen nicht daneben bestehen bleiben: ein Aufrufer,
+  // der sie erwischt, haengt nur das Buchungswerkzeug ab und laesst das
+  // Absagewerkzeug am Agenten.
+  assert.equal(helper.ensureWorkspaceTool, undefined,
+    'Die Einzahl-Variante von ensureWorkspaceTools darf nicht bestehen bleiben');
+  assert.equal(helper.findWorkspaceToolId, undefined,
+    'Die Einzahl-Variante von findWorkspaceToolIds darf nicht bestehen bleiben');
+
+  // agentToolIds haengt beide Werkzeuge zugleich an und wieder ab, ohne fremde
+  // Werkzeuge des Agenten anzufassen.
+  const agentAntwort = { conversation_config: { agent: { prompt: { tool_ids: ['fremd_1', 'cal_alt'] } } } };
+  const echtesFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response(JSON.stringify(agentAntwort), {
+    status: 200, headers: { 'Content-Type': 'application/json' }
+  });
+  try {
+    assert.deepEqual(await helper.agentToolIds('agent_1', ['cal_1', 'cal_2'], { attach: true }),
+      ['fremd_1', 'cal_alt', 'cal_1', 'cal_2']);
+    assert.deepEqual(await helper.agentToolIds('agent_1', ['cal_alt', 'cal_2'], { attach: false }),
+      ['fremd_1'], 'Der Entzug nimmt jedes uebergebene Kalenderwerkzeug weg');
+    assert.deepEqual(await helper.agentToolIds('agent_1', [], { attach: false }),
+      ['fremd_1', 'cal_alt'], 'Ohne IDs bleibt die Liste unveraendert');
+  } finally {
+    globalThis.fetch = echtesFetch;
+  }
+
+  // ── #930 Schritt C: der Werkzeugvertrag ────────────────────────────────────
+  //
+  // Alle drei Zusicherungen haengen an einem einzigen Testanruf vom 10.08., bei
+  // dem der Agent "ich schaue nach, welche Termine naechste Woche verfuegbar
+  // sind" sagte und der Anrufende danach "es tut mir leid, da ist ein Fehler
+  // aufgetreten" hoerte.
+  const body = helper.buildToolConfig('secret_1').api_schema.request_body_schema;
+
+  // start/end standen nur in der Beschreibungsprosa. Ein Modell darf Prosa
+  // ignorieren; ein required-Array nicht.
+  assert.ok(body.required.includes('start'), 'start ist nicht verbindlich');
+  assert.ok(body.required.includes('end'), 'end ist nicht verbindlich');
+
+  // Die 8-Stunden-Grenze stand ausschliesslich im Servercode. Das Modell konnte
+  // sie nicht kennen und lief mit "naechste Woche" hinein.
+  const block = helper.calendarPromptBlock(verbunden, 'direct');
+  assert.match(block, /höchstens 8 Stunden/, 'Die Fenstergrenze fehlt im Prompt');
+  assert.match(block, /Halbtag/, 'Es fehlt die Anweisung, in kleineren Fenstern zu fragen');
+  assert.match(body.properties.start.description, /8 Stunden/,
+    'Die Fenstergrenze fehlt in der Feldbeschreibung');
+
+  // Ein Arbeitstag von 08-17 sind neun Stunden. "Frag tageweise" waere deshalb
+  // eine Anweisung, die verlaesslich in die Grenze laeuft -- der Prompt muss
+  // Halbtage nennen und darf keine Tagesfenster empfehlen.
+  assert.ok(!/in Tagesfenstern|tageweise|ganzen Tag prüfe/.test(block),
+    'Der Prompt empfiehlt Tagesfenster, die an der 8-Stunden-Grenze scheitern');
+
+  // Der Anrufende hoerte den Fehler woertlich. Schritt 9 verbot nur das
+  // Buchungsversprechen, nicht das Aussprechen.
+  assert.match(block, /sprich nie über den Fehler/, 'Das Aussprechen von Fehlern ist nicht verboten');
+  assert.match(block, /Rückrufanfrage/, 'Der Ersatzweg bei Toolfehlern fehlt');
+
+  // ── #951 P1: der Halbtag ist teilbar ──────────────────────────────────────
+  //
+  // Die Zerlegung im Werkzeug nuetzt nichts, wenn der Prompt weiter von einem
+  // "belegten Zeitraum" spricht. Beides gehoert zusammen: das Werkzeug liefert
+  // free_slots, der Agent muss angewiesen sein, daraus vorzulesen.
+  assert.match(block, /free_slots/, 'Der Prompt kennt die Einzeltermine nicht');
+  assert.match(block, /höchstens drei/, 'Es fehlt die Begrenzung der vorgelesenen Vorschläge');
+
+  // Der gefaehrlichste Satz: `available` heisst seit dem 2026-08-12 "es gibt
+  // mindestens einen buchbaren Termin", nicht "der ganze Zeitraum ist frei".
+  // Ohne diesen Hinweis bietet der Agent bei available=true einen halben Tag an.
+  assert.match(block, /available=true heisst nicht/,
+    'Der Prompt erklärt die neue Bedeutung von available nicht');
+
+  // Der alte Wortlaut hat den Halbtag als Ganzes abgelehnt. Kommt er zurueck,
+  // ist der Fix im Prompt rueckgaengig gemacht, auch wenn das Werkzeug noch
+  // zerlegt.
+  assert.ok(!/Bei belegtem Zeitraum/.test(block),
+    'Der Prompt behandelt den Zeitraum wieder als unteilbaren Block');
+  assert.match(body.properties.action.description, /free_slots/,
+    'Die Feldbeschreibung nennt das Ergebnis von availability nicht');
+
+  // ── #951: cancel hat ein eigenes Werkzeug ─────────────────────────────────
+  //
+  // Ein ElevenLabs-Webhook-Werkzeug hat genau ein request_body_schema, und
+  // `required` gilt darin fuer alle Aktionen zugleich. Solange cancel im selben
+  // Schema stand, musste das Modell fuer eine Absage zwei Zeitstempel liefern,
+  // die der Server gar nicht auswertet -- eine Pflichtangabe ohne Bedeutung, im
+  // selben Prompt, der "erfinde nichts" sagt.
+  const cancel = helper.buildCancelToolConfig('secret_1');
+  assert.equal(cancel.name, 'cancel_voxera_appointment');
+  assert.equal(cancel.api_schema.url, config.api_schema.url,
+    'Beide Werkzeuge zeigen auf denselben Endpunkt');
+  assert.equal(cancel.api_schema.request_headers.Authorization.secret_id, 'secret_1');
+
+  const cancelBody = cancel.api_schema.request_body_schema;
+  assert.equal(Object.hasOwn(cancelBody.properties, 'start'), false, 'Das Absageschema kennt start');
+  assert.equal(Object.hasOwn(cancelBody.properties, 'end'), false, 'Das Absageschema kennt end');
+  assert.ok(!cancelBody.required.includes('start'), 'start ist bei cancel weiterhin Pflicht');
+  assert.ok(!cancelBody.required.includes('end'), 'end ist bei cancel weiterhin Pflicht');
+  assert.ok(cancelBody.required.includes('external_event_id'),
+    'Die Termin-ID ist bei cancel nicht verbindlich');
+  assert.deepEqual(cancelBody.properties.action.enum, ['cancel'],
+    'Das Absagewerkzeug laesst mehr als cancel zu');
+  assert.deepEqual(cancelBody.properties.agent_id, { type: 'string', dynamic_variable: 'system__agent_id' });
+  assert.deepEqual(cancelBody.properties.conversation_id,
+    { type: 'string', dynamic_variable: 'system__conversation_id' });
+  // Der Adapter leitet die request_id aus conversation_id und agent_turns ab.
+  // Ohne agent_turns wuerden zwei Absagen im selben Gespraech denselben
+  // Schluessel tragen.
+  assert.deepEqual(cancelBody.properties.agent_turns,
+    { type: 'number', dynamic_variable: 'system__agent_turns' });
+
+  // Und `cancel` steht im Buchungswerkzeug ABSICHTLICH noch drin.
+  //
+  // Codex-Befund (P1) vom 12.08.: das Werkzeug ist arbeitsbereichsweit geteilt.
+  // Ein PATCH nimmt `cancel` sofort allen Agenten weg, das Absagewerkzeug haengt
+  // aber immer nur an dem einen Agenten, der gerade synchronisiert wird. Wird
+  // beides in derselben Auslieferung gemacht, haben alle uebrigen
+  // Direktbuchungs-Agenten bis zu ihrem naechsten Sync GAR KEINEN Absageweg.
+  //
+  // Diese Zusicherung ist deshalb bewusst herum: sie haelt Schritt 1 der
+  // zweistufigen Umstellung fest. Wer sie umdreht, macht Schritt 2 -- und muss
+  // vorher belegen, dass jeder betroffene Agent das neue Werkzeug traegt.
+  assert.ok(body.properties.action.enum.includes('cancel'),
+    'cancel ist aus dem geteilten Werkzeug entfernt, bevor alle Agenten das Absagewerkzeug haben');
+  assert.match(body.properties.action.description, /bevorzugt/,
+    'Die Feldbeschreibung lenkt nicht auf das eigene Absagewerkzeug');
+  assert.match(body.properties.start.description, /cancel_voxera_appointment/,
+    'Die start-Beschreibung nennt den Weg ohne Zeitangaben nicht');
+
+  // Codex-Befund vom 12.08.: dieselbe Auslieferung, die `cancel` aus der
+  // Aufzaehlung von manage_voxera_calendar nimmt, legt das Absagewerkzeug erst
+  // an. Lief das PATCH auf manage zuerst und scheiterte danach das POST fuer
+  // cancel, war der Absageweg weg, ohne dass der Ersatz existierte -- und das
+  // Werkzeug ist arbeitsbereichsweit geteilt, der Ausfall haette also alle
+  // Agenten getroffen.
+  {
+    const aufrufe = [];
+    const echtesFetch2 = globalThis.fetch;
+    globalThis.fetch = async (url, options = {}) => {
+      const pfad = String(url);
+      aufrufe.push({ pfad, method: options.method || 'GET', body: options.body });
+      const antwort = (payload) => new Response(JSON.stringify(payload), {
+        status: 200, headers: { 'Content-Type': 'application/json' }
+      });
+      if (pfad.includes('/secrets')) return antwort({ secrets: [], secret_id: 'sec_1' });
+      // manage existiert bereits, cancel noch nicht -- genau die Lage aus dem
+      // Befund.
+      if (pfad.endsWith('/tools?page_size=100')) {
+        return antwort({ tools: [{ id: 'tool_manage', tool_config: { name: 'manage_voxera_calendar' } }] });
+      }
+      return antwort({ id: pfad.includes('tool_manage') ? 'tool_manage' : 'tool_cancel' });
+    };
+    try {
+      helper.resetCache();
+      const ids = await helper.ensureWorkspaceTools();
+      const schreibend = aufrufe
+        .filter((call) => ['POST', 'PATCH'].includes(call.method) && call.pfad.includes('/tools'))
+        // Der NAME im Rumpf entscheidet, nicht ein Vorkommen der Zeichenkette:
+        // die Beschreibung des Buchungswerkzeugs nennt das Absagewerkzeug
+        // selbst, eine Teilstringsuche waere hier blind.
+        .map((call) => JSON.parse(String(call.body)).tool_config.name);
+      assert.deepEqual(schreibend, ['cancel_voxera_appointment', 'manage_voxera_calendar'],
+        'Das Buchungswerkzeug wird geaendert, bevor das Absagewerkzeug existiert');
+      // Zurueckgegeben wird in der Reihenfolge der Werkzeugliste, nicht in der
+      // Anlegereihenfolge.
+      assert.deepEqual(ids, ['tool_manage', 'tool_cancel']);
+    } finally {
+      globalThis.fetch = echtesFetch2;
+      helper.resetCache();
+    }
+  }
+
+  // Und der Prompt muss den Agenten auf das neue Werkzeug verweisen.
+  assert.match(block, /cancel_voxera_appointment/, 'Der Prompt nennt das Absagewerkzeug nicht');
+  assert.match(block, /braucht keine Zeitangaben/,
+    'Der Prompt sagt nicht, dass die Absage ohne Zeitangaben auskommt');
 } catch (error) {
   failures.push('Provisioning helper contract failed: ' + error.message);
 }

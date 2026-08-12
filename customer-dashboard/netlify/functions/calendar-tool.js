@@ -4,8 +4,9 @@ const crypto = require('crypto');
 const { createClient } = require('@supabase/supabase-js');
 const { safeEqual } = require('./_lib/calendar-crypto');
 const { calendarEnabledForCustomer } = require('./_lib/calendar-rollout');
-const { bookingWindowError } = require('./_lib/booking-window');
+const { bookingWindowError, bookingTimingError } = require('./_lib/booking-window');
 const { ensureAccessToken, checkAvailability, createEvent, updateEvent, deleteEvent } = require('./_lib/calendar-providers');
+const { SLOT_LIMIT, blockingUpdateFor, bookableSlots, freeSlots } = require('./_lib/calendar-slots');
 
 const headers = { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' };
 const reply = (statusCode, payload) => ({ statusCode, headers, body: JSON.stringify(payload) });
@@ -44,15 +45,26 @@ function iso(value, field) {
   return date.toISOString();
 }
 
+// Nur noch Reihenfolge und Groesse -- also das, was fuer einen ZEITRAUM als
+// Ganzes gilt und was bei availability wie bei book dieselbe Antwort verlangt.
+//
+// Vorlauf und Buchungshorizont sind seit dem 2026-08-12 in
+// bookingTimingError() und werden bei availability pro Termin gefragt. Sie
+// hier zu lassen hiesse, einen Halbtag am Vorlauf scheitern zu lassen, dessen
+// spaetere Termine buchbar sind -- dieselbe Unteilbarkeit, die dieser PR beim
+// Kalender behebt.
 function validateWindow(startIso, endIso, settings) {
   const start = new Date(startIso).getTime();
   const end = new Date(endIso).getTime();
   if (end <= start) throw new Error('calendar_time_window_invalid');
   if (end - start > 8 * 60 * 60 * 1000) throw new Error('calendar_time_window_too_large');
-  const notice = Number(settings.minimum_notice_minutes || 0) * 60000;
-  if (start < Date.now() + notice) throw new Error('calendar_minimum_notice_not_met');
-  const horizon = Number(settings.booking_horizon_days || 60) * 86400000;
-  if (start > Date.now() + horizon) throw new Error('calendar_booking_horizon_exceeded');
+}
+
+// Fuer book und reschedule bleibt es eine Ablehnung: dort IST das Fenster der
+// Termin, und "zu kurzfristig" ist keine Auskunft, sondern ein Nein.
+function assertTiming(startIso, settings) {
+  const error = bookingTimingError(startIso, settings);
+  if (error) throw new Error(error);
 }
 
 function bufferedWindow(startIso, endIso, settings) {
@@ -106,6 +118,7 @@ function eventInput(body, settings) {
   const start = iso(body.start, 'start');
   const end = iso(body.end, 'end');
   validateWindow(start, end, settings);
+  assertTiming(start, settings);
   assertDuration(start, end, settings);
   return {
     title: String(body.title || settings.appointment_title_template || 'Termin via Voxera').slice(0, 160),
@@ -147,16 +160,6 @@ async function loadBlockingUpdates(sb, customerId, startIso, endIso) {
     .gt('ends_at', startIso);
   if (error) throw error;
   return data || [];
-}
-
-function blockingUpdateFor(updates, startIso, endIso) {
-  const start = new Date(startIso).getTime();
-  const end = new Date(endIso).getTime();
-  return (updates || []).find((item) => {
-    const from = new Date(item.starts_at).getTime();
-    const to = new Date(item.ends_at).getTime();
-    return Number.isFinite(from) && Number.isFinite(to) && from < end && to > start;
-  }) || null;
 }
 
 async function audit(sb, input) {
@@ -201,11 +204,33 @@ exports.handler = async (event) => {
     return reply(400, { ok: false, error: 'calendar_request_id_required' });
   }
   let claimedAuditId = null;
+  // Ausserhalb des try deklariert, damit der catch-Block sie sehen kann. Der
+  // Fehlerpfad schreibt seit #930 Schritt C selbst eine Audit-Zeile -- mit
+  // `const` innerhalb des try haette er dabei einen ReferenceError erzeugt und
+  // damit die echte Fehlerursache ueberschrieben. Ein Fehlerpfad, der beim
+  // Scheitern selbst scheitert, ist schlimmer als gar keiner.
+  let customerId = null;
+  let settings = null;
+  let connection = null;
+  // Eigener Marker fuer "diese Aktion hat ihre Audit-Zeile bereits selbst
+  // geschrieben". Siehe die Begruendung am availability-Zweig.
+  let auditGeschrieben = false;
 
   try {
-    const customerId = await resolveCustomer(sb, body);
+    customerId = await resolveCustomer(sb, body);
+    // Geworfen statt `return reply(...)`, damit auch dieser Ausgang eine Spur
+    // hinterlaesst -- derselbe Codex-Befund wie bei den Einrichtungsfehlern,
+    // nur eine Stufe frueher.
+    //
+    // Eine Audit-ZEILE entsteht hier nicht: der Anbieter ist noch unbekannt,
+    // und die Spalte laesst keinen Ersatzwert zu (siehe N4). Der catch schreibt
+    // stattdessen die laute Logzeile mit Kunde, Aktion und Grund. Das ist der
+    // Fall "Werkzeug haengt am Agenten, Kunde aber nicht freigeschaltet" -- er
+    // faellt sonst voellig lautlos aus.
     if (!calendarEnabledForCustomer(customerId)) {
-      return reply(403, { ok: false, error: 'calendar_customer_not_enabled' });
+      const error = new Error('calendar_customer_not_enabled');
+      error.status = 403;
+      throw error;
     }
     if (requestId) {
       const { data: previous } = await sb.from('calendar_booking_audit')
@@ -217,13 +242,36 @@ exports.handler = async (event) => {
       if (previous?.status === 'processing') return reply(409, { ok: false, error: 'calendar_request_in_progress' });
       if (previous?.status === 'failed') return reply(409, { ok: false, error: 'calendar_request_id_already_failed' });
     }
-    const { data: settings, error: settingsError } = await sb.from('calendar_settings').select('*').eq('customer_id', customerId).maybeSingle();
+    const { data: settingsRow, error: settingsError } = await sb.from('calendar_settings').select('*').eq('customer_id', customerId).maybeSingle();
     if (settingsError) throw settingsError;
-    if (!settings?.feature_enabled || !settings.active_provider) return reply(409, { ok: false, error: 'calendar_not_enabled_for_customer' });
+    settings = settingsRow;
+    // Geworfen statt `return reply(...)`, seit dem 2026-08-12.
+    //
+    // Codex-Befund: diese beiden Ausgaenge verliessen den Handler, ohne den
+    // catch zu beruehren -- und schrieben deshalb keine Audit-Zeile. Es sind
+    // aber gerade die Einrichtungsfehler, bei denen die Spur gebraucht wird:
+    // "der Agent hat es versucht, die Verbindung war nicht bereit" ist die
+    // Auskunft, die bei der Diagnose am 10.08. gefehlt hat.
+    //
+    // Antwortform und Statuscode bleiben gleich: der catch antwortet mit
+    // `error.status` und `{ ok: false, error: <message> }`.
+    if (!settings?.feature_enabled || !settings.active_provider) {
+      const error = new Error('calendar_not_enabled_for_customer');
+      error.status = 409;
+      throw error;
+    }
 
-    const { data: connection, error: connectionError } = await sb.from('calendar_connections').select('*').eq('customer_id', customerId).eq('provider', settings.active_provider).eq('status', 'connected').maybeSingle();
+    const { data: connectionRow, error: connectionError } = await sb.from('calendar_connections').select('*').eq('customer_id', customerId).eq('provider', settings.active_provider).eq('status', 'connected').maybeSingle();
     if (connectionError) throw connectionError;
-    if (!connection?.selected_calendar_id) return reply(409, { ok: false, error: 'calendar_connection_not_ready' });
+    connection = connectionRow;
+    // Siehe oben: geworfen, damit der Fehlerpfad eine Zeile schreibt. Hier ist
+    // der Anbieter aus `settings.active_provider` immer bekannt, die Zeile
+    // entsteht also verlaesslich.
+    if (!connection?.selected_calendar_id) {
+      const error = new Error('calendar_connection_not_ready');
+      error.status = 409;
+      throw error;
+    }
 
     // Buchungszeiten sind eine Teilmenge der Oeffnungszeiten -- siehe
     // _lib/booking-window.js. Dafuer braucht dieses Werkzeug das
@@ -287,25 +335,119 @@ exports.handler = async (event) => {
       // Ausserhalb der Buchungszeiten oder waehrend einer Schliessung ist der
       // Zeitraum nicht verfuegbar -- das ist eine Antwort, kein Fehler. Ein
       // Werkzeugfehler zwingt den Agenten in den Fehlerpfad; "nicht verfuegbar,
-      // frag nach einer Alternative" steht als Schritt 4 im Kalenderblock und
+      // frag nach einer Alternative" steht als Schritt 5 im Kalenderblock und
       // ist genau das gewuenschte Gespraech.
-      const windowError = bookingWindowError(startIso, endIso, settings, openingHours);
-      const blocked = blockingUpdateFor(blockingUpdates, startIso, endIso);
-      if (windowError || blocked) {
-        responsePayload = {
-          ok: true,
-          action,
-          available: false,
-          requested_start: startIso,
-          requested_end: endIso,
-          busy: [],
-          reason: blocked ? 'operational_block' : windowError
-        };
-      } else {
+      //
+      // Seit dem 2026-08-12 wird der Zeitraum dafuer in einzelne Termine
+      // zerlegt (siehe _lib/calendar-slots.js). Vorher war die Antwort binaer
+      // fuer den ganzen Block: ein einziger Termin um 09:00 machte den
+      // kompletten Vormittag "unverfuegbar" -- und Schritt 4 lenkt vage
+      // Terminwuensche systematisch in genau diese Halbtage.
+      const plan = bookableSlots(startIso, endIso, settings, openingHours, blockingUpdates);
+      let slots = [];
+      let busy = [];
+      let kalenderGefragt = false;
+      if (plan.slots.length) {
+        kalenderGefragt = true;
+        // Der Kalender wird nur befragt, wenn ueberhaupt ein Termin in Frage
+        // kommt. Ist der ganze Zeitraum geschlossen oder gesperrt, steht die
+        // Antwort schon fest -- das spart denselben API-Aufruf, den vorher die
+        // Kurzschluss-Abfrage auf das ganze Fenster gespart hat.
         const window = bufferedWindow(startIso, endIso, settings);
         const result = await checkAvailability(connection.provider, token.accessToken, connection.selected_calendar_id, window.start, window.end);
-        responsePayload = { ok: true, action, available: result.available, requested_start: startIso, requested_end: endIso, busy: result.busy };
+        busy = result.busy;
+        slots = freeSlots(plan.slots, busy, settings);
       }
+      // Warum nichts frei ist, sind drei verschiedene Auskuenfte: der Zeitraum
+      // ist kuerzer als ein Termin, er liegt ganz ausserhalb, oder er ist
+      // belegt. Ein einzelnes "nicht verfuegbar" wuerde alle drei gleich
+      // klingen lassen.
+      const reason = slots.length
+        ? null
+        : (plan.candidates.length ? (plan.slots.length ? 'calendar_no_free_slot' : plan.windowReason) : 'calendar_time_window_shorter_than_appointment');
+      // Die alte Bedeutung von `available`, wortgleich zur frueheren Rechnung:
+      // die Fensterpruefung auf das GANZE Fenster, keine Betriebssperre, und
+      // kein einziger Eintrag im Kalender.
+      //
+      // Nicht aus der Kandidatenzahl abgeleitet -- das war der zweite
+      // Codex-Befund vom 12.08. Die Kandidaten decken das Fenster nur bis zum
+      // letzten vollen Termin ab; ein Eintrag im angebrochenen Rest (Anfrage
+      // 08:00--12:29, Termin um 12:20) laesst alle Kandidaten frei und haette
+      // "ganzer Zeitraum frei" behauptet, wo die alte Antwort "belegt" hiess.
+      //
+      // `kalenderGefragt` ist Bedingung: ohne Abfrage ist das busy-Array leer,
+      // weil nichts geholt wurde, und nicht, weil nichts da ist.
+      //
+      // Der Vorlauf gehoert seit dem Verschieben aus validateWindow() hier
+      // ausdruecklich dazu. Sonst faellt das Feld genau dort um, wo die
+      // Verschiebung wirkt: ein Fenster, das im Vorlauf beginnt und darueber
+      // hinausreicht, behaelt seine spaeteren Termine -- und haette "ganzer
+      // Zeitraum frei" gemeldet, obwohl der Anfang nicht buchbar ist und die
+      // alte Fassung die Anfrage ganz abgelehnt haette.
+      const wholeWindowFree = kalenderGefragt
+        && busy.length === 0
+        && !bookingWindowError(startIso, endIso, settings, openingHours)
+        && !bookingTimingError(startIso, settings)
+        && !blockingUpdateFor(blockingUpdates, startIso, endIso);
+      responsePayload = {
+        ok: true,
+        action,
+        available: slots.length > 0,
+        requested_start: startIso,
+        requested_end: endIso,
+        // Die alte Bedeutung von `available` -- ist der GANZE angefragte
+        // Zeitraum frei -- bleibt als eigenes Feld erhalten. Bei einer Anfrage
+        // in Termindauer sind beide Felder gleich; bei einem Halbtag ist genau
+        // diese Unterscheidung der Punkt.
+        whole_window_free: wholeWindowFree,
+        appointment_duration_minutes: plan.duration,
+        free_slots: slots.slice(0, SLOT_LIMIT).map((slot) => ({ start: slot.start, end: slot.end })),
+        free_slots_total: slots.length,
+        busy,
+        ...(reason ? { reason } : {})
+      };
+      // #930 Schritt C: availability hinterlaesst jetzt eine Spur.
+      //
+      // Vorher schrieb diese Aktion weder bei Erfolg noch bei Fehlschlag eine
+      // Zeile: der claim-Pfad greift nur bei book, reschedule und cancel, weil
+      // nur die eine request_id fuehren. Als der Agent am 10.08. im Gespraech
+      // scheiterte, war der einzige Beleg eine Zeile im Netlify-Funktionslog --
+      // in der Datenbank stand nichts, und die Diagnose musste ohne die Antwort
+      // auskommen, die das Werkzeug tatsaechlich gegeben hat.
+      //
+      // Bewusst schlank: kein busy-Array, keine Rohantwort. Die Zeile soll die
+      // Frage "wurde geprueft, mit welchem Fenster, mit welchem Ergebnis"
+      // beantworten und nicht den Kalender des Kunden spiegeln.
+      //
+      // `auditGeschrieben` statt `claimedAuditId`: der generische Nachlauf
+      // weiter unten benutzte `claimedAuditId` als Signal "es gibt schon eine
+      // Zeile". Fuer availability trifft das nie zu -- die Aktion fuehrt keine
+      // request_id und erzeugt deshalb keinen Claim. Der Nachlauf schrieb also
+      // eine zweite, anders geformte Erfolgszeile zu jedem Aufruf. Ein fremdes
+      // Signal fuer die eigene Frage zu benutzen ist der Fehler; hier steht
+      // jetzt ein eigener Marker.
+      auditGeschrieben = true;
+      await audit(sb, {
+        customer_id: customerId,
+        connection_id: connection.id,
+        provider: connection.provider,
+        action,
+        actor_type: 'assistant',
+        status: 'success',
+        details: {
+          available: responsePayload.available,
+          requested_start: startIso,
+          requested_end: endIso,
+          reason: responsePayload.reason || null,
+          busy_count: Array.isArray(responsePayload.busy) ? responsePayload.busy.length : 0,
+          // Zahlen, keine Zeitstempel: die Zeile soll belegen, wie die Antwort
+          // zustande kam, und nicht den Kalender des Kunden in unsere
+          // Audit-Tabelle spiegeln.
+          free_slot_count: responsePayload.free_slots_total,
+          bookable_slot_count: plan.slots.length,
+          candidate_slot_count: plan.candidates.length
+        }
+      });
     } else if (action === 'book') {
       const input = eventInput(body, settings);
       assertBookable(input.start, input.end, settings, openingHours, blockingUpdates);
@@ -353,7 +495,7 @@ exports.handler = async (event) => {
         details: { response: responsePayload, completed_at: new Date().toISOString() }
       }).eq('id', claimedAuditId);
       if (error) throw error;
-    } else {
+    } else if (!auditGeschrieben) {
       await audit(sb, {
         request_id: null,
         customer_id: customerId,
@@ -378,6 +520,47 @@ exports.handler = async (event) => {
         }
       }).eq('id', claimedAuditId);
     }
+    // Ohne request_id gibt es keinen claim -- und damit bis #930 Schritt C auch
+    // keine Zeile im Fehlerfall. Genau die fehlte bei der Diagnose am 10.08.
+    // `audit()` schluckt eigene Fehler bewusst (console.warn), der Aufrufer
+    // bekommt also weiterhin seine urspruengliche Fehlerantwort.
+    //
+    // Kein geratener Anbieter. `provider` fiel hier auf den Vorgabewert google
+    // zurueck, was bei einem Microsoft-Kunden einen falschen Diagnosesatz
+    // erzeugt haette -- in genau dem Pfad, der Beweise sichern soll.
+    //
+    // 'unknown' zu schreiben oder das Feld wegzulassen geht nicht: die Spalte
+    // ist NOT NULL und traegt CHECK (provider IN ('google','microsoft')). Beides
+    // liesse den INSERT scheitern, und `audit()` schluckt eigene Fehler -- die
+    // Zeile fiele still ganz weg. Statt einer erfundenen oder einer
+    // verschwundenen Zeile: kein Audit, aber eine laute Logzeile, die den
+    // Grund benennt. Damit die Zeile hier stehen KANN, braucht es eine
+    // Migration (CHECK um 'unknown' erweitern oder Spalte nullable) -- siehe
+    // Meldung an Umut vom 12.08.
+    const providerBekannt = connection?.provider || settings?.active_provider || null;
+    if (!claimedAuditId && customerId && !providerBekannt) {
+      console.error('[calendar-tool] audit_uebersprungen_anbieter_unbekannt', {
+        customer_id: customerId,
+        action,
+        error: error?.message || String(error)
+      });
+    }
+    if (!claimedAuditId && customerId && providerBekannt) {
+      await audit(sb, {
+        customer_id: customerId,
+        connection_id: connection?.id || null,
+        provider: providerBekannt,
+        action,
+        actor_type: 'assistant',
+        status: 'failed',
+        details: {
+          error: error?.message || 'calendar_tool_failed',
+          requested_start: body?.start || null,
+          requested_end: body?.end || null,
+          failed_at: new Date().toISOString()
+        }
+      });
+    }
     console.error('[calendar-tool] failed', { action, request_id: requestId, error: error?.message || String(error) });
     return reply(error.status >= 400 && error.status < 600 ? error.status : 400, {
       ok: false,
@@ -387,4 +570,4 @@ exports.handler = async (event) => {
   }
 };
 
-exports._test = { verifyToolAuth, verifyHmac, validateWindow, bufferedWindow };
+exports._test = { verifyToolAuth, verifyHmac, validateWindow, assertTiming, bufferedWindow };

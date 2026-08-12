@@ -37,6 +37,129 @@ try {
   failures.push('Calendar crypto test failed: ' + error.message);
 }
 
+// Codex-Befund vom 12.08. auf #951: die Terminlisten wurden ohne Blaetterung
+// geholt. Microsoft Graph liefert fuer `calendarView` ohne `$top` nur zehn
+// Eintraege pro Seite. Solange `available` als `busy.length === 0` definiert
+// war, blieb das folgenlos -- eine abgeschnittene Liste war immer noch nicht
+// leer. Mit der Slot-Zerlegung aus #951 wird die Luecke schaedlich: ein Termin
+// auf der zweiten Seite sieht frei aus, und der Agent bietet eine Zeit an, die
+// `book` anschliessend ablehnt.
+try {
+  const providers = require('../customer-dashboard/netlify/functions/_lib/calendar-providers.js');
+  const echtesFetch = globalThis.fetch;
+  const antwort = (payload) => new Response(JSON.stringify(payload), {
+    status: 200, headers: { 'Content-Type': 'application/json' }
+  });
+
+  // Microsoft: zwei Seiten ueber @odata.nextLink.
+  let gefragt = [];
+  globalThis.fetch = async (url) => {
+    gefragt.push(String(url));
+    return String(url).includes('seite2')
+      ? antwort({ value: [{ id: 'm2', start: { dateTime: '2026-08-11T10:00:00' }, end: { dateTime: '2026-08-11T10:30:00' } }] })
+      : antwort({
+          value: [{ id: 'm1', start: { dateTime: '2026-08-11T08:00:00' }, end: { dateTime: '2026-08-11T08:30:00' } }],
+          '@odata.nextLink': 'https://graph.microsoft.com/v1.0/seite2'
+        });
+  };
+  try {
+    const result = await providers.checkAvailability('microsoft', 'token', 'cal_1', '2026-08-11T08:00:00Z', '2026-08-11T12:00:00Z');
+    if (result.busy.length !== 2) {
+      failures.push(`Microsoft-Belegung wird nicht durchgeblaettert (${result.busy.length} statt 2 Eintraegen)`);
+    }
+    if (!gefragt.some((url) => url.includes('seite2'))) failures.push('Microsoft @odata.nextLink wird nicht gefolgt');
+    if (!gefragt[0].includes('%24top=250') && !gefragt[0].includes('$top=250')) {
+      failures.push('Microsoft calendarView fragt ohne $top -- Graph blaettert dann in Zehnerschritten');
+    }
+  } finally { globalThis.fetch = echtesFetch; }
+
+  // Google: zwei Seiten ueber nextPageToken. Der Ausschlusspfad (reschedule)
+  // benutzt dieselbe Liste.
+  gefragt = [];
+  globalThis.fetch = async (url) => {
+    gefragt.push(String(url));
+    return String(url).includes('pageToken')
+      ? antwort({ items: [{ id: 'g2', start: { dateTime: '2026-08-11T10:00:00Z' }, end: { dateTime: '2026-08-11T10:30:00Z' } }] })
+      : antwort({
+          items: [{ id: 'g1', start: { dateTime: '2026-08-11T08:00:00Z' }, end: { dateTime: '2026-08-11T08:30:00Z' } }],
+          nextPageToken: 'weiter'
+        });
+  };
+  try {
+    const result = await providers.checkAvailability('google', 'token', 'cal_1', '2026-08-11T08:00:00Z', '2026-08-11T12:00:00Z', 'evt_aus');
+    if (result.busy.length !== 2) {
+      failures.push(`Google-Belegung wird nicht durchgeblaettert (${result.busy.length} statt 2 Eintraegen)`);
+    }
+  } finally { globalThis.fetch = echtesFetch; }
+  // Codex-Befund vom 12.08.: der Seitendeckel war als Endlossperre gedacht, ist
+  // aber eine echte Grenze -- es gibt keine Zusicherung, wie dicht die Termine
+  // eines Kunden liegen duerfen. Wird er erreicht und der Anbieter bietet
+  // weiter an, muss GEWORFEN werden: eine abgebrochene Belegungsliste sieht wie
+  // eine vollstaendige aus, und der Aufrufer wuerde belegte Zeiten anbieten.
+  const echtesFetch3 = globalThis.fetch;
+  globalThis.fetch = async () => antwort({
+    value: [{ id: 'x', start: { dateTime: '2026-08-11T08:00:00' }, end: { dateTime: '2026-08-11T08:30:00' } }],
+    '@odata.nextLink': 'https://graph.microsoft.com/v1.0/immer-weiter'
+  });
+  try {
+    await providers.checkAvailability('microsoft', 'token', 'cal_1', '2026-08-11T08:00:00Z', '2026-08-11T12:00:00Z');
+    failures.push('Microsoft-Belegung bricht am Seitendeckel still ab, statt zu scheitern');
+  } catch (error) {
+    if (error.message !== 'calendar_busy_list_truncated') {
+      failures.push('Unerwarteter Fehler am Seitendeckel: ' + error.message);
+    }
+  } finally { globalThis.fetch = echtesFetch3; }
+
+  globalThis.fetch = async () => antwort({
+    items: [{ id: 'y', start: { dateTime: '2026-08-11T08:00:00Z' }, end: { dateTime: '2026-08-11T08:30:00Z' } }],
+    nextPageToken: 'immer-weiter'
+  });
+  try {
+    await providers.checkAvailability('google', 'token', 'cal_1', '2026-08-11T08:00:00Z', '2026-08-11T12:00:00Z', 'evt_aus');
+    failures.push('Google-Belegung bricht am Seitendeckel still ab, statt zu scheitern');
+  } catch (error) {
+    if (error.message !== 'calendar_busy_list_truncated') {
+      failures.push('Unerwarteter Fehler am Seitendeckel (Google): ' + error.message);
+    }
+  } finally { globalThis.fetch = echtesFetch3; }
+  // Scope-Fix: Google wird ausschliesslich ueber die Terminliste gefragt.
+  // `calendar.events` autorisiert `freebusy.query` NICHT, und die angeforderten
+  // Scopes sind genau calendarlist.readonly + events. Ein breiterer Scope haette
+  // jeden verbundenen Kunden zur erneuten Zustimmung gezwungen.
+  gefragt = [];
+  globalThis.fetch = async (url) => {
+    gefragt.push(String(url));
+    return antwort({ items: [{ id: 'g1', start: { dateTime: '2026-08-11T08:00:00Z' }, end: { dateTime: '2026-08-11T08:30:00Z' } }] });
+  };
+  try {
+    // Ohne excludeEventId -- genau der Weg, der vorher auf freeBusy ging.
+    await providers.checkAvailability('google', 'token', 'cal_1', '2026-08-11T08:00:00Z', '2026-08-11T12:00:00Z');
+    if (gefragt.some((url) => url.includes('freeBusy'))) {
+      failures.push('Google-Verfuegbarkeit fragt wieder freeBusy -- der Scope calendar.events deckt das nicht ab');
+    }
+    if (!gefragt.some((url) => url.includes('/events?'))) {
+      failures.push('Google-Verfuegbarkeit fragt nicht die Terminliste');
+    }
+  } finally { globalThis.fetch = echtesFetch; }
+} catch (error) {
+  failures.push('Calendar availability paging test failed: ' + error.message);
+}
+
+// Der Quelltext darf freeBusy nicht mehr aufrufen. Die Suche schliesst
+// Kommentarzeilen aus, damit die Begruendung stehen bleiben darf.
+{
+  const aufrufe = source.providers
+    .split('\n')
+    .filter((zeile) => !zeile.trim().startsWith('//'))
+    .filter((zeile) => zeile.includes('freeBusy'));
+  if (aufrufe.length) {
+    failures.push('calendar-providers.js ruft weiterhin freeBusy auf: ' + aufrufe[0].trim());
+  }
+}
+if (!/calendar\.events/.test(source.providers)) {
+  failures.push('Der Scope calendar.events fehlt');
+}
+
 process.env.CALENDAR_OAUTH_REDIRECT_URI = 'https://dashboard.voxera.ch/.netlify/functions/calendar-oauth-callback';
 process.env.GOOGLE_CALENDAR_CLIENT_ID = 'google-client';
 process.env.GOOGLE_CALENDAR_CLIENT_SECRET = 'google-secret';
