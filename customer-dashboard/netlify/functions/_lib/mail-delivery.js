@@ -126,6 +126,7 @@ async function deliverMail(sbAdmin, { mailType, payload, payloadSummary, dedupeK
   // Auch die Fehlkonfiguration bekommt eine Outbox-Zeile: sonst ist der
   // Vorgang nach dem Deploy-Fix verloren, statt nachlieferbar zu sein.
   let outboxId = null;
+  let duplicateOutbox = null;
   try {
     const outbox = await createOutboxEvent(sbAdmin, {
       eventType: type,
@@ -134,11 +135,32 @@ async function deliverMail(sbAdmin, { mailType, payload, payloadSummary, dedupeK
       dedupeKey: dedupeKey || null
     });
     outboxId = outbox?.id || null;
+    if (outbox?.duplicate) duplicateOutbox = outbox;
   } catch (outboxError) {
     const message = outboxError?.message || 'outbox insert failed';
     console.error(JSON.stringify({ level: 'error', event: 'outbox_insert_failed', event_type: type, error: message }));
     // Ohne Outbox-Zeile trotzdem senden - eine zugestellte Mail ohne
     // Protokoll ist besser als gar keine Mail.
+  }
+
+  // Der Unique-Index auf (event_type, dedupe_key) hat hier einen Treffer
+  // gefunden - createOutboxEvent gibt dann die BESTEHENDE Zeile zurueck statt
+  // eine neue anzulegen. Ohne diese Verzweigung wuerde unten trotzdem erneut
+  // an Make gesendet: derselbe echte Doppelversand, den der Dedupe-Index
+  // eigentlich verhindern soll. Verhalten spiegelt invoice-mail-dispatch.js.
+  if (duplicateOutbox) {
+    const duplicateStatus = String(duplicateOutbox.status || '').toLowerCase();
+    if (duplicateStatus === 'sent') {
+      console.log(JSON.stringify({ level: 'info', event: 'mail_duplicate_already_sent', event_type: type, outbox_id: outboxId }));
+      return mailDeliveryResult({ accepted: true, status: duplicateOutbox.status, outboxId });
+    }
+    if (duplicateStatus === 'pending') {
+      console.log(JSON.stringify({ level: 'info', event: 'mail_duplicate_pending', event_type: type, outbox_id: outboxId }));
+      return mailDeliveryResult({ status: duplicateOutbox.status, outboxId });
+    }
+    const error = `Ein identischer Mailversand ist bereits fehlgeschlagen (Status: ${duplicateOutbox.status || 'unbekannt'}).`;
+    console.error(JSON.stringify({ level: 'error', event: 'mail_duplicate_failed', event_type: type, outbox_id: outboxId, status: duplicateOutbox.status }));
+    return mailDeliveryResult({ status: duplicateOutbox.status, outboxId, error });
   }
 
   if (configError) {

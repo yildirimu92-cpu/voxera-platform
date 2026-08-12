@@ -15083,8 +15083,18 @@ async function vxSaveProfil() {
       // .update() meldet einen Fehlschlag im Ergebnis, nicht per Rejection --
       // ohne diese Pruefung haette der Knopf "Gespeichert ✓" gezeigt, waehrend
       // der Name nicht geschrieben wurde. Dasselbe Muster wie vxDv2SaveNote().
-      const { error: nameError } = await _sb.from('customers').update({ contact_first_name: name, updated_at: new Date().toISOString() }).eq('id', customerMeta.customerId);
+      //
+      // .select('id') zusaetzlich noetig: greift customers_customer_update_own
+      // nicht (z.B. Berechtigung laeuft waehrend offenem Dashboard ab), meldet
+      // PostgREST error: null bei null betroffenen Zeilen -- kein SQL-Fehler,
+      // nur "WHERE traf nichts". Ohne Rueckgabe waere das nicht von Erfolg zu
+      // unterscheiden. customers_customer_select_own nutzt dieselbe Bedingung
+      // wie customers_customer_update_own (2026-04-12_customer_dashboard_
+      // entitlement_decouple_billing.sql), die Rueckleseabfrage liefert also
+      // bei jedem echten Erfolg auch tatsaechlich eine Zeile.
+      const { data: nameRows, error: nameError } = await _sb.from('customers').update({ contact_first_name: name, updated_at: new Date().toISOString() }).eq('id', customerMeta.customerId).select('id');
       if (nameError) throw new Error(nameError.message);
+      if (!nameRows || nameRows.length === 0) throw new Error('Profil konnte nicht gespeichert werden (kein Zugriff auf diesen Kunden).');
     }, { savingLabel: 'Speichert …', doneLabel: 'Gespeichert ✓' });
     customerMeta.customerName = name;
     customerMeta.customerEmail = email;
@@ -16960,6 +16970,29 @@ async function loadCustomerMeta(forceReload) {
         return true;
       });
       const activeSet = new Set(activeAddons.map(a => a.addon_code));
+      // ACHTUNG -- diese beiden Codes sind falsch, und das ist derzeit das
+      // einzige, was uns vor einer Falschaussage schuetzt.
+      //
+      // Im Katalog (voxera_addons, Produktion) heissen die Addons
+      // 'sms_notify' und 'sms_endkunde'. 'sms_notify_kunde' und
+      // 'sms_confirm_caller' existieren dort nicht, die Pruefung kann also
+      // nie zutreffen -- beide Flags sind konstant false.
+      //
+      // Wer die Codes hier korrigiert, ohne den SMS-Versand zu bauen, schaltet
+      // damit die Anzeige weiter unten scharf: die Anfragenliste rendert ein
+      // gruenes "✓ SMS" je Anruf, gesteuert von smsCallerAddon (Suchbegriff:
+      // call-meta-item mit ✓ SMS). Das Dashboard behauptet dann gegenueber dem
+      // Kunden, der Anrufer habe eine Bestaetigung per SMS erhalten -- fuer
+      // einen Versand, den es nicht gibt. Bei einem Abschleppdienst heisst das:
+      // jemand am Strassenrand gilt als benachrichtigt, ohne es zu sein.
+      //
+      // Belegt: die Twilio-Messages-API wird im Repository nirgends aufgerufen,
+      // calls.sms_sent ist auf allen Produktionszeilen false, outbox_events
+      // kennt ausschliesslich E-Mail-Ereignistypen.
+      //
+      // REGEL: Codes und Anzeige erst zusammen mit dem Versand korrigieren.
+      // Nicht vorher, auch nicht "schon mal vorbereitend".
+      // Siehe docs/SMS_BENACHRICHTIGUNG_DIAGNOSE_2026-08-11.md
       customerMeta.smsNotifyAddon = activeSet.has('sms_notify_kunde');
       customerMeta.smsCallerAddon = activeSet.has('sms_confirm_caller');
       // Zusatzminuten: aktive minutes_block Add-ons × quantity (gültig diesen Monat)
@@ -19234,6 +19267,65 @@ function vxEnsureNoOrphanDetailView(reason) {
 window.vxEnsureNoOrphanDetailView = vxEnsureNoOrphanDetailView;
 window.vxForceCloseCallDetail = vxForceCloseCallDetail;
 
+// ─── Deep-Link-Einstieg auf einen einzelnen Anruf ───────────────────────────
+//
+// Die Hash-Route #call/<id> gab es schon: vxOpenPriorityRecord schreibt sie
+// beim Oeffnen aus der Anwendung heraus, und die popstate- sowie die
+// Waisen-Wache respektieren sie. Ausgewertet hat sie beim KALTSTART aber
+// niemand -- wer mit diesem Hash einstieg, landete auf der Liste und musste
+// den Anruf selbst suchen.
+//
+// Seit die Team-SMS kein Anliegen mehr traegt (Datenresidenz, siehe
+// docs/BEFUND_TWILIO_DATENRESIDENZ_2026-08-11.md), ist dieser Link der einzige
+// Weg zum Anliegen. Um drei Uhr nachts ist der Unterschied zwischen einem
+// Klick und einer Suche der ganze Unterschied -- und er ist der einzige
+// Ausgleich fuer den Komfort, den der Verzicht auf das Anliegen kostet.
+var _vxDeepLinkAngewendet = false;
+function vxApplyDeepLinkFromHash(reason) {
+  if (_vxDeepLinkAngewendet) return false;
+  var treffer = /^#(call|task)\/(.+)$/.exec(String(window.location.hash || ''));
+  if (!treffer) return false;
+
+  // Nur ein Versuch je Seitenaufruf. loadData() laeuft auch beim Aktualisieren
+  // und beim Polling -- ohne diese Sperre risse es dem Nutzer die Ansicht
+  // immer wieder auf denselben Anruf zurueck.
+  _vxDeepLinkAngewendet = true;
+
+  var typ = treffer[1];
+  var id = '';
+  try { id = decodeURIComponent(treffer[2]); } catch (e) { id = treffer[2]; }
+  id = String(id || '').trim();
+  if (!id) return false;
+
+  // Nicht blind oeffnen: ein unbekannter Datensatz ergaebe eine leere
+  // Detailhuelle, die wie ein Fehler des Dashboards aussieht -- obwohl der
+  // Link nur veraltet ist oder der Anruf zu einem anderen Konto gehoert.
+  var vorhanden = false;
+  try {
+    var liste = (typ === 'task')
+      ? (window.allManualTaskRecords || [])
+      : (window.allRecords || []);
+    vorhanden = liste.some(function (r) { return r && String(r.id) === id; });
+  } catch (e) { vorhanden = false; }
+
+  if (!vorhanden) {
+    console.warn('[deep-link] Datensatz nicht in dieser Ansicht', { typ: typ, id: id, reason: reason || null });
+    // Hash raeumen, damit die Waisen-Wache keine leere Detailansicht offen
+    // haelt und ein Reload nicht dasselbe noch einmal versucht.
+    try { history.replaceState(history.state || {}, '', location.pathname + location.search); } catch (e) {}
+    return false;
+  }
+
+  try {
+    if (typ === 'task' && typeof showTaskDetail === 'function') { showTaskDetail(id); return true; }
+    if (typ === 'call' && typeof showCallDetail === 'function') { showCallDetail(id); return true; }
+  } catch (e) {
+    console.warn('[deep-link] oeffnen fehlgeschlagen', { typ: typ, id: id, error: e && e.message });
+  }
+  return false;
+}
+window.vxApplyDeepLinkFromHash = vxApplyDeepLinkFromHash;
+
 
 // options.strict = true: Fehler werden geworfen statt als leere Liste
 // zurueckgegeben. Der Normalfall (ohne Option) bleibt unveraendert, weil die
@@ -20513,6 +20605,11 @@ async function loadData(onMilestone) {
     var loadingEl = document.getElementById('dash-loading');
     if (loadingEl) loadingEl.style.display = 'none';
     if (typeof onMilestone === 'function') onMilestone(90); // Rendering fertig
+
+    // Erst jetzt: die Listen stehen, ein Deep-Link kann seinen Datensatz
+    // finden. Frueher aufgerufen traefe er auf window.allRecords = [] und
+    // wuerde den Anruf faelschlich als unbekannt verwerfen.
+    if (typeof vxApplyDeepLinkFromHash === 'function') vxApplyDeepLinkFromHash('loadData');
 
   } catch(e) {
     const rawMsg = String((e && e.message) || 'Unbekannter Fehler');
@@ -22658,6 +22755,23 @@ function renderList(containerId, records, opts) {
           ${displayPhone?`<span class="call-meta-item call-meta-phone">${escHtml(displayPhone)}</span>`:''}
           ${(categoryLabel && !isDashLikePlaceholder(categoryLabel))?`<span class="call-meta-item">${escHtml(categoryLabel)}</span>`:''}
           ${durationLabel && durationLabel !== '–' ? `<span class="call-meta-item">⏱ ${escHtml(durationLabel)}</span>` : ''}
+          ${/* ACHTUNG -- dieses Abzeichen behauptet einen Versand, den es nicht gibt.
+                Es haengt an customerMeta.smsCallerAddon, und das ist heute nur deshalb
+                konstant false, weil der Addon-Code oben falsch geschrieben ist
+                ('sms_confirm_caller' statt 'sms_endkunde'). Das Abzeichen ist also
+                unsichtbar -- aus Versehen, nicht aus Absicht.
+
+                Zweiter Fehler, unabhaengig vom ersten: das Abzeichen liest ein
+                ADDON, keinen ZUSTELLBELEG. Selbst mit gebautem Versand saehe der
+                Kunde "✓ SMS" an jedem Anruf, sobald das Addon gebucht ist -- auch
+                bei unterdrueckter Rufnummer (dann gibt es keinen Empfaenger), auch
+                bei fehlgeschlagenem Versand. Der Beleg je Anruf muesste aus dem
+                tatsaechlichen Versandergebnis kommen; calls.sms_sent taugt dafuer
+                ebenfalls nicht, weil es ein einzelnes Boolean fuer bis zu sechs
+                Empfaenger ist (5x Team + 1x Anrufer).
+
+                REGEL: nicht scharfschalten, bevor Versand UND Zustellbeleg stehen.
+                Siehe docs/SMS_BENACHRICHTIGUNG_DIAGNOSE_2026-08-11.md */''}
           ${(!isManualTaskRecord(r) && customerMeta && customerMeta.smsCallerAddon) ? '<span class="call-meta-item" style="color:#059669;font-weight:600;">✓ SMS</span>' : ''}
         </div>
         ${taskDueLabel?`<div class="task-due-pill ${taskDueClass}" style="margin-top:6px;">${escHtml(taskDueLabel)}</div>`:''}

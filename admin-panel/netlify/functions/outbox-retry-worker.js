@@ -3,6 +3,7 @@
 const { createClient } = require('@supabase/supabase-js');
 const { markOutboxSent, markOutboxFailed, markOutboxTerminal } = require('./_lib/webhook-outbox');
 const { isMailEngineType, resolveMailWebhook } = require('./_lib/mail-delivery');
+const { isSmsEventType, sendSmsViaTwilio } = require('./_lib/sms-transport');
 const { resolveDashboardUrl, logActivationTarget } = require('./_lib/activation-url');
 
 function log(level, event, payload = {}) {
@@ -111,6 +112,27 @@ async function dispatchOutboxEvent(sbAdmin, outboxRow) {
     const webhookUrl = process.env.MAKE_BILLING_WEBHOOK;
     if (!webhookUrl) return { ok: false, error: 'MAKE_BILLING_WEBHOOK not configured' };
     return postJson(webhookUrl, payload);
+  }
+
+  // SMS geht nicht ueber Make, sondern direkt an Twilio. Der Payload traegt
+  // Empfaenger und Text bereits fertig -- er wurde beim Erstversand aus
+  // Kundendaten und Vorlage gebaut, und der darf sich beim Nachliefern NICHT
+  // aendern: Der Anrufer haette sonst Stunden spaeter eine "Ihre Anfrage ist
+  // eingegangen"-Nachricht mit frischer Uhrzeit bekommen.
+  //
+  // Auch die Reihenfolge Team-vor-Anrufer wird hier nicht wiederholt. Sie ist
+  // eine Regel des Erstversands (call-sms.js): Die Anrufer-SMS entsteht dort
+  // gar nicht erst, wenn das Team nicht erreicht wurde. Was hier liegt, war
+  // also bereits freigegeben -- ein Nachliefern kann die Sperre nicht
+  // unterlaufen.
+  if (isSmsEventType(outboxRow.event_type)) {
+    const to = String(payload.to || '').trim();
+    const body = String(payload.body || '').trim();
+    if (!to || !body) {
+      return { ok: false, permanent: true, error: 'to/body fehlen im Outbox-Payload - nicht nachlieferbar' };
+    }
+    const result = await sendSmsViaTwilio({ to, body });
+    return { ok: result.ok, permanent: result.permanent === true, error: result.error };
   }
 
   // Alles, was ueber _lib/mail-delivery.js rausgeht, traegt seinen mail_type als
@@ -286,6 +308,36 @@ exports.handler = async () => {
     }
 
     const failureMessage = String(delivery.error || 'retry delivery failed');
+
+    // Ein permanenter Fehler wird sofort endgueltig gestellt, statt das
+    // Wiederholungsbudget aufzubrauchen. Der Fall kommt aus dem SMS-Zweig:
+    // Twilio 21614 heisst "keine Mobilnummer" -- eine Festnetznummer wird
+    // beim fuenften Versuch keine Mobilnummer mehr sein.
+    //
+    // Das ist kein Fehlschlag, sondern eine Eigenschaft des Empfaengers,
+    // deshalb 'warn' und nicht 'error': Sonst schlaegt die Alarmierung bei
+    // jedem Anrufer an, der vom Festnetz aus anruft -- und das ist der
+    // Regelfall, nicht die Ausnahme.
+    if (delivery.permanent === true) {
+      try {
+        await markOutboxTerminal(sbAdmin, claimed.id, failureMessage);
+        movedToDead += 1;
+        log('warn', 'retry_permanent_no_further_attempts', {
+          outbox_id: claimed.id,
+          event_type: claimed.event_type,
+          terminal_status: 'dead',
+          error: failureMessage
+        });
+      } catch (stateError) {
+        log('error', 'retry_state_write_failed', {
+          outbox_id: claimed.id,
+          event_type: claimed.event_type,
+          error: stateError?.message || 'unknown error'
+        });
+      }
+      continue;
+    }
+
     failed += 1;
     log('error', 'retry_failed', {
       outbox_id: claimed.id,
