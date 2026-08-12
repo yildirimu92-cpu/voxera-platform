@@ -35,8 +35,21 @@
 --
 -- ── Der Teil, der ueber die Wurzel hinausgeht ──────────────────────────────
 --
--- Ab der zweiten Anweisung geht diese Migration in den BESTAND -- 15 Tabellen,
--- von Hand aufgezaehlt. Das ist eine andere Klasse als die Wurzelbehandlung und
+-- Ab der zweiten Anweisung geht diese Migration in den BESTAND -- 19 Tabellen,
+-- von Hand aufgezaehlt:
+--
+--   admin_emails, admins, calls, customer_tasks, customers, feature_flags,
+--   industry_templates, invoice_items, invoice_sequences, minutes_topups,
+--   offer_acceptances, offer_events, offer_sequences, onboarding,
+--   outbox_events, plan_config, push_subscriptions, users, voxera_cases
+--
+-- (Die erste Fassung dieses Kommentars nannte 15. Das war falsch gezaehlt --
+-- korrigiert im Review von PR #978. Bei einer Datei, die als Nachweis fuer
+-- eine bereits ausgefuehrte Sicherheitsaenderung dient, ist eine zu kleine
+-- Zahl das schlechtere Fehlerbild: sie laesst die Reichweite geringer
+-- erscheinen, als sie war.)
+--
+-- Das ist eine andere Klasse als die Wurzelbehandlung und
 -- weicht von der Bauform ab, die 20260809164858_truncate_grant_sweep.sql
 -- gewaehlt hatte: dort dynamisch ueber pg_class, mit der ausdruecklichen
 -- Begruendung, eine gepflegte Liste sei "schon beim naechsten `create table`
