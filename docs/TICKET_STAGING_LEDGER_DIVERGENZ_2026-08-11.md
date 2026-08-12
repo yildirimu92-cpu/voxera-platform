@@ -36,15 +36,19 @@ Nichts wurde ausgelassen, weil nie etwas gemeinsam war.
 später angewandt" — etwa ein Schema-Dump, ein Supabase-Branch oder ein `db push` aus einem anderen
 Arbeitsstand. **Diese eine Antwort erklärt vermutlich alles Übrige**, einschliesslich (b).
 
-### (b) Läuft der Katalogcheck tatsächlich nur gegen Produktion, und seit wann?
+### (b) Läuft der Katalogcheck tatsächlich nur gegen Produktion, und seit wann? ✅ **beantwortet**
 
-**Indizienlage, nicht abschliessend geklärt:** Staging trägt 29 Tabellen mit TRUNCATE für
-Browser-Rollen. Liefe der Katalogcheck dort, wäre er rot — und zwar seit dem 09.08., als der Check
-in dieser Form entstand.
+**Ja, ausschliesslich — seit dem ersten Tag.** Belegt an der vollständigen Historie von
+`.github/workflows/verify-db-security-invariants.yml`: ein einziger Job, ein einziges Environment
+(`production-db-readonly`), und in **keinem** Commit der Datei kommt jemals ein zweites Ziel oder
+das Wort „staging" vor. Es gab nie mehr als eine `SUPABASE_DB_URL`.
 
-**Zu prüfen in `.github/workflows/` und `scripts/verify-db-security-invariants.mjs`:** gegen welche
-`SUPABASE_DB_URL` der Lauf geht und ob es je mehr als eine gab. Das ist eine halbe Stunde und
-beantwortet zugleich, ob der Zustand je hätte auffallen können.
+**Damit ist die Antwort auf die eigentliche Frage — „hätte der Zustand je auffallen können?" —
+nein.** Nicht „es wurde übersehen", sondern: es wurde nie gemessen. Die 29 TRUNCATE-Rechte auf
+Staging hätten den Check ab dem 09.08. rot gefärbt, wenn er je dort gelaufen wäre.
+
+**Umgesetzt am 12.08.** (Entscheidung B): Der Workflow fährt jetzt eine Matrix über beide
+Umgebungen. Staging ist bewusst `continue-on-error`, siehe die Begründung in der Datei.
 
 ### (c) Welche weiteren Migrationen fehlen auf Staging? ✅ **beantwortet — die Antwort ist die Diagnose**
 
@@ -101,6 +105,17 @@ Nicht „nachziehen ja/nein", sondern was Staging überhaupt sein soll:
 | **A** | **Staging aus Produktion neu aufsetzen** — gleiche Linie, gleiche Grants, künftig ein gemeinsamer Ledger | hoch, einmalig |
 | **B** | **Staging als eigenständige Umgebung akzeptieren**, aber den Katalogcheck **gegen beide** laufen lassen | mittel |
 | **C** | **Staging als Sicherheits-Vorstufe abschreiben** und das ausdrücklich dokumentieren — Grant- und RLS-Änderungen werden dann nirgends geprobt | gering, ehrlich, riskant |
+
+> **Stand 12.08.: B ist im Repo umgesetzt, aber noch nicht wirksam.** Der Matrix-Job existiert;
+> es fehlen zwei Dinge, die nur im GitHub-Konto anzulegen sind und die ich nicht anlegen kann:
+> das Environment `staging-db-readonly` und darin die Zugangsdaten (`SUPABASE_DB_URL_CI_VERIFIER_STAGING`
+> oder die Einzelfelder `SUPABASE_DB_HOST_STAGING` / `_PORT_STAGING` / `_USER_STAGING` /
+> `_PASSWORD_STAGING`). Solange sie fehlen, endet der Staging-Job mit „nicht prüfbar" (Exit 2) —
+> **nicht mit grün**, das ist der Unterschied, auf den es hier ankommt.
+>
+> Auf Staging braucht es ausserdem dieselbe Verifier-Rolle wie auf Produktion, also die Migration
+> `20260808114412_ci_security_verifier_role.sql`. Ohne sie fehlen die Proben-Helfer, und der Job
+> meldet genau das.
 
 **Empfehlung: B, mit A als Ziel.** B stellt sofort her, was heute fehlt — dass eine Abweichung
 überhaupt auffällt —, und kostet im Wesentlichen eine zweite `SUPABASE_DB_URL` im Workflow. Ohne B
