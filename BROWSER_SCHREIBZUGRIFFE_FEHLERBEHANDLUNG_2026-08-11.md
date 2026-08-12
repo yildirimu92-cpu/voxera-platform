@@ -92,3 +92,67 @@ meinen falschen Rechte-Entzug von heute gar nicht erst zugelassen.
 **Reihenfolge:** Baustein 1 und die Gruppe A vor dem Piloten, Gruppe B danach,
 der Wächter so früh wie möglich — er ist das einzige Stück, das verhindert, dass
 dieselbe Lücke ein viertes Mal entsteht.
+
+---
+
+# Nachtrag: „Braucht dich" — erledigt markieren, Eintrag kommt zurück
+
+Gemeldet aus einem Test in der Nacht auf 2026-08-12. Erste Frage war, ob es
+dieselbe Klasse ist wie die fünf Kundenaktionen oben und durch `vxDbWrite()`
+bereits behoben.
+
+## Nein — der Erledigt-Pfad berührt den Browser-Client gar nicht
+
+| Eintragsart | Autoritativer Schreibweg | Fehlerverhalten |
+| --- | --- | --- |
+| Anfrage (Anruf) | `apiUpdateCallStatus()` → Netlify Function `call-update-status`, schreibt mit dem Service-Role-Schlüssel `dashboard_status` + `updated_at` | wirft; `doStatusChange()` fängt und meldet |
+| Aufgabe | `updateManualTaskStatus()` → Function `cases-update` | wirft ausdrücklich bei `success !== true` |
+
+Beide Wege laufen über Netlify Functions, nicht über den `authenticated`-Client,
+und beide melden Fehler durch Werfen statt durch ein stilles `{ error }`. Der
+gemeinsame Schreibweg hat diese Stellen deshalb weder berührt noch geheilt.
+**Der Test von gestern lief nicht gegen einen veralteten Stand.** Eigener Befund.
+
+## Was auf diesem Pfad trotzdem kaputt ist (Fakt, nachgemessen)
+
+`applyStatusTransition()` (`:17295`) ruft nach der Function noch
+`vxBestEffortPatchCallLifecycle(recordId, { updated_at, completed_at, archived_at })`
+auf. Die Spaltenrechte in Produktion:
+
+| Spalte | `authenticated` darf UPDATE |
+| --- | --- |
+| `dashboard_status` | ja |
+| `updated_at` | ja |
+| **`completed_at`** | **nein** |
+| **`archived_at`** | **nein** |
+
+Dieser Schreibvorgang schlägt also **immer** fehl, nicht gelegentlich. Und der
+Fehlerzweig (`:17325`) macht die Sache schlimmer als ein blosses Scheitern:
+
+```js
+} catch (err) {
+  console.warn('[voxera] lifecycle timestamp update skipped', …);
+  var local = (allRecords || []).find(…);
+  if (local && local.fields) Object.assign(local.fields, fields);   // ← schreibt lokal, was die DB abgelehnt hat
+```
+
+Danach trägt der lokale Datensatz ein `completed_at`, die Datenbank keines.
+Zwei Stellen entscheiden anhand genau dieses Feldes mit:
+`vxTodayIsOpenCallForAttention()` (`:12451`) und `vxRowActionLifecycle()`
+(`:12557`). Nach dem nächsten Poll (9–12 s) ist das Feld wieder weg.
+
+**Ehrliche Einschränkung:** Das erklärt den gemeldeten Ablauf **nicht
+vollständig.** Beide Stellen prüfen vor `completed_at` auch den Status, und
+`dashboard_status = 'closed'` hat die Function persistiert — der Eintrag müsste
+also auch nach dem Poll als erledigt gelten. Der Befund oben ist echt und
+gehört behoben, aber ich habe ihn nicht als Ursache des Wiederauftauchens
+belegt. Dafür fehlt eine Reproduktion.
+
+## Was als Nächstes nötig ist
+
+Anfragen und Aufgaben nehmen ab `doStatusChange()` **völlig getrennte Wege**.
+Ohne zu wissen, welcher der beiden getestet wurde, hiesse Weitersuchen raten.
+Konkret gebraucht: War der Eintrag eine **Anfrage (Anruf)** oder eine
+**Aufgabe**? Dazu, falls vorhanden, die Konsolenausgabe — beide Pfade
+protokollieren ausführlich (`logManualTaskDoneFlow`, `[voxera] lifecycle
+timestamp update skipped`).
