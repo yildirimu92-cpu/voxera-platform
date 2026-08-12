@@ -4,7 +4,7 @@ const crypto = require('crypto');
 const { createClient } = require('@supabase/supabase-js');
 const { safeEqual } = require('./_lib/calendar-crypto');
 const { calendarEnabledForCustomer } = require('./_lib/calendar-rollout');
-const { bookingWindowError, bookingTimingError } = require('./_lib/booking-window');
+const { bookingWindowError, bookingTimingError, bufferedWindow, windowSpanError } = require('./_lib/booking-window');
 const { ensureAccessToken, checkAvailability, createEvent, updateEvent, deleteEvent } = require('./_lib/calendar-providers');
 const { SLOT_LIMIT, blockingUpdateFor, bookableSlots, freeSlots } = require('./_lib/calendar-slots');
 
@@ -53,11 +53,13 @@ function iso(value, field) {
 // hier zu lassen hiesse, einen Halbtag am Vorlauf scheitern zu lassen, dessen
 // spaetere Termine buchbar sind -- dieselbe Unteilbarkeit, die dieser PR beim
 // Kalender behebt.
+//
+// Die Spanne selbst rechnet booking-window.js. Sie sass bis zum 2026-08-12 auf
+// dem ANGEFRAGTEN Zeitraum, waehrend bufferedWindow() weiter abfragte -- die
+// Schranke bewachte etwas anderes als das, was passierte.
 function validateWindow(startIso, endIso, settings) {
-  const start = new Date(startIso).getTime();
-  const end = new Date(endIso).getTime();
-  if (end <= start) throw new Error('calendar_time_window_invalid');
-  if (end - start > 8 * 60 * 60 * 1000) throw new Error('calendar_time_window_too_large');
+  const spanError = windowSpanError(startIso, endIso, settings);
+  if (spanError) throw new Error(spanError);
 }
 
 // Fuer book und reschedule bleibt es eine Ablehnung: dort IST das Fenster der
@@ -67,12 +69,6 @@ function assertTiming(startIso, settings) {
   if (error) throw new Error(error);
 }
 
-function bufferedWindow(startIso, endIso, settings) {
-  return {
-    start: new Date(new Date(startIso).getTime() - Number(settings.buffer_before_minutes || 0) * 60000).toISOString(),
-    end: new Date(new Date(endIso).getTime() + Number(settings.buffer_after_minutes || 0) * 60000).toISOString()
-  };
-}
 
 // Die konfigurierte Termindauer war bis zum 2026-08-10 eine reine Mitteilung an
 // das Modell: der Kalenderblock nannte sie, durchgesetzt hat sie niemand.

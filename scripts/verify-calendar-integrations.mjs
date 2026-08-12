@@ -156,8 +156,97 @@ try {
     failures.push('calendar-providers.js ruft weiterhin freeBusy auf: ' + aufrufe[0].trim());
   }
 }
-if (!/calendar\.events/.test(source.providers)) {
-  failures.push('Der Scope calendar.events fehlt');
+// ── Die angeforderten OAuth-Bereiche ────────────────────────────────────────
+//
+// Geprueft wird die LISTE, nicht der Dateitext. Vorher stand hier eine
+// Textsuche nach `calendar.events` -- die haette auch ein Kommentar erfuellt,
+// in dem das Wort vorkommt, und genau darueber steht einer. Was sich als Liste
+// pruefen laesst, wird als Liste geprueft.
+//
+// Die Endpunkt-Pruefung weiter oben faengt diesen Fall NICHT: sie sieht, welche
+// URL aufgerufen wird, nicht, welche Berechtigung dafuer angefordert wird.
+// Traegt jemand `calendar.readonly` ein -- etwa um freeBusy "wieder zu
+// ermoeglichen" --, bleibt sie gruen. Der Schaden waere still: die Bewilligung
+// haengt am Refresh-Token, also braeuchte JEDER bereits verbundene Kunde eine
+// neue Zustimmung, und bis dahin merkt es niemand.
+{
+  const providerModule = require('../customer-dashboard/netlify/functions/_lib/calendar-providers.js');
+  const google = providerModule.PROVIDERS?.google?.scopes;
+  if (!Array.isArray(google)) {
+    failures.push('PROVIDERS.google.scopes ist keine Liste mehr -- die Bereichspruefung greift ins Leere');
+  } else {
+    for (const noetig of [
+      'https://www.googleapis.com/auth/calendar.events',
+      'https://www.googleapis.com/auth/calendar.calendarlist.readonly'
+    ]) {
+      if (!google.includes(noetig)) failures.push('Der erteilte Bereich ' + noetig + ' fehlt');
+    }
+    for (const breiter of [
+      'https://www.googleapis.com/auth/calendar',
+      'https://www.googleapis.com/auth/calendar.readonly',
+      'https://www.googleapis.com/auth/calendar.freebusy'
+    ]) {
+      if (google.includes(breiter)) {
+        failures.push('Neuer OAuth-Bereich ' + breiter + ': das zwingt jeden verbundenen Kunden zu einer erneuten Zustimmung');
+      }
+    }
+  }
+
+  // Microsoft deckt mit Calendars.ReadWrite beides ab. Ein zweiter Bereich
+  // waere derselbe Zustimmungsbruch.
+  const microsoft = providerModule.PROVIDERS?.microsoft?.scopes;
+  if (!Array.isArray(microsoft) || !microsoft.includes('Calendars.ReadWrite')) {
+    failures.push('Der Microsoft-Bereich Calendars.ReadWrite fehlt');
+  }
+}
+
+// ── Die Fenstergrenze rechnet mit Puffern ───────────────────────────────────
+//
+// Der Fall aus dem Testanruf vom 12.08.: 09:00-17:00 Ortszeit sind genau acht
+// Stunden und gingen durch -- abgefragt wurden mit buffer_after_minutes = 10
+// aber acht Stunden zehn Minuten. Die Schranke sass auf der angefragten Spanne,
+// nicht auf der abgefragten.
+{
+  const { windowSpanError, bufferedWindow, MAX_WINDOW_MS } =
+    require('../customer-dashboard/netlify/functions/_lib/booking-window.js');
+  const START = '2026-08-18T08:00:00Z';
+  const nach = (stunden) => new Date(new Date(START).getTime() + stunden * 3600000).toISOString();
+
+  const faelle = [
+    ['genau 8 Stunden ohne Puffer bleiben erlaubt', nach(8), { buffer_after_minutes: 0 }, null],
+    ['8 Stunden plus Puffer danach werden abgelehnt', nach(8), { buffer_after_minutes: 10 }, 'calendar_time_window_too_large'],
+    ['auch ein Puffer davor zaehlt mit', nach(8), { buffer_before_minutes: 15 }, 'calendar_time_window_too_large'],
+    ['ein Halbtag mit Puffern bleibt erlaubt', nach(4), { buffer_before_minutes: 15, buffer_after_minutes: 10 }, null],
+    ['ein verdrehter Zeitraum wird abgewiesen', '2026-08-18T07:00:00Z', {}, 'calendar_time_window_invalid'],
+    ['ein leerer Zeitraum wird abgewiesen', START, {}, 'calendar_time_window_invalid'],
+    ['ein fehlendes Ende wird abgewiesen', null, {}, 'calendar_time_window_invalid'],
+    ['eine unlesbare Zeitangabe wird abgewiesen', 'kein Datum', {}, 'calendar_time_window_invalid']
+  ];
+  for (const [name, ende, settings, erwartet] of faelle) {
+    const ergebnis = windowSpanError(START, ende, settings);
+    if (ergebnis !== erwartet) {
+      failures.push(`Fenstergrenze, ${name}: erwartet ${erwartet}, bekommen ${ergebnis}`);
+    }
+  }
+
+  // Die gepufferte Spanne ist genau das, was abgefragt wird -- sonst prueft die
+  // Schranke wieder etwas anderes als den Aufruf.
+  const w = bufferedWindow(START, nach(1), { buffer_before_minutes: 15, buffer_after_minutes: 10 });
+  if (new Date(w.end).getTime() - new Date(w.start).getTime() !== 85 * 60000) {
+    failures.push('bufferedWindow() rechnet die Puffer nicht in die Spanne');
+  }
+  if (MAX_WINDOW_MS !== 8 * 60 * 60 * 1000) {
+    failures.push('Die Fenstergrenze im Code entspricht nicht den im Prompt genannten 8 Stunden');
+  }
+
+  // Das Werkzeug darf die Spanne nicht wieder selbst rechnen.
+  const eigeneRechnung = source.tool
+    .split('\n')
+    .filter((zeile) => !zeile.trim().startsWith('//'))
+    .filter((zeile) => /end - start > /.test(zeile));
+  if (eigeneRechnung.length) {
+    failures.push('calendar-tool.js prueft die Spanne wieder selbst: ' + eigeneRechnung[0].trim());
+  }
 }
 
 process.env.CALENDAR_OAUTH_REDIRECT_URI = 'https://dashboard.voxera.ch/.netlify/functions/calendar-oauth-callback';

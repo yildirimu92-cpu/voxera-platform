@@ -158,4 +158,64 @@ function bookingTimingError(startIso, settings, now = Date.now()) {
 // Terminkandidaten an den erlaubten Zeiten auszurichten. Der Alternativweg
 // waere eine zweite Zeitzonenrechnung im Slot-Modul gewesen -- also genau die
 // Doppelquelle, die dieses Modul vermeidet.
-module.exports = { bookingWindowError, bookingTimingError, allowedIntervals, zonedParts, _test: { zonedParts, intervalsFor, intersect, toMinutes } };
+// ── Die Spanne eines abgefragten Zeitraums ──────────────────────────────────
+//
+// Steht hier und nicht in calendar-tool.js, weil dort `@supabase/supabase-js`
+// haengt: die Pruefskripte koennen die Datei nicht laden, und die Regel waere
+// nur ueber eine Textsuche im Quelltext pruefbar. Was sich rechnen laesst,
+// gehoert dorthin, wo man es rechnen lassen kann.
+
+// Obergrenze fuer einen abgefragten Zeitraum. Steht als "hoechstens 8 Stunden"
+// auch im Kalenderblock und in der Feldbeschreibung des Werkzeugs -- wer sie
+// hier aendert, muss dort mitziehen.
+const MAX_WINDOW_MS = 8 * 60 * 60 * 1000;
+
+// Vergroessert den ABFRAGE-Zeitraum um die Puffer. Der Termin selbst bleibt
+// unveraendert -- gefragt wird nur weiter, damit ein angrenzender Termin den
+// Puffer verletzt und auffaellt.
+function bufferedWindow(startIso, endIso, settings = {}) {
+  return {
+    start: new Date(new Date(startIso).getTime() - Number(settings.buffer_before_minutes || 0) * 60000).toISOString(),
+    end: new Date(new Date(endIso).getTime() + Number(settings.buffer_after_minutes || 0) * 60000).toISOString()
+  };
+}
+
+/**
+ * Prueft die SPANNE eines Zeitraums -- nicht seine Lage im Kalender, das macht
+ * bookingWindowError(), und nicht seinen Vorlauf, das macht bookingTimingError().
+ *
+ * Gemessen wird der Zeitraum MIT Puffern, also der, der tatsaechlich beim
+ * Anbieter abgefragt wird. Bis zum 2026-08-12 sass die Schranke auf der
+ * angefragten Spanne, waehrend bufferedWindow() daraus etwas Groesseres machte:
+ * bei `buffer_after_minutes` = 10 ging eine Anfrage ueber genau 8 Stunden durch
+ * und fragte 8 Stunden 10 Minuten ab. Die Schranke bewachte etwas anderes als
+ * das, was passierte. Aufgefallen an einem Testanruf, der die Grenze um null
+ * Sekunden unterschritt.
+ *
+ * `>` und nicht `>=`: "hoechstens 8 Stunden" heisst, dass genau 8 Stunden
+ * erlaubt sind, und der Kalenderblock sagt dem Modell genau das. Der Fehler lag
+ * nie am Vergleich, sondern an der Spanne, auf der er sass -- ein `>=` haette
+ * den Code gegen den Prompt gestellt und die Ursache stehen gelassen.
+ *
+ * @returns {null|'calendar_time_window_invalid'|'calendar_time_window_too_large'}
+ */
+function windowSpanError(startIso, endIso, settings = {}) {
+  const start = new Date(startIso).getTime();
+  const end = new Date(endIso).getTime();
+  if (!Number.isFinite(start) || !Number.isFinite(end)) return 'calendar_time_window_invalid';
+  if (end <= start) return 'calendar_time_window_invalid';
+  const gepuffert = bufferedWindow(startIso, endIso, settings);
+  const spanne = new Date(gepuffert.end).getTime() - new Date(gepuffert.start).getTime();
+  return spanne > MAX_WINDOW_MS ? 'calendar_time_window_too_large' : null;
+}
+
+module.exports = {
+  bookingWindowError,
+  bookingTimingError,
+  allowedIntervals,
+  zonedParts,
+  bufferedWindow,
+  windowSpanError,
+  MAX_WINDOW_MS,
+  _test: { zonedParts, intervalsFor, intersect, toMinutes }
+};
