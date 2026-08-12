@@ -110,12 +110,15 @@ export const BEKANNTE_STELLEN = [
     konform: /vxSbWrite\(/
   },
   {
+    // #971-Nachschlag (Codex): {error}-Pruefung allein reicht nicht -- eine
+    // durch RLS herausgefilterte Zeile meldet error:null bei 0 betroffenen
+    // Zeilen. .select('id') plus Laengenpruefung auf die Rueckgabe noetig.
     datei: 'customer-dashboard/index.html',
     funktion: 'vxSaveProfil (Name-Update)',
     status: 'explizit',
-    anker: "const { error: nameError } = await _sb.from('customers').update({ contact_first_name: name,",
-    fenster: 250,
-    konform: /const \{ error: nameError \} = await[\s\S]*?if \(nameError\) throw new Error\(nameError\.message\);/
+    anker: "const { data: nameRows, error: nameError } = await _sb.from('customers').update({ contact_first_name: name,",
+    fenster: 350,
+    konform: /\.select\('id'\);\s*if \(nameError\) throw new Error\(nameError\.message\);\s*if \(!nameRows \|\| nameRows\.length === 0\) throw new Error\(/
   },
   {
     datei: 'customer-dashboard/index.html',
