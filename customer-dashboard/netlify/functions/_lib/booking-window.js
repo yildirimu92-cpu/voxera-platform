@@ -129,4 +129,54 @@ function bookingWindowError(startIso, endIso, settings, openingHours) {
   return fits ? null : 'calendar_booking_outside_hours';
 }
 
-module.exports = { bookingWindowError, allowedIntervals, _test: { zonedParts, intervalsFor, intersect, toMinutes } };
+// ── Die Spanne eines abgefragten Zeitraums ──────────────────────────────────
+//
+// Steht hier und nicht in calendar-tool.js, weil dort `@supabase/supabase-js`
+// haengt und die Regel dann nur ueber Textsuche pruefbar waere. Eine
+// Rechenregel gehoert dorthin, wo man sie rechnen lassen kann.
+
+// Obergrenze fuer einen abgefragten Zeitraum. Steht als "hoechstens 8 Stunden"
+// auch im Kalenderblock und in der Feldbeschreibung des Werkzeugs -- wer sie
+// hier aendert, muss dort mitziehen.
+const MAX_WINDOW_MS = 8 * 60 * 60 * 1000;
+
+function bufferedWindow(startIso, endIso, settings = {}) {
+  return {
+    start: new Date(new Date(startIso).getTime() - Number(settings.buffer_before_minutes || 0) * 60000).toISOString(),
+    end: new Date(new Date(endIso).getTime() + Number(settings.buffer_after_minutes || 0) * 60000).toISOString()
+  };
+}
+
+/**
+ * Prueft die Spanne -- nicht die Lage im Kalender, das macht bookingWindowError().
+ *
+ * Gemessen wird der Zeitraum MIT Puffern, also der, der tatsaechlich beim
+ * Anbieter abgefragt wird. Bis zum 2026-08-12 sass die Schranke auf der
+ * angefragten Spanne, waehrend `bufferedWindow()` daraus etwas Groesseres
+ * machte: bei `buffer_after_minutes` = 10 ging eine Anfrage ueber genau 8
+ * Stunden durch und fragte 8 Stunden 10 Minuten ab. Die Schranke bewachte
+ * etwas anderes als das, was tatsaechlich passierte.
+ *
+ * `>` und nicht `>=`: "hoechstens 8 Stunden" heisst, dass genau 8 Stunden
+ * erlaubt sind. Der Fehler lag nie am Vergleich, sondern an der Spanne.
+ *
+ * @returns {null|'calendar_time_window_invalid'|'calendar_time_window_too_large'}
+ */
+function windowSpanError(startIso, endIso, settings = {}) {
+  const start = new Date(startIso).getTime();
+  const end = new Date(endIso).getTime();
+  if (!Number.isFinite(start) || !Number.isFinite(end)) return 'calendar_time_window_invalid';
+  if (end <= start) return 'calendar_time_window_invalid';
+  const gepuffert = bufferedWindow(startIso, endIso, settings);
+  const spanne = new Date(gepuffert.end).getTime() - new Date(gepuffert.start).getTime();
+  return spanne > MAX_WINDOW_MS ? 'calendar_time_window_too_large' : null;
+}
+
+module.exports = {
+  bookingWindowError,
+  allowedIntervals,
+  bufferedWindow,
+  windowSpanError,
+  MAX_WINDOW_MS,
+  _test: { zonedParts, intervalsFor, intersect, toMinutes }
+};

@@ -4,7 +4,7 @@ const crypto = require('crypto');
 const { createClient } = require('@supabase/supabase-js');
 const { safeEqual } = require('./_lib/calendar-crypto');
 const { calendarEnabledForCustomer } = require('./_lib/calendar-rollout');
-const { bookingWindowError } = require('./_lib/booking-window');
+const { bookingWindowError, bufferedWindow, windowSpanError } = require('./_lib/booking-window');
 const { ensureAccessToken, checkAvailability, createEvent, updateEvent, deleteEvent } = require('./_lib/calendar-providers');
 
 const headers = { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' };
@@ -46,21 +46,16 @@ function iso(value, field) {
 
 function validateWindow(startIso, endIso, settings) {
   const start = new Date(startIso).getTime();
-  const end = new Date(endIso).getTime();
-  if (end <= start) throw new Error('calendar_time_window_invalid');
-  if (end - start > 8 * 60 * 60 * 1000) throw new Error('calendar_time_window_too_large');
+  // Spanne und Fenstergrenze rechnet booking-window.js -- dort ist die Regel
+  // ohne Abhaengigkeiten pruefbar, hier waere sie es nur ueber Textsuche.
+  const spanError = windowSpanError(startIso, endIso, settings);
+  if (spanError) throw new Error(spanError);
   const notice = Number(settings.minimum_notice_minutes || 0) * 60000;
   if (start < Date.now() + notice) throw new Error('calendar_minimum_notice_not_met');
   const horizon = Number(settings.booking_horizon_days || 60) * 86400000;
   if (start > Date.now() + horizon) throw new Error('calendar_booking_horizon_exceeded');
 }
 
-function bufferedWindow(startIso, endIso, settings) {
-  return {
-    start: new Date(new Date(startIso).getTime() - Number(settings.buffer_before_minutes || 0) * 60000).toISOString(),
-    end: new Date(new Date(endIso).getTime() + Number(settings.buffer_after_minutes || 0) * 60000).toISOString()
-  };
-}
 
 // Die konfigurierte Termindauer war bis zum 2026-08-10 eine reine Mitteilung an
 // das Modell: der Kalenderblock nannte sie, durchgesetzt hat sie niemand.

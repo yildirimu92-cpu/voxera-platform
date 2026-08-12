@@ -1,0 +1,39 @@
+name: Verify Calendar Availability
+
+# Ohne Pfad-Filter, gleiche Begruendung wie bei verify-booking-window: wer eine
+# gelesene Datei anfasst, sie aber nicht in die Pfadliste eingetragen hat,
+# bekommt einen uebersprungenen statt eines bestandenen Laufs -- und
+# uebersprungen sieht in der PR-Ansicht nicht nach einer Luecke aus.
+#
+# Der Check sichert den Befund vom 2026-08-12: drei Testanrufe, drei
+# Fehlschlaege, unabhaengig von Datum und Formulierung. Ursache war kein
+# Grenzfall, sondern eine fehlende Berechtigung -- `calendar/v3/freeBusy`
+# verlangt `calendar`, `calendar.readonly` oder `calendar.freebusy`, erteilt
+# sind `calendar.calendarlist.readonly` und `calendar.events`. Der Endpunkt war
+# nie erlaubt: jede Verfuegbarkeitspruefung und jede Buchung schlug fehl, seit
+# es die Funktion gibt. Nur `reschedule` kam durch, weil es schon immer die
+# Terminliste benutzte.
+#
+# Bewacht wird deshalb dreierlei: dass freeBusy nicht zurueckkehrt, dass die
+# angeforderten OAuth-Bereiche die bereits erteilten bleiben (ein neuer Bereich
+# schickt jeden bestehenden Kunden durch eine neue Zustimmung), und dass eine
+# seitenweise abgeschnittene Terminliste nicht als "frei" durchgeht.
+#
+# Dazu die Fenstergrenze: sie sass auf der angefragten Spanne, waehrend der
+# gepufferte Zeitraum abgefragt wurde -- bei zehn Minuten Puffer fragte eine
+# Anfrage ueber genau acht Stunden achteinviertel ab.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: node scripts/verify-calendar-availability.mjs
