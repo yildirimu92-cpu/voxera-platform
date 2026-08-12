@@ -293,25 +293,29 @@ select case when 4 = (
        'F6-grants', 'customers: die 4 Spalten sind die erwarteten', ''
 where to_regclass('public.customers') is not null;
 
-select case when 4 = (
+-- Fuenf statt vier seit 20260811194700: callback_requested kam dazu. Die Zahl
+-- gehoert mit der Migration nachgezogen, sonst faerbt die eigene Massnahme den
+-- Check rot -- so geschehen am 12.08. um 06:50, Lauf 31571552658.
+select case when 5 = (
          select pg_catalog.count(*) from pg_catalog.pg_attribute as a
          where a.attrelid = to_regclass('public.calls') and a.attnum > 0 and not a.attisdropped
            and pg_catalog.has_column_privilege('authenticated', a.attrelid, a.attnum, 'UPDATE')
        ) then 'PASS' else 'FAIL' end,
-       'F6-grants', 'calls: authenticated-UPDATE auf exakt 4 Spalten',
+       'F6-grants', 'calls: authenticated-UPDATE auf exakt 5 Spalten',
        coalesce((select pg_catalog.string_agg(a.attname, ',' order by a.attname)
                  from pg_catalog.pg_attribute as a
                  where a.attrelid = to_regclass('public.calls') and a.attnum > 0 and not a.attisdropped
                    and pg_catalog.has_column_privilege('authenticated', a.attrelid, a.attnum, 'UPDATE')), '<keine>')
 where to_regclass('public.calls') is not null;
 
-select case when 4 = (
+select case when 5 = (
          select pg_catalog.count(*) from pg_catalog.pg_attribute as a
          where a.attrelid = to_regclass('public.calls') and a.attnum > 0 and not a.attisdropped
-           and a.attname in ('read_at', 'notes_customer_voxera', 'dashboard_status', 'updated_at')
+           and a.attname in ('read_at', 'notes_customer_voxera', 'dashboard_status', 'updated_at',
+                             'callback_requested')
            and pg_catalog.has_column_privilege('authenticated', a.attrelid, a.attnum, 'UPDATE')
        ) then 'PASS' else 'FAIL' end,
-       'F6-grants', 'calls: die 4 Spalten sind die erwarteten', ''
+       'F6-grants', 'calls: die 5 Spalten sind die erwarteten', ''
 where to_regclass('public.calls') is not null;
 
 -- Einzelne Spalten, die unter keinen Umstaenden kundenschreibbar sein duerfen.
