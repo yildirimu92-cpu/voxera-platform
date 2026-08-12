@@ -14,14 +14,21 @@
  * neuen Namen lokal, obwohl _sb.from('customers').update(...) einen Fehler im
  * Ergebnis zurueckgab -- der Aufruf las das Ergebnis nie. Die Suche danach ergab
  * sieben Browser-Schreibzugriffe ohne diese Pruefung; vier kundenseitig
- * (customer-dashboard), drei adminseitig (admin-panel). vxSaveProfil ist seither
- * gefixt; sechs stehen noch aus.
+ * (customer-dashboard), drei adminseitig (admin-panel). Alle sieben sind
+ * inzwischen gefixt: vxSaveProfil separat in #971, die uebrigen sechs
+ * (vxNotifMarkRead, vxNotifPersistReadIds, vxNotifMarkAllRead,
+ * updateChangeRequestStatus, saveChangeRequestNote, Auto-Apply-Flow
+ * admin_notes) ueber die beiden Helfer unten.
  *
  * Zwei Helfer schliessen die Luecke fuer neue und bestehende Stellen:
  *   customer-dashboard/shared/customer-runtime-supabase-write.js  -> vxSbWrite()
  *   admin-panel/shared/core/admin-supabase-write.js               -> adminSbWrite()
  * Beide pruefen `.error` und werfen; eine damit umwickelte Schreibstelle kann
- * das Ergebnis nicht mehr ungeprueft lassen.
+ * das Ergebnis nicht mehr ungeprueft lassen. Seit dem Codex-Fund auf #971
+ * pruefen beide zusaetzlich, ob eine per .select() zurueckgelesene Zeile
+ * ueberhaupt existiert -- {error} allein belegt keinen Schreibvorgang, eine
+ * RLS-USING-Klausel kann die Zeile herausfiltern, ohne dass ein Fehler
+ * entsteht (siehe Kommentar in den beiden Helfer-Dateien).
  *
  * Wie es prueft
  * -------------
@@ -90,7 +97,7 @@ export const BEKANNTE_STELLEN = [
     funktion: 'vxNotifMarkRead',
     status: 'helfer',
     anker: "async function vxNotifMarkRead(id) {",
-    fenster: 500,
+    fenster: 950,
     konform: /vxSbWrite\(/
   },
   {
@@ -106,7 +113,7 @@ export const BEKANNTE_STELLEN = [
     funktion: 'vxNotifMarkAllRead',
     status: 'helfer',
     anker: 'async function vxNotifMarkAllRead() {',
-    fenster: 600,
+    fenster: 800,
     konform: /vxSbWrite\(/
   },
   {
@@ -207,7 +214,7 @@ export const BEKANNTE_STELLEN = [
     funktion: 'updateChangeRequestStatus',
     status: 'helfer',
     anker: 'async function updateChangeRequestStatus(id, status) {',
-    fenster: 350,
+    fenster: 550,
     konform: /adminSbWrite\(/
   },
   {
@@ -308,22 +315,29 @@ export function klassifiziereRohbefund(gefunden, eingetragen) {
 }
 
 /**
- * Ratsche statt Dauerrot: die sechs am 2026-08-11 gefundenen, noch offenen
- * Stellen (siehe Dateikopf) sind bekannte, dokumentierte Restschuld -- kein
- * Grund, ab sofort JEDEN Pull Request in diesem Repo rot zu markieren, bis
- * sie gefixt sind (das waere selbst ein Vakuum-Pass: ein Dauerrot, das
- * niemand mehr liest, ist von "nichts geprueft" nicht zu unterscheiden).
- * Stattdessen: PASS, solange die Zahl der nicht-konformen bekannten Stellen
- * GENAU dieser Basislinie entspricht. Steigt sie (Regression) oder sinkt sie
- * (Fix gelandet, Basislinie nicht nachgezogen), schlaegt die Pruefung fehl --
- * in beide Richtungen mit eigener, klarer Meldung. Eine neue, nicht
- * eingetragene Stelle (Rohbefund-Abweichung weiter unten) bleibt davon
- * unberuehrt und schlaegt immer hart fehl.
+ * Ratsche statt Dauerrot: bekannte, dokumentierte Restschuld zaehlt nicht
+ * einzeln als Fehler, sondern wird gegen diese Basislinie geprueft -- PASS,
+ * solange die Zahl der nicht-konformen bekannten Stellen GENAU der Basislinie
+ * entspricht. Steigt sie (Regression) oder sinkt sie (Fix gelandet, Basislinie
+ * nicht nachgezogen), schlaegt die Pruefung fehl -- in beide Richtungen mit
+ * eigener, klarer Meldung. Eine neue, nicht eingetragene Stelle
+ * (Rohbefund-Abweichung weiter unten) bleibt davon unberuehrt und schlaegt
+ * immer hart fehl.
  *
- * Wer eine der sechs Stellen fixt, senkt diese Zahl im selben Commit --
- * sonst faengt das Skript das selbst ab.
+ * Wer eine bekannte Stelle fixt, senkt diese Zahl im selben Commit -- sonst
+ * faengt das Skript das selbst ab.
+ *
+ * Verlauf: 6 am 2026-08-11 (vxSaveProfil separat gefixt in #971, siehe
+ * Dateikopf) -> 0 nach den sechs Einzelfixes (vxNotifMarkRead,
+ * vxNotifPersistReadIds, vxNotifMarkAllRead, updateChangeRequestStatus,
+ * saveChangeRequestNote, Auto-Apply-Flow admin_notes), alle ueber
+ * vxSbWrite()/adminSbWrite() plus .select() -- letzteres nur, weil fuer
+ * notifications und ai_change_requests einzeln geprueft wurde, dass SELECT-
+ * und UPDATE-Policy dieselbe Bedingung nutzen (siehe Kommentar in
+ * customer-runtime-supabase-write.js / admin-supabase-write.js). Das ist
+ * keine Garantie, die pauschal fuer jede kuenftige Tabelle gilt.
  */
-export const BASISLINIE_NICHT_KONFORM = 6;
+export const BASISLINIE_NICHT_KONFORM = 0;
 
 /**
  * Vergleicht die tatsaechliche Restschuld mit der Basislinie. Reine Funktion,
