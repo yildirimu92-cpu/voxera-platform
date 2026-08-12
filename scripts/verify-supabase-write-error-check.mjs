@@ -233,14 +233,16 @@ export const BEKANNTE_STELLEN = [
     fenster: 300,
     konform: /adminSbWrite\(/
   },
-  {
-    datei: 'customer-dashboard/index.html',
-    funktion: 'vxBestEffortPatchCallLifecycle',
-    status: 'explizit',
-    anker: 'async function vxBestEffortPatchCallLifecycle(recordId, fields) {',
-    fenster: 500,
-    konform: /var res = await sb\.from\(CALLS_TABLE\)\.update\(fields\)[\s\S]{0,150}if \(res && res\.error\) throw res\.error;/
-  },
+  // vxBestEffortPatchCallLifecycle stand hier bis 2026-08-12. Der Eintrag ist
+  // entfallen, weil die SCHREIBSTELLE entfallen ist: die Lifecycle-Zeitstempel
+  // setzt jetzt call-update-status serverseitig (service_role), der Browser
+  // schreibt sie nicht mehr. Ein Eintrag ohne Fundstelle laesst diese Pruefung
+  // mit "Anker nicht gefunden" rot werden -- so ist die Entfernung ueberhaupt
+  // aufgefallen, und das ist die Ratsche, die funktioniert.
+  //
+  // Die Zahl im Rohbefund fuer customer-dashboard/index.html geht dadurch von
+  // 15 auf 14. Das ist ein ABBAU von Schreibstellen im Browser, nicht ein
+  // uebersehener Zuwachs.
   {
     datei: 'customer-dashboard/index.html',
     funktion: 'vxBestEffortPatchTaskLifecycle',
