@@ -94,7 +94,8 @@ exports.handler = async (event) => {
     promptFingerprint: result.promptFingerprint,
     quality: result.quality,
     calendar_tool_status: result.calendarToolStatus,
-    calendar_tool_id: result.calendarToolId,
+    // Mehrzahl seit dem 2026-08-12: Absagen sind ein eigenes Werkzeug.
+    calendar_tool_ids: result.calendarToolIds,
     phone_number_status: result.phoneNumberStatus,
     phone_number_id: result.phoneNumberId,
     phone_number: result.phoneNumber

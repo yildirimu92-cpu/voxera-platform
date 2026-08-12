@@ -22,8 +22,8 @@
 const { buildPromptV2 } = require('./prompt-builder-v2');
 const {
   configured: calendarToolProvisioningConfigured,
-  ensureWorkspaceTool,
-  findWorkspaceToolId,
+  ensureWorkspaceTools,
+  findWorkspaceToolIds,
   agentToolIds,
   calendarPromptBlock
 } = require('./elevenlabs-calendar-tool');
@@ -225,7 +225,7 @@ async function syncCustomerToElevenLabs({
   let compiled = null;
   let syncStatus = 'success';
   let syncError = null;
-  let calendarToolId = null;
+  let calendarToolIds = [];
   let calendarToolStatus = 'not_configured';
   let phoneNumberStatus = 'not_attempted';
   let phoneNumberId = null;
@@ -301,15 +301,15 @@ async function syncCustomerToElevenLabs({
     let toolIds;
     if (calendarToolProvisioningConfigured()) {
       if (appointmentMode === 'direct') {
-        calendarToolId = await ensureWorkspaceTool();
-        toolIds = await agentToolIds(agentId, calendarToolId, { attach: true });
+        calendarToolIds = await ensureWorkspaceTools();
+        toolIds = await agentToolIds(agentId, calendarToolIds, { attach: true });
         calendarToolStatus = 'configured';
       } else {
-        // findWorkspaceToolId() statt ensureWorkspaceTool(): zum Entfernen
-        // genuegt die ID, und ein Kunde ohne Direktbuchung ist kein Anlass, das
-        // Werkzeug im Arbeitsbereich anzulegen.
-        calendarToolId = await findWorkspaceToolId();
-        toolIds = await agentToolIds(agentId, calendarToolId, { attach: false });
+        // findWorkspaceToolIds() statt ensureWorkspaceTools(): zum Entfernen
+        // genuegen die IDs, und ein Kunde ohne Direktbuchung ist kein Anlass,
+        // die Werkzeuge im Arbeitsbereich anzulegen.
+        calendarToolIds = await findWorkspaceToolIds();
+        toolIds = await agentToolIds(agentId, calendarToolIds, { attach: false });
         calendarToolStatus = 'detached';
       }
     } else if (calendarBlock) {
@@ -551,7 +551,7 @@ async function syncCustomerToElevenLabs({
     readbackSource,
     readbackError: readbackFailure,
     calendarToolStatus,
-    calendarToolId,
+    calendarToolIds,
     phoneNumberStatus,
     phoneNumberId,
     phoneNumber
@@ -614,8 +614,8 @@ async function restoreAgentPrompt({ sb, apiKey, customerId, agentId, prompt }) {
   try {
     if (calendarToolProvisioningConfigured()) {
       const attach = customer.ai_appointment_mode === 'direct';
-      const calendarToolId = attach ? await ensureWorkspaceTool() : await findWorkspaceToolId();
-      toolIds = await agentToolIds(agentId, calendarToolId, { attach });
+      const calendarToolIds = attach ? await ensureWorkspaceTools() : await findWorkspaceToolIds();
+      toolIds = await agentToolIds(agentId, calendarToolIds, { attach });
     }
   } catch (error) {
     return { ok: false, error: `tool_ids_lookup_failed: ${error?.message || String(error)}` };
