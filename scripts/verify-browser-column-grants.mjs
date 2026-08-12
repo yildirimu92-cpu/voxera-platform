@@ -220,7 +220,7 @@ function sammleAusRepo() {
  * PGPASSWORD wird nichts geparst. Ein Waechter, der nur den fragilen der beiden
  * Wege kennt, ist genau dann rot, wenn er nichts gefunden hat.
  */
-function verbindungsArgumente() {
+export function verbindungsArgumente() {
   const felder = {
     host: (process.env.SUPABASE_DB_HOST || '').trim(),
     port: (process.env.SUPABASE_DB_PORT || '5432').trim(),
@@ -234,26 +234,41 @@ function verbindungsArgumente() {
              '--username', felder.user, '--dbname', felder.dbname],
       env: { ...process.env, PGPASSWORD: felder.password,
              PGSSLMODE: process.env.PGSSLMODE || 'require' },
-      passwort: felder.password,
+      geheim: [felder.password],
+      url: '',
       weg: 'Einzelfelder (SUPABASE_DB_HOST/_USER/_PASSWORD)',
     };
   }
-  const url = process.env.SUPABASE_DB_URL || process.env.DATABASE_URL || '';
+  // WELCHER der beiden benutzt wurde, muss mitgefuehrt werden. Vorher las die
+  // Schwaerzung fest SUPABASE_DB_URL -- griff DATABASE_URL, blieb der ganze
+  // String samt Passwort ungeschwaerzt im Log stehen (Review PR #979).
+  const ausSupabase = (process.env.SUPABASE_DB_URL || '').trim();
+  const url = ausSupabase || (process.env.DATABASE_URL || '').trim();
   if (!url) return null;
-  let pw = '';
-  try { pw = decodeURIComponent(new URL(url).password || ''); } catch { /* egal */ }
-  return { args: [url], env: { ...process.env }, passwort: pw,
-           weg: 'SUPABASE_DB_URL (Connection-String)' };
+  // Kodierte UND dekodierte Form. Im String steht das Passwort URL-kodiert
+  // ("%2F"), Fehlermeldungen von libpq zitieren aber teils die dekodierte --
+  // wer nur eine der beiden ersetzt, schwaerzt in der Haelfte der Faelle nicht.
+  const roh = (() => { try { return new URL(url).password || ''; } catch { return ''; } })();
+  const klar = (() => { try { return decodeURIComponent(roh); } catch { return ''; } })();
+  return { args: [url], env: { ...process.env }, geheim: [roh, klar], url,
+           weg: ausSupabase ? 'SUPABASE_DB_URL (Connection-String)'
+                            : 'DATABASE_URL (Connection-String)' };
 }
 
-/** Weder der String noch das Passwort duerfen je im CI-Log stehen. */
-function schwaerze(text, verb) {
+/**
+ * Weder der String noch das Passwort duerfen je im CI-Log stehen.
+ *
+ * Geschwaerzt wird gegen das, was `verbindungsArgumente()` TATSAECHLICH gewaehlt
+ * hat -- nicht gegen eine fest verdrahtete Variable. Sonst haengt die
+ * Schwaerzung davon ab, welchen der beiden Wege die Umgebung zufaellig
+ * bereitstellt, und genau der seltenere Fall bliebe ungeschwaerzt.
+ */
+export function schwaerze(text, verb) {
   if (!text) return '';
   let out = text;
-  const url = process.env.SUPABASE_DB_URL || '';
-  if (url) out = out.split(url).join('<SUPABASE_DB_URL>');
-  if (verb && verb.passwort && verb.passwort.length > 3) {
-    out = out.split(verb.passwort).join('<redacted>');
+  if (verb && verb.url) out = out.split(verb.url).join('<connection-string>');
+  for (const g of (verb && verb.geheim) || []) {
+    if (g && g.length > 3) out = out.split(g).join('<redacted>');
   }
   return out;
 }
@@ -346,6 +361,62 @@ if (direktAufgerufen && process.argv.includes('--selbsttest')) {
     'sb.from(CALLS_TABLE).update(fields) -> calls, Payload unklar');
   pruefe('.from(unaufloesbar) faellt auf, statt unsichtbar zu bleiben',
     unklar.some((u) => u.grundfehlt === 'Tabellenname nicht aufloesbar'));
+
+  // ── Schwaerzung ──────────────────────────────────────────────────────────
+  //
+  // Sie wird geprueft, weil psql den Connection-String nur in seltenen
+  // Fehlerbildern zitiert. Eine Schwaerzung, die im Normalbetrieb nie feuert,
+  // merkt niemand, wenn sie aufhoert zu wirken -- und dann steht das Passwort
+  // genau einmal im CI-Log, an dem Tag, an dem etwas schiefgeht.
+  {
+    const sichern = {
+      SUPABASE_DB_URL: process.env.SUPABASE_DB_URL,
+      DATABASE_URL: process.env.DATABASE_URL,
+      SUPABASE_DB_HOST: process.env.SUPABASE_DB_HOST,
+      SUPABASE_DB_USER: process.env.SUPABASE_DB_USER,
+      SUPABASE_DB_PASSWORD: process.env.SUPABASE_DB_PASSWORD,
+    };
+    const setze = (o) => {
+      for (const k of Object.keys(sichern)) delete process.env[k];
+      Object.assign(process.env, o);
+    };
+
+    // Der Fall aus dem Review: DATABASE_URL statt SUPABASE_DB_URL.
+    setze({ DATABASE_URL: 'postgresql://ci:ge%2Fhe%2Bim@db.example:5432/postgres' });
+    const vDb = verbindungsArgumente();
+    pruefe('DATABASE_URL wird als Weg erkannt und benannt',
+      vDb && vDb.weg.startsWith('DATABASE_URL'), vDb && vDb.weg);
+    const gemeldet = schwaerze(
+      'psql: error: connection to postgresql://ci:ge%2Fhe%2Bim@db.example:5432/postgres'
+      + ' failed for password ge/he+im', vDb);
+    pruefe('DATABASE_URL: der ganze String wird geschwaerzt',
+      !gemeldet.includes('db.example:5432'), gemeldet);
+    pruefe('DATABASE_URL: die KODIERTE Passwortform wird geschwaerzt',
+      !gemeldet.includes('ge%2Fhe%2Bim'));
+    pruefe('DATABASE_URL: die DEKODIERTE Passwortform wird geschwaerzt',
+      !gemeldet.includes('ge/he+im'));
+
+    setze({ SUPABASE_DB_URL: 'postgresql://ci:abc123xyz@db.example:5432/postgres' });
+    pruefe('SUPABASE_DB_URL hat Vorrang und wird ebenso geschwaerzt',
+      !schwaerze('psql: abc123xyz', verbindungsArgumente()).includes('abc123xyz'));
+
+    setze({ SUPABASE_DB_HOST: 'db.example', SUPABASE_DB_USER: 'ci',
+            SUPABASE_DB_PASSWORD: 'geheimespasswort' });
+    const vFelder = verbindungsArgumente();
+    pruefe('Einzelfelder haben Vorrang vor jedem String',
+      vFelder && vFelder.weg.startsWith('Einzelfelder'), vFelder && vFelder.weg);
+    pruefe('Einzelfelder: das Passwort wird geschwaerzt',
+      !schwaerze('psql: FATAL geheimespasswort', vFelder).includes('geheimespasswort'));
+
+    setze({});
+    pruefe('ohne jede Zugangsdaten liefert die Verbindung null',
+      verbindungsArgumente() === null);
+
+    for (const k of Object.keys(sichern)) {
+      if (sichern[k] === undefined) delete process.env[k];
+      else process.env[k] = sichern[k];
+    }
+  }
 
   // Gegenprobe zur Selbstpruefung der gepflegten Liste: ein Eintrag, der auf
   // keine Fundstelle passt, MUSS auffallen.
