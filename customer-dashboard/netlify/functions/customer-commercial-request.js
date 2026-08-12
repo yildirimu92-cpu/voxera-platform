@@ -13,9 +13,14 @@ const headers = {
 };
 
 const ALLOWED_PLANS = new Set(['starter', 'business', 'professional', 'enterprise']);
-const ALLOWED_MINUTES = new Set([50, 100, 250, 500]);
 const ACTIVE_STATUSES = ['open', 'pending', 'in_progress', 'processing'];
-const EXTRA_MINUTES_DEDUPE_MS = 10 * 60 * 1000;
+
+// Der Anfragetyp 'extra_minutes' (Pakete 50/100/250/500 Minuten) stand hier bis
+// zum 12.08.2026. Er legte nur ein Ticket in voxera_cases an -- keine Rechnung,
+// keine Freischaltung -- waehrend die Oberflaeche dem Kunden "sofort
+// aufgeschaltet" plus Rechnung versprach. Zusatzminuten werden seither bei
+// Ueberschreitung des Kontingents automatisch nachbelastet; der Assistent
+// laeuft dabei unveraendert weiter.
 
 function response(statusCode, body) {
   return { statusCode, headers, body: JSON.stringify(body) };
@@ -67,21 +72,8 @@ async function findActivePlanRequest(sbAdmin, customerId) {
   return legacy.data ? { ...legacy.data, case_type: 'plan_upgrade' } : null;
 }
 
-async function findRecentExtraMinutesRequest(sbAdmin, customerId, minutes) {
-  const since = new Date(Date.now() - EXTRA_MINUTES_DEDUPE_MS).toISOString();
-  const title = `${minutes} Zusatzminuten anfragen`;
-  const { data, error } = await sbAdmin
-    .from('voxera_cases')
-    .select('id,title,status,case_type,source,created_at,updated_at')
-    .eq('customer_id', customerId)
-    .eq('title', title)
-    .gte('created_at', since)
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  if (error) throw error;
-  return data || null;
-}
+// findRecentExtraMinutesRequest() (10-Minuten-Dedupe fuer Minutenpakete) stand
+// hier bis zum 12.08.2026, entfernt zusammen mit dem 'extra_minutes'-Zweig.
 
 exports.handler = async function handler(event) {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers, body: '' };
@@ -174,30 +166,6 @@ exports.handler = async function handler(event) {
           ? 'Enterprise wird nicht automatisch aktiviert. Kunde kontaktieren, Bedarf qualifizieren und individuelles Angebot erstellen.'
           : 'Der Kunde hat die Bestellung im Portal bestätigt. Planwechsel gemäss internem Prozess ausführen.'
       ].join('\n');
-    } else if (type === 'extra_minutes') {
-      const minutes = Number(body.minutes);
-      if (!ALLOWED_MINUTES.has(minutes)) {
-        return response(400, { error: 'Ungültiges Minutenpaket', code: 'invalid_minutes_package' });
-      }
-
-      const recent = await findRecentExtraMinutesRequest(sbAdmin, guard.customerId, minutes);
-      if (recent) {
-        return response(200, {
-          ok: true,
-          duplicate: true,
-          active_request: publicRequest(recent),
-          message: 'Diese Bestellung wurde bereits übermittelt.'
-        });
-      }
-
-      title = `${minutes} Zusatzminuten anfragen`;
-      note = [
-        'Kundenbestellung aus dem Customer Portal',
-        `Plan: ${currentPlan}`,
-        `Gewünschtes Paket: ${minutes} Minuten`,
-        'Zusatzminuten gemäss aktuellem Übergangsprozess aktivieren und verrechnen.',
-        'Zahlungs- und Rechnungsprozess wird später durch den finalen Payment-Flow ersetzt.'
-      ].join('\n');
     } else {
       return response(400, { error: 'Ungültiger Anfragetyp', code: 'invalid_request_type' });
     }
@@ -221,9 +189,7 @@ exports.handler = async function handler(event) {
       reference,
       request_id: requestId,
       active_request: publicRequest(caseRow),
-      message: type === 'extra_minutes'
-        ? 'Ihre Bestellung wurde übermittelt.'
-        : 'Ihre Anfrage wurde übermittelt.'
+      message: 'Ihre Anfrage wurde übermittelt.'
     });
   } catch (error) {
     console.error('[customer-commercial-request] failed', error);

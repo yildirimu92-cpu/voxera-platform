@@ -101,7 +101,11 @@ function buildDerivedInvoiceItem(invoice, context) {
   if (periodStart && periodEnd) details.push(`Leistungsperiode ${periodStart} bis ${periodEnd}`);
   const includedMinutes = numberOr(contract.included_minutes ?? contract.plan_minutes_included ?? offer.included_minutes ?? plan.included_minutes ?? plan.minutes, 0);
   if (includedMinutes > 0) details.push(`${includedMinutes} Gesprächsminuten inklusive`);
-  const extraRate = numberOr(contract.extra_per_minute ?? contract.extra_rate ?? offer.extra_per_minute ?? plan.extra_per_minute ?? plan.extra_rate, 0);
+  // contracts.overage_rate_per_minute zuerst -- der vertraglich vereinbarte
+  // Wert und der tatsaechliche Spaltenname in Produktion. Stand bis zum
+  // 12.08.2026 nicht in der Kette, wodurch auf der Rechnung ein anderer
+  // Minutenpreis stehen konnte als der vereinbarte.
+  const extraRate = numberOr(contract.overage_rate_per_minute ?? contract.extra_per_minute ?? contract.extra_rate ?? offer.extra_per_minute ?? plan.extra_per_minute ?? plan.extra_rate, 0);
   if (extraRate > 0) details.push(`Zusatzminuten CHF ${extraRate.toFixed(2)} pro Minute`);
   if (type === 'setup_fee') details.push('Einmalige technische Einrichtung, Konfiguration und Bereitstellung');
   if (!details.length && planLabel) details.push(`Voxera Plan ${planLabel}`);

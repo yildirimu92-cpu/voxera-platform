@@ -69,6 +69,32 @@ function intEnv(name, fallback) {
   return Number.isFinite(raw) && raw > 0 ? raw : fallback;
 }
 
+/**
+ * Sperre fuer die automatische Nachbelastung von Zusatzminuten.
+ *
+ * Muss AUSDRUECKLICH eingeschaltet werden (BILLING_OVERAGE_ENABLED='true');
+ * ein fehlender oder abweichender Wert haelt den Ueberzugslauf an.
+ *
+ * Warum es die Sperre braucht: bis zum 12.08.2026 konnte runOverageSweep
+ * ueberhaupt keine Rechnung anlegen, weil invoices.invoice_type den Wert
+ * 'extra_minutes' per CHECK-Constraint abwies (an Produktion nachgewiesen,
+ * siehe 20260812060000_zusatzminuten_automatik_voraussetzungen.sql). Der
+ * Lauf lief also taeglich ins Leere -- und verschluckte den Insert-Fehler
+ * dabei still (ensureOverageInvoice gibt ihn nur zurueck, siehe dort).
+ *
+ * Mit der Reparatur dieser Constraint waere der Lauf schlagartig scharf:
+ * die erste Vertragsperiode endet am 06.09.2026, ab dann haette er ohne
+ * jede weitere Entscheidung Rechnungen erzeugt. Die Freigabe der
+ * Nachbelastung ist aber eine eigene Etappe mit eigener Freigabe und einer
+ * Ausgangsmessung davor.
+ *
+ * Diese Sperre gehoert auf 'true' gesetzt, wenn die Nachbelastung bewusst
+ * in Betrieb geht -- nicht vorher, auch nicht "schon mal vorbereitend".
+ */
+function overageBillingEnabled() {
+  return String(process.env.BILLING_OVERAGE_ENABLED || '').trim().toLowerCase() === 'true';
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Überzug Sweep
 // ─────────────────────────────────────────────────────────────────────────────
@@ -98,30 +124,47 @@ async function loadCustomerMinutesForMonth(sbAdmin, customerId, year, month) {
 }
 
 /**
- * Counts call minutes for a customer in an arbitrary period [start, end).
- * Uses Math.ceil per call to match frontend secsToMins().
+ * Zaehlt die angerechneten Gespraechsminuten eines Kunden im Zeitraum
+ * [start, end) -- ueber die Datenbankfunktion customer_usage_for_period,
+ * nicht mehr selbst.
+ *
+ * Bis zum 12.08.2026 rechnete diese Funktion `Math.ceil` JE ANRUF und
+ * summierte anschliessend, waehrend invoice-service.js dieselbe Zahl durch
+ * Summieren-dann-einmal-Runden ermittelte. An echten Produktionsdaten lagen
+ * beide 66 % auseinander (35 gegen 58 Minuten bei demselben Kunden im
+ * selben Zeitraum) -- welcher Betrag fakturiert wurde, haette davon
+ * abgehangen, welcher Codepfad zuerst lief.
+ *
+ * Die verbindliche Regel steht jetzt an genau einer Stelle, in der
+ * Datenbank: nur durchgestellte Gespraeche (live_status = 'completed') ab
+ * 10 Sekunden, Sekunden summieren, die Summe EINMAL aufrunden. Sie ist
+ * wortgleich in den AGB zugesagt.
+ * Siehe supabase/migrations/20260812061000_zusatzminuten_zaehlfunktion.sql
  */
 async function loadCustomerMinutesForPeriod(sbAdmin, customerId, periodStart, periodEnd) {
-  const { data, error } = await sbAdmin
-    .from('calls')
-    .select('duration_seconds, created_at')
-    .eq('customer_id', customerId)
-    .gte('created_at', periodStart.toISOString())
-    .lt('created_at', periodEnd.toISOString());
+  const { data, error } = await sbAdmin.rpc('customer_usage_for_period', {
+    p_customer_id: customerId,
+    p_from: periodStart.toISOString(),
+    p_to: periodEnd.toISOString()
+  });
   if (error) {
     return { ok: false, error: error.message };
   }
-  // Math.ceil per call — matches frontend secsToMins() / ceil-per-call billing logic
-  let usedMinutes = 0;
-  let totalSeconds = 0;
-  (data || []).forEach(row => {
-    const sec = Number(row.duration_seconds);
-    if (Number.isFinite(sec) && sec > 0) {
-      totalSeconds += sec;
-      usedMinutes  += Math.ceil(sec / 60);
-    }
-  });
-  return { ok: true, usedMinutes, totalSeconds };
+  // Die Funktion liefert genau eine Zeile.
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!row) {
+    return { ok: false, error: 'customer_usage_for_period lieferte keine Zeile' };
+  }
+  return {
+    ok: true,
+    usedMinutes: Number(row.used_minutes) || 0,
+    totalSeconds: Number(row.used_seconds) || 0,
+    // Fuer die Nachvollziehbarkeit auf der Rechnung: wie viele Anruf
+    // gezaehlt wurden und wie viele warum nicht.
+    countedCalls: Number(row.counted_calls) || 0,
+    ignoredTooShort: Number(row.ignored_too_short) || 0,
+    ignoredNotCompleted: Number(row.ignored_not_completed) || 0
+  };
 }
 
 /**
@@ -238,9 +281,23 @@ async function ensureOverageInvoice(sbAdmin, { customer, contract, year, month, 
     .select('*')
     .single();
   if (insertErr) {
+    // Laut protokollieren, nicht nur zurueckgeben. Genau dieser Fehlschlag
+    // blieb bis zum 12.08.2026 unbemerkt: die CHECK-Constraint wies
+    // invoice_type 'extra_minutes' ab, der Lauf meldete taeglich Erfolg
+    // ohne eine einzige Rechnung. Ein zurueckgegebener Fehler, den niemand
+    // liest, ist von "nichts zu tun" nicht zu unterscheiden.
+    log('error', 'overage_invoice_insert_failed', {
+      customer_id: customer.id,
+      contract_id: contract.id,
+      external_reference: externalRef,
+      error: insertErr.message
+    });
     return { created: false, error: 'invoice_insert_failed: ' + insertErr.message };
   }
-  await sbAdmin.from('invoice_items').insert({
+  // Ergebnis pruefen: ohne diese Pruefung entstuende eine Rechnung ueber
+  // einen Betrag, zu dem keine einzige Position gehoert -- der Kunde saehe
+  // eine Summe ohne Begruendung. Dieselbe Fehlerklasse wie oben.
+  const { error: itemErr } = await sbAdmin.from('invoice_items').insert({
     invoice_id: invoice.id,
     sort_order: 1,
     item_type: 'extra_minutes',
@@ -251,6 +308,21 @@ async function ensureOverageInvoice(sbAdmin, { customer, contract, year, month, 
     line_total: totalAmount,
     metadata: { source: 'auto_overage', period_month: periodMonth }
   });
+  if (itemErr) {
+    log('error', 'overage_invoice_item_insert_failed', {
+      customer_id: customer.id,
+      contract_id: contract.id,
+      invoice_id: invoice.id,
+      external_reference: externalRef,
+      error: itemErr.message
+    });
+    return {
+      created: false,
+      invoiceId: invoice.id,
+      error: 'invoice_item_insert_failed: ' + itemErr.message,
+      warning: 'Rechnung ohne Position angelegt, muss geprueft werden'
+    };
+  }
   return { created: true, invoiceId: invoice.id };
 }
 
@@ -723,15 +795,24 @@ exports.handler = async (event) => {
   // Each contract's overage is invoiced the day AFTER its billing period ends.
   // This replaces the old calendar-month window (day 1-3).
   let overageResult = { processed: 0, results: [] };
-  if (!dryRun) {
+  if (dryRun) {
+    log('info', 'dry_run_skipping_overage');
+  } else if (!overageBillingEnabled()) {
+    // Ausdrueckliche Sperre, siehe overageBillingEnabled(). Wird laut
+    // protokolliert statt still uebersprungen: ein Lauf, der nichts tut,
+    // muss von einem Lauf unterscheidbar sein, der nichts zu tun fand.
+    overageResult = { processed: 0, results: [], skipped: 'overage_billing_disabled' };
+    log('info', 'overage_sweep_disabled', {
+      reason: 'BILLING_OVERAGE_ENABLED ist nicht auf true gesetzt',
+      hint: 'Freigabe der automatischen Nachbelastung erfolgt als eigene Etappe'
+    });
+  } else {
     try {
       overageResult = await runOverageSweep({ sbAdmin, now });
     } catch (err) {
       log('error', 'overage_sweep_failed', { error: err.message || String(err) });
       overageResult = { processed: 0, results: [], error: err.message || String(err) };
     }
-  } else {
-    log('info', 'dry_run_skipping_overage');
   }
 
   // ── 2b. Contract Expiry Sweep ─────────────────────────────────────────────
