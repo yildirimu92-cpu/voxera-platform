@@ -54,6 +54,11 @@ const add = (status, group, name, detail = '') => results.push({ status, group, 
 
 const dbUrl = process.env.SUPABASE_DB_URL || process.env.DATABASE_URL || '';
 
+// Seit der Lauf gegen mehr als eine Umgebung geht, ist "gegen die
+// Produktions-DB geprueft" im Log nicht mehr automatisch wahr. Ein Bericht,
+// der die falsche Datenbank benennt, ist schlimmer als einer ohne Angabe.
+const UMGEBUNG = (process.env.UMGEBUNG || '').trim() || 'die Datenbank (Umgebung nicht benannt)';
+
 // Alternative zum Connection-String: Einzelfelder. Damit entfaellt die
 // URL-Kodierung komplett -- ein Passwort aus `openssl rand -base64 32` enthaelt
 // '/', '+' und '=', und je nachdem, welches davon wo landet, zerlegt libpq den
@@ -246,6 +251,25 @@ function checkBaseline(baseline) {
 // ── Gruppe G: Ledger-Drift ──────────────────────────────────────────────────
 
 function checkLedger(baseline) {
+  // Abschaltbar -- und zwar nur aus einem Grund: Der Ledger-Abgleich setzt
+  // voraus, dass Repo und Datenbank DIESELBE Migrationslinie teilen. Fuer
+  // Staging gilt das nachweislich nicht (null gemeinsame Versionen mit
+  // Produktion, siehe docs/TICKET_STAGING_LEDGER_DIVERGENZ_2026-08-11.md).
+  // Dort meldet dieser Block zwangslaeufig jede Repo-Datei als "nicht
+  // angewandt" und jede Ledger-Zeile als Waise -- 78 Meldungen, die nichts
+  // aussagen und die echten Grant-Befunde zudecken.
+  //
+  // Der Schalter gehoert in den Matrix-Eintrag der jeweiligen Umgebung, nicht
+  // in ein Repo-Secret: Auf Produktion abgeschaltet waere er genau die Luecke,
+  // gegen die dieses Skript ueberhaupt geschrieben wurde. Deshalb wird das
+  // Abschalten laut als SKIP mit Begruendung gemeldet und nicht verschwiegen.
+  if (process.env.LEDGER_ABGLEICH === 'aus') {
+    add('SKIP', 'G-ledger', 'Ledger-Abgleich fuer diese Umgebung abgeschaltet',
+      `${process.env.LEDGER_ABGLEICH_GRUND || 'ohne Begruendung abgeschaltet'}`
+      + ' -- Repo-Migrationen sind hier WEDER als angewandt NOCH als fehlend nachgewiesen');
+    return;
+  }
+
   // Zwei Listen, dieselbe Kategorie: vor dem Ledger entstanden, Anwendung
   // nicht nachweisbar. Getrennt gefuehrt, weil migratedFromSqlDir zusaetzlich
   // die Haertungspruefung steuert und dort eine andere Begruendung traegt.
@@ -370,7 +394,10 @@ function report() {
 
   if (process.env.GITHUB_STEP_SUMMARY) {
     const md = [
-      '## Security-Invarianten der Produktions-DB',
+      // Die Umgebung gehoert in die Ueberschrift, nicht in eine Fussnote:
+      // Bei zwei Matrix-Jobs stehen zwei Summaries untereinander, und ohne
+      // Benennung ist nicht zu unterscheiden, welcher welchen Befund traegt.
+      `## Security-Invarianten — ${UMGEBUNG}`,
       '',
       failed.length
         ? `**${failed.length} Invariante(n) verletzt.**`
@@ -457,16 +484,23 @@ if (!dbUrl && !useParts) {
 const baseline = JSON.parse(fs.readFileSync(BASELINE, 'utf8'));
 
 for (const [label, file] of [['Katalog', CATALOG_SQL], ['Laufzeitverhalten', BEHAVIOR_SQL]]) {
-  process.stderr.write(`Pruefe ${label} gegen die Produktions-DB ...\n`);
+  process.stderr.write(`Pruefe ${label} gegen ${UMGEBUNG} ...\n`);
   const proc = runPsql(file);
   const stderr = redact(proc.stderr || '');
 
   if (proc.status !== 0) {
     if (/ci_security_probe_(census|identity)/.test(stderr) && /does not exist/i.test(stderr)) {
       fail(EXIT_UNVERIFIABLE,
-        'Die Proben-Helfer fehlen auf der Datenbank -- die Migration\n'
+        'Die Proben-Helfer fehlen auf der Datenbank -- es fehlen BEIDE Migrationen,\n'
+        + 'in dieser Reihenfolge:\n'
         + '  supabase/migrations/20260808114412_ci_security_verifier_role.sql\n'
-        + 'ist noch nicht angewandt. Bis dahin sind die Invarianten NICHT geprueft.\n'
+        + '  supabase/migrations/20260808122741_ci_security_verifier_role_census_v2.sql\n'
+        + '\n'
+        + 'Die zweite ist nicht optional: die erste legt ci_security_probe_census() OHNE\n'
+        + 'Argument an, die zweite verwirft sie und erzeugt ci_security_probe_census(text)\n'
+        + '-- und genau diese Signatur ruft db_security_invariants_behavior.sql auf. Nur die\n'
+        + 'erste anzuwenden fuehrt exakt auf diese Meldung zurueck.\n'
+        + 'Bis dahin sind die Invarianten NICHT geprueft.\n'
         + `\npsql:\n${stderr}`);
     }
     // Haeufigster Einrichtungsfehler, und die generische Meldung hilft dabei

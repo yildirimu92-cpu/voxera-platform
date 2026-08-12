@@ -1,12 +1,12 @@
-# Prueft die Security-Invarianten gegen die ECHTE Produktions-Datenbank.
+# Prueft die Security-Invarianten gegen die ECHTEN Datenbanken.
 #
 # Abgrenzung zu p0-security-verification.yml: der dortige Check liest Repo-
 # Dateien. Die P0-Migration vom 2026-07-28 lag korrekt im Repo, war auf der
 # Datenbank aber nie angewandt -- der Check blieb wochenlang gruen, obwohl
 # keine der Policies existierte. Dieser Workflow oeffnet stattdessen eine echte
-# Session gegen die Produktions-DB und misst nach, was `anon` und
-# `authenticated` tatsaechlich duerfen.
-name: DB Security Invariants (Produktion)
+# Session gegen die Datenbank und misst nach, was `anon` und `authenticated`
+# tatsaechlich duerfen.
+name: DB Security Invariants (Produktion + Staging)
 
 # BEWUSST OHNE `pull_request`. Zwei Gruende, beide aus dem Review von PR #835:
 #
@@ -47,14 +47,76 @@ concurrency:
 
 jobs:
   verify:
-    name: Security-Invarianten gegen die Produktions-DB
+    name: Security-Invarianten gegen ${{ matrix.umgebung }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    # ZWEI UMGEBUNGEN statt einer. Grund: Am 2026-08-11 kam heraus, dass
+    # Staging 29 Tabellen mit TRUNCATE fuer anon/authenticated traegt -- den
+    # Zustand, den #892 auf Produktion beseitigt hat. Aufgefallen ist das nur,
+    # weil jemand von Hand nachgemessen hat. Lief der Check nur gegen
+    # Produktion, konnte die Abweichung gar nicht auffallen, und jedes "auf
+    # Staging geprueft" war unbemerkt eine Aussage ueber eine andere Datenbank.
+    #
+    # Siehe docs/TICKET_STAGING_LEDGER_DIVERGENZ_2026-08-11.md.
+    #
+    # ZU DEN SECRET-NAMEN: Jede Umgebung fuehrt ihre EIGENEN, und zwar auch
+    # fuer die Einzelfelder. Das ist kein Schoenheitsfehler, sondern der
+    # gefaehrlichste Punkt dieser Datei. Das Skript bevorzugt die Einzelfelder
+    # gegenueber dem Connection-String (`useParts` gewinnt, Zeile 80). Blieben
+    # SUPABASE_DB_HOST/_USER/_PASSWORD unqualifiziert stehen und waeren sie auf
+    # Repo-Ebene gesetzt, wuerde der Staging-Job sie erben und dann die
+    # PRODUKTIONS-Datenbank messen -- unter der Ueberschrift "Staging". Ein
+    # Bericht, der die falsche Datenbank benennt, ist schlimmer als keiner.
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - umgebung: Produktion
+            environment: production-db-readonly
+            secret_url: SUPABASE_DB_URL_CI_VERIFIER
+            secret_host: SUPABASE_DB_HOST
+            secret_port: SUPABASE_DB_PORT
+            secret_user: SUPABASE_DB_USER
+            secret_password: SUPABASE_DB_PASSWORD
+            ledger_abgleich: 'an'
+            blockierend: true
+          - umgebung: Staging
+            environment: staging-db-readonly
+            secret_url: SUPABASE_DB_URL_CI_VERIFIER_STAGING
+            secret_host: SUPABASE_DB_HOST_STAGING
+            secret_port: SUPABASE_DB_PORT_STAGING
+            secret_user: SUPABASE_DB_USER_STAGING
+            secret_password: SUPABASE_DB_PASSWORD_STAGING
+            # Ledger-Abgleich aus -- der einzige Teil des Checks, der auf
+            # Staging nichts aussagt. Produktion und Staging teilen NULL
+            # gemeinsame Migrationsversionen; der Abgleich meldete dort jede
+            # Repo-Datei als "nicht angewandt" und jede Ledger-Zeile als
+            # Waise. Das Skript meldet die Abschaltung als SKIP mit
+            # Begruendung, verschweigt sie also nicht.
+            # Grants, RLS und Default-Privilegien werden weiterhin voll
+            # geprueft -- das sind die Befunde, um die es hier geht.
+            ledger_abgleich: 'aus'
+            # Bewusst NICHT blockierend -- vorerst.
+            #
+            # Staging ist heute nachweislich abweichend: eigene Migrationslinie
+            # (null gemeinsame Versionen mit Produktion), 29 Tabellen mit
+            # TRUNCATE fuer Browser-Rollen. Der Lauf ist dort also rot, und
+            # zwar zu Recht.
+            #
+            # Waere er blockierend, waere main ab sofort dauerhaft rot -- und
+            # ein Waechter, den man wegklickt, ist schlimmer als keiner. Das
+            # Ergebnis bleibt trotzdem im Lauf sichtbar; nur blockiert es nicht.
+            #
+            # DIESE ZEILE GEHOERT ENTFERNT, sobald Entscheidung A oder B aus
+            # dem Staging-Ticket umgesetzt ist. Solange sie steht, ist sie
+            # selbst der Merkposten dafuer, dass die Abweichung noch besteht.
+            blockierend: false
     # Eigenes Environment: der Zugriff auf die Produktions-Zugangsdaten ist
     # dadurch einzeln auditierbar und kann unabhaengig entzogen werden. In
     # Kombination mit den Triggern oben laeuft dieser Job ausschliesslich auf
     # Code, der bereits in main steht -- nie auf ungeprueftem PR-Stand.
-    environment: production-db-readonly
+    environment: ${{ matrix.environment }}
+    continue-on-error: ${{ !matrix.blockierend }}
     steps:
       - name: Repository auschecken
         uses: actions/checkout@v4
@@ -72,16 +134,24 @@ jobs:
           fi
           psql --version
 
-      - name: Invarianten gegen die Produktions-DB pruefen
+      - name: Invarianten gegen ${{ matrix.umgebung }} pruefen
         env:
           # Zwei Wege, das Skript nimmt was da ist. Die Einzelfelder haben
           # Vorrang und sind der robustere Weg: beim Connection-String muessen
           # Sonderzeichen im Passwort URL-kodiert werden, und "/" oder "@"
           # zerlegen ihn falsch -- `openssl rand -base64 32` erzeugt genau
           # solche Zeichen. Ueber PGPASSWORD wird nichts geparst.
-          SUPABASE_DB_HOST: ${{ secrets.SUPABASE_DB_HOST }}
-          SUPABASE_DB_PORT: ${{ secrets.SUPABASE_DB_PORT }}
-          SUPABASE_DB_USER: ${{ secrets.SUPABASE_DB_USER }}
-          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
-          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL_CI_VERIFIER }}
+          SUPABASE_DB_HOST: ${{ secrets[matrix.secret_host] }}
+          SUPABASE_DB_PORT: ${{ secrets[matrix.secret_port] }}
+          SUPABASE_DB_USER: ${{ secrets[matrix.secret_user] }}
+          SUPABASE_DB_PASSWORD: ${{ secrets[matrix.secret_password] }}
+          SUPABASE_DB_URL: ${{ secrets[matrix.secret_url] }}
+          # Damit im Log und in der Summary steht, WELCHE Datenbank gemessen
+          # wurde. Ohne das sind zwei Matrix-Berichte nicht unterscheidbar.
+          UMGEBUNG: ${{ matrix.umgebung }}
+          LEDGER_ABGLEICH: ${{ matrix.ledger_abgleich }}
+          LEDGER_ABGLEICH_GRUND: >-
+            Staging fuehrt eine eigene Migrationslinie (null gemeinsame
+            Versionen mit Produktion) -- siehe
+            docs/TICKET_STAGING_LEDGER_DIVERGENZ_2026-08-11.md
         run: node scripts/verify-db-security-invariants.mjs
