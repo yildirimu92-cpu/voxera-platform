@@ -130,12 +130,27 @@ behoben in derselben PR (Konstantenaufloesung, und jede nicht auswertbare Stelle
 
 | Funktion | Tabelle | geschriebene Spalten | Recht vorhanden? |
 |---|---|---|---|
-| `vxBestEffortPatchCallLifecycle` (`:17305`) | `calls` | `updated_at`, `completed_at`, `archived_at` | `updated_at` ja, **`completed_at` und `archived_at` nein** |
-| `vxBestEffortPatchTaskLifecycle` (`:17328`) | `customer_tasks` | dieselben drei | ungeprueft |
+| `vxBestEffortPatchCallLifecycle` (`:17355`) | `calls` | `updated_at`, `completed_at`, `archived_at` | `updated_at` ja, **`completed_at` und `archived_at` nein** |
+| `vxBestEffortPatchTaskLifecycle` (`:17374`) | `customer_tasks` | dieselben drei | **ja, alle drei** — nachgemessen |
 
-Die Allowlist auf `calls` lautet nachweislich (Produktionslauf 31571552658, 12.08. 06:50):
-`callback_requested, dashboard_status, notes_customer_voxera, read_at, updated_at`.
-`completed_at` und `archived_at` stehen nicht darin.
+**Nachgemessen am 12.08. gegen Produktion** (`information_schema.column_privileges`, Rolle
+`authenticated`, lesender Zugriff):
+
+| Tabelle | UPDATE-Spalten |
+|---|---|
+| `calls` | `callback_requested, dashboard_status, notes_customer_voxera, read_at, updated_at` |
+| `customer_tasks` | alle 18 Spalten (Tabellen-Grant, kein Spalten-Grant) |
+
+**Nur `calls` ist betroffen.** Auf `customer_tasks` liegt ein Grant auf Tabellenebene; die
+Task-Variante der Funktion läuft durch. Der Wächter deckt sie trotzdem ab — sie ist dieselbe
+Bauform, und die Deckung soll nicht davon abhängen, dass das Grant heute breit genug ist.
+
+> **Randnotiz, kein Befund:** Der Tabellen-Grant auf `customer_tasks` schliesst `customer_id`,
+> `id` und `created_at` ein. Davor steht ausschliesslich RLS — aber die hält:
+> `customer_tasks_update_own_or_admin` trägt `customer_id = current_customer_id()` in **USING
+> und WITH CHECK**, ein Verschieben in einen fremden Mandanten ist damit ausgeschlossen. Der
+> Fall gehört in die bereits eingefrorene Alt-Schuld „breite Grants, davor nur RLS", nicht
+> hierher.
 
 **PostgREST lehnt das gesamte UPDATE ab, nicht nur die beiden Spalten.** Damit scheitert auch das
 `updated_at`, fuer das ein Recht besteht — jeder Statuswechsel im Dashboard schreibt seit Einfuehrung
@@ -159,11 +174,27 @@ derselbe Mechanismus wie in Abschnitt 2, nur nicht latent, sondern **heute wirks
 `AGENTS.md`, Datenbankregel 6, sagt dazu woertlich: *„Never update state locally as successful
 before the write result is confirmed."* Hier geschieht es, nachdem der Fehlschlag bereits feststeht.
 
+### Gegenprobe 12.08.: der Befund ist NICHT durch den Restfunde-Fix erledigt
+
+Geprueft wurde die Vermutung, ein bereits gemergter Fix habe die Zeitstempel serverseitig gezogen
+und den Browser-Aufruf entfernt. **Er hat es nicht.** Stand `origin/main` bei `c336cbc8`:
+
+- Beide Funktionen stehen unveraendert im Code, Zeile fuer Zeile identisch mit dem Befund oben,
+  und beide werden weiterhin aufgerufen (`:17351`, `:24397`).
+- `customer-dashboard/netlify/functions/call-update-status.js` setzt `dashboard_status`,
+  `updated_at` und `follow_up_at` — **kein `completed_at`, kein `archived_at`.**
+- Die drei Restfunde-PRs #971, #973 und #975 betreffen den **Sichtbarkeits**-Strang aus Abschnitt 4
+  (Massnahme 0 bis 2): Benachrichtigungen und Admin-Aenderungswuensche auf `vxSbWrite()`/
+  `adminSbWrite()`. Sie beruehren die Lifecycle-Funktionen nicht.
+
+Zwei benachbarte Straenge derselben Bestandsaufnahme, unabhaengig voneinander bearbeitet — der
+Sichtbarkeitsteil ist erledigt, der Grant-Teil steht noch.
+
 **Zu entscheiden (nicht Teil dieser PR, Produktionsaenderung):**
 
 | | Weg | |
 |---|---|---|
-| **A** | `grant update (completed_at, archived_at) on public.calls to authenticated` — plus dasselbe fuer `customer_tasks` | macht den Schreibvorgang echt; erweitert die Kundenschreibrechte um zwei Zeitstempel |
+| **A** | `grant update (completed_at, archived_at) on public.calls to authenticated` | macht den Schreibvorgang echt; erweitert die Kundenschreibrechte um zwei Zeitstempel. `customer_tasks` braucht nichts. |
 | **B** | Die Zeitstempel serverseitig setzen, wo der Status ohnehin autoritativ gesetzt wird (`call-update-status`), und den Browser-Patch entfernen | keine neuen Kundenrechte; die richtige Stelle |
 | **C** | Nichts schreiben und den lokalen Fallback entfernen | ehrlich, aber die Zeitstempel bleiben leer |
 

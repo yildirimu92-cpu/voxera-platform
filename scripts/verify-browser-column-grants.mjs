@@ -110,7 +110,10 @@ const HANDGEPFLEGTE_STELLEN = [
     funktion: 'vxBestEffortPatchTaskLifecycle',
     spalten: ['updated_at', 'completed_at', 'archived_at'],
     grund: 'Gleiche Bauform: `taskLifecyclePatch` entsteht beim Aufrufer und wird '
-      + 'als Parameter uebergeben. CASES_TABLE ist customer_tasks.',
+      + 'als Parameter uebergeben. CASES_TABLE ist customer_tasks. Die drei Rechte '
+      + 'bestehen hier (Tabellen-Grant, nachgemessen 12.08.) -- der Eintrag deckt die '
+      + 'Stelle trotzdem ab, damit die Deckung nicht davon abhaengt, dass das Grant '
+      + 'heute breit genug ist.',
   },
 ];
 
