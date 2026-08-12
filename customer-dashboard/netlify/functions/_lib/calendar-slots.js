@@ -46,7 +46,7 @@
 // zur erlaubten Zeitspanne ist eine Millisekundenaddition. Eine Gegenprobe mit
 // `zonedParts()` verwirft den Anker, falls dazwischen die Uhr umgestellt wurde.
 
-const { bookingWindowError, allowedIntervals, zonedParts } = require('./booking-window');
+const { bookingWindowError, bookingTimingError, allowedIntervals, zonedParts } = require('./booking-window');
 
 // Drei Vorschlaege. Der Agent spricht sie vor, und eine vorgelesene Liste mit
 // acht Uhrzeiten ist am Telefon keine Hilfe, sondern eine Zumutung. Die
@@ -179,7 +179,11 @@ function blockingUpdateFor(updates, startIso, endIso) {
 // Der Rueckgabewert trennt "es gab nie einen Kandidaten" (Fenster kuerzer als
 // die Termindauer) von "alle Kandidaten sind gesperrt" -- das sind zwei
 // verschiedene Auskuenfte an den Anrufenden.
-function bookableSlots(startIso, endIso, settings, openingHours, blockingUpdates) {
+// `now` ist einspeisbar, damit die Vorlaufpruefung pruefbar bleibt. Ein
+// Testdatum in der Zukunft waere die Alternative gewesen -- es verfaellt aber
+// mit der Zeit und macht den Test irgendwann still gruen aus dem falschen
+// Grund.
+function bookableSlots(startIso, endIso, settings, openingHours, blockingUpdates, now = Date.now()) {
   const duration = slotDurationMinutes(startIso, endIso, settings);
   const anchors = slotAnchors(startIso, endIso, settings, openingHours);
   const candidates = slotCandidates(startIso, endIso, duration, anchors);
@@ -193,6 +197,17 @@ function bookableSlots(startIso, endIso, settings, openingHours, blockingUpdates
     const error = bookingWindowError(slot.start, slot.end, settings, openingHours);
     if (error) {
       windowReason = windowReason || error;
+      continue;
+    }
+    // Vorlauf und Buchungshorizont ebenfalls pro Termin. Sie standen bis zum
+    // 2026-08-12 in validateWindow() und galten damit fuer den Fensteranfang --
+    // ein Nachmittag, der innerhalb des Vorlaufs beginnt, fiel komplett weg,
+    // obwohl seine spaeteren Termine buchbar sind. Am anderen Ende dasselbe
+    // umgekehrt: ein Fenster, das den Buchungshorizont ueberschreitet, haette
+    // Termine jenseits davon angeboten, die `book` dann ablehnt.
+    const timingError = bookingTimingError(slot.start, settings, now);
+    if (timingError) {
+      windowReason = windowReason || timingError;
       continue;
     }
     slots.push(slot);

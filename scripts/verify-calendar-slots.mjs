@@ -28,6 +28,10 @@ const WOCHE = (von, bis) => ({
 });
 // 2026-08-11 ist ein Dienstag (in verify-booking-window.mjs geprueft).
 const DI = (zeit) => `2026-08-11T${zeit}:00+02:00`;
+// Fester Bezugszeitpunkt fuer die Vorlaufpruefung: der Vortag der Fixtures.
+// Ohne ihn wuerde jeder Fall am Mindestvorlauf scheitern, sobald das Testdatum
+// in der Vergangenheit liegt -- und das tut es ab dem Tag nach dem Schreiben.
+const JETZT = new Date('2026-08-10T00:00:00+02:00').getTime();
 const settings = (extra = {}) => ({
   timezone: 'Europe/Zurich',
   appointment_duration_minutes: 30,
@@ -41,7 +45,7 @@ const zeiten = (slots) => slots.map((slot) => new Date(slot.start).toLocaleTimeS
 }));
 
 const halbtag = (extra = {}, blocking = []) =>
-  bookableSlots(DI('08:00'), DI('12:00'), settings(extra), WOCHE('08:00', '17:00'), blocking);
+  bookableSlots(DI('08:00'), DI('12:00'), settings(extra), WOCHE('08:00', '17:00'), blocking, JETZT);
 
 check('Ein freier Halbtag zerfaellt in acht Termine', () => {
   const plan = halbtag();
@@ -78,14 +82,14 @@ check('Buchungszeiten schneiden den Halbtag an, statt ihn zu verwerfen', () => {
 });
 
 check('Ein geschlossener Tag ergibt keine buchbaren Termine', () => {
-  const plan = bookableSlots(DI('08:00'), DI('12:00'), settings(), { ...WOCHE('08:00', '17:00'), tue: [] }, []);
+  const plan = bookableSlots(DI('08:00'), DI('12:00'), settings(), { ...WOCHE('08:00', '17:00'), tue: [] }, [], JETZT);
   assert.equal(plan.slots.length, 0);
   assert.equal(plan.windowReason, 'calendar_closed_on_this_day');
 });
 
 check('Die Mittagspause faellt heraus, der Rest bleibt', () => {
   const geteilt = { ...WOCHE('08:00', '17:00'), tue: [['08:00', '12:00'], ['13:00', '17:00']] };
-  const plan = bookableSlots(DI('11:00'), DI('14:00'), settings({ business_hours: geteilt }), geteilt, []);
+  const plan = bookableSlots(DI('11:00'), DI('14:00'), settings({ business_hours: geteilt }), geteilt, [], JETZT);
   assert.deepEqual(zeiten(plan.slots), ['11:00', '11:30', '13:00', '13:30']);
 });
 
@@ -128,14 +132,14 @@ check('Ohne Puffer grenzt ein Termin nahtlos an einen belegten Zeitraum', () => 
 });
 
 check('Ein Fenster kuerzer als die Termindauer traegt keinen Kandidaten', () => {
-  const plan = bookableSlots(DI('10:00'), DI('10:15'), settings(), WOCHE('08:00', '17:00'), []);
+  const plan = bookableSlots(DI('10:00'), DI('10:15'), settings(), WOCHE('08:00', '17:00'), [], JETZT);
   assert.equal(plan.candidates.length, 0);
   assert.equal(plan.slots.length, 0);
 });
 
 check('Ein angebrochener Rest am Ende faellt weg', () => {
   // 100 Minuten tragen bei 30 Minuten Dauer drei Termine, nicht dreieinhalb.
-  const plan = bookableSlots(DI('08:00'), DI('09:40'), settings(), WOCHE('08:00', '17:00'), []);
+  const plan = bookableSlots(DI('08:00'), DI('09:40'), settings(), WOCHE('08:00', '17:00'), [], JETZT);
   assert.deepEqual(zeiten(plan.slots), ['08:00', '08:30', '09:00']);
 });
 
@@ -160,14 +164,16 @@ check('Sommerzeit: der Halbtag wird in Ortszeit zerlegt', () => {
   // Dieselbe Anfrage in UTC ausgedrueckt -- 06:00Z ist im Sommer 08:00 in
   // Zuerich. Rechnete das Modul in Serverzeit, faellt der erste Termin aus dem
   // Buchungsfenster.
-  const plan = bookableSlots('2026-08-11T06:00:00Z', '2026-08-11T10:00:00Z', settings(), WOCHE('08:00', '17:00'), []);
+  const plan = bookableSlots('2026-08-11T06:00:00Z', '2026-08-11T10:00:00Z', settings(), WOCHE('08:00', '17:00'), [], JETZT);
   assert.equal(plan.slots.length, 8);
   assert.deepEqual(zeiten(plan.slots).slice(0, 2), ['08:00', '08:30']);
 });
 
 check('Winterzeit: der Halbtag wird in Ortszeit zerlegt', () => {
   // 2026-01-13 ist ein Dienstag; 07:00Z sind im Winter 08:00 in Zuerich.
-  const plan = bookableSlots('2026-01-13T07:00:00Z', '2026-01-13T11:00:00Z', settings(), WOCHE('08:00', '17:00'), []);
+  // Eigener Bezugspunkt: der Januar liegt vor JETZT, sonst greift der Vorlauf.
+  const plan = bookableSlots('2026-01-13T07:00:00Z', '2026-01-13T11:00:00Z', settings(), WOCHE('08:00', '17:00'), [],
+    new Date('2026-01-12T00:00:00Z').getTime());
   assert.equal(plan.slots.length, 8);
 });
 
@@ -188,13 +194,13 @@ check('blockingUpdateFor findet nur echte Ueberlappungen', () => {
 // Befund, den dieses Modul behebt.
 check('Ein versetztes Buchungsfenster wird trotzdem getroffen', () => {
   const versetzt = { ...WOCHE('08:00', '17:00'), tue: [['08:15', '08:45']] };
-  const plan = bookableSlots(DI('08:00'), DI('12:00'), settings({ business_hours: versetzt }), versetzt, []);
+  const plan = bookableSlots(DI('08:00'), DI('12:00'), settings({ business_hours: versetzt }), versetzt, [], JETZT);
   assert.deepEqual(zeiten(plan.slots), ['08:15'], 'availability findet den Termin nicht, den book akzeptiert');
 });
 
 check('Der Anker gilt auch bei einer Mittagspause auf krummem Raster', () => {
   const versetzt = { ...WOCHE('08:00', '17:00'), tue: [['08:00', '12:00'], ['13:20', '14:20']] };
-  const plan = bookableSlots(DI('11:00'), DI('15:00'), settings({ business_hours: versetzt }), versetzt, []);
+  const plan = bookableSlots(DI('11:00'), DI('15:00'), settings({ business_hours: versetzt }), versetzt, [], JETZT);
   // 13:20 und 13:50 kommen vom Anker, 13:30 vom Fensterraster -- alle drei
   // liegen in 13:20--14:20 und sind einzeln buchbar. Dass sich Vorschlaege
   // ueberlappen koennen, ist gewollt: es sind Alternativen, und book prueft
@@ -213,7 +219,7 @@ check('Anker ausserhalb des Fensters erzeugen keine Termine', () => {
 
 check('Die Kandidaten bleiben aufsteigend sortiert', () => {
   const versetzt = { ...WOCHE('08:00', '17:00'), tue: [['08:00', '12:00'], ['09:20', '10:20']] };
-  const plan = bookableSlots(DI('08:00'), DI('11:00'), settings({ business_hours: versetzt }), versetzt, []);
+  const plan = bookableSlots(DI('08:00'), DI('11:00'), settings({ business_hours: versetzt }), versetzt, [], JETZT);
   const starts = plan.candidates.map((slot) => new Date(slot.start).getTime());
   assert.deepEqual(starts, [...starts].sort((a, b) => a - b));
 });
@@ -226,7 +232,7 @@ check('Ein Zeitraum ueber Mitternacht bekommt Anker fuer beide Tage', () => {
   // 2026-08-10 ist ein Montag, 2026-08-11 ein Dienstag.
   const nachts = { mon: [], tue: [['01:15', '01:45']], wed: [], thu: [], fri: [], sat: [], sun: [] };
   const plan = bookableSlots('2026-08-10T23:00:00+02:00', '2026-08-11T07:00:00+02:00',
-    settings({ business_hours: nachts }), nachts, []);
+    settings({ business_hours: nachts }), nachts, [], JETZT);
   assert.equal(plan.slots.length, 1, 'availability findet den Termin nicht, den book akzeptiert');
   assert.equal(new Date(plan.slots[0].start).toISOString(), new Date('2026-08-11T01:15:00+02:00').toISOString());
 });
@@ -234,7 +240,7 @@ check('Ein Zeitraum ueber Mitternacht bekommt Anker fuer beide Tage', () => {
 check('Beide Tage steuern ihre Zeiten bei', () => {
   const nachts = { mon: [['23:10', '23:40']], tue: [['01:15', '01:45']], wed: [], thu: [], fri: [], sat: [], sun: [] };
   const plan = bookableSlots('2026-08-10T23:00:00+02:00', '2026-08-11T07:00:00+02:00',
-    settings({ business_hours: nachts }), nachts, []);
+    settings({ business_hours: nachts }), nachts, [], JETZT);
   assert.deepEqual(plan.slots.map((slot) => new Date(slot.start).toISOString()), [
     new Date('2026-08-10T23:10:00+02:00').toISOString(),
     new Date('2026-08-11T01:15:00+02:00').toISOString()
@@ -255,6 +261,42 @@ check('Die Anker werden aus dem Fensteranfang hergeleitet', () => {
   const anker = _test.slotAnchors(DI('08:00'), DI('12:00'), settings({ business_hours: versetzt }), versetzt);
   assert.equal(anker.length, 2);
   assert.equal(new Date(anker[1]).toISOString(), new Date(DI('09:15')).toISOString());
+});
+
+// Codex-Befund (P1) vom 12.08.: Vorlauf und Buchungshorizont galten fuer den
+// FENSTERANFANG. Ein Halbtag, der innerhalb des Vorlaufs beginnt, fiel damit
+// komplett weg -- obwohl seine spaeteren Termine buchbar sind. Mit der
+// Halbtagsanweisung aus #951 ist das der Normalfall, nicht der Randfall.
+check('Der Vorlauf schneidet den Halbtag an, statt ihn zu verwerfen', () => {
+  // Fenster beginnt in einer Stunde, Vorlauf zwei Stunden: die ersten beiden
+  // Termine fallen weg, der Rest bleibt.
+  const jetzt = Date.now();
+  const start = new Date(jetzt + 60 * 60000).toISOString();
+  const ende = new Date(jetzt + 5 * 60 * 60000).toISOString();
+  const offen = { mon: [['00:00', '23:59']], tue: [['00:00', '23:59']], wed: [['00:00', '23:59']],
+    thu: [['00:00', '23:59']], fri: [['00:00', '23:59']], sat: [['00:00', '23:59']], sun: [['00:00', '23:59']] };
+  const plan = bookableSlots(start, ende, settings({ business_hours: offen, minimum_notice_minutes: 120 }), offen, [], jetzt);
+  assert.ok(plan.slots.length > 0, 'der ganze Halbtag wurde am Vorlauf verworfen');
+  assert.ok(plan.candidates.length > plan.slots.length, 'der Vorlauf hat gar nichts weggenommen');
+  for (const slot of plan.slots) {
+    assert.ok(new Date(slot.start).getTime() >= jetzt + 120 * 60000, 'ein Termin liegt innerhalb des Vorlaufs');
+  }
+});
+
+check('Termine jenseits des Buchungshorizonts werden nicht angeboten', () => {
+  // Fenster beginnt knapp vor dem Horizont und reicht darueber hinaus.
+  const jetzt = Date.now();
+  const horizont = 2;
+  const start = new Date(jetzt + horizont * 86400000 - 2 * 60 * 60000).toISOString();
+  const ende = new Date(jetzt + horizont * 86400000 + 2 * 60 * 60000).toISOString();
+  const offen = { mon: [['00:00', '23:59']], tue: [['00:00', '23:59']], wed: [['00:00', '23:59']],
+    thu: [['00:00', '23:59']], fri: [['00:00', '23:59']], sat: [['00:00', '23:59']], sun: [['00:00', '23:59']] };
+  const plan = bookableSlots(start, ende, settings({ business_hours: offen, booking_horizon_days: horizont }), offen, [], jetzt);
+  assert.ok(plan.slots.length > 0);
+  for (const slot of plan.slots) {
+    assert.ok(new Date(slot.start).getTime() <= jetzt + horizont * 86400000,
+      'ein Termin liegt jenseits des Buchungshorizonts und wuerde von book abgelehnt');
+  }
 });
 
 check('Die Kandidatenzahl ist nach oben begrenzt', () => {

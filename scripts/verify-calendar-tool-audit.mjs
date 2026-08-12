@@ -275,6 +275,26 @@ await check('Ein Fenster kuerzer als die Termindauer meldet das eigens', async (
   assert.equal(payload.reason, 'calendar_time_window_shorter_than_appointment');
 });
 
+// Codex-Befund (P1) vom 12.08.: der Mindestvorlauf galt fuer den Fensteranfang
+// und warf. "Heute" landete damit im FEHLERPFAD -- der Anrufende hoerte die
+// Rueckruf-Formel statt "so kurzfristig geht es nicht". Jetzt eine Antwort mit
+// Grund, und spaetere Termine desselben Halbtags bleiben buchbar.
+await check('Zu kurzfristig ist eine Antwort, kein Werkzeugfehler', async () => {
+  verfuegbarkeit = { available: true, busy: [] };
+  // Fester Dienstag innerhalb der Buchungszeiten, damit nur der Vorlauf greift
+  // und nicht das Wochenraster -- ein Fenster relativ zur echten Uhrzeit waere
+  // je nach Laufzeitpunkt aus einem anderen Grund abgelehnt worden. Der Vorlauf
+  // ist absichtlich laenger als der Abstand bis zum Testdatum.
+  const { response, payload } = await ruf({
+    action: 'availability', agent_id: 'agent_1', start: DI('08:00'), end: DI('12:00')
+  }, { settings: { ...SETTINGS, minimum_notice_minutes: 5000000 } });
+  assert.equal(response.statusCode, 200, 'der Vorlauf erzeugt weiterhin einen Fehler');
+  assert.equal(payload.ok, true);
+  assert.equal(payload.available, false);
+  assert.equal(payload.reason, 'calendar_minimum_notice_not_met');
+  assert.deepEqual(payload.free_slots, []);
+});
+
 // ── Punkt 2 am Handler: Absage ohne Zeitangaben ─────────────────────────────
 
 await check('cancel kommt ohne start und end durch', async () => {

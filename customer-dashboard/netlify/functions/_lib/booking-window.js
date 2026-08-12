@@ -129,9 +129,33 @@ function bookingWindowError(startIso, endIso, settings, openingHours) {
   return fits ? null : 'calendar_booking_outside_hours';
 }
 
+// Vorlauf und Buchungshorizont: darf ein Termin zu DIESEM Zeitpunkt gesetzt
+// werden? Anders als bookingWindowError() geht es nicht um die Uhrzeit im
+// Wochenraster, sondern um den Abstand zu jetzt.
+//
+// Stand bis zum 2026-08-12 in validateWindow() und galt damit fuer den ANFANG
+// des angefragten Zeitraums. Codex-Befund: bei einem Halbtag ist das die
+// gleiche Unteilbarkeit wie beim Kalender selbst. Ruft jemand um 13:00 an und
+// der Agent prueft 14:00--18:00, verwarf der Zweistundenvorlauf den ganzen
+// Nachmittag -- obwohl ab 15:00 alles buchbar ist. Mit der Halbtagsanweisung
+// aus #951 ist das kein Randfall, sondern der Normalfall.
+//
+// Pro Termin gefragt faellt nur weg, was wirklich zu frueh oder zu weit weg
+// ist. `book` und `reschedule` fragen weiterhin fuer den einen Termin, den sie
+// setzen -- dort sind Fenster und Termin dasselbe.
+function bookingTimingError(startIso, settings, now = Date.now()) {
+  const start = new Date(startIso).getTime();
+  if (!Number.isFinite(start)) return 'calendar_time_window_invalid';
+  const notice = Number(settings?.minimum_notice_minutes || 0) * 60000;
+  if (start < now + notice) return 'calendar_minimum_notice_not_met';
+  const horizon = Number(settings?.booking_horizon_days || 60) * 86400000;
+  if (start > now + horizon) return 'calendar_booking_horizon_exceeded';
+  return null;
+}
+
 // `zonedParts` steht seit dem 2026-08-12 oeffentlich und nicht mehr nur unter
 // `_test`: calendar-slots.js braucht die Minute-im-Tag des Fensteranfangs, um
 // Terminkandidaten an den erlaubten Zeiten auszurichten. Der Alternativweg
 // waere eine zweite Zeitzonenrechnung im Slot-Modul gewesen -- also genau die
 // Doppelquelle, die dieses Modul vermeidet.
-module.exports = { bookingWindowError, allowedIntervals, zonedParts, _test: { zonedParts, intervalsFor, intersect, toMinutes } };
+module.exports = { bookingWindowError, bookingTimingError, allowedIntervals, zonedParts, _test: { zonedParts, intervalsFor, intersect, toMinutes } };

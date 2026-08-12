@@ -210,9 +210,12 @@ async function accountSnapshot(provider, accessToken) {
 // Luecke schaedlich -- ein Termin auf der zweiten Seite sieht dann frei aus,
 // und der Agent bietet eine Zeit an, die `book` anschliessend ablehnt.
 //
-// Der Seitendeckel ist eine Endlossperre, keine Mengenbegrenzung: bei 250
-// Eintraegen pro Seite sind 20 Seiten weit mehr, als in ein Fenster von
-// hoechstens 8 Stunden passen kann.
+// Der Deckel ist grosszuegig, aber er ist eine echte Grenze: es gibt keine
+// Zusicherung, wie dicht die Termine eines Kunden liegen duerfen. Wird er
+// erreicht und der Anbieter bietet weiter an, wird deshalb GEWORFEN statt eine
+// Teilliste zurueckzugeben. Eine abgebrochene Belegungsliste sieht wie eine
+// vollstaendige aus, und der Aufrufer wuerde belegte Zeiten als frei anbieten.
+// Ein Fehler ist an dieser Stelle die ehrlichere Antwort.
 const MAX_BUSY_PAGES = 20;
 
 async function checkAvailability(provider, accessToken, calendarId, startIso, endIso, excludeEventId = '') {
@@ -242,6 +245,7 @@ async function checkAvailability(provider, accessToken, calendarId, startIso, en
       items.push(...(payload.items || []));
       pageToken = String(payload.nextPageToken || '').trim();
       if (!pageToken) break;
+      if (page === MAX_BUSY_PAGES - 1) throw new Error('calendar_busy_list_truncated');
     }
     const busy = items
       .filter((item) => item.id !== excludeEventId && item.status !== 'cancelled' && item.transparency !== 'transparent')
@@ -259,6 +263,7 @@ async function checkAvailability(provider, accessToken, calendarId, startIso, en
     const payload = await apiFetch(nextUrl, accessToken, { headers: { Prefer: 'outlook.timezone="UTC"' } });
     events.push(...(payload.value || []));
     nextUrl = String(payload['@odata.nextLink'] || '').trim();
+    if (nextUrl && page === MAX_BUSY_PAGES - 1) throw new Error('calendar_busy_list_truncated');
   }
   const busy = events
     .filter((item) => item.id !== excludeEventId && !item.isCancelled && !['free', 'workingElsewhere'].includes(item.showAs))

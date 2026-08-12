@@ -4,7 +4,7 @@ const crypto = require('crypto');
 const { createClient } = require('@supabase/supabase-js');
 const { safeEqual } = require('./_lib/calendar-crypto');
 const { calendarEnabledForCustomer } = require('./_lib/calendar-rollout');
-const { bookingWindowError } = require('./_lib/booking-window');
+const { bookingWindowError, bookingTimingError } = require('./_lib/booking-window');
 const { ensureAccessToken, checkAvailability, createEvent, updateEvent, deleteEvent } = require('./_lib/calendar-providers');
 const { SLOT_LIMIT, blockingUpdateFor, bookableSlots, freeSlots } = require('./_lib/calendar-slots');
 
@@ -45,15 +45,26 @@ function iso(value, field) {
   return date.toISOString();
 }
 
+// Nur noch Reihenfolge und Groesse -- also das, was fuer einen ZEITRAUM als
+// Ganzes gilt und was bei availability wie bei book dieselbe Antwort verlangt.
+//
+// Vorlauf und Buchungshorizont sind seit dem 2026-08-12 in
+// bookingTimingError() und werden bei availability pro Termin gefragt. Sie
+// hier zu lassen hiesse, einen Halbtag am Vorlauf scheitern zu lassen, dessen
+// spaetere Termine buchbar sind -- dieselbe Unteilbarkeit, die dieser PR beim
+// Kalender behebt.
 function validateWindow(startIso, endIso, settings) {
   const start = new Date(startIso).getTime();
   const end = new Date(endIso).getTime();
   if (end <= start) throw new Error('calendar_time_window_invalid');
   if (end - start > 8 * 60 * 60 * 1000) throw new Error('calendar_time_window_too_large');
-  const notice = Number(settings.minimum_notice_minutes || 0) * 60000;
-  if (start < Date.now() + notice) throw new Error('calendar_minimum_notice_not_met');
-  const horizon = Number(settings.booking_horizon_days || 60) * 86400000;
-  if (start > Date.now() + horizon) throw new Error('calendar_booking_horizon_exceeded');
+}
+
+// Fuer book und reschedule bleibt es eine Ablehnung: dort IST das Fenster der
+// Termin, und "zu kurzfristig" ist keine Auskunft, sondern ein Nein.
+function assertTiming(startIso, settings) {
+  const error = bookingTimingError(startIso, settings);
+  if (error) throw new Error(error);
 }
 
 function bufferedWindow(startIso, endIso, settings) {
@@ -107,6 +118,7 @@ function eventInput(body, settings) {
   const start = iso(body.start, 'start');
   const end = iso(body.end, 'end');
   validateWindow(start, end, settings);
+  assertTiming(start, settings);
   assertDuration(start, end, settings);
   return {
     title: String(body.title || settings.appointment_title_template || 'Termin via Voxera').slice(0, 160),
@@ -539,4 +551,4 @@ exports.handler = async (event) => {
   }
 };
 
-exports._test = { verifyToolAuth, verifyHmac, validateWindow, bufferedWindow };
+exports._test = { verifyToolAuth, verifyHmac, validateWindow, assertTiming, bufferedWindow };

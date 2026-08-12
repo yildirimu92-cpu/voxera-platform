@@ -91,6 +91,37 @@ try {
       failures.push(`Google-Belegung wird nicht durchgeblaettert (${result.busy.length} statt 2 Eintraegen)`);
     }
   } finally { globalThis.fetch = echtesFetch; }
+  // Codex-Befund vom 12.08.: der Seitendeckel war als Endlossperre gedacht, ist
+  // aber eine echte Grenze -- es gibt keine Zusicherung, wie dicht die Termine
+  // eines Kunden liegen duerfen. Wird er erreicht und der Anbieter bietet
+  // weiter an, muss GEWORFEN werden: eine abgebrochene Belegungsliste sieht wie
+  // eine vollstaendige aus, und der Aufrufer wuerde belegte Zeiten anbieten.
+  const echtesFetch3 = globalThis.fetch;
+  globalThis.fetch = async () => antwort({
+    value: [{ id: 'x', start: { dateTime: '2026-08-11T08:00:00' }, end: { dateTime: '2026-08-11T08:30:00' } }],
+    '@odata.nextLink': 'https://graph.microsoft.com/v1.0/immer-weiter'
+  });
+  try {
+    await providers.checkAvailability('microsoft', 'token', 'cal_1', '2026-08-11T08:00:00Z', '2026-08-11T12:00:00Z');
+    failures.push('Microsoft-Belegung bricht am Seitendeckel still ab, statt zu scheitern');
+  } catch (error) {
+    if (error.message !== 'calendar_busy_list_truncated') {
+      failures.push('Unerwarteter Fehler am Seitendeckel: ' + error.message);
+    }
+  } finally { globalThis.fetch = echtesFetch3; }
+
+  globalThis.fetch = async () => antwort({
+    items: [{ id: 'y', start: { dateTime: '2026-08-11T08:00:00Z' }, end: { dateTime: '2026-08-11T08:30:00Z' } }],
+    nextPageToken: 'immer-weiter'
+  });
+  try {
+    await providers.checkAvailability('google', 'token', 'cal_1', '2026-08-11T08:00:00Z', '2026-08-11T12:00:00Z', 'evt_aus');
+    failures.push('Google-Belegung bricht am Seitendeckel still ab, statt zu scheitern');
+  } catch (error) {
+    if (error.message !== 'calendar_busy_list_truncated') {
+      failures.push('Unerwarteter Fehler am Seitendeckel (Google): ' + error.message);
+    }
+  } finally { globalThis.fetch = echtesFetch3; }
 } catch (error) {
   failures.push('Calendar availability paging test failed: ' + error.message);
 }
