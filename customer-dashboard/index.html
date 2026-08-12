@@ -10482,15 +10482,24 @@ async function vxNotifLoadFromDB() {
 
 // ── Als gelesen markieren (Supabase) ──────────────────────
 async function vxNotifMarkRead(id) {
-  // Sofort im Cache markieren (optimistic)
+  // Sofort im Cache markieren (optimistic) -- bei Fehlschlag bewusst kein
+  // Rollback (siehe vxNotifMarkAllRead), aber der Fehler muss sichtbar
+  // werden, sonst verschiebt sich das Problem nur.
   _vxNotifCache.forEach(function(n){ if (n.id === id) n.read = true; });
   vxBellUpdateBadge();
-  // In DB schreiben
+  // In DB schreiben. vxSbWrite prueft {error} und -- weil .select() hier
+  // angehaengt ist -- auch eine durch RLS herausgefilterte Zeile (0 Zeilen,
+  // error: null). notifications_update/-_select nutzen dieselbe Bedingung
+  // (customer_id = current_customer_id()), .select() kann also bei echtem
+  // Erfolg nicht faelschlich leer zurueckkommen.
   var sb = (typeof getSupabaseAuthClient === 'function') ? getSupabaseAuthClient() : null;
   if (!sb) return;
   try {
-    await sb.from('notifications').update({ read_at: new Date().toISOString() }).eq('id', id);
-  } catch(e) { console.warn('[vxNotif] markRead error', e); }
+    await vxSbWrite(sb.from('notifications').update({ read_at: new Date().toISOString() }).eq('id', id).select('id'));
+  } catch(e) {
+    console.warn('[vxNotif] markRead error', e);
+    if (typeof toast === 'function') toast('Konnte nicht gespeichert werden.', 'error');
+  }
 }
 
 async function vxNotifPersistReadIds(ids) {
@@ -10499,8 +10508,11 @@ async function vxNotifPersistReadIds(ids) {
   var sb = (typeof getSupabaseAuthClient === 'function') ? getSupabaseAuthClient() : null;
   if (!sb) return;
   try {
-    await sb.from('notifications').update({ read_at: new Date().toISOString() }).in('id', ids);
-  } catch(e) { console.warn('[vxNotif] persist read error', e); }
+    await vxSbWrite(sb.from('notifications').update({ read_at: new Date().toISOString() }).in('id', ids).select('id'));
+  } catch(e) {
+    console.warn('[vxNotif] persist read error', e);
+    if (typeof toast === 'function') toast('Konnte nicht gespeichert werden.', 'error');
+  }
 }
 
 function vxNotifMarkReadByRecord(recId) {
@@ -10530,15 +10542,21 @@ async function vxNotifMarkAllRead() {
   vxBellUpdateBadge();
   vxBellRender();
   vxBellPageRender();
-  // In DB schreiben
+  // In DB schreiben. vxSbWrite prueft {error} und -- weil .select() hier
+  // angehaengt ist -- auch eine durch RLS herausgefilterte Zeile, siehe
+  // vxNotifMarkRead.
   var sb = (typeof getSupabaseAuthClient === 'function') ? getSupabaseAuthClient() : null;
   if (!sb) return;
   try {
     var ids = unread.map(function(n){ return n.id; });
-    await sb.from('notifications')
+    await vxSbWrite(sb.from('notifications')
       .update({ read_at: new Date().toISOString() })
-      .in('id', ids);
-  } catch(e) { console.warn('[vxNotif] markAllRead error', e); }
+      .in('id', ids)
+      .select('id'));
+  } catch(e) {
+    console.warn('[vxNotif] markAllRead error', e);
+    if (typeof toast === 'function') toast('Konnte nicht gespeichert werden.', 'error');
+  }
 }
 
 // ── Realtime Subscription ──────────────────────────────────

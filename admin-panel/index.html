@@ -16463,10 +16463,15 @@ async function loadAiChangeRequests() {
 
 async function updateChangeRequestStatus(id, status) {
   try {
-    await authClient.from('ai_change_requests').update({
+    // adminSbWrite prueft {error} und -- weil .select() hier angehaengt ist --
+    // auch eine durch RLS herausgefilterte Zeile (0 Zeilen, error: null).
+    // ai_change_requests_admin_all deckt SELECT und UPDATE mit derselben
+    // Bedingung ab (is_admin(auth.uid())), .select() kann also bei echtem
+    // Erfolg nicht faelschlich leer zurueckkommen.
+    await adminSbWrite(authClient.from('ai_change_requests').update({
       status,
       updated_at: new Date().toISOString()
-    }).eq('id', id);
+    }).eq('id', id).select('id'));
     showToast('Status aktualisiert.');
     loadAiChangeRequests();
   } catch(e) {
@@ -16477,10 +16482,11 @@ async function updateChangeRequestStatus(id, status) {
 async function saveChangeRequestNote(id) {
   const note = document.getElementById('admin-note-' + id)?.value.trim() || '';
   try {
-    await authClient.from('ai_change_requests').update({
+    // adminSbWrite: siehe updateChangeRequestStatus.
+    await adminSbWrite(authClient.from('ai_change_requests').update({
       admin_notes: note || null,
       updated_at: new Date().toISOString()
-    }).eq('id', id);
+    }).eq('id', id).select('id'));
     showToast('Notiz gespeichert.');
   } catch(e) {
     showToast('Fehler: ' + (e.message||''));
@@ -16658,10 +16664,11 @@ async function confirmApplyChange(requestId, customerId) {
     // 4. Mark request as done
     await updateChangeRequestStatus(requestId, 'done');
 
-    // 5. Save admin note
-    await authClient.from('ai_change_requests')
+    // 5. Save admin note. adminSbWrite: siehe updateChangeRequestStatus.
+    await adminSbWrite(authClient.from('ai_change_requests')
       .update({ admin_notes: 'Automatisch umgesetzt via AI', updated_at: new Date().toISOString() })
-      .eq('id', requestId);
+      .eq('id', requestId)
+      .select('id'));
 
     if (resultEl) {
       resultEl.innerHTML = '<div style="font-size:12px;color:var(--green-dark);padding:8px 12px;background:var(--green-light);border-radius:8px;">✅ Änderungen übernommen und ElevenLabs aktualisiert.</div>';

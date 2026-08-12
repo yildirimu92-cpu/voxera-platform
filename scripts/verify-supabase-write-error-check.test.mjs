@@ -258,10 +258,10 @@ test('klassifiziereRestschuld: weniger Restschuld als die Basislinie heisst "Bas
   assert.equal(klassifiziereRestschuld(3, 6), 'unaktualisiert');
 });
 
-test('BASISLINIE_NICHT_KONFORM entspricht der heutigen, echten Restschuld (6)', () => {
+test('BASISLINIE_NICHT_KONFORM entspricht der heutigen, echten Restschuld (0 -- alle sechs Stellen gefixt)', () => {
   // Kein Live-Scan der Dateien -- nur die Konstante selbst gegen den in
   // diesem Test-File dokumentierten, vom Betreiber bestaetigten Stand.
-  assert.equal(BASISLINIE_NICHT_KONFORM, 6);
+  assert.equal(BASISLINIE_NICHT_KONFORM, 0);
 });
 
 // ── Ausnahme-Begruendung: ein Platzhalter darf nicht durchgehen.
@@ -285,12 +285,10 @@ test('pruefeBegruendung akzeptiert eine tatsaechliche Begruendung', () => {
 
 // ── Registry-Vollstaendigkeit gegen den echten Rohbefund (heutiger Stand).
 // Dieser Block prueft die Live-Dateien und ist absichtlich vom eingefrorenen
-// Gegenprobe-Block oben getrennt: er dokumentiert den *aktuellen* Ausgangs-
-// zustand (19 Stellen, 6 davon als Restschuld gegen die Basislinie erlaubt)
-// und muss ueberarbeitet werden, sobald die sechs Fixes (naechste Runde,
-// eigenes Go) gelandet sind -- dann sinkt BASISLINIE_NICHT_KONFORM auf 0.
+// Gegenprobe-Block oben getrennt: er dokumentiert den *aktuellen* Zustand
+// (19 Stellen, alle konform, Restschuld = 0) nach den sechs Einzelfixes.
 
-test('Live-Smoke-Test: das Skript laeuft heute PASS (19 Stellen, Restschuld = Basislinie)', () => {
+test('Live-Smoke-Test: das Skript laeuft heute PASS (19 Stellen, Restschuld = 0)', () => {
   let exitCode = 0;
   let ausgabe = '';
   try {
@@ -299,8 +297,8 @@ test('Live-Smoke-Test: das Skript laeuft heute PASS (19 Stellen, Restschuld = Ba
     exitCode = e.status;
     ausgabe = (e.stdout || '') + (e.stderr || '');
   }
-  assert.equal(exitCode, 0, 'Stand heute: 6 bekannte, dokumentierte Stellen entsprechen der Basislinie -- PASS.');
-  assert.match(ausgabe, /PASS: keine unbekannten Stellen, kein Vakuum, Restschuld = Basislinie \(6\)\./);
-  assert.match(ausgabe, /6 bekannte Stelle\(n\) ohne Helfer\/Pruefung -- unveraendert gegenueber der Basislinie\./,
-    'die Restschuld muss weiterhin sichtbar im Log stehen, nicht nur im Exit-Code');
+  assert.equal(exitCode, 0, 'Stand heute: alle sechs zuvor offenen Stellen sind gefixt -- PASS.');
+  assert.match(ausgabe, /PASS: keine unbekannten Stellen, kein Vakuum, Restschuld = Basislinie \(0\)\./);
+  assert.match(ausgabe, /0 bekannte Stelle\(n\) ohne Helfer\/Pruefung -- unveraendert gegenueber der Basislinie\./,
+    'die Restschuld-Zeile muss weiterhin im Log stehen, auch bei 0');
 });
