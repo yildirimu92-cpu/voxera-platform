@@ -218,6 +218,21 @@ function buildCancelToolConfig(secretId) {
 
 const TOOL_NAMES = Object.freeze([TOOL_NAME, CANCEL_TOOL_NAME]);
 
+// Angelegt wird in der umgekehrten Reihenfolge: erst das Absagewerkzeug, dann
+// das Buchungswerkzeug.
+//
+// Codex-Befund vom 12.08.: dieselbe Auslieferung, die `cancel` aus der
+// Aufzaehlung von manage_voxera_calendar nimmt, legt das Absagewerkzeug erst
+// an. In der alten Reihenfolge lief zuerst das PATCH auf manage -- und
+// scheiterte danach das POST fuer cancel, war der Absageweg weg, ohne dass der
+// Ersatz existierte. Das Werkzeug ist arbeitsbereichsweit geteilt, der Ausfall
+// haette also alle Agenten getroffen, bis ein spaeterer Sync durchlaeuft.
+//
+// Andersherum ist die Zwischenzeit harmlos: dann gibt es beide Wege kurz
+// gleichzeitig, und das Modell kann in dieser Spanne noch ueber manage
+// absagen.
+const PROVISION_ORDER = Object.freeze([CANCEL_TOOL_NAME, TOOL_NAME]);
+
 function toolConfigFor(name, secretId) {
   return name === CANCEL_TOOL_NAME ? buildCancelToolConfig(secretId) : buildToolConfig(secretId);
 }
@@ -236,12 +251,8 @@ async function ensureWorkspaceTools() {
   }
   const secretId = await ensureWorkspaceSecret();
   const tools = await listAll('/tools', 'tools');
-  const ids = [];
-  for (const name of TOOL_NAMES) {
-    if (cachedToolIds.has(name)) {
-      ids.push(cachedToolIds.get(name));
-      continue;
-    }
+  for (const name of PROVISION_ORDER) {
+    if (cachedToolIds.has(name)) continue;
     const existing = tools.find((item) => item?.tool_config?.name === name);
     const result = existing
       ? await elevenLabsRequest('/tools/' + encodeURIComponent(existing.id), {
@@ -255,9 +266,11 @@ async function ensureWorkspaceTools() {
     const id = String(result.id || existing?.id || '').trim();
     if (!id) throw new Error('elevenlabs_calendar_tool_id_missing');
     cachedToolIds.set(name, id);
-    ids.push(id);
   }
-  return ids;
+  // Angelegt wird in PROVISION_ORDER, zurueckgegeben in TOOL_NAMES -- die
+  // Reihenfolge der Rueckgabe ist die der Werkzeugliste am Agenten und soll
+  // von der Anlegereihenfolge unabhaengig bleiben.
+  return TOOL_NAMES.map((name) => cachedToolIds.get(name));
 }
 
 // Sucht die Werkzeuge, ohne sie anzulegen. Gebraucht fuer den Entzugspfad: um

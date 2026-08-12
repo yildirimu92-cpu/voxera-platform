@@ -87,24 +87,41 @@ function slotAnchors(startIso, endIso, settings, openingHours) {
   const windowStart = millis(startIso);
   const windowEnd = millis(endIso);
   if (windowStart === null || windowEnd === null) return [];
-  const anchors = [windowStart];
   const timeZone = String(settings?.timezone || 'Europe/Zurich');
-  let parts;
-  try { parts = zonedParts(startIso, timeZone); }
-  catch (_error) { return anchors; }
-  if (!parts.dayKey) return anchors;
-  for (const [from] of allowedIntervals(settings, openingHours, parts.dayKey) || []) {
-    const anchor = windowStart + (from - parts.minutes) * 60000;
-    if (anchor <= windowStart || anchor >= windowEnd) continue;
-    // Gegenprobe: liegt der hergeleitete Zeitpunkt wirklich auf `from`? Eine
-    // Zeitumstellung zwischen Fensteranfang und Anker wuerde ihn verschieben,
-    // und ein um eine Stunde verrutschter Vorschlag ist schlimmer als keiner.
-    try {
-      if (zonedParts(new Date(anchor).toISOString(), timeZone).minutes !== from) continue;
-    } catch (_error) { continue; }
-    anchors.push(anchor);
+  const anchors = new Set([windowStart]);
+
+  // BEIDE lokalen Tage des Zeitraums, nicht nur der des Fensteranfangs.
+  //
+  // Codex-Befund vom 12.08., direkt nach dem ersten Anker-Fix: bei einem
+  // Fenster Montag 23:00 -- Dienstag 07:00 wurden nur die Montags-Zeiten
+  // gelesen. Eine Dienstags-Zeitspanne 01:15--01:45 bekam keinen Anker, das
+  // Fensterraster traf nur 01:00 und 01:30 -- wieder "gar nichts frei" fuer
+  // einen Termin, den book anstandslos gebucht haette.
+  //
+  // `bookingWindowError()` entscheidet pro Termin nach DESSEN Wochentag; die
+  // Ankerbildung muss derselben Regel folgen. Mehr als zwei lokale Tage kann
+  // ein Zeitraum nicht beruehren, dafuer sorgt die 8-Stunden-Schranke aus
+  // validateWindow(). Jeder Tag wird von seinem eigenen Bezugspunkt aus
+  // hergeleitet, damit die Differenz klein bleibt und keine Datumsrechnung
+  // noetig ist.
+  for (const reference of [{ iso: startIso, ms: windowStart }, { iso: endIso, ms: windowEnd }]) {
+    let parts;
+    try { parts = zonedParts(reference.iso, timeZone); }
+    catch (_error) { continue; }
+    if (!parts.dayKey) continue;
+    for (const [from] of allowedIntervals(settings, openingHours, parts.dayKey) || []) {
+      const anchor = reference.ms + (from - parts.minutes) * 60000;
+      if (anchor <= windowStart || anchor >= windowEnd) continue;
+      // Gegenprobe: liegt der hergeleitete Zeitpunkt wirklich auf `from`? Eine
+      // Zeitumstellung zwischen Bezugspunkt und Anker wuerde ihn verschieben,
+      // und ein um eine Stunde verrutschter Vorschlag ist schlimmer als keiner.
+      try {
+        if (zonedParts(new Date(anchor).toISOString(), timeZone).minutes !== from) continue;
+      } catch (_error) { continue; }
+      anchors.add(anchor);
+    }
   }
-  return anchors;
+  return [...anchors].sort((a, b) => a - b);
 }
 
 // Zerlegt [startIso, endIso) in aufeinanderfolgende Termine der konfigurierten

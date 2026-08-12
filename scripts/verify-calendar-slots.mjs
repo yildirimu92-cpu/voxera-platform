@@ -218,6 +218,38 @@ check('Die Kandidaten bleiben aufsteigend sortiert', () => {
   assert.deepEqual(starts, [...starts].sort((a, b) => a - b));
 });
 
+// Codex-Befund direkt nach dem ersten Anker-Fix: gelesen wurden nur die Zeiten
+// des Tages, an dem das Fenster BEGINNT. Ein Zeitraum ueber Mitternacht verlor
+// damit die Anker des zweiten Tages -- wieder ein "gar nichts frei" fuer einen
+// Termin, den book gebucht haette.
+check('Ein Zeitraum ueber Mitternacht bekommt Anker fuer beide Tage', () => {
+  // 2026-08-10 ist ein Montag, 2026-08-11 ein Dienstag.
+  const nachts = { mon: [], tue: [['01:15', '01:45']], wed: [], thu: [], fri: [], sat: [], sun: [] };
+  const plan = bookableSlots('2026-08-10T23:00:00+02:00', '2026-08-11T07:00:00+02:00',
+    settings({ business_hours: nachts }), nachts, []);
+  assert.equal(plan.slots.length, 1, 'availability findet den Termin nicht, den book akzeptiert');
+  assert.equal(new Date(plan.slots[0].start).toISOString(), new Date('2026-08-11T01:15:00+02:00').toISOString());
+});
+
+check('Beide Tage steuern ihre Zeiten bei', () => {
+  const nachts = { mon: [['23:10', '23:40']], tue: [['01:15', '01:45']], wed: [], thu: [], fri: [], sat: [], sun: [] };
+  const plan = bookableSlots('2026-08-10T23:00:00+02:00', '2026-08-11T07:00:00+02:00',
+    settings({ business_hours: nachts }), nachts, []);
+  assert.deepEqual(plan.slots.map((slot) => new Date(slot.start).toISOString()), [
+    new Date('2026-08-10T23:10:00+02:00').toISOString(),
+    new Date('2026-08-11T01:15:00+02:00').toISOString()
+  ]);
+});
+
+check('Ein Fenster innerhalb eines Tages erzeugt keine doppelten Anker', () => {
+  // Anfang und Ende liegen am selben Tag -- beide Bezugspunkte leiten denselben
+  // Anker her, er darf nur einmal zaehlen.
+  const versetzt = { ...WOCHE('08:00', '17:00'), tue: [['09:15', '12:00']] };
+  const anker = _test.slotAnchors(DI('08:00'), DI('12:00'), settings({ business_hours: versetzt }), versetzt);
+  assert.equal(anker.length, 2);
+  assert.equal(new Set(anker).size, 2);
+});
+
 check('Die Anker werden aus dem Fensteranfang hergeleitet', () => {
   const versetzt = { ...WOCHE('08:00', '17:00'), tue: [['09:15', '12:00']] };
   const anker = _test.slotAnchors(DI('08:00'), DI('12:00'), settings({ business_hours: versetzt }), versetzt);

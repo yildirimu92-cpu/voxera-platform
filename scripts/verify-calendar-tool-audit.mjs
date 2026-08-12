@@ -306,6 +306,50 @@ await check('cancel kommt ohne start und end durch', async () => {
   assert.ok(supabase.updates.some((entry) => entry.patch.status === 'success'));
 });
 
+// ── Einrichtungsfehler hinterlassen ebenfalls eine Spur ─────────────────────
+//
+// Codex-Befund vom 12.08.: die beiden Ausgaenge fuer "nicht freigeschaltet" und
+// "Verbindung nicht bereit" verliessen den Handler mit `return`, ohne den catch
+// zu beruehren -- also ohne Audit-Zeile. Es sind aber gerade die
+// Einrichtungsfehler, bei denen die Spur gebraucht wird.
+
+await check('Nicht freigeschalteter Kalender schreibt eine Zeile', async () => {
+  const supabase = makeSupabase({
+    answers: { ...antworten(), calendar_settings: { data: { ...SETTINGS, feature_enabled: false }, error: null } }
+  });
+  aktuellerClient = supabase.client;
+  const response = await handler({
+    httpMethod: 'POST', headers: { Authorization: 'Bearer test-secret' },
+    body: JSON.stringify({ action: 'availability', agent_id: 'agent_1', start: DI('08:00'), end: DI('12:00') })
+  });
+  // Antwortform und Statuscode bleiben, was sie waren.
+  assert.equal(response.statusCode, 409);
+  assert.deepEqual(JSON.parse(response.body), { ok: false, error: 'calendar_not_enabled_for_customer' });
+  const zeilen = auditZeilen(supabase);
+  assert.equal(zeilen.length, 1, 'der Einrichtungsfehler hinterlaesst keine Spur');
+  assert.equal(zeilen[0].row.status, 'failed');
+  assert.equal(zeilen[0].row.details.error, 'calendar_not_enabled_for_customer');
+});
+
+await check('Nicht bereite Verbindung schreibt eine Zeile', async () => {
+  const supabase = makeSupabase({
+    answers: { ...antworten(), calendar_connections: { data: { ...CONNECTION, selected_calendar_id: null }, error: null } }
+  });
+  aktuellerClient = supabase.client;
+  const response = await handler({
+    httpMethod: 'POST', headers: { Authorization: 'Bearer test-secret' },
+    body: JSON.stringify({ action: 'availability', agent_id: 'agent_1', start: DI('08:00'), end: DI('12:00') })
+  });
+  assert.equal(response.statusCode, 409);
+  assert.deepEqual(JSON.parse(response.body), { ok: false, error: 'calendar_connection_not_ready' });
+  const zeilen = auditZeilen(supabase);
+  assert.equal(zeilen.length, 1);
+  assert.equal(zeilen[0].row.status, 'failed');
+  // Der Anbieter ist hier aus settings.active_provider immer bekannt, die
+  // Zeile entsteht also verlaesslich und nicht nur manchmal.
+  assert.equal(zeilen[0].row.provider, 'google');
+});
+
 // ── Punkt 4: kein geratener Anbieter im Fehlerpfad ──────────────────────────
 
 await check('Ohne bekannten Anbieter wird kein Anbieter erfunden', async () => {

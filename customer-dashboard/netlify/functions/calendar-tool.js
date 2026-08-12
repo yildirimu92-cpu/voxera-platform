@@ -222,12 +222,33 @@ exports.handler = async (event) => {
     const { data: settingsRow, error: settingsError } = await sb.from('calendar_settings').select('*').eq('customer_id', customerId).maybeSingle();
     if (settingsError) throw settingsError;
     settings = settingsRow;
-    if (!settings?.feature_enabled || !settings.active_provider) return reply(409, { ok: false, error: 'calendar_not_enabled_for_customer' });
+    // Geworfen statt `return reply(...)`, seit dem 2026-08-12.
+    //
+    // Codex-Befund: diese beiden Ausgaenge verliessen den Handler, ohne den
+    // catch zu beruehren -- und schrieben deshalb keine Audit-Zeile. Es sind
+    // aber gerade die Einrichtungsfehler, bei denen die Spur gebraucht wird:
+    // "der Agent hat es versucht, die Verbindung war nicht bereit" ist die
+    // Auskunft, die bei der Diagnose am 10.08. gefehlt hat.
+    //
+    // Antwortform und Statuscode bleiben gleich: der catch antwortet mit
+    // `error.status` und `{ ok: false, error: <message> }`.
+    if (!settings?.feature_enabled || !settings.active_provider) {
+      const error = new Error('calendar_not_enabled_for_customer');
+      error.status = 409;
+      throw error;
+    }
 
     const { data: connectionRow, error: connectionError } = await sb.from('calendar_connections').select('*').eq('customer_id', customerId).eq('provider', settings.active_provider).eq('status', 'connected').maybeSingle();
     if (connectionError) throw connectionError;
     connection = connectionRow;
-    if (!connection?.selected_calendar_id) return reply(409, { ok: false, error: 'calendar_connection_not_ready' });
+    // Siehe oben: geworfen, damit der Fehlerpfad eine Zeile schreibt. Hier ist
+    // der Anbieter aus `settings.active_provider` immer bekannt, die Zeile
+    // entsteht also verlaesslich.
+    if (!connection?.selected_calendar_id) {
+      const error = new Error('calendar_connection_not_ready');
+      error.status = 409;
+      throw error;
+    }
 
     // Buchungszeiten sind eine Teilmenge der Oeffnungszeiten -- siehe
     // _lib/booking-window.js. Dafuer braucht dieses Werkzeug das

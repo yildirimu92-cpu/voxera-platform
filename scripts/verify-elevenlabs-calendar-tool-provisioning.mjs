@@ -347,6 +347,49 @@ try {
   assert.ok(!/cancel/.test(body.properties.start.description),
     'Die start-Beschreibung erklärt weiterhin den cancel-Sonderfall');
 
+  // Codex-Befund vom 12.08.: dieselbe Auslieferung, die `cancel` aus der
+  // Aufzaehlung von manage_voxera_calendar nimmt, legt das Absagewerkzeug erst
+  // an. Lief das PATCH auf manage zuerst und scheiterte danach das POST fuer
+  // cancel, war der Absageweg weg, ohne dass der Ersatz existierte -- und das
+  // Werkzeug ist arbeitsbereichsweit geteilt, der Ausfall haette also alle
+  // Agenten getroffen.
+  {
+    const aufrufe = [];
+    const echtesFetch2 = globalThis.fetch;
+    globalThis.fetch = async (url, options = {}) => {
+      const pfad = String(url);
+      aufrufe.push({ pfad, method: options.method || 'GET', body: options.body });
+      const antwort = (payload) => new Response(JSON.stringify(payload), {
+        status: 200, headers: { 'Content-Type': 'application/json' }
+      });
+      if (pfad.includes('/secrets')) return antwort({ secrets: [], secret_id: 'sec_1' });
+      // manage existiert bereits, cancel noch nicht -- genau die Lage aus dem
+      // Befund.
+      if (pfad.endsWith('/tools?page_size=100')) {
+        return antwort({ tools: [{ id: 'tool_manage', tool_config: { name: 'manage_voxera_calendar' } }] });
+      }
+      return antwort({ id: pfad.includes('tool_manage') ? 'tool_manage' : 'tool_cancel' });
+    };
+    try {
+      helper.resetCache();
+      const ids = await helper.ensureWorkspaceTools();
+      const schreibend = aufrufe
+        .filter((call) => ['POST', 'PATCH'].includes(call.method) && call.pfad.includes('/tools'))
+        // Der NAME im Rumpf entscheidet, nicht ein Vorkommen der Zeichenkette:
+        // die Beschreibung des Buchungswerkzeugs nennt das Absagewerkzeug
+        // selbst, eine Teilstringsuche waere hier blind.
+        .map((call) => JSON.parse(String(call.body)).tool_config.name);
+      assert.deepEqual(schreibend, ['cancel_voxera_appointment', 'manage_voxera_calendar'],
+        'Das Buchungswerkzeug wird geaendert, bevor das Absagewerkzeug existiert');
+      // Zurueckgegeben wird in der Reihenfolge der Werkzeugliste, nicht in der
+      // Anlegereihenfolge.
+      assert.deepEqual(ids, ['tool_manage', 'tool_cancel']);
+    } finally {
+      globalThis.fetch = echtesFetch2;
+      helper.resetCache();
+    }
+  }
+
   // Und der Prompt muss den Agenten auf das neue Werkzeug verweisen.
   assert.match(block, /cancel_voxera_appointment/, 'Der Prompt nennt das Absagewerkzeug nicht');
   assert.match(block, /braucht keine Zeitangaben/,
