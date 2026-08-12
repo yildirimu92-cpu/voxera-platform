@@ -1,0 +1,33 @@
+name: Verify Supabase Write Error Check
+
+# Bewusst ohne `paths:`-Filter (siehe AGENTS.md, Abschnitt "A verify script
+# without a workflow is a script that never runs", und Issue #941): der
+# Wächter prüft Browser-Schreibstellen in beiden index.html-Dateien. Ein
+# Pfadfilter, der nur bei Änderungen an diesen Dateien läuft, hätte genau die
+# Lücke wieder eingebaut, die dieser Wächter schließt -- eine unbemerkte
+# neue Schreibstelle in einem PR, das andere Pfade berührt, würde sonst
+# niemals geprüft. Läuft deshalb auf jedem Pull Request, unabhängig vom Diff.
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Verify Supabase write error handling
+        run: node scripts/verify-supabase-write-error-check.mjs
+      - name: Run guard's own test suite (Gegenprobe)
+        run: node --test scripts/verify-supabase-write-error-check.test.mjs
