@@ -124,23 +124,40 @@ function computePeriodStart(subscription, nowDate) {
   return cursor;
 }
 
-async function loadUsageSummary(sbAdmin, { customerId, periodStartIso, includedMinutes, extraRate }) {
-  const { data, error } = await sbAdmin
-    .from('calls')
-    .select('duration_seconds')
-    .eq('customer_id', customerId)
-    .gte('created_at', periodStartIso);
+/**
+ * Zaehlt die angerechneten Gespraechsminuten und leitet daraus die
+ * Ueberschreitung ab.
+ *
+ * Die Zaehlung selbst passiert seit dem 12.08.2026 nicht mehr hier, sondern
+ * in der Datenbankfunktion customer_usage_for_period -- dieselbe, die auch
+ * daily-billing-runner.js nutzt. Vorher rechneten beide getrennt und kamen
+ * auf verschiedene Ergebnisse (hier: summieren-dann-runden, dort: runden je
+ * Anruf), an echten Daten 66 % auseinander.
+ *
+ * Kontingent und Minutenpreis bleiben bewusst hier: sie kommen vom Vertrag
+ * und nicht aus der Zaehlfunktion, damit Bestandsvertraege ihre vereinbarten
+ * Werte behalten koennen und ein Preiswechsel bestehende Vertraege nicht
+ * beruehrt.
+ *
+ * periodEndIso ist optional; fehlt es, laeuft der Zeitraum bis jetzt.
+ */
+async function loadUsageSummary(sbAdmin, { customerId, periodStartIso, periodEndIso, includedMinutes, extraRate }) {
+  const { data, error } = await sbAdmin.rpc('customer_usage_for_period', {
+    p_customer_id: customerId,
+    p_from: periodStartIso,
+    p_to: periodEndIso || new Date().toISOString()
+  });
 
   if (error) {
     return { ok: false, error: error.message || 'usage query failed' };
   }
 
-  const usedSeconds = (Array.isArray(data) ? data : []).reduce((sum, row) => {
-    const duration = Number(row && row.duration_seconds);
-    return sum + (Number.isFinite(duration) && duration > 0 ? duration : 0);
-  }, 0);
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!row) {
+    return { ok: false, error: 'customer_usage_for_period lieferte keine Zeile' };
+  }
 
-  const usedMinutes = Math.ceil(usedSeconds / 60);
+  const usedMinutes = Number(row.used_minutes) || 0;
   const overageMinutes = Math.max(0, usedMinutes - Math.max(0, Number(includedMinutes) || 0));
   const overageAmount = Number((overageMinutes * (Number(extraRate) || 0)).toFixed(2));
 
@@ -148,9 +165,13 @@ async function loadUsageSummary(sbAdmin, { customerId, periodStartIso, includedM
     ok: true,
     usage: {
       used_minutes: usedMinutes,
+      used_seconds: Number(row.used_seconds) || 0,
       included_minutes: Math.max(0, Number(includedMinutes) || 0),
       overage_minutes: overageMinutes,
-      overage_amount: overageAmount
+      overage_amount: overageAmount,
+      counted_calls: Number(row.counted_calls) || 0,
+      ignored_too_short: Number(row.ignored_too_short) || 0,
+      ignored_not_completed: Number(row.ignored_not_completed) || 0
     }
   };
 }
@@ -495,11 +516,21 @@ async function createSubscriptionInvoice({
     return existingForPeriod;
   }
 
+  // contract.overage_rate_per_minute ist der Spaltenname in Produktion. Bis
+  // zum 12.08.2026 stand hier contract.extra_per_minute -- eine Spalte, die
+  // es auf contracts nicht gibt. Der Minutenpreis war dadurch immer 0, die
+  // Ueberschreitungsposition also selbst dann CHF 0.00, wenn der Kunde sein
+  // Kontingent ueberschritten hatte. extra_per_minute existiert nur auf
+  // offers; offer-acceptance.js:381 uebertraegt den Wert beim Vertragsschluss
+  // in overage_rate_per_minute.
+  const contractExtraRate = Number(contract.overage_rate_per_minute || 0);
+
   const usageResult = await loadUsageSummary(sbAdmin, {
     customerId: customer.id,
     periodStartIso: computedStart.toISOString(),
+    periodEndIso: computedEnd ? computedEnd.toISOString() : undefined,
     includedMinutes: Number(contract.included_minutes || 0),
-    extraRate: Number(contract.extra_per_minute || 0)
+    extraRate: contractExtraRate
   });
 
   const overageAmount = usageResult.ok ? money(usageResult.usage.overage_amount) : 0;
@@ -521,7 +552,7 @@ async function createSubscriptionInvoice({
       title: 'Overage Minuten',
       description: usageResult.ok ? `${usageResult.usage.overage_minutes} zusätzliche Minuten` : 'Zusatzverbrauch',
       quantity: usageResult.ok ? usageResult.usage.overage_minutes : 1,
-      unitPrice: usageResult.ok ? numberOr(contract.extra_per_minute, 0) : overageAmount,
+      unitPrice: usageResult.ok ? contractExtraRate : overageAmount,
       lineTotal: overageAmount,
       metadata: usageResult.ok ? usageResult.usage : {}
     });

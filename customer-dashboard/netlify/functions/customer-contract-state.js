@@ -43,8 +43,16 @@ function resolveContractCommercialValues(contractRow, offerRow, planRow) {
     ?? plan.minutes
     ?? plan.included_minutes
   );
+  // contracts.overage_rate_per_minute zuerst: das ist der Spaltenname in
+  // Produktion und der vertraglich vereinbarte Wert. Er stand bis zum
+  // 12.08.2026 nicht in dieser Kette, wodurch die Anzeige am Vertrag vorbei
+  // auf Offerte oder Plankonfiguration zurueckfiel -- und damit nach einem
+  // Preiswechsel einen anderen Minutenpreis gezeigt haette als den
+  // vereinbarten. Bestandsvertraege behalten ihre Konditionen, also ist der
+  // Vertrag die erste Quelle.
   const extraPerMinute = toValidNumber(
-    contract.extra_per_minute
+    contract.overage_rate_per_minute
+    ?? contract.extra_per_minute
     ?? contract.extra_rate
     ?? contract.overage_rate
     ?? offer.extra_per_minute

@@ -582,15 +582,29 @@ for (const className of [
   assert.ok(present, `dashboard missing canonical settings markup: class ${className}`);
 }
 
+// onclick="vxAboMinuten()" stand in dieser Liste bis zum 12.08.2026. Der
+// Einstieg "Zusatzminuten" wurde entfernt: Zusatzminuten werden bei
+// Ueberschreitung des Kontingents automatisch nachbelastet statt vom Kunden
+// gekauft. Der Knopf loeste ohnehin keinen Kauf aus, sondern nur ein Ticket
+// in voxera_cases -- und versprach dem Kunden dabei "sofort aufgeschaltet"
+// plus Rechnung, wovon serverseitig nichts stattfand.
 for (const token of [
   '<progress id="abo-minutes-bar"',
   "barEl.classList.toggle('warning'",
   "onclick=\"vxMehrShow('abonnement')\"",
   'onclick="vxAboUpgrade()"',
-  'onclick="vxAboMinuten()"',
   'onclick="vxSubmitCancellationRequest()"'
 ]) {
   assert.ok(dashboard.includes(token), `dashboard missing canonical settings markup: ${token}`);
+}
+
+// Gegenstueck zur Entfernung: der Kauf-Einstieg darf nicht zurueckkehren,
+// ohne dass jemand diese Stelle bewusst anfasst. Sonst steht irgendwann
+// wieder ein Kaufknopf neben der automatischen Nachbelastung -- und der
+// Kunde zahlt zweimal fuer dieselben Minuten.
+for (const entfernt of ['vxAboMinuten', 'requestExtraMinutes', 'sendMinutesRequest']) {
+  const wiederDa = new RegExp(`onclick="${entfernt}\\(`).test(dashboard);
+  assert.ok(!wiederDa, `Zusatzminuten-Kauf ist zurueck im Dashboard (${entfernt}) -- siehe Kommentar oben`);
 }
 
 for (const forbidden of [

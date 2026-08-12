@@ -65,13 +65,14 @@
       summary: 'Nach dem Absenden meldet sich unser Team persönlich bei Ihnen.',
       successTitle: 'Anfrage erhalten', successText: 'Wir melden uns persönlich bei Ihnen.'
     };
-    if (s.type === 'plan_upgrade') return {
+    // Der Zusatzminuten-Zweig stand hier bis zum 12.08.2026 und versprach
+    // "sofort aufgeschaltet" plus Rechnung -- beides fand serverseitig nie
+    // statt, der Endpunkt legte nur ein Ticket in voxera_cases an.
+    // Zusatzminuten werden seither bei Ueberschreitung automatisch
+    // nachbelastet, der Assistent laeuft dabei unveraendert weiter.
+    return {
       summary: 'Nach dem Absenden wird Ihr neuer Plan innerhalb von 24 Stunden aufgeschaltet.',
       successTitle: 'Bestellung erhalten', successText: 'Ihr neuer Plan wird innerhalb von 24 Stunden aufgeschaltet.'
-    };
-    return {
-      summary: 'Nach dem Absenden werden die Zusatzminuten sofort aufgeschaltet. Sie erhalten dafür eine Rechnung.',
-      successTitle: 'Bestellung erhalten', successText: 'Die Zusatzminuten werden sofort aufgeschaltet. Die Rechnung folgt separat.'
     };
   }
 
@@ -120,7 +121,8 @@
     const submit = root.document.getElementById('vx-commercial-submit');
     if (!body || !title || !subtitle || !submit) return;
 
-    title.textContent = s.type === 'plan_upgrade' ? 'Plan wechseln' : 'Zusatzminuten';
+    // Nur noch Planwechsel, siehe copyFor().
+    title.textContent = 'Plan wechseln';
 
     if (s.loadingStatus) {
       subtitle.textContent = 'Planoptionen werden geprüft.';
@@ -148,9 +150,7 @@
       return;
     }
 
-    subtitle.textContent = s.type === 'plan_upgrade'
-      ? 'Wählen Sie den gewünschten Plan.'
-      : 'Wählen Sie ein einmaliges Minutenpaket.';
+    subtitle.textContent = 'Wählen Sie den gewünschten Plan.';
 
     const options = (s.options || []).map(function(option) {
       const selected = String(option.value) === String(s.selected);
@@ -252,20 +252,10 @@
     render();
   }
 
-  function minutes() {
-    let rate = 0;
-    try {
-      const cfg = typeof root.getPlanConfigEntryForPlan === 'function' ? root.getPlanConfigEntryForPlan(currentPlan()) : null;
-      rate = Number(cfg && cfg.extraRate || 0);
-    } catch (_error) {}
-    const options = [50, 100, 250, 500].map(function(amount) {
-      const estimate = rate > 0 ? Math.round(rate * amount * 100) / 100 : null;
-      return { value: String(amount), title: amount + ' Minuten', meta: estimate == null ? 'Betrag gemäss Vertrag' : 'Voraussichtlich CHF ' + estimate.toFixed(2), estimatedAmount: estimate };
-    });
-    state({ type: 'extra_minutes', selected: '', options: options });
-    render();
-    open();
-  }
+  // minutes() stand hier bis zum 12.08.2026 und baute die Pakete
+  // 50/100/250/500 Minuten. Entfernt zusammen mit vxAboMinuten() in
+  // index.html: Zusatzminuten werden bei Ueberschreitung automatisch
+  // nachbelastet statt gekauft.
 
   async function submit() {
     const s = root.vxCommercialState || state();
@@ -277,14 +267,13 @@
       if (!accessToken) throw new Error('Sitzung abgelaufen. Bitte melden Sie sich erneut an.');
       const payload = { type: s.type, request_id: root.crypto && root.crypto.randomUUID ? root.crypto.randomUUID() : 'commercial-' + Date.now(), keep_billing_cycle: true };
       if (s.type === 'plan_upgrade') payload.target_plan = s.selected;
-      else { payload.minutes = Number(s.selected); payload.estimated_amount = s.estimatedAmount; }
       const response = await root.fetch(ENDPOINT, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + accessToken }, body: JSON.stringify(payload) });
       const json = await response.json().catch(function() { return {}; });
       if (!response.ok) throw new Error(json.error || 'Übermittlung fehlgeschlagen.');
       s.submitting = false;
       s.submitted = true;
       render();
-      if (typeof root.toast === 'function') root.toast(s.type === 'extra_minutes' ? 'Bestellung erhalten.' : 'Anfrage erhalten.', 'success');
+      if (typeof root.toast === 'function') root.toast('Anfrage erhalten.', 'success');
     } catch (error) {
       s.submitting = false;
       render();
@@ -300,12 +289,11 @@
     root.vxCommercialOpen = open;
     root.vxCommercialClose = close;
     root.vxAboUpgrade = upgrade;
-    root.vxAboMinuten = minutes;
     root.vxCommercialSubmit = submit;
     root.requestUpgrade = upgrade;
-    root.requestExtraMinutes = minutes;
     root.sendUpgradeRequest = submit;
-    root.sendMinutesRequest = submit;
+    // vxAboMinuten / requestExtraMinutes / sendMinutesRequest entfernt am
+    // 12.08.2026 -- siehe Kommentar bei minutes().
   }
 
   if (root.document.readyState === 'loading') root.document.addEventListener('DOMContentLoaded', install, { once: true });

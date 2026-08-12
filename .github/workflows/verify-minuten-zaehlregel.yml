@@ -1,0 +1,31 @@
+name: Verify Minuten-Zählregel
+
+# Ohne `paths:`-Filter, nach der Regel in AGENTS.md ("A verify script without
+# a workflow is a script that never runs", Issue #941): die Zählregel ist in
+# den AGB zugesagt und im Preisdokument veröffentlicht. Eine Änderung daran
+# darf nicht davon abhängen, ob ein Pull Request zufällig einen der
+# gelisteten Pfade berührt.
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Verify Zählregel
+        run: node scripts/verify-minuten-zaehlregel.mjs
+      - name: Gegenprobe des Wächters
+        run: node --test scripts/verify-minuten-zaehlregel.test.mjs

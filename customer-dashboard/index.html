@@ -8277,10 +8277,15 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
               </div>
             </section>
             <section class="vx-settings-card">
-              <div class="vx-settings-card-head"><div><h2 class="vx-settings-card-title">Plan & Optionen</h2><p class="vx-settings-card-meta">Planwechsel und zusätzliches Gesprächsvolumen zentral anfragen.</p></div></div>
+              <div class="vx-settings-card-head"><div><h2 class="vx-settings-card-title">Plan & Optionen</h2><p class="vx-settings-card-meta">Planwechsel zentral anfragen.</p></div></div>
+              <!-- Der Einstieg "Zusatzminuten" stand hier bis zum 12.08.2026. Zusatzminuten
+                   werden nicht mehr gekauft, sondern bei Ueberschreitung des Kontingents
+                   automatisch nachbelastet; der Assistent laeuft dabei unveraendert weiter.
+                   Der Knopf loeste ohnehin keinen Kauf aus, sondern nur ein Ticket in
+                   voxera_cases -- und versprach dem Kunden dabei "sofort aufgeschaltet"
+                   plus Rechnung, wovon serverseitig nichts stattfand. -->
               <div class="vx-abo-addon-grid">
                 <button type="button" class="vx-commercial-entry" onclick="vxAboUpgrade()"><span class="vx-commercial-entry-icon"><i class="ph-bold ph-trend-up" aria-hidden="true"></i></span><span><strong>Plan wechseln</strong><small>Verfügbare höhere Pläne vergleichen und verbindlich anfragen.</small></span><i class="ph-light ph-caret-right" aria-hidden="true"></i></button>
-                <button type="button" class="vx-commercial-entry" onclick="vxAboMinuten()"><span class="vx-commercial-entry-icon"><i class="ph-bold ph-plus-circle" aria-hidden="true"></i></span><span><strong>Zusatzminuten</strong><small>Ein einmaliges Minutenpaket für Spitzenzeiten anfragen.</small></span><i class="ph-light ph-caret-right" aria-hidden="true"></i></button>
               </div>
             </section>
 
@@ -8446,7 +8451,8 @@ body.vx-customer-design-foundation #tab-dashboard #dash-reach-warning {
                 <div style="font-size:12px;color:var(--ink2);line-height:1.5;margin-bottom:10px;" id="upgrade-primary-copy">–</div>
                 <div style="display:flex;gap:8px;flex-wrap:wrap;">
                   <button class="btn btn--primary" onclick="requestUpgrade()">Upgrade anfragen</button>
-                  <button class="btn btn--secondary" onclick="requestExtraMinutes()">Zusatzminuten anfragen</button>
+                  <!-- "Zusatzminuten anfragen" entfernt am 12.08.2026, siehe Kommentar
+                       im Abonnement-Bereich. -->
                 </div>
               </div>
               <span class="chip chip-neu" id="usage-status-chip" style="margin-top:10px;display:inline-block;">Plan aktiv</span>
@@ -15275,19 +15281,13 @@ async function vxInitAbonnement() {
       ? Number(customerMeta.contractIncludedMinutes)
       : (_contractMins != null ? Number(_contractMins) : 0);
     const now2 = new Date();
-    const todayStart = new Date(now2.getFullYear(), now2.getMonth(), now2.getDate());
-    const loadedAddons = Array.isArray(customerMeta.customerAddons) ? customerMeta.customerAddons : [];
-    const extraMinutes = loadedAddons
-      .filter(function(a) {
-        if (!a || !a.active) return false;
-        if (String(a.addon_code || '').toLowerCase() !== 'minutes_block') return false;
-        if (!a.valid_until) return true;
-        const validUntil = new Date(a.valid_until);
-        if (isNaN(validUntil.getTime())) return false;
-        return validUntil >= todayStart;
-      })
-      .reduce(function(sum, a) { return sum + ((Number(a.quantity) || 1) * 50); }, 0);
-    const total = _baseMins + extraMinutes;
+    // Bis zum 12.08.2026 wurde hier ein 'minutes_block'-Addon (quantity × 50)
+    // auf das angezeigte Kontingent addiert. Der Code existiert im Katalog
+    // voxera_addons nicht und customer_addons ist in Produktion leer, die
+    // Summe war also konstant 0 -- aber sie haette dem Kunden ein groesseres
+    // Kontingent gezeigt, als die Rechnung kennt. Seit der automatischen
+    // Nachbelastung ist das Kontingent allein der Vertrag.
+    const total = _baseMins;
     // Use contract anniversary date (same logic as renderUsage)
     const _contractRow2 = (typeof selectCommercialContractRow === 'function') ? selectCommercialContractRow() : null;
     const _effStart2 = (customerMeta.startDate && customerMeta.startDate !== '') ? customerMeta.startDate : (_contractRow2 && _contractRow2.start_date) || '';
@@ -17013,21 +17013,20 @@ async function loadCustomerMeta(forceReload) {
       // Siehe docs/SMS_BENACHRICHTIGUNG_DIAGNOSE_2026-08-11.md
       customerMeta.smsNotifyAddon = activeSet.has('sms_notify_kunde');
       customerMeta.smsCallerAddon = activeSet.has('sms_confirm_caller');
-      // Zusatzminuten: aktive minutes_block Add-ons × quantity (gültig diesen Monat)
-      const minuteAddons = activeAddons.filter(a => a.addon_code === 'minutes_block');
-      customerMeta.extraMinutes = minuteAddons.reduce((s, a) => s + (Number(a.quantity) || 1) * 50, 0);
+      // customerMeta.extraMinutes (aktive 'minutes_block'-Addons × 50) stand
+      // hier bis zum 12.08.2026. Der Addon-Code existiert im Katalog nicht,
+      // die Summe war konstant 0 -- sie haette dem Kunden aber ein groesseres
+      // Kontingent gezeigt, als die Rechnung kennt. Kontingent = Vertrag.
     } else {
       customerMeta.customerAddons = [];
       customerMeta.smsNotifyAddon = false;
       customerMeta.smsCallerAddon = false;
-      customerMeta.extraMinutes = 0;
     }
   } catch(e) {
     if (generation !== vxAccountGeneration) return customerMeta;
     customerMeta.customerAddons = [];
     customerMeta.smsNotifyAddon = false;
     customerMeta.smsCallerAddon = false;
-    customerMeta.extraMinutes = 0;
   }
   // Render profile photo if available
   renderProfilePhoto(customerMeta.avatarUrl || null, customerMeta.customerEmail || '');
@@ -17054,7 +17053,7 @@ function renderUsage(records) {
   const planCfg = getPlanConfigEntryForPlan(customerMeta.plan) || PLAN_CONFIG['Business'] || {monthlyPrice:0,minutes:0,extraRate:0};
   const cfg = {
     monthlyPrice: customerMeta.contractMonthlyPrice != null ? customerMeta.contractMonthlyPrice : Number(planCfg.monthlyPrice || 0),
-    minutes: (customerMeta.contractIncludedMinutes != null ? customerMeta.contractIncludedMinutes : Number(planCfg.minutes || 0)) + Number(customerMeta.extraMinutes || 0),
+    minutes: (customerMeta.contractIncludedMinutes != null ? customerMeta.contractIncludedMinutes : Number(planCfg.minutes || 0)),
     extraRate: customerMeta.contractExtraRate != null ? customerMeta.contractExtraRate : Number(planCfg.extraRate || 0)
   };
   const now = new Date();
@@ -17198,11 +17197,10 @@ function vxCommercialRender() {
   const submit = document.getElementById('vx-commercial-submit');
   if (!body || !title || !subtitle || !submit) return;
 
-  const isPlan = vxCommercialState.type === 'plan_upgrade';
-  title.textContent = isPlan ? 'Plan wechseln' : 'Zusatzminuten';
-  subtitle.textContent = isPlan
-    ? 'Wählen Sie den gewünschten höheren Plan.'
-    : 'Wählen Sie ein einmaliges Minutenpaket.';
+  // Seit dem 12.08.2026 traegt dieses Overlay nur noch den Planwechsel; der
+  // Zusatzminuten-Zweig ist entfallen (Nachbelastung statt Kauf).
+  title.textContent = 'Plan wechseln';
+  subtitle.textContent = 'Wählen Sie den gewünschten höheren Plan.';
 
   body.innerHTML = '<div class="vx-commercial-choice-grid">' + vxCommercialState.options.map(function(option) {
     const selected = String(vxCommercialState.selected) === String(option.value);
@@ -17244,22 +17242,14 @@ function vxAboUpgrade() {
   vxCommercialOpen();
 }
 
-function vxAboMinuten() {
-  const config = getPlanConfigEntryForPlan(customerMeta.plan) || { extraRate: 0 };
-  const rate = Number(config.extraRate || 0);
-  const options = [50, 100, 250, 500].map(function(minutes) {
-    const estimate = rate > 0 ? Math.round(rate * minutes * 100) / 100 : null;
-    return {
-      value: String(minutes),
-      title: minutes + ' Minuten',
-      meta: estimate != null ? ('Voraussichtlich CHF ' + estimate.toFixed(2)) : 'Betrag gemäss Vertrag',
-      estimatedAmount: estimate
-    };
-  });
-  vxCommercialState = { type: 'extra_minutes', selected: '', options, estimatedAmount: null, submitting: false };
-  vxCommercialRender();
-  vxCommercialOpen();
-}
+// vxAboMinuten() stand hier bis zum 12.08.2026 und baute die Pakete
+// 50/100/250/500 Minuten. Zusatzminuten werden nicht mehr gekauft, sondern bei
+// Ueberschreitung des Kontingents automatisch nachbelastet -- der Assistent
+// laeuft dabei unveraendert weiter. Der Knopf loeste ohnehin keinen Kauf aus,
+// sondern nur ein Ticket in voxera_cases.
+//
+// vxCommercialState/-Render/-Select/-Submit und das Overlay bleiben: sie
+// tragen weiterhin den Planwechsel.
 
 async function vxCommercialSubmit() {
   if (!vxCommercialState.type || !vxCommercialState.selected || vxCommercialState.submitting) return;
@@ -17283,10 +17273,6 @@ async function vxCommercialSubmit() {
       keep_billing_cycle: true
     };
     if (vxCommercialState.type === 'plan_upgrade') payload.target_plan = vxCommercialState.selected;
-    if (vxCommercialState.type === 'extra_minutes') {
-      payload.minutes = Number(vxCommercialState.selected);
-      payload.estimated_amount = vxCommercialState.estimatedAmount;
-    }
 
     const response = await fetch('/.netlify/functions/customer-commercial-request', {
       method: 'POST',
@@ -17311,9 +17297,9 @@ async function vxCommercialSubmit() {
 }
 
 function requestUpgrade() { vxAboUpgrade(); }
-function requestExtraMinutes() { vxAboMinuten(); }
 function sendUpgradeRequest() { vxCommercialSubmit(); }
-function sendMinutesRequest() { vxCommercialSubmit(); }
+// requestExtraMinutes() / sendMinutesRequest() entfernt am 12.08.2026 zusammen
+// mit vxAboMinuten(); siehe Kommentar dort.
 
 function requestSupport() {
   var subject = encodeURIComponent('Voxera Support Anfrage - ' + (customerMeta.customerName || 'Kunde'));
