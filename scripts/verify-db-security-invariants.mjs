@@ -491,9 +491,16 @@ for (const [label, file] of [['Katalog', CATALOG_SQL], ['Laufzeitverhalten', BEH
   if (proc.status !== 0) {
     if (/ci_security_probe_(census|identity)/.test(stderr) && /does not exist/i.test(stderr)) {
       fail(EXIT_UNVERIFIABLE,
-        'Die Proben-Helfer fehlen auf der Datenbank -- die Migration\n'
+        'Die Proben-Helfer fehlen auf der Datenbank -- es fehlen BEIDE Migrationen,\n'
+        + 'in dieser Reihenfolge:\n'
         + '  supabase/migrations/20260808114412_ci_security_verifier_role.sql\n'
-        + 'ist noch nicht angewandt. Bis dahin sind die Invarianten NICHT geprueft.\n'
+        + '  supabase/migrations/20260808122741_ci_security_verifier_role_census_v2.sql\n'
+        + '\n'
+        + 'Die zweite ist nicht optional: die erste legt ci_security_probe_census() OHNE\n'
+        + 'Argument an, die zweite verwirft sie und erzeugt ci_security_probe_census(text)\n'
+        + '-- und genau diese Signatur ruft db_security_invariants_behavior.sql auf. Nur die\n'
+        + 'erste anzuwenden fuehrt exakt auf diese Meldung zurueck.\n'
+        + 'Bis dahin sind die Invarianten NICHT geprueft.\n'
         + `\npsql:\n${stderr}`);
     }
     // Haeufigster Einrichtungsfehler, und die generische Meldung hilft dabei

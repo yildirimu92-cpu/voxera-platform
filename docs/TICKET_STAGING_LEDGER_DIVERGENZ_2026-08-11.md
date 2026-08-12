@@ -113,9 +113,19 @@ Nicht „nachziehen ja/nein", sondern was Staging überhaupt sein soll:
 > `_PASSWORD_STAGING`). Solange sie fehlen, endet der Staging-Job mit „nicht prüfbar" (Exit 2) —
 > **nicht mit grün**, das ist der Unterschied, auf den es hier ankommt.
 >
-> Auf Staging braucht es ausserdem dieselbe Verifier-Rolle wie auf Produktion, also die Migration
-> `20260808114412_ci_security_verifier_role.sql`. Ohne sie fehlen die Proben-Helfer, und der Job
-> meldet genau das.
+> Auf Staging braucht es ausserdem dieselbe Verifier-Rolle wie auf Produktion, also **beide**
+> Migrationen, in dieser Reihenfolge:
+>
+> ```
+> supabase/migrations/20260808114412_ci_security_verifier_role.sql
+> supabase/migrations/20260808122741_ci_security_verifier_role_census_v2.sql
+> ```
+>
+> **Die zweite ist keine Kür.** Die erste legt `ci_security_probe_census()` *ohne* Argument an;
+> die zweite verwirft sie und erzeugt `ci_security_probe_census(text)` — und genau diese Signatur
+> ruft `db_security_invariants_behavior.sql` auf. Nur die erste anzuwenden hiesse: Rolle da,
+> Proben-Helfer scheinbar da, Job trotzdem dauerhaft „nicht prüfbar". Beide stehen so auch in
+> `docs/DB_SECURITY_CI_SETUP.md`.
 
 **Empfehlung: B, mit A als Ziel.** B stellt sofort her, was heute fehlt — dass eine Abweichung
 überhaupt auffällt —, und kostet im Wesentlichen eine zweite `SUPABASE_DB_URL` im Workflow. Ohne B
