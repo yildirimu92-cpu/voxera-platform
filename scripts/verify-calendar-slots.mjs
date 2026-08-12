@@ -179,6 +179,52 @@ check('blockingUpdateFor findet nur echte Ueberlappungen', () => {
   assert.equal(blockingUpdateFor([{ starts_at: 'kaputt', ends_at: DI('11:00') }], DI('10:30'), DI('11:00')), null);
 });
 
+// ── Codex-Befund vom 12.08. auf dem ersten Stand dieses Moduls ──────────────
+//
+// Die Kandidaten liefen nur vom Fensteranfang los. Lagen die Buchungszeiten auf
+// einem anderen Minutenraster, verwarf bookingWindowError() jeden Kandidaten --
+// availability meldete "gar nichts frei", waehrend book denselben Termin
+// gebucht haette. Eine Ablehnung, die keine ist: dieselbe Fehlerklasse wie der
+// Befund, den dieses Modul behebt.
+check('Ein versetztes Buchungsfenster wird trotzdem getroffen', () => {
+  const versetzt = { ...WOCHE('08:00', '17:00'), tue: [['08:15', '08:45']] };
+  const plan = bookableSlots(DI('08:00'), DI('12:00'), settings({ business_hours: versetzt }), versetzt, []);
+  assert.deepEqual(zeiten(plan.slots), ['08:15'], 'availability findet den Termin nicht, den book akzeptiert');
+});
+
+check('Der Anker gilt auch bei einer Mittagspause auf krummem Raster', () => {
+  const versetzt = { ...WOCHE('08:00', '17:00'), tue: [['08:00', '12:00'], ['13:20', '14:20']] };
+  const plan = bookableSlots(DI('11:00'), DI('15:00'), settings({ business_hours: versetzt }), versetzt, []);
+  // 13:20 und 13:50 kommen vom Anker, 13:30 vom Fensterraster -- alle drei
+  // liegen in 13:20--14:20 und sind einzeln buchbar. Dass sich Vorschlaege
+  // ueberlappen koennen, ist gewollt: es sind Alternativen, und book prueft
+  // die gewaehlte ohnehin erneut.
+  assert.deepEqual(zeiten(plan.slots), ['11:00', '11:30', '13:20', '13:30', '13:50']);
+  assert.ok(!zeiten(plan.slots).includes('12:00'), 'Die Pause bleibt gesperrt');
+});
+
+check('Anker ausserhalb des Fensters erzeugen keine Termine', () => {
+  const plan = halbtag();
+  // Die erlaubte Zeitspanne beginnt um 08:00, das Fenster ebenfalls -- es darf
+  // kein doppelter Kandidat entstehen.
+  assert.equal(plan.candidates.length, 8);
+  assert.equal(new Set(plan.candidates.map((slot) => slot.start)).size, 8);
+});
+
+check('Die Kandidaten bleiben aufsteigend sortiert', () => {
+  const versetzt = { ...WOCHE('08:00', '17:00'), tue: [['08:00', '12:00'], ['09:20', '10:20']] };
+  const plan = bookableSlots(DI('08:00'), DI('11:00'), settings({ business_hours: versetzt }), versetzt, []);
+  const starts = plan.candidates.map((slot) => new Date(slot.start).getTime());
+  assert.deepEqual(starts, [...starts].sort((a, b) => a - b));
+});
+
+check('Die Anker werden aus dem Fensteranfang hergeleitet', () => {
+  const versetzt = { ...WOCHE('08:00', '17:00'), tue: [['09:15', '12:00']] };
+  const anker = _test.slotAnchors(DI('08:00'), DI('12:00'), settings({ business_hours: versetzt }), versetzt);
+  assert.equal(anker.length, 2);
+  assert.equal(new Date(anker[1]).toISOString(), new Date(DI('09:15')).toISOString());
+});
+
 check('Die Kandidatenzahl ist nach oben begrenzt', () => {
   // Schutz gegen eine Endlosschleife, falls die 8-Stunden-Schranke aus
   // validateWindow() je wegfaellt.

@@ -30,13 +30,23 @@
 // Eine zweite Stelle mit eigener Zeitzonenlogik waere eine zweite Stelle, an
 // der die Sommerzeit falsch sein kann.
 //
-// Der Preis dieser Entscheidung: die Slots liegen auf dem Raster des
-// ANGEFRAGTEN Fensters, nicht auf dem der Oeffnungszeiten. Fragt der Agent
-// 08:00--12:00 bei 30 Minuten Dauer, kommen 08:00, 08:30, 09:00 heraus; fragt
-// er 08:07--12:00, kommen 08:07, 08:37 heraus. Bei den Halbtagsanfragen, die
-// Schritt 4 erzeugt, faellt das nicht an -- die beginnen zur vollen Stunde.
+// Die Kandidaten laufen deshalb vom Fensteranfang los -- ZUSAETZLICH aber auch
+// vom Anfang jeder erlaubten Zeitspanne des Tages.
+//
+// Der erste Stand hatte nur den Fensteranfang, und das war zu wenig. Codex hat
+// am 12.08. den Fall gezeigt: Buchungszeiten 08:15--08:45, Anfrage
+// 08:00--12:00, 30 Minuten Dauer. Die Kandidaten hiessen 08:00 und 08:30, nie
+// 08:15 -- `bookingWindowError()` verwarf beide, und availability meldete "gar
+// nichts frei", waehrend book denselben Termin 08:15--08:45 anstandslos
+// gebucht haette. Das ist dieselbe Fehlerklasse wie der Befund, den dieses
+// Modul behebt: eine Ablehnung, die keine ist.
+//
+// Der Anker wird aus dem Fensteranfang HERGELEITET, nicht selbst gerechnet:
+// `zonedParts()` liefert die Minute-im-Tag des Fensteranfangs, die Differenz
+// zur erlaubten Zeitspanne ist eine Millisekundenaddition. Eine Gegenprobe mit
+// `zonedParts()` verwirft den Anker, falls dazwischen die Uhr umgestellt wurde.
 
-const { bookingWindowError } = require('./booking-window');
+const { bookingWindowError, allowedIntervals, zonedParts } = require('./booking-window');
 
 // Drei Vorschlaege. Der Agent spricht sie vor, und eine vorgelesene Liste mit
 // acht Uhrzeiten ist am Telefon keine Hilfe, sondern eine Zumutung. Die
@@ -67,19 +77,57 @@ function slotDurationMinutes(startIso, endIso, settings) {
   return Math.max(1, Math.round((to - from) / 60000));
 }
 
+// Die Startpunkte, von denen aus durchgezaehlt wird: der Fensteranfang und der
+// Anfang jeder erlaubten Zeitspanne des Tages, die im Fenster liegt.
+//
+// Ohne den zweiten Teil meldet availability "nichts frei" fuer Zeiten, die book
+// akzeptieren wuerde -- siehe der Kopfkommentar. Anker ausserhalb des Fensters
+// faellt weg, ebenso einer, den die Gegenprobe nicht bestaetigt.
+function slotAnchors(startIso, endIso, settings, openingHours) {
+  const windowStart = millis(startIso);
+  const windowEnd = millis(endIso);
+  if (windowStart === null || windowEnd === null) return [];
+  const anchors = [windowStart];
+  const timeZone = String(settings?.timezone || 'Europe/Zurich');
+  let parts;
+  try { parts = zonedParts(startIso, timeZone); }
+  catch (_error) { return anchors; }
+  if (!parts.dayKey) return anchors;
+  for (const [from] of allowedIntervals(settings, openingHours, parts.dayKey) || []) {
+    const anchor = windowStart + (from - parts.minutes) * 60000;
+    if (anchor <= windowStart || anchor >= windowEnd) continue;
+    // Gegenprobe: liegt der hergeleitete Zeitpunkt wirklich auf `from`? Eine
+    // Zeitumstellung zwischen Fensteranfang und Anker wuerde ihn verschieben,
+    // und ein um eine Stunde verrutschter Vorschlag ist schlimmer als keiner.
+    try {
+      if (zonedParts(new Date(anchor).toISOString(), timeZone).minutes !== from) continue;
+    } catch (_error) { continue; }
+    anchors.push(anchor);
+  }
+  return anchors;
+}
+
 // Zerlegt [startIso, endIso) in aufeinanderfolgende Termine der konfigurierten
-// Dauer. Ein angebrochener Rest am Ende faellt weg: ein Fenster von 100 Minuten
-// traegt bei 30 Minuten Dauer drei Termine, nicht dreieinhalb.
-function slotCandidates(startIso, endIso, durationMinutes) {
-  const from = millis(startIso);
+// Dauer, von jedem Anker aus. Ein angebrochener Rest am Ende faellt weg: ein
+// Fenster von 100 Minuten traegt bei 30 Minuten Dauer drei Termine, nicht
+// dreieinhalb.
+//
+// Mehrere Anker koennen denselben Termin erzeugen; doppelte fallen raus, und
+// sortiert wird nach Beginn, damit der Agent die frueheste Zeit zuerst nennt.
+function slotCandidates(startIso, endIso, durationMinutes, anchors = null) {
   const to = millis(endIso);
   const step = Number(durationMinutes) * 60000;
-  if (from === null || to === null || !Number.isFinite(step) || step <= 0) return [];
-  const slots = [];
-  for (let cursor = from; cursor + step <= to && slots.length < MAX_CANDIDATES; cursor += step) {
-    slots.push({ start: new Date(cursor).toISOString(), end: new Date(cursor + step).toISOString() });
+  const starts = anchors || [millis(startIso)];
+  if (to === null || !Number.isFinite(step) || step <= 0) return [];
+  const gesehen = new Set();
+  for (const anchor of starts) {
+    if (anchor === null) continue;
+    for (let cursor = anchor; cursor + step <= to && gesehen.size < MAX_CANDIDATES; cursor += step) {
+      gesehen.add(cursor);
+    }
   }
-  return slots;
+  return [...gesehen].sort((a, b) => a - b)
+    .map((cursor) => ({ start: new Date(cursor).toISOString(), end: new Date(cursor + step).toISOString() }));
 }
 
 // Findet die Betriebssperre (Schliessung, Terminpause), die einen Zeitraum
@@ -116,7 +164,8 @@ function blockingUpdateFor(updates, startIso, endIso) {
 // verschiedene Auskuenfte an den Anrufenden.
 function bookableSlots(startIso, endIso, settings, openingHours, blockingUpdates) {
   const duration = slotDurationMinutes(startIso, endIso, settings);
-  const candidates = slotCandidates(startIso, endIso, duration);
+  const anchors = slotAnchors(startIso, endIso, settings, openingHours);
+  const candidates = slotCandidates(startIso, endIso, duration, anchors);
   const slots = [];
   let windowReason = null;
   for (const slot of candidates) {
@@ -166,5 +215,5 @@ module.exports = {
   blockingUpdateFor,
   bookableSlots,
   freeSlots,
-  _test: { slotCandidates, slotDurationMinutes }
+  _test: { slotCandidates, slotDurationMinutes, slotAnchors }
 };

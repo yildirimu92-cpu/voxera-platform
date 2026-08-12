@@ -129,4 +129,9 @@ function bookingWindowError(startIso, endIso, settings, openingHours) {
   return fits ? null : 'calendar_booking_outside_hours';
 }
 
-module.exports = { bookingWindowError, allowedIntervals, _test: { zonedParts, intervalsFor, intersect, toMinutes } };
+// `zonedParts` steht seit dem 2026-08-12 oeffentlich und nicht mehr nur unter
+// `_test`: calendar-slots.js braucht die Minute-im-Tag des Fensteranfangs, um
+// Terminkandidaten an den erlaubten Zeiten auszurichten. Der Alternativweg
+// waere eine zweite Zeitzonenrechnung im Slot-Modul gewesen -- also genau die
+// Doppelquelle, die dieses Modul vermeidet.
+module.exports = { bookingWindowError, allowedIntervals, zonedParts, _test: { zonedParts, intervalsFor, intersect, toMinutes } };

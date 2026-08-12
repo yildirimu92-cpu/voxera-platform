@@ -202,6 +202,43 @@ await check('Ein belegter Termin nimmt dem Halbtag nicht die Verfuegbarkeit', as
   assert.equal(Object.hasOwn(payload, 'reason'), false);
 });
 
+// Codex-Befund vom 12.08.: `whole_window_free` wurde aus der Kandidatenzahl
+// abgeleitet. Die Kandidaten decken das Fenster nur bis zum letzten vollen
+// Termin ab -- ein Eintrag im angebrochenen Rest liess alle Kandidaten frei und
+// haette "ganzer Zeitraum frei" behauptet, wo die alte Antwort "belegt" hiess.
+await check('Ein Termin im angebrochenen Rest nimmt whole_window_free weg', async () => {
+  verfuegbarkeit = { available: false, busy: [{ id: 'e1', start: DI('12:20'), end: DI('12:25') }] };
+  const { payload } = await ruf({
+    action: 'availability', agent_id: 'agent_1', start: DI('08:00'), end: DI('12:29')
+  });
+  // Acht volle Termine passen hinein, alle frei -- der belegte Eintrag liegt im
+  // Rest zwischen 12:00 und 12:29.
+  assert.equal(payload.free_slots_total, 8);
+  assert.equal(payload.available, true);
+  assert.equal(payload.whole_window_free, false,
+    'whole_window_free behauptet mehr, als geprueft wurde');
+});
+
+await check('whole_window_free gilt nur mit befragtem Kalender', async () => {
+  verfuegbarkeit = { available: true, busy: [] };
+  // Samstag: kein Buchungsfenster, also keine Abfrage -- und damit auch keine
+  // Aussage darueber, ob der Zeitraum frei ist.
+  const { payload } = await ruf({
+    action: 'availability', agent_id: 'agent_1',
+    start: '2027-08-14T08:00:00+02:00', end: '2027-08-14T12:00:00+02:00'
+  });
+  assert.equal(payload.whole_window_free, false);
+});
+
+await check('Ein wirklich freier Zeitraum meldet whole_window_free', async () => {
+  verfuegbarkeit = { available: true, busy: [] };
+  const { payload } = await ruf({
+    action: 'availability', agent_id: 'agent_1', start: DI('08:00'), end: DI('12:00')
+  });
+  assert.equal(payload.whole_window_free, true);
+  assert.equal(payload.free_slots_total, 8);
+});
+
 await check('Ein voll belegter Halbtag antwortet mit Begruendung', async () => {
   verfuegbarkeit = { available: false, busy: [{ id: 'e1', start: DI('08:00'), end: DI('12:00') }] };
   const { payload } = await ruf({

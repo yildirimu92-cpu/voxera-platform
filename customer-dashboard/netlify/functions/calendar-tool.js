@@ -302,7 +302,9 @@ exports.handler = async (event) => {
       const plan = bookableSlots(startIso, endIso, settings, openingHours, blockingUpdates);
       let slots = [];
       let busy = [];
+      let kalenderGefragt = false;
       if (plan.slots.length) {
+        kalenderGefragt = true;
         // Der Kalender wird nur befragt, wenn ueberhaupt ein Termin in Frage
         // kommt. Ist der ganze Zeitraum geschlossen oder gesperrt, steht die
         // Antwort schon fest -- das spart denselben API-Aufruf, den vorher die
@@ -319,6 +321,22 @@ exports.handler = async (event) => {
       const reason = slots.length
         ? null
         : (plan.candidates.length ? (plan.slots.length ? 'calendar_no_free_slot' : plan.windowReason) : 'calendar_time_window_shorter_than_appointment');
+      // Die alte Bedeutung von `available`, wortgleich zur frueheren Rechnung:
+      // die Fensterpruefung auf das GANZE Fenster, keine Betriebssperre, und
+      // kein einziger Eintrag im Kalender.
+      //
+      // Nicht aus der Kandidatenzahl abgeleitet -- das war der zweite
+      // Codex-Befund vom 12.08. Die Kandidaten decken das Fenster nur bis zum
+      // letzten vollen Termin ab; ein Eintrag im angebrochenen Rest (Anfrage
+      // 08:00--12:29, Termin um 12:20) laesst alle Kandidaten frei und haette
+      // "ganzer Zeitraum frei" behauptet, wo die alte Antwort "belegt" hiess.
+      //
+      // `kalenderGefragt` ist Bedingung: ohne Abfrage ist das busy-Array leer,
+      // weil nichts geholt wurde, und nicht, weil nichts da ist.
+      const wholeWindowFree = kalenderGefragt
+        && busy.length === 0
+        && !bookingWindowError(startIso, endIso, settings, openingHours)
+        && !blockingUpdateFor(blockingUpdates, startIso, endIso);
       responsePayload = {
         ok: true,
         action,
@@ -326,11 +344,10 @@ exports.handler = async (event) => {
         requested_start: startIso,
         requested_end: endIso,
         // Die alte Bedeutung von `available` -- ist der GANZE angefragte
-        // Zeitraum frei -- bleibt als eigenes Feld erhalten: jeder Termin
-        // darin ist buchbar und frei. Bei einer Anfrage in Termindauer sind
-        // beide Felder gleich; bei einem Halbtag ist genau diese
-        // Unterscheidung der Punkt.
-        whole_window_free: plan.candidates.length > 0 && slots.length === plan.candidates.length,
+        // Zeitraum frei -- bleibt als eigenes Feld erhalten. Bei einer Anfrage
+        // in Termindauer sind beide Felder gleich; bei einem Halbtag ist genau
+        // diese Unterscheidung der Punkt.
+        whole_window_free: wholeWindowFree,
         appointment_duration_minutes: plan.duration,
         free_slots: slots.slice(0, SLOT_LIMIT).map((slot) => ({ start: slot.start, end: slot.end })),
         free_slots_total: slots.length,
