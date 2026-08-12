@@ -87,22 +87,37 @@ function freshSandbox(updateResult) {
   return { context, elements, toasts };
 }
 
-test('updateChangeRequestStatus(): ein {error}-Ergebnis zeigt "Fehler:", nicht "Status aktualisiert."', async () => {
-  const { context, toasts } = freshSandbox({ error: { message: 'permission denied' } });
+// updateChangeRequestStatus() faengt seinen eigenen Fehler seit dem
+// Codex-Fund auf #975 nicht mehr ab: confirmApplyChange() wartet auf sie als
+// Schritt 4 seines Auto-Apply-Flows, und ein verschluckter Fehler dort haette
+// als Erfolg gegolten, obwohl der Request offen blieb. Sie muss also werfen,
+// nicht selbst toasten -- der eigenstaendige <select onchange>-Aufruf faengt
+// das an seiner eigenen Stelle ab (siehe Test weiter unten).
+test('updateChangeRequestStatus(): ein {error}-Ergebnis wirft, statt es abzufangen', async () => {
+  const { context } = freshSandbox({ error: { message: 'permission denied' } });
 
-  await vm.runInContext("updateChangeRequestStatus('req-1', 'done')", context);
-
-  assert.equal(toasts.length, 1);
-  assert.match(toasts[0], /^Fehler:/);
+  await assert.rejects(
+    vm.runInContext("updateChangeRequestStatus('req-1', 'done')", context),
+    /permission denied/
+  );
 });
 
-test('updateChangeRequestStatus(): eine RLS-gefilterte Zeile (error:null, leeres Array) zeigt ebenfalls "Fehler:"', async () => {
+test('updateChangeRequestStatus(): eine RLS-gefilterte Zeile (error:null, leeres Array) wirft ebenfalls', async () => {
   const { context, toasts } = freshSandbox({ error: null, data: [] });
 
-  await vm.runInContext("updateChangeRequestStatus('req-1', 'done')", context);
+  await assert.rejects(
+    vm.runInContext("updateChangeRequestStatus('req-1', 'done')", context),
+    /Kein Datensatz betroffen/
+  );
+  assert.equal(toasts.length, 0, 'kein "Status aktualisiert."-Toast bei einem Fehlschlag');
+});
 
-  assert.equal(toasts.length, 1, 'ohne die Laengenpruefung waere hier faelschlich "Status aktualisiert." erschienen');
-  assert.match(toasts[0], /^Fehler:/);
+test('<select onchange> faengt einen Fehlschlag an seiner eigenen Stelle ab', () => {
+  assert.match(
+    adminHtml,
+    /onchange="updateChangeRequestStatus\('\$\{r\.id\}', this\.value\)\.catch\(e => showToast\('Fehler: ' \+ \(e\.message\|\|''\)\)\)"/,
+    'die eigenstaendige Aufrufstelle muss die Promise selbst abfangen, seit updateChangeRequestStatus() nicht mehr intern faengt'
+  );
 });
 
 test('updateChangeRequestStatus(): Erfolg zeigt "Status aktualisiert."', async () => {
@@ -182,6 +197,39 @@ test('confirmApplyChange(): eine RLS-gefilterte Notiz-Zeile zeigt einen Fehler i
   assert.match(elements['apply-result-req-1'].innerHTML, /Fehler/,
     'ohne die Laengenpruefung waere hier faelschlich der Erfolgsblock gerendert worden');
   assert.ok(!toasts.some((t) => /umgesetzt/.test(t)), 'kein Erfolgstoast bei einem Fehlschlag');
+});
+
+// Codex-Fund auf #975: solange updateChangeRequestStatus() intern faengt,
+// sieht confirmApplyChange() dessen Fehlschlag nie -- der Request bliebe
+// unbemerkt offen, waehrend die Oberflaeche "Änderungen übernommen" zeigt.
+// Simuliert hier direkt eine werfende updateChangeRequestStatus() (Schritt 4),
+// statt sie wie in den anderen Tests wegzustubben.
+test('confirmApplyChange(): ein Fehlschlag von updateChangeRequestStatus() (Schritt 4) zeigt einen Fehler, nicht den Erfolgstoast', async () => {
+  const toasts = [];
+  const elements = { 'apply-result-req-1': { innerHTML: '' } };
+  const sandbox = {
+    console,
+    document: { getElementById: (id) => elements[id] || null },
+    showToast: (msg) => { toasts.push(msg); },
+    esc: (v) => String(v == null ? '' : v),
+    setTimeout: () => {},
+    loadAiChangeRequests: () => {},
+    loadAiChangesHistory: () => {},
+    customerById: () => ({ id: 'cust-1' }),
+    callAdminFunction: async () => ({ success: true }),
+    updateChangeRequestStatus: async () => { throw new Error('permission denied'); },
+    window: { _pendingChanges: { 'req-1': { customerId: 'cust-1', changes: { contact_first_name: 'Neu' } } } }
+  };
+  sandbox.window.showToast = sandbox.showToast;
+  const context = vm.createContext(sandbox);
+  vm.runInContext(extractFunction('confirmApplyChange'), context);
+
+  await vm.runInContext("confirmApplyChange('req-1', 'cust-1')", context);
+
+  assert.match(elements['apply-result-req-1'].innerHTML, /Fehler/,
+    'ohne die Weitergabe waere hier faelschlich der Erfolgsblock gerendert worden, ' +
+    'waehrend der Request-Status nie auf "done" gesetzt wurde');
+  assert.ok(!toasts.some((t) => /umgesetzt/.test(t)), 'kein Erfolgstoast, wenn Schritt 4 fehlschlaegt');
 });
 
 test('confirmApplyChange(): Erfolg zeigt den Erfolgstoast', async () => {

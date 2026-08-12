@@ -16444,7 +16444,7 @@ async function loadAiChangeRequests() {
         <div style="font-size:13px;color:var(--text2);line-height:1.55;margin-bottom:10px;padding:10px 12px;background:var(--surface);border-radius:8px;border-left:3px solid var(--blue,#1A6FE8);">${esc(r.message)}</div>
         <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:6px;">
           <button onclick="applyChangeRequest('${r.id}','${r.customer_id}',\`${r.message.replace(/`/g,'\`')}\`)" class="btn btn-primary btn-sm" style="font-size:11px;">✦ Annehmen & umsetzen</button>
-          <select onchange="updateChangeRequestStatus('${r.id}', this.value)" style="font-size:11px;padding:4px 8px;border:1px solid var(--line);border-radius:var(--r);background:var(--surface);color:var(--text1);cursor:pointer;">
+          <select onchange="updateChangeRequestStatus('${r.id}', this.value).catch(e => showToast('Fehler: ' + (e.message||'')))" style="font-size:11px;padding:4px 8px;border:1px solid var(--line);border-radius:var(--r);background:var(--surface);color:var(--text1);cursor:pointer;">
             <option value="open" ${r.status==='open'?'selected':''}>Offen</option>
             <option value="in_progress" ${r.status==='in_progress'?'selected':''}>In Bearbeitung</option>
             <option value="done" ${r.status==='done'?'selected':''}>Erledigt</option>
@@ -16461,22 +16461,26 @@ async function loadAiChangeRequests() {
   }
 }
 
+// Kein eigener try/catch mehr (Codex-Fund auf #975): confirmApplyChange()
+// wartet auf diese Funktion als Schritt 4 seines Auto-Apply-Flows. Ein
+// verschluckter Fehler haette dort als Erfolg gegolten, obwohl der Request
+// weiter offen blieb -- ein spaeterer erneuter Auto-Apply haette den
+// Kundenpatch und den ElevenLabs-Sync ein zweites Mal ausgeloest. Der
+// Fehler muss also bis zu jedem Aufrufer durchgereicht werden; der
+// eigenstaendige <select onchange>-Aufruf faengt ihn an seiner eigenen
+// Stelle ab (siehe .catch() dort).
 async function updateChangeRequestStatus(id, status) {
-  try {
-    // adminSbWrite prueft {error} und -- weil .select() hier angehaengt ist --
-    // auch eine durch RLS herausgefilterte Zeile (0 Zeilen, error: null).
-    // ai_change_requests_admin_all deckt SELECT und UPDATE mit derselben
-    // Bedingung ab (is_admin(auth.uid())), .select() kann also bei echtem
-    // Erfolg nicht faelschlich leer zurueckkommen.
-    await adminSbWrite(authClient.from('ai_change_requests').update({
-      status,
-      updated_at: new Date().toISOString()
-    }).eq('id', id).select('id'));
-    showToast('Status aktualisiert.');
-    loadAiChangeRequests();
-  } catch(e) {
-    showToast('Fehler: ' + (e.message||''));
-  }
+  // adminSbWrite prueft {error} und -- weil .select() hier angehaengt ist --
+  // auch eine durch RLS herausgefilterte Zeile (0 Zeilen, error: null).
+  // ai_change_requests_admin_all deckt SELECT und UPDATE mit derselben
+  // Bedingung ab (is_admin(auth.uid())), .select() kann also bei echtem
+  // Erfolg nicht faelschlich leer zurueckkommen.
+  await adminSbWrite(authClient.from('ai_change_requests').update({
+    status,
+    updated_at: new Date().toISOString()
+  }).eq('id', id).select('id'));
+  showToast('Status aktualisiert.');
+  loadAiChangeRequests();
 }
 
 async function saveChangeRequestNote(id) {
