@@ -80,5 +80,15 @@ jobs:
           psql --version
       - name: Spaltenrechte gegen den Browser-Code halten
         env:
+          # Beide Wege, Einzelfelder zuerst -- exakt wie in
+          # verify-db-security-invariants.yml. Der erste Lauf auf main scheiterte
+          # mit "password authentication failed", weil hier nur der
+          # Connection-String stand: ueber den Pooler zerlegen "/", "@", "%" und
+          # ":" im Passwort den URI, und `openssl rand -base64 32` erzeugt genau
+          # solche Zeichen. Ueber PGPASSWORD wird nichts geparst.
+          SUPABASE_DB_HOST: ${{ secrets.SUPABASE_DB_HOST }}
+          SUPABASE_DB_PORT: ${{ secrets.SUPABASE_DB_PORT }}
+          SUPABASE_DB_USER: ${{ secrets.SUPABASE_DB_USER }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL_CI_VERIFIER }}
         run: node scripts/verify-browser-column-grants.mjs
