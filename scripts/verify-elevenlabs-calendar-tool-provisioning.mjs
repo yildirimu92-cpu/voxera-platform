@@ -91,10 +91,41 @@ for (const token of [
 for (const token of [
   "action,\n        actor_type: 'assistant',\n        status: 'success'",
   "status: 'failed'",
-  'if (!claimedAuditId && customerId)',
+  'if (!claimedAuditId && customerId && providerBekannt)',
   'let customerId = null;'
 ]) {
   if (!source.core.includes(token)) failures.push('Calendar tool audit missing: ' + token);
+}
+
+// Codex-Befund P2 auf #951: availability schrieb ZWEI Erfolgszeilen. Die neue
+// Zeile stand vor dem generischen Nachlauf, und der pruefte `claimedAuditId` --
+// ein Signal, das availability nie setzt, weil die Aktion keine request_id
+// fuehrt. Ein eigener Marker loest das; diese Pruefung haelt ihn fest.
+for (const token of [
+  'let auditGeschrieben = false;',
+  'auditGeschrieben = true;',
+  '} else if (!auditGeschrieben) {'
+]) {
+  if (!source.core.includes(token)) failures.push('Doppelte Audit-Zeile nicht verhindert: ' + token);
+}
+
+// Codex-Befund P2 auf #951: der Fehlerpfad liess `provider` auf den Vorgabewert
+// google zurueckfallen. Bei unbekanntem Anbieter ist das ein erfundener
+// Diagnosesatz -- in genau dem Pfad, der Beweise sichern soll. Ein Ersatzwert
+// wie unknown geht nicht: die Spalte traegt CHECK (provider IN
+// ('google','microsoft')), der INSERT wuerde scheitern und die Zeile still
+// verschwinden.
+//
+// Der Test sucht den Rueckfall-Operator, nicht das Wort -- damit er auch eine
+// umformulierte Variante faengt und nicht an einem Kommentar haengenbleibt.
+if (/\|\|\s*'(google|microsoft)'/.test(source.core)) {
+  failures.push('Fehlerpfad raet wieder einen Anbieter (Rueckfall auf einen festen Wert)');
+}
+for (const token of [
+  'const providerBekannt =',
+  'audit_uebersprungen_anbieter_unbekannt'
+]) {
+  if (!source.core.includes(token)) failures.push('Anbieter-Rateverbot fehlt: ' + token);
 }
 
 for (const token of [

@@ -209,6 +209,9 @@ exports.handler = async (event) => {
   let customerId = null;
   let settings = null;
   let connection = null;
+  // Eigener Marker fuer "diese Aktion hat ihre Audit-Zeile bereits selbst
+  // geschrieben". Siehe die Begruendung am availability-Zweig.
+  let auditGeschrieben = false;
 
   try {
     customerId = await resolveCustomer(sb, body);
@@ -328,6 +331,15 @@ exports.handler = async (event) => {
       // Bewusst schlank: kein busy-Array, keine Rohantwort. Die Zeile soll die
       // Frage "wurde geprueft, mit welchem Fenster, mit welchem Ergebnis"
       // beantworten und nicht den Kalender des Kunden spiegeln.
+      //
+      // `auditGeschrieben` statt `claimedAuditId`: der generische Nachlauf
+      // weiter unten benutzte `claimedAuditId` als Signal "es gibt schon eine
+      // Zeile". Fuer availability trifft das nie zu -- die Aktion fuehrt keine
+      // request_id und erzeugt deshalb keinen Claim. Der Nachlauf schrieb also
+      // eine zweite, anders geformte Erfolgszeile zu jedem Aufruf. Ein fremdes
+      // Signal fuer die eigene Frage zu benutzen ist der Fehler; hier steht
+      // jetzt ein eigener Marker.
+      auditGeschrieben = true;
       await audit(sb, {
         customer_id: customerId,
         connection_id: connection.id,
@@ -390,7 +402,7 @@ exports.handler = async (event) => {
         details: { response: responsePayload, completed_at: new Date().toISOString() }
       }).eq('id', claimedAuditId);
       if (error) throw error;
-    } else {
+    } else if (!auditGeschrieben) {
       await audit(sb, {
         request_id: null,
         customer_id: customerId,
@@ -419,11 +431,32 @@ exports.handler = async (event) => {
     // keine Zeile im Fehlerfall. Genau die fehlte bei der Diagnose am 10.08.
     // `audit()` schluckt eigene Fehler bewusst (console.warn), der Aufrufer
     // bekommt also weiterhin seine urspruengliche Fehlerantwort.
-    if (!claimedAuditId && customerId) {
+    //
+    // Kein geratener Anbieter. `provider` fiel hier auf den Vorgabewert google
+    // zurueck, was bei einem Microsoft-Kunden einen falschen Diagnosesatz
+    // erzeugt haette -- in genau dem Pfad, der Beweise sichern soll.
+    //
+    // 'unknown' zu schreiben oder das Feld wegzulassen geht nicht: die Spalte
+    // ist NOT NULL und traegt CHECK (provider IN ('google','microsoft')). Beides
+    // liesse den INSERT scheitern, und `audit()` schluckt eigene Fehler -- die
+    // Zeile fiele still ganz weg. Statt einer erfundenen oder einer
+    // verschwundenen Zeile: kein Audit, aber eine laute Logzeile, die den
+    // Grund benennt. Damit die Zeile hier stehen KANN, braucht es eine
+    // Migration (CHECK um 'unknown' erweitern oder Spalte nullable) -- siehe
+    // Meldung an Umut vom 12.08.
+    const providerBekannt = connection?.provider || settings?.active_provider || null;
+    if (!claimedAuditId && customerId && !providerBekannt) {
+      console.error('[calendar-tool] audit_uebersprungen_anbieter_unbekannt', {
+        customer_id: customerId,
+        action,
+        error: error?.message || String(error)
+      });
+    }
+    if (!claimedAuditId && customerId && providerBekannt) {
       await audit(sb, {
         customer_id: customerId,
         connection_id: connection?.id || null,
-        provider: connection?.provider || settings?.active_provider || 'google',
+        provider: providerBekannt,
         action,
         actor_type: 'assistant',
         status: 'failed',
