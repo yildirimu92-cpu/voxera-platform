@@ -198,6 +198,23 @@ async function accountSnapshot(provider, accessToken) {
   };
 }
 
+// Eine unvollstaendige Belegungsliste ist gefaehrlicher als gar keine.
+//
+// Codex-Befund vom 12.08.: die Terminlisten wurden ohne Blaetterung geholt.
+// Microsoft Graph liefert fuer `calendarView` ohne `$top` nur ZEHN Eintraege
+// pro Seite -- ein voller Vormittag passt da nicht hinein.
+//
+// Solange `available` als `busy.length === 0` definiert war, war das
+// ungefaehrlich: eine abgeschnittene Liste war immer noch nicht leer, die
+// Antwort blieb "nicht verfuegbar". Erst durch die Slot-Zerlegung wird die
+// Luecke schaedlich -- ein Termin auf der zweiten Seite sieht dann frei aus,
+// und der Agent bietet eine Zeit an, die `book` anschliessend ablehnt.
+//
+// Der Seitendeckel ist eine Endlossperre, keine Mengenbegrenzung: bei 250
+// Eintraegen pro Seite sind 20 Seiten weit mehr, als in ein Fenster von
+// hoechstens 8 Stunden passen kann.
+const MAX_BUSY_PAGES = 20;
+
 async function checkAvailability(provider, accessToken, calendarId, startIso, endIso, excludeEventId = '') {
   if (provider === 'google' && !excludeEventId) {
     const payload = await apiFetch('https://www.googleapis.com/calendar/v3/freeBusy', accessToken, {
@@ -210,25 +227,40 @@ async function checkAvailability(provider, accessToken, calendarId, startIso, en
   }
 
   if (provider === 'google') {
-    const params = new URLSearchParams({
-      timeMin: startIso,
-      timeMax: endIso,
-      singleEvents: 'true',
-      showDeleted: 'false',
-      maxResults: '250'
-    });
-    const payload = await apiFetch('https://www.googleapis.com/calendar/v3/calendars/' + encodeURIComponent(calendarId) + '/events?' + params.toString(), accessToken);
-    const busy = (payload.items || [])
+    const items = [];
+    let pageToken = '';
+    for (let page = 0; page < MAX_BUSY_PAGES; page += 1) {
+      const params = new URLSearchParams({
+        timeMin: startIso,
+        timeMax: endIso,
+        singleEvents: 'true',
+        showDeleted: 'false',
+        maxResults: '250'
+      });
+      if (pageToken) params.set('pageToken', pageToken);
+      const payload = await apiFetch('https://www.googleapis.com/calendar/v3/calendars/' + encodeURIComponent(calendarId) + '/events?' + params.toString(), accessToken);
+      items.push(...(payload.items || []));
+      pageToken = String(payload.nextPageToken || '').trim();
+      if (!pageToken) break;
+    }
+    const busy = items
       .filter((item) => item.id !== excludeEventId && item.status !== 'cancelled' && item.transparency !== 'transparent')
       .map((item) => ({ id: item.id, start: item.start?.dateTime || item.start?.date, end: item.end?.dateTime || item.end?.date }));
     return { available: busy.length === 0, busy };
   }
 
-  const params = new URLSearchParams({ startDateTime: startIso, endDateTime: endIso, '$select': 'id,start,end,showAs,isCancelled' });
-  const payload = await apiFetch('https://graph.microsoft.com/v1.0/me/calendars/' + encodeURIComponent(calendarId) + '/calendarView?' + params.toString(), accessToken, {
-    headers: { Prefer: 'outlook.timezone="UTC"' }
-  });
-  const busy = (payload.value || [])
+  // `$top` ist hier nicht kosmetisch: ohne die Angabe blaettert Graph in
+  // Zehnerschritten. Der nextLink ist eine vollstaendige URL und traegt die
+  // Abfrageparameter bereits mit.
+  const params = new URLSearchParams({ startDateTime: startIso, endDateTime: endIso, '$select': 'id,start,end,showAs,isCancelled', '$top': '250' });
+  let nextUrl = 'https://graph.microsoft.com/v1.0/me/calendars/' + encodeURIComponent(calendarId) + '/calendarView?' + params.toString();
+  const events = [];
+  for (let page = 0; page < MAX_BUSY_PAGES && nextUrl; page += 1) {
+    const payload = await apiFetch(nextUrl, accessToken, { headers: { Prefer: 'outlook.timezone="UTC"' } });
+    events.push(...(payload.value || []));
+    nextUrl = String(payload['@odata.nextLink'] || '').trim();
+  }
+  const busy = events
     .filter((item) => item.id !== excludeEventId && !item.isCancelled && !['free', 'workingElsewhere'].includes(item.showAs))
     .map((item) => ({ id: item.id, start: item.start?.dateTime, end: item.end?.dateTime }));
   return { available: busy.length === 0, busy };
