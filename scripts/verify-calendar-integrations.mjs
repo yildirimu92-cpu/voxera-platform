@@ -156,8 +156,78 @@ try {
     failures.push('calendar-providers.js ruft weiterhin freeBusy auf: ' + aufrufe[0].trim());
   }
 }
-if (!/calendar\.events/.test(source.providers)) {
-  failures.push('Der Scope calendar.events fehlt');
+// ── Die angeforderten OAuth-Bereiche ────────────────────────────────────────
+//
+// Geprueft wird die LISTE, nicht der Dateitext. Vorher stand hier eine
+// Textsuche nach `calendar.events` -- die haette auch ein Kommentar erfuellt,
+// in dem das Wort vorkommt, und genau darueber steht einer. Was sich als Liste
+// pruefen laesst, wird als Liste geprueft.
+//
+// Die Endpunkt-Pruefung weiter oben faengt diesen Fall NICHT: sie sieht, welche
+// URL aufgerufen wird, nicht, welche Berechtigung dafuer angefordert wird.
+// Traegt jemand `calendar.readonly` ein -- etwa um freeBusy "wieder zu
+// ermoeglichen" --, bleibt sie gruen. Der Schaden waere still: die Bewilligung
+// haengt am Refresh-Token, also braeuchte JEDER bereits verbundene Kunde eine
+// neue Zustimmung, und bis dahin merkt es niemand.
+// Verglichen wird die VOLLSTAENDIGE Menge gegen eine Sollmenge, nicht einzelne
+// Eintraege. Eine Verbotsliste faengt nur, was jemand vorher erraten hat: die
+// erste Fassung verbot drei namentlich genannte Google-Bereiche und verlangte
+// bei Microsoft nur, dass `Calendars.ReadWrite` enthalten ist -- ein
+// zusaetzliches `Mail.Read` waere durchgegangen. `authorizationUrl()` und der
+// Microsoft-Refresh schicken JEDEN konfigurierten Bereich in die Zustimmung,
+// also zaehlt die ganze Menge und nicht eine Auswahl daraus.
+const ERWARTETE_SCOPES = {
+  google: [
+    'openid',
+    'email',
+    'https://www.googleapis.com/auth/calendar.calendarlist.readonly',
+    'https://www.googleapis.com/auth/calendar.events'
+  ],
+  microsoft: ['openid', 'profile', 'email', 'offline_access', 'User.Read', 'Calendars.ReadWrite']
+};
+{
+  const providerModule = require('../customer-dashboard/netlify/functions/_lib/calendar-providers.js');
+  for (const [anbieter, erwartet] of Object.entries(ERWARTETE_SCOPES)) {
+    const ist = providerModule.PROVIDERS?.[anbieter]?.scopes;
+    if (!Array.isArray(ist)) {
+      failures.push(`PROVIDERS.${anbieter}.scopes ist keine Liste -- die Bereichspruefung greift ins Leere`);
+      continue;
+    }
+    const istMenge = new Set(ist.map((wert) => String(wert).trim()));
+    const sollMenge = new Set(erwartet);
+    const dazu = [...istMenge].filter((wert) => !sollMenge.has(wert));
+    const fehlt = [...sollMenge].filter((wert) => !istMenge.has(wert));
+    if (dazu.length) {
+      // Der teure Fall: die Bewilligung haengt am Refresh-Token, ein neuer
+      // Bereich zwingt JEDEN bereits verbundenen Kunden zu einer erneuten
+      // Zustimmung -- und bis er sie gibt, merkt es niemand.
+      failures.push(`Neue OAuth-Bereiche bei ${anbieter}: ${dazu.join(', ')} -- das zwingt jeden verbundenen Kunden zu einer erneuten Zustimmung`);
+    }
+    if (fehlt.length) {
+      failures.push(`Fehlende OAuth-Bereiche bei ${anbieter}: ${fehlt.join(', ')}`);
+    }
+    if (istMenge.size !== ist.length) {
+      failures.push(`Doppelte Eintraege in PROVIDERS.${anbieter}.scopes`);
+    }
+  }
+}
+
+// Die Faelle zur Fenstergrenze stehen in verify-booking-window.mjs, dessen
+// Workflow KEINE Pfadfilter hat. Hier waeren sie tot, sobald ein PR nur
+// _lib/booking-window.js anfasst: diese Datei steht nicht in den Pfadfiltern
+// von verify-calendar-integrations.yml, der Lauf wuerde uebersprungen -- und
+// uebersprungen sieht in der PR-Ansicht nicht nach einer Luecke aus.
+//
+// Was hier bleibt, ist die eine Aussage ueber DIESE Datei: das Werkzeug darf
+// die Spanne nicht wieder selbst rechnen.
+{
+  const eigeneRechnung = source.tool
+    .split('\n')
+    .filter((zeile) => !zeile.trim().startsWith('//'))
+    .filter((zeile) => /end - start > /.test(zeile));
+  if (eigeneRechnung.length) {
+    failures.push('calendar-tool.js prueft die Spanne wieder selbst: ' + eigeneRechnung[0].trim());
+  }
 }
 
 process.env.CALENDAR_OAUTH_REDIRECT_URI = 'https://dashboard.voxera.ch/.netlify/functions/calendar-oauth-callback';
