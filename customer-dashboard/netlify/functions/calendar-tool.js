@@ -162,6 +162,56 @@ async function loadBlockingUpdates(sb, customerId, startIso, endIso) {
   return data || [];
 }
 
+// Anstehende Voxera-Termine eines Kunden -- aus unserer eigenen Audit-Tabelle,
+// nicht aus dem Kalender.
+//
+// Anlass: Testanruf vom 13.08. Ein Kunde, der absagen will, kennt die Uhrzeit
+// seines Termins selten. "Ich weiss es wirklich nicht mehr" fuehrte in eine
+// Sackgasse: der Agent hat keine Moeglichkeit, die `external_event_id` eines
+// Termins aus einem FRUEHEREN Gespraech zu finden -- die ID existiert nur im
+// Kontext des Buchungsgespraechs. Absagen in einem neuen Anruf war damit
+// prinzipiell unmoeglich, nicht bloss fehlerhaft.
+//
+// Die Quelle ist bewusst calendar_booking_audit und nicht der Kalender: dort
+// steht bereits, welche Termine Voxera fuer diesen Kunden gebucht hat, und
+// genau darauf beruht schon die Pruefung calendar_event_not_managed_by_voxera.
+// Kein zusaetzlicher Kalender-Scope, keine Zeitfenster-Raterei, keine
+// 8-Stunden-Grenze.
+//
+// Gelesen wird chronologisch, damit die Historie sich selbst aufloest: ein
+// reschedule ueberschreibt die Zeiten seiner Buchung, ein cancel nimmt den
+// Termin wieder heraus.
+const LOOKUP_LIMIT = 5;
+
+async function loadUpcomingAppointments(sb, customerId, now = Date.now()) {
+  const { data, error } = await sb.from('calendar_booking_audit')
+    .select('external_event_id,action,details,created_at')
+    .eq('customer_id', customerId)
+    .eq('status', 'success')
+    .in('action', ['book', 'reschedule', 'cancel'])
+    .order('created_at', { ascending: true });
+  if (error) throw error;
+
+  const offen = new Map();
+  for (const zeile of data || []) {
+    const id = String(zeile.external_event_id || '').trim();
+    if (!id) continue;
+    if (zeile.action === 'cancel') { offen.delete(id); continue; }
+    const antwort = zeile.details?.response || {};
+    if (!antwort.start || !antwort.end) continue;
+    offen.set(id, { external_event_id: id, start: antwort.start, end: antwort.end });
+  }
+
+  // Nur anstehende. Ein Bestandskunde haette sonst eine Liste, die mit jedem
+  // vergangenen Termin unbrauchbarer wird.
+  return [...offen.values()]
+    .filter((termin) => {
+      const beginn = new Date(termin.start).getTime();
+      return Number.isFinite(beginn) && beginn > now;
+    })
+    .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
+}
+
 async function audit(sb, input) {
   const { error } = await sb.from('calendar_booking_audit').insert(input);
   if (error) console.warn('[calendar-tool] audit failed', { error: error.message, action: input.action });
@@ -197,9 +247,11 @@ exports.handler = async (event) => {
   catch (_error) { return reply(400, { ok: false, error: 'invalid_json' }); }
 
   const action = String(body.action || '').trim().toLowerCase();
-  const allowedActions = ['availability', 'book', 'reschedule', 'cancel'];
+  const allowedActions = ['availability', 'book', 'reschedule', 'cancel', 'lookup'];
   if (!allowedActions.includes(action)) return reply(400, { ok: false, error: 'calendar_action_unsupported' });
   const requestId = String(body.request_id || '').trim().slice(0, 200) || null;
+  // `lookup` steht hier bewusst nicht: es ist ein Lesezugriff ohne
+  // Seiteneffekt, eine Wiederholung schadet nicht.
   if (['book', 'reschedule', 'cancel'].includes(action) && !requestId) {
     return reply(400, { ok: false, error: 'calendar_request_id_required' });
   }
@@ -330,7 +382,33 @@ exports.handler = async (event) => {
 
     const blockingUpdates = await loadBlockingUpdates(sb, customerId, startIso, endIso);
 
-    if (action === 'availability') {
+    if (action === 'lookup') {
+      // Kein Kalenderaufruf: die Antwort kommt aus unserer eigenen Tabelle.
+      const termine = await loadUpcomingAppointments(sb, customerId);
+      responsePayload = {
+        ok: true,
+        action,
+        appointments: termine.slice(0, LOOKUP_LIMIT).map((termin) => ({
+          external_event_id: termin.external_event_id,
+          start: termin.start,
+          end: termin.end
+        })),
+        appointment_count: termine.length,
+        timezone: String(settings.timezone || 'Europe/Zurich')
+      };
+      auditGeschrieben = true;
+      await audit(sb, {
+        customer_id: customerId,
+        connection_id: connection.id,
+        provider: connection.provider,
+        action,
+        actor_type: 'assistant',
+        status: 'success',
+        // Nur die Anzahl: die Termine selbst stehen bereits als eigene Zeilen
+        // in dieser Tabelle, eine zweite Kopie waere Ballast.
+        details: { appointment_count: termine.length }
+      });
+    } else if (action === 'availability') {
       validateWindow(startIso, endIso, settings);
       // Ausserhalb der Buchungszeiten oder waehrend einer Schliessung ist der
       // Zeitraum nicht verfuegbar -- das ist eine Antwort, kein Fehler. Ein
@@ -440,6 +518,18 @@ exports.handler = async (event) => {
           requested_end: endIso,
           reason: responsePayload.reason || null,
           busy_count: Array.isArray(responsePayload.busy) ? responsePayload.busy.length : 0,
+          // Grenzen der Belegung, ohne Titel und ohne Teilnehmer.
+          //
+          // Die Zeile trug zuerst nur Zahlen -- bewusst, um den Kalender des
+          // Kunden nicht zu spiegeln. Am 13.08. liess sich damit die Frage
+          // "welcher Termin fiel weg" nicht beantworten, und genau die wird im
+          // Zweifelsfall zuerst gestellt: die Slot-Zahl allein unterscheidet
+          // nicht zwischen einem Termin um 09:00 und einem um 09:30, beide
+          // ergeben dieselbe Anzahl. Anfang und Ende sind der Pruefnachweis
+          // fuer unsere eigene Rechnung, kein Abbild des Kundenkalenders.
+          busy_windows: Array.isArray(responsePayload.busy)
+            ? responsePayload.busy.slice(0, 20).map((eintrag) => ({ start: eintrag.start, end: eintrag.end }))
+            : [],
           // Zahlen, keine Zeitstempel: die Zeile soll belegen, wie die Antwort
           // zustande kam, und nicht den Kalender des Kunden in unsere
           // Audit-Tabelle spiegeln.

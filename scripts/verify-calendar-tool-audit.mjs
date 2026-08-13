@@ -417,6 +417,100 @@ await check('Ein nicht freigeschalteter Kunde hinterlaesst wenigstens eine Logze
   }
 });
 
+// ── Nachschlagen: anstehende Termine aus unserer eigenen Tabelle ────────────
+//
+// Anlass: Testanruf vom 13.08. Der Agent kann die external_event_id eines
+// Termins aus einem FRUEHEREN Gespraech nicht finden -- Absagen war in einem
+// neuen Anruf prinzipiell unmoeglich.
+
+// Historie: gebucht, verschoben, abgesagt, plus ein vergangener Termin.
+const HISTORIE = [
+  { external_event_id: 'evt_alt', action: 'book', created_at: '2026-08-01T10:00:00Z',
+    details: { response: { start: '2026-08-05T08:00:00.000Z', end: '2026-08-05T08:30:00.000Z' } } },
+  { external_event_id: 'evt_a', action: 'book', created_at: '2026-08-02T10:00:00Z',
+    details: { response: { start: '2027-08-10T06:00:00.000Z', end: '2027-08-10T06:30:00.000Z' } } },
+  { external_event_id: 'evt_b', action: 'book', created_at: '2026-08-03T10:00:00Z',
+    details: { response: { start: '2027-08-11T06:00:00.000Z', end: '2027-08-11T06:30:00.000Z' } } },
+  { external_event_id: 'evt_b', action: 'reschedule', created_at: '2026-08-04T10:00:00Z',
+    details: { response: { start: '2027-08-12T09:00:00.000Z', end: '2027-08-12T09:30:00.000Z' } } },
+  { external_event_id: 'evt_weg', action: 'book', created_at: '2026-08-05T10:00:00Z',
+    details: { response: { start: '2027-08-13T06:00:00.000Z', end: '2027-08-13T06:30:00.000Z' } } },
+  { external_event_id: 'evt_weg', action: 'cancel', created_at: '2026-08-06T10:00:00Z',
+    details: { response: { cancelled: true } } }
+];
+
+const mitHistorie = () => ({
+  ...antworten(),
+  calendar_booking_audit: (ops) => {
+    if (ops.some((op) => op.name === 'insert')) return { data: { id: 'audit_1' }, error: null };
+    if (ops.some((op) => op.name === 'order')) return { data: HISTORIE, error: null };
+    if (ops.some((op) => op.name === 'limit')) return { data: [{ id: 'audit_alt' }], error: null };
+    return { data: null, error: null };
+  }
+});
+
+await check('lookup liefert anstehende Termine ohne jede Zeitangabe', async () => {
+  const supabase = makeSupabase({ answers: mitHistorie() });
+  aktuellerClient = supabase.client;
+  const response = await handler({
+    httpMethod: 'POST', headers: { Authorization: 'Bearer test-secret' },
+    body: JSON.stringify({ action: 'lookup', agent_id: 'agent_1' })
+  });
+  const payload = JSON.parse(response.body);
+  assert.equal(payload.ok, true, JSON.stringify(payload));
+  const ids = payload.appointments.map((termin) => termin.external_event_id);
+  assert.ok(ids.includes('evt_a'), 'die offene Buchung fehlt');
+  assert.ok(ids.includes('evt_b'), 'der verschobene Termin fehlt');
+  assert.ok(!ids.includes('evt_weg'), 'ein abgesagter Termin wird weiterhin angeboten');
+  assert.ok(!ids.includes('evt_alt'), 'ein vergangener Termin wird angeboten');
+  assert.equal(payload.appointment_count, 2);
+  // Der verschobene Termin traegt die NEUE Zeit, nicht die der Buchung.
+  const b = payload.appointments.find((termin) => termin.external_event_id === 'evt_b');
+  assert.equal(b.start, '2027-08-12T09:00:00.000Z');
+  // Aufsteigend sortiert.
+  assert.deepEqual(ids, ['evt_a', 'evt_b']);
+});
+
+await check('lookup schreibt genau eine Audit-Zeile und nennt keine Termine darin', async () => {
+  const supabase = makeSupabase({ answers: mitHistorie() });
+  aktuellerClient = supabase.client;
+  await handler({
+    httpMethod: 'POST', headers: { Authorization: 'Bearer test-secret' },
+    body: JSON.stringify({ action: 'lookup', agent_id: 'agent_1' })
+  });
+  const zeilen = auditZeilen(supabase);
+  assert.equal(zeilen.length, 1, `erwartet 1 Zeile, geschrieben: ${zeilen.length}`);
+  assert.equal(zeilen[0].row.action, 'lookup');
+  assert.equal(zeilen[0].row.details.appointment_count, 2);
+  assert.equal(Object.hasOwn(zeilen[0].row.details, 'appointments'), false);
+});
+
+await check('lookup braucht keine request_id', async () => {
+  const supabase = makeSupabase({ answers: mitHistorie() });
+  aktuellerClient = supabase.client;
+  const response = await handler({
+    httpMethod: 'POST', headers: { Authorization: 'Bearer test-secret' },
+    body: JSON.stringify({ action: 'lookup', agent_id: 'agent_1' })
+  });
+  assert.equal(response.statusCode, 200);
+  assert.notEqual(JSON.parse(response.body).error, 'calendar_request_id_required');
+});
+
+// Die Audit-Zeile trug zuerst nur Zahlen. Am 13.08. liess sich damit nicht
+// klaeren, welcher Slot weggefallen war -- zwei verschiedene Termine ergeben
+// dieselbe Slot-Anzahl.
+await check('Die Audit-Zeile traegt die Grenzen der Belegung, keine Titel', async () => {
+  verfuegbarkeit = { available: false, busy: [{ id: 'e1', start: DI('09:30'), end: DI('10:00'), summary: 'Zahnarzt' }] };
+  const { supabase } = await ruf({
+    action: 'availability', agent_id: 'agent_1', start: DI('08:00'), end: DI('12:00')
+  });
+  const details = auditZeilen(supabase)[0].row.details;
+  assert.deepEqual(details.busy_windows, [{ start: DI('09:30'), end: DI('10:00') }]);
+  const alsText = JSON.stringify(details);
+  assert.ok(!alsText.includes('Zahnarzt'), 'der Termintitel landet in der Audit-Zeile');
+  assert.ok(!alsText.includes('e1'), 'die Kalender-ID landet in der Audit-Zeile');
+});
+
 // ── Punkt 4: kein geratener Anbieter im Fehlerpfad ──────────────────────────
 
 await check('Ohne bekannten Anbieter wird kein Anbieter erfunden', async () => {

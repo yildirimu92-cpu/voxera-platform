@@ -18,6 +18,18 @@ const TOOL_NAME = 'manage_voxera_calendar';
 // zu tun. Ein zweites Werkzeug mit eigenem Schema loest das, ohne die
 // Verbindlichkeit fuer die anderen drei Aktionen aufzugeben.
 const CANCEL_TOOL_NAME = 'cancel_voxera_appointment';
+// Nachschlagen ist ein drittes Werkzeug, seit dem 2026-08-13.
+//
+// Testanruf vom 13.08.: ein Kunde, der absagen will, kennt die Uhrzeit seines
+// Termins selten. Der Agent hatte keine Moeglichkeit, die `external_event_id`
+// eines Termins aus einem FRUEHEREN Gespraech zu finden -- sie existiert nur im
+// Kontext des Buchungsgespraechs. Absagen in einem neuen Anruf war damit
+// prinzipiell unmoeglich.
+//
+// Der Versuch, den Termin ueber availability zu suchen, scheiterte zweimal: ein
+// ganzer Tag ueberschreitet die 8-Stunden-Grenze, und eine freie Zeit ist kein
+// Beleg fuer einen Termin.
+const LOOKUP_TOOL_NAME = 'find_voxera_appointments';
 const SECRET_NAME = 'voxera_calendar_authorization';
 const DEFAULT_TOOL_URL = 'https://dashboard.voxera.ch/.netlify/functions/calendar-agent-tool';
 
@@ -202,6 +214,29 @@ function buildToolConfig(secretId) {
   });
 }
 
+// Das Nachschlagewerkzeug. Es verlangt GAR KEINE Angaben zum Termin -- weder
+// Zeit noch ID. Genau das ist der Punkt: der Anrufende weiss beides meistens
+// nicht, und alles, was das Modell hier angeben muesste, muesste es raten.
+function buildLookupToolConfig(secretId) {
+  return toolEnvelope(secretId, {
+    name: LOOKUP_TOOL_NAME,
+    description: 'Listet die anstehenden von Voxera gebuchten Termine der anrufenden Person auf, mit ihren Termin-IDs. Verwenden, bevor ein Termin abgesagt oder verschoben wird, und immer dann, wenn jemand seinen Termin nicht genau benennen kann. Verlangt keine Zeitangaben.',
+    requestBodySchema: {
+      type: 'object',
+      description: 'Nachschlagen der anstehenden Termine für den aktuell sprechenden Voxera-Agenten.',
+      properties: {
+        action: llmProperty('string', 'Immer lookup. Dieses Werkzeug kann nichts anderes.', {
+          enum: ['lookup']
+        }),
+        agent_id: dynamicProperty('string', 'system__agent_id'),
+        conversation_id: dynamicProperty('string', 'system__conversation_id'),
+        agent_turns: dynamicProperty('number', 'system__agent_turns')
+      },
+      required: ['action', 'agent_id', 'conversation_id']
+    }
+  });
+}
+
 // Das Absagewerkzeug. Bewusst so klein wie moeglich: eine Termin-ID und die
 // beiden Kennungen, die ElevenLabs ohnehin einsetzt. Kein start, kein end,
 // keine Dauer -- nichts, was das Modell erfinden koennte.
@@ -230,7 +265,7 @@ function buildCancelToolConfig(secretId) {
   });
 }
 
-const TOOL_NAMES = Object.freeze([TOOL_NAME, CANCEL_TOOL_NAME]);
+const TOOL_NAMES = Object.freeze([TOOL_NAME, CANCEL_TOOL_NAME, LOOKUP_TOOL_NAME]);
 
 // Angelegt wird in der umgekehrten Reihenfolge: erst das Absagewerkzeug, dann
 // das Buchungswerkzeug.
@@ -245,10 +280,12 @@ const TOOL_NAMES = Object.freeze([TOOL_NAME, CANCEL_TOOL_NAME]);
 // Andersherum ist die Zwischenzeit harmlos: dann gibt es beide Wege kurz
 // gleichzeitig, und das Modell kann in dieser Spanne noch ueber manage
 // absagen.
-const PROVISION_ORDER = Object.freeze([CANCEL_TOOL_NAME, TOOL_NAME]);
+const PROVISION_ORDER = Object.freeze([CANCEL_TOOL_NAME, LOOKUP_TOOL_NAME, TOOL_NAME]);
 
 function toolConfigFor(name, secretId) {
-  return name === CANCEL_TOOL_NAME ? buildCancelToolConfig(secretId) : buildToolConfig(secretId);
+  if (name === CANCEL_TOOL_NAME) return buildCancelToolConfig(secretId);
+  if (name === LOOKUP_TOOL_NAME) return buildLookupToolConfig(secretId);
+  return buildToolConfig(secretId);
 }
 
 // Legt beide Kalenderwerkzeuge an oder bringt sie auf den aktuellen Stand und
@@ -369,9 +406,12 @@ function calendarPromptBlock(settings = {}, appointmentMode = '') {
     '7. Ist free_slots leer: Sage nur, dass in diesem Zeitraum nichts frei ist, und frage nach einer Alternative — zum Beispiel nach dem anderen Halbtag oder einem anderen Tag.',
     '8. Buche erst nach dieser Bestätigung mit action=book, und zwar genau eine Zeit aus free_slots. Erfinde keine anderen Zeiten.',
     '9. Bestätige einen Termin erst, wenn das Tool ok=true zurückgibt.',
-    '10. Verwende reschedule nur mit einer echten external_event_id aus einer früheren Voxera-Buchung. Erfinde diese ID niemals.',
-    '11. Für eine Absage verwende das Werkzeug ' + CANCEL_TOOL_NAME + ' mit der external_event_id des Termins. Es braucht keine Zeitangaben — frage nicht nach Datum oder Uhrzeit, nur nach dem Termin, den die anrufende Person absagen möchte.',
-    '12. Antwortet das Tool nicht mit ok=true, sprich nie über den Fehler, das Werkzeug oder den Kalender. Sage, dass du den Termin nicht selbst bestätigen kannst, und nimm eine vollständige Rückrufanfrage auf. Die Wörter Fehler, System, Tool, Schnittstelle und Kalender kommen dabei nicht vor.'
+    '10. Verwende reschedule nur mit einer echten external_event_id. Erfinde diese ID niemals — hol sie dir mit ' + LOOKUP_TOOL_NAME + '.',
+    '11. Ein freier Zeitraum ist kein Termin. Meldet availability available=true oder ein leeres busy, heisst das: dort ist NICHTS gebucht. Sage niemals, du habest einen Termin gefunden, weil eine Zeit frei war. availability beantwortet nur, was buchbar ist — nie, ob jemand einen Termin hat.',
+    '12. Will jemand einen bestehenden Termin absagen oder verschieben, rufe zuerst ' + LOOKUP_TOOL_NAME + ' auf. Es braucht keine Zeitangabe und liefert die anstehenden Termine mit ihren IDs. Frage nicht nach Datum oder Uhrzeit — die meisten Menschen wissen das nicht mehr, und du brauchst es nicht.',
+    '13. Genau ein Termin in der Antwort: nenne ihn mit Datum und Uhrzeit und lass ihn bestätigen. Mehrere Termine: lies sie vor und lass die anrufende Person wählen. Kein Termin: sage, dass du keinen anstehenden Termin findest, und nimm eine Rückrufanfrage auf. Rate nie, welcher gemeint ist.',
+    '14. Für die Absage verwende dann ' + CANCEL_TOOL_NAME + ' mit der external_event_id aus der Antwort von ' + LOOKUP_TOOL_NAME + '.',
+    '15. Antwortet das Tool nicht mit ok=true, sprich nie über den Fehler, das Werkzeug oder den Kalender. Sage, dass du den Termin nicht selbst bestätigen kannst, und nimm eine vollständige Rückrufanfrage auf. Die Wörter Fehler, System, Tool, Schnittstelle und Kalender kommen dabei nicht vor.'
   ].join('\n');
 }
 
@@ -383,11 +423,13 @@ function resetCache() {
 module.exports = {
   TOOL_NAME,
   CANCEL_TOOL_NAME,
+  LOOKUP_TOOL_NAME,
   TOOL_NAMES,
   SECRET_NAME,
   configured,
   buildToolConfig,
   buildCancelToolConfig,
+  buildLookupToolConfig,
   ensureWorkspaceSecret,
   ensureWorkspaceTools,
   findWorkspaceToolIds,

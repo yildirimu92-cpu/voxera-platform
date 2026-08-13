@@ -27,6 +27,7 @@ for (const key of Object.keys(files)) {
 for (const token of [
   "TOOL_NAME = 'manage_voxera_calendar'",
   "CANCEL_TOOL_NAME = 'cancel_voxera_appointment'",
+  "LOOKUP_TOOL_NAME = 'find_voxera_appointments'",
   "SECRET_NAME = 'voxera_calendar_authorization'",
   "'/secrets'",
   "'/tools'",
@@ -390,21 +391,57 @@ try {
         // die Beschreibung des Buchungswerkzeugs nennt das Absagewerkzeug
         // selbst, eine Teilstringsuche waere hier blind.
         .map((call) => JSON.parse(String(call.body)).tool_config.name);
-      assert.deepEqual(schreibend, ['cancel_voxera_appointment', 'manage_voxera_calendar'],
-        'Das Buchungswerkzeug wird geaendert, bevor das Absagewerkzeug existiert');
+      assert.equal(schreibend.at(-1), 'manage_voxera_calendar',
+        'Das geteilte Buchungswerkzeug wird geaendert, bevor seine Ersatzwerkzeuge existieren');
+      assert.ok(schreibend.includes('cancel_voxera_appointment'));
+      assert.ok(schreibend.includes('find_voxera_appointments'));
       // Zurueckgegeben wird in der Reihenfolge der Werkzeugliste, nicht in der
       // Anlegereihenfolge.
-      assert.deepEqual(ids, ['tool_manage', 'tool_cancel']);
+      assert.deepEqual(ids, ['tool_manage', 'tool_cancel', 'tool_cancel']);
     } finally {
       globalThis.fetch = echtesFetch2;
       helper.resetCache();
     }
   }
 
+  // ── Nachschlagewerkzeug (13.08.) ──────────────────────────────────────────
+  //
+  // Der Agent konnte die external_event_id eines Termins aus einem FRUEHEREN
+  // Gespraech nicht finden -- Absagen war in einem neuen Anruf prinzipiell
+  // unmoeglich. Das Werkzeug verlangt bewusst GAR KEINE Angabe zum Termin:
+  // alles, was hier stuende, muesste das Modell raten.
+  const lookup = helper.buildLookupToolConfig('secret_1');
+  assert.equal(lookup.name, 'find_voxera_appointments');
+  assert.equal(lookup.api_schema.url, config.api_schema.url);
+  const lookupBody = lookup.api_schema.request_body_schema;
+  for (const feld of ['start', 'end', 'external_event_id']) {
+    assert.equal(Object.hasOwn(lookupBody.properties, feld), false,
+      `Das Nachschlageschema verlangt ${feld} -- genau das weiss der Anrufende nicht`);
+  }
+  assert.deepEqual(lookupBody.required, ['action', 'agent_id', 'conversation_id']);
+  assert.deepEqual(lookupBody.properties.action.enum, ['lookup']);
+
+  // Der Server muss die Aktion auch annehmen.
+  assert.match(source.core, /'lookup'/, 'Das Werkzeug kennt die Aktion lookup nicht');
+  assert.match(source.core, /loadUpcomingAppointments/, 'Die Nachschlage-Abfrage fehlt');
+
+  // Prompt: der Weg ueber das Nachschlagen, und das Verbot der Fehldeutung.
+  assert.match(block, /find_voxera_appointments/, 'Der Prompt nennt das Nachschlagewerkzeug nicht');
+  assert.match(block, /Ein freier Zeitraum ist kein Termin/,
+    'Der Prompt verbietet nicht, eine freie Zeit als gefundenen Termin auszugeben');
+  assert.match(block, /Mehrere Termine: lies sie vor/,
+    'Der Prompt regelt den Mehrfachfall nicht');
+  assert.match(block, /Rate nie, welcher gemeint ist/,
+    'Der Prompt erlaubt weiterhin zu raten, welcher Termin gemeint ist');
+
   // Und der Prompt muss den Agenten auf das neue Werkzeug verweisen.
   assert.match(block, /cancel_voxera_appointment/, 'Der Prompt nennt das Absagewerkzeug nicht');
-  assert.match(block, /braucht keine Zeitangaben/,
-    'Der Prompt sagt nicht, dass die Absage ohne Zeitangaben auskommt');
+  // Wortlaut seit dem 13.08. beim Nachschlagen statt beim Absagen -- dort wird
+  // die Zeitangabe tatsaechlich erspart, die Absage bekommt die ID von dort.
+  assert.match(block, /keine Zeitangabe/,
+    'Der Prompt sagt nicht, dass der Weg ohne Zeitangabe auskommt');
+  assert.match(block, /Frage nicht nach Datum oder Uhrzeit/,
+    'Der Prompt laesst den Agenten weiterhin nach der Uhrzeit des Termins fragen');
 } catch (error) {
   failures.push('Provisioning helper contract failed: ' + error.message);
 }
