@@ -84,6 +84,11 @@ Module._load = function (request, parent, isMain) {
 let aktuellerClient = null;
 let verfuegbarkeit = { available: true, busy: [] };
 let providerFehler = null;
+// Wie `verfuegbarkeit`: eine Modulvariable, KEINE Eigenschaft am Stub-Objekt.
+// calendar-tool.js destrukturiert die Anbieterfunktionen beim Require -- eine
+// spaetere Zuweisung an stubs.get(...).deleteEvent erreicht die Bindung nicht
+// mehr und der Fall waere still gruen.
+let loeschErgebnis = { deleted: true, already_missing: false };
 
 stubs.set('@supabase/supabase-js', { createClient: () => aktuellerClient });
 stubs.set('./_lib/calendar-providers', {
@@ -94,7 +99,7 @@ stubs.set('./_lib/calendar-providers', {
   },
   createEvent: async () => ({ id: 'evt_1', htmlLink: 'https://example.invalid/evt_1' }),
   updateEvent: async () => ({ id: 'evt_1' }),
-  deleteEvent: async () => ({ deleted: true })
+  deleteEvent: async () => loeschErgebnis
 });
 
 process.env.CALENDAR_INTEGRATION_ENABLED = 'true';
@@ -425,18 +430,27 @@ await check('Ein nicht freigeschalteter Kunde hinterlaesst wenigstens eine Logze
 
 // Historie: gebucht, verschoben, abgesagt, plus ein vergangener Termin.
 const HISTORIE = [
-  { external_event_id: 'evt_alt', action: 'book', created_at: '2026-08-01T10:00:00Z',
+  { external_event_id: 'evt_alt', connection_id: 'conn_1', action: 'book', created_at: '2026-08-01T10:00:00Z',
     details: { response: { start: '2026-08-05T08:00:00.000Z', end: '2026-08-05T08:30:00.000Z' } } },
-  { external_event_id: 'evt_a', action: 'book', created_at: '2026-08-02T10:00:00Z',
+  { external_event_id: 'evt_a', connection_id: 'conn_1', action: 'book', created_at: '2026-08-02T10:00:00Z',
     details: { response: { start: '2027-08-10T06:00:00.000Z', end: '2027-08-10T06:30:00.000Z' } } },
-  { external_event_id: 'evt_b', action: 'book', created_at: '2026-08-03T10:00:00Z',
+  { external_event_id: 'evt_b', connection_id: 'conn_1', action: 'book', created_at: '2026-08-03T10:00:00Z',
     details: { response: { start: '2027-08-11T06:00:00.000Z', end: '2027-08-11T06:30:00.000Z' } } },
-  { external_event_id: 'evt_b', action: 'reschedule', created_at: '2026-08-04T10:00:00Z',
+  { external_event_id: 'evt_b', connection_id: 'conn_1', action: 'reschedule', created_at: '2026-08-04T10:00:00Z',
     details: { response: { start: '2027-08-12T09:00:00.000Z', end: '2027-08-12T09:30:00.000Z' } } },
-  { external_event_id: 'evt_weg', action: 'book', created_at: '2026-08-05T10:00:00Z',
+  { external_event_id: 'evt_weg', connection_id: 'conn_1', action: 'book', created_at: '2026-08-05T10:00:00Z',
     details: { response: { start: '2027-08-13T06:00:00.000Z', end: '2027-08-13T06:30:00.000Z' } } },
-  { external_event_id: 'evt_weg', action: 'cancel', created_at: '2026-08-06T10:00:00Z',
-    details: { response: { cancelled: true } } }
+  { external_event_id: 'evt_weg', connection_id: 'conn_1', action: 'cancel', created_at: '2026-08-06T10:00:00Z',
+    details: { response: { cancelled: true } } },
+  // Codex-Befund vom 13.08. (P1): Buchungen aus einer frueheren Verbindung oder
+  // von einem anderen Kalender sind heute nicht mehr absagbar.
+  { external_event_id: 'evt_fremde_verbindung', action: 'book', created_at: '2026-08-07T10:00:00Z',
+    connection_id: 'conn_alt',
+    details: { response: { start: '2027-08-14T06:00:00.000Z', end: '2027-08-14T06:30:00.000Z' } } },
+  { external_event_id: 'evt_fremder_kalender', action: 'book', created_at: '2026-08-08T10:00:00Z',
+    connection_id: 'conn_1', calendar_id: 'cal_anderer',
+    details: { response: { start: '2027-08-15T06:00:00.000Z', end: '2027-08-15T06:30:00.000Z' },
+               calendar_id: 'cal_anderer' } }
 ];
 
 const mitHistorie = () => ({
@@ -463,6 +477,10 @@ await check('lookup liefert anstehende Termine ohne jede Zeitangabe', async () =
   assert.ok(ids.includes('evt_b'), 'der verschobene Termin fehlt');
   assert.ok(!ids.includes('evt_weg'), 'ein abgesagter Termin wird weiterhin angeboten');
   assert.ok(!ids.includes('evt_alt'), 'ein vergangener Termin wird angeboten');
+  assert.ok(!ids.includes('evt_fremde_verbindung'),
+    'ein Termin aus einer frueheren Verbindung wird angeboten -- er ist heute nicht absagbar');
+  assert.ok(!ids.includes('evt_fremder_kalender'),
+    'ein Termin von einem anderen Kalender wird angeboten -- das DELETE liefe ins Leere');
   assert.equal(payload.appointment_count, 2);
   // Der verschobene Termin traegt die NEUE Zeit, nicht die der Buchung.
   const b = payload.appointments.find((termin) => termin.external_event_id === 'evt_b');
@@ -509,6 +527,35 @@ await check('Die Audit-Zeile traegt die Grenzen der Belegung, keine Titel', asyn
   const alsText = JSON.stringify(details);
   assert.ok(!alsText.includes('Zahnarzt'), 'der Termintitel landet in der Audit-Zeile');
   assert.ok(!alsText.includes('e1'), 'die Kalender-ID landet in der Audit-Zeile');
+});
+
+// Codex-Befund vom 13.08. (P1): deleteEvent() behandelt 404 als Erfolg und
+// meldet already_missing -- der Rueckgabewert wurde verworfen und
+// `cancelled: true` fest verdrahtet. Ein DELETE auf den falschen Kalender
+// bestaetigte damit eine Absage, die nicht stattgefunden hat.
+await check('Ein nicht gefundener Termin bestaetigt keine Absage', async () => {
+  loeschErgebnis = { deleted: true, already_missing: true };
+  try {
+    const supabase = makeSupabase({
+      answers: {
+        ...antworten(),
+        calendar_booking_audit: (ops) => {
+          if (ops.some((op) => op.name === 'insert')) return { data: { id: 'audit_1' }, error: null };
+          if (ops.some((op) => op.name === 'limit')) return { data: [{ id: 'audit_alt' }], error: null };
+          return { data: null, error: null };
+        }
+      }
+    });
+    aktuellerClient = supabase.client;
+    const response = await handler({
+      httpMethod: 'POST', headers: { Authorization: 'Bearer test-secret' },
+      body: JSON.stringify({ action: 'cancel', agent_id: 'agent_1', request_id: 'req_404', external_event_id: 'evt_1' })
+    });
+    const payload = JSON.parse(response.body);
+    assert.equal(payload.ok, false, 'ein 404 wird weiterhin als Absage bestaetigt');
+    assert.equal(payload.error, 'calendar_event_already_missing');
+    assert.notEqual(payload.cancelled, true);
+  } finally { loeschErgebnis = { deleted: true, already_missing: false }; }
 });
 
 // ── Punkt 4: kein geratener Anbieter im Fehlerpfad ──────────────────────────

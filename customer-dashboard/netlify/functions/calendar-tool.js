@@ -183,9 +183,9 @@ async function loadBlockingUpdates(sb, customerId, startIso, endIso) {
 // Termin wieder heraus.
 const LOOKUP_LIMIT = 5;
 
-async function loadUpcomingAppointments(sb, customerId, now = Date.now()) {
+async function loadUpcomingAppointments(sb, customerId, connection, now = Date.now()) {
   const { data, error } = await sb.from('calendar_booking_audit')
-    .select('external_event_id,action,details,created_at')
+    .select('external_event_id,action,details,connection_id,created_at')
     .eq('customer_id', customerId)
     .eq('status', 'success')
     .in('action', ['book', 'reschedule', 'cancel'])
@@ -196,7 +196,24 @@ async function loadUpcomingAppointments(sb, customerId, now = Date.now()) {
   for (const zeile of data || []) {
     const id = String(zeile.external_event_id || '').trim();
     if (!id) continue;
+    // Eine Absage gilt unabhaengig davon, ueber welche Verbindung sie lief:
+    // abgesagt ist abgesagt.
     if (zeile.action === 'cancel') { offen.delete(id); continue; }
+
+    // Angeboten wird nur, was ueber die HEUTE aktive Verbindung und den heute
+    // gewaehlten Kalender auch absagbar ist.
+    //
+    // Codex-Befund vom 13.08. (P1): die Historie ist kundenweit. Wechselt ein
+    // Kunde den Anbieter oder den Kalender, stehen alte Buchungen weiter drin.
+    // Beim Absagen laufen sie dann in zwei verschiedene Fallen -- beim
+    // Anbieterwechsel in calendar_event_not_managed_by_voxera, beim
+    // Kalenderwechsel in ein DELETE auf den falschen Kalender.
+    if (zeile.connection_id && connection?.id && zeile.connection_id !== connection.id) continue;
+    // `calendar_id` wird seit dem 13.08. mitgeschrieben. Aeltere Zeilen haben
+    // ihn nicht -- die faengt die Verbindungspruefung oben ab.
+    const kalender = zeile.details?.calendar_id;
+    if (kalender && connection?.selected_calendar_id && kalender !== connection.selected_calendar_id) continue;
+
     const antwort = zeile.details?.response || {};
     if (!antwort.start || !antwort.end) continue;
     offen.set(id, { external_event_id: id, start: antwort.start, end: antwort.end });
@@ -384,7 +401,7 @@ exports.handler = async (event) => {
 
     if (action === 'lookup') {
       // Kein Kalenderaufruf: die Antwort kommt aus unserer eigenen Tabelle.
-      const termine = await loadUpcomingAppointments(sb, customerId);
+      const termine = await loadUpcomingAppointments(sb, customerId, connection);
       responsePayload = {
         ok: true,
         action,
@@ -574,7 +591,25 @@ exports.handler = async (event) => {
         start: input.start, end: input.end, timezone: input.timezone
       };
     } else {
-      await deleteEvent(connection.provider, token.accessToken, connection.selected_calendar_id, externalEventId);
+      const geloescht = await deleteEvent(connection.provider, token.accessToken, connection.selected_calendar_id, externalEventId);
+      // Ein 404 ist keine Absage.
+      //
+      // `deleteEvent()` behandelt 404 als Erfolg und meldet `already_missing`;
+      // der Rueckgabewert wurde bis zum 13.08. verworfen und `cancelled: true`
+      // fest verdrahtet. Damit bestaetigte ein DELETE auf den FALSCHEN Kalender
+      // eine Absage, die nicht stattgefunden hat -- der Termin blieb stehen,
+      // der Anrufende hoerte "ist storniert".
+      //
+      // Wir koennen die beiden Ursachen nicht unterscheiden: schon geloescht,
+      // oder am falschen Ort gesucht. Also bestaetigen wir nicht. Der
+      // Fehlerpfad fuehrt in Schritt 15 des Kalenderblocks -- der Agent sagt,
+      // dass er die Absage nicht selbst bestaetigen kann, und nimmt eine
+      // Rueckrufanfrage auf.
+      if (geloescht?.already_missing) {
+        const error = new Error('calendar_event_already_missing');
+        error.status = 409;
+        throw error;
+      }
       responsePayload = { ok: true, action, external_event_id: externalEventId, cancelled: true };
     }
 
@@ -582,7 +617,14 @@ exports.handler = async (event) => {
       const { error } = await sb.from('calendar_booking_audit').update({
         external_event_id: externalEventId,
         status: 'success',
-        details: { response: responsePayload, completed_at: new Date().toISOString() }
+        details: {
+          response: responsePayload,
+          // Auf WELCHEM Kalender der Termin liegt. Ohne diese Angabe kann das
+          // Nachschlagen nach einem Kalenderwechsel nicht mehr unterscheiden,
+          // welche Buchung noch absagbar ist.
+          calendar_id: connection.selected_calendar_id,
+          completed_at: new Date().toISOString()
+        }
       }).eq('id', claimedAuditId);
       if (error) throw error;
     } else if (!auditGeschrieben) {
