@@ -435,46 +435,64 @@ const ANRUFER_B = '+41799999999';
 const BELEG_B = '654321';
 
 // Historie: gebucht, verschoben, abgesagt, plus ein vergangener Termin.
+//
+// `calendar_id` steht seit dem 14.08. in jeder Zeile, die im Nachschlagen
+// auftauchen soll -- eine Zeile ohne ihn gilt nicht mehr als "gehoert zum
+// aktuellen Kalender" (Codex-P2, siehe evt_ohne_kalender unten).
 const HISTORIE = [
   { external_event_id: 'evt_alt', connection_id: 'conn_1', action: 'book', created_at: '2026-08-01T10:00:00Z',
-    details: { caller_reference: ANRUFER_A, response: { start: '2026-08-05T08:00:00.000Z', end: '2026-08-05T08:30:00.000Z' } } },
+    details: { caller_reference: ANRUFER_A, calendar_id: 'cal_1', response: { start: '2026-08-05T08:00:00.000Z', end: '2026-08-05T08:30:00.000Z' } } },
   { external_event_id: 'evt_a', connection_id: 'conn_1', action: 'book', created_at: '2026-08-02T10:00:00Z',
-    details: { caller_reference: ANRUFER_A, booking_reference: '111111',
+    details: { caller_reference: ANRUFER_A, booking_reference: '111111', calendar_id: 'cal_1',
                response: { start: '2027-08-10T06:00:00.000Z', end: '2027-08-10T06:30:00.000Z' } } },
   { external_event_id: 'evt_b', connection_id: 'conn_1', action: 'book', created_at: '2026-08-03T10:00:00Z',
-    details: { caller_reference: ANRUFER_A, booking_reference: '222222',
+    details: { caller_reference: ANRUFER_A, booking_reference: '222222', calendar_id: 'cal_1',
                response: { start: '2027-08-11T06:00:00.000Z', end: '2027-08-11T06:30:00.000Z' } } },
   { external_event_id: 'evt_b', connection_id: 'conn_1', action: 'reschedule', created_at: '2026-08-04T10:00:00Z',
-    details: { caller_reference: ANRUFER_A, booking_reference: '222222',
+    details: { caller_reference: ANRUFER_A, booking_reference: '222222', calendar_id: 'cal_1',
                response: { start: '2027-08-12T09:00:00.000Z', end: '2027-08-12T09:30:00.000Z' } } },
   { external_event_id: 'evt_weg', connection_id: 'conn_1', action: 'book', created_at: '2026-08-05T10:00:00Z',
-    details: { caller_reference: ANRUFER_A, response: { start: '2027-08-13T06:00:00.000Z', end: '2027-08-13T06:30:00.000Z' } } },
+    details: { caller_reference: ANRUFER_A, calendar_id: 'cal_1', response: { start: '2027-08-13T06:00:00.000Z', end: '2027-08-13T06:30:00.000Z' } } },
   { external_event_id: 'evt_weg', connection_id: 'conn_1', action: 'cancel', created_at: '2026-08-06T10:00:00Z',
-    details: { caller_reference: ANRUFER_A, response: { cancelled: true } } },
+    details: { caller_reference: ANRUFER_A, calendar_id: 'cal_1', response: { cancelled: true } } },
   // Codex-Befund vom 13.08. (P1): Buchungen aus einer frueheren Verbindung oder
   // von einem anderen Kalender sind heute nicht mehr absagbar.
   { external_event_id: 'evt_fremde_verbindung', action: 'book', created_at: '2026-08-07T10:00:00Z',
     connection_id: 'conn_alt',
-    details: { caller_reference: ANRUFER_A, response: { start: '2027-08-14T06:00:00.000Z', end: '2027-08-14T06:30:00.000Z' } } },
+    details: { caller_reference: ANRUFER_A, calendar_id: 'cal_1', response: { start: '2027-08-14T06:00:00.000Z', end: '2027-08-14T06:30:00.000Z' } } },
   { external_event_id: 'evt_fremder_kalender', action: 'book', created_at: '2026-08-08T10:00:00Z',
-    connection_id: 'conn_1', calendar_id: 'cal_anderer',
+    connection_id: 'conn_1',
     details: { caller_reference: ANRUFER_A, response: { start: '2027-08-15T06:00:00.000Z', end: '2027-08-15T06:30:00.000Z' },
                calendar_id: 'cal_anderer' } },
+  // Codex-Befund vom 14.08. (P2): `select_calendar` setzt selected_calendar_id
+  // auf der BESTEHENDEN Verbindungszeile um -- die connection_id bleibt gleich.
+  // Eine Altbuchung ohne Kalender-ID kam deshalb durch die Verbindungspruefung
+  // und liess sich danach nur im 409-Rueckfall absagen.
+  { external_event_id: 'evt_ohne_kalender', connection_id: 'conn_1', action: 'book', created_at: '2026-08-08T12:00:00Z',
+    details: { caller_reference: ANRUFER_A, booking_reference: '333333',
+               response: { start: '2027-08-16T06:00:00.000Z', end: '2027-08-16T06:30:00.000Z' } } },
   // Der Termin einer ANDEREN anrufenden Person. Bewusst der frueheste der
   // anstehenden -- leckt die Filterung, steht er ganz oben in der Liste.
   { external_event_id: 'evt_fremd', connection_id: 'conn_1', action: 'book', created_at: '2026-08-09T10:00:00Z',
-    details: { caller_reference: ANRUFER_B, booking_reference: BELEG_B,
+    details: { caller_reference: ANRUFER_B, booking_reference: BELEG_B, calendar_id: 'cal_1',
                response: { start: '2027-08-09T06:00:00.000Z', end: '2027-08-09T06:30:00.000Z' } } },
   // Altbestand: vor dem 14.08. gebucht, traegt deshalb keine Bindung.
   { external_event_id: 'evt_ohne_bindung', connection_id: 'conn_1', action: 'book', created_at: '2026-08-10T10:00:00Z',
-    details: { response: { start: '2027-08-08T06:00:00.000Z', end: '2027-08-08T06:30:00.000Z' } } }
+    details: { calendar_id: 'cal_1', response: { start: '2027-08-08T06:00:00.000Z', end: '2027-08-08T06:30:00.000Z' } } }
 ];
 
-const mitHistorie = () => ({
+// Ein Betrieb ohne jeden anstehenden Termin -- gebraucht fuer die
+// Unterscheidung "kein Termin" gegen "nicht zugeordnet".
+const HISTORIE_LEER = [
+  { external_event_id: 'evt_vorbei', connection_id: 'conn_1', action: 'book', created_at: '2026-08-01T10:00:00Z',
+    details: { caller_reference: ANRUFER_A, calendar_id: 'cal_1', response: { start: '2026-08-05T08:00:00.000Z', end: '2026-08-05T08:30:00.000Z' } } }
+];
+
+const mitHistorie = (zeilen = HISTORIE) => ({
   ...antworten(),
   calendar_booking_audit: (ops) => {
     if (ops.some((op) => op.name === 'insert')) return { data: { id: 'audit_1' }, error: null };
-    if (ops.some((op) => op.name === 'order')) return { data: HISTORIE, error: null };
+    if (ops.some((op) => op.name === 'order')) return { data: zeilen, error: null };
     if (ops.some((op) => op.name === 'limit')) return { data: [{ id: 'audit_alt' }], error: null };
     return { data: null, error: null };
   }
@@ -547,8 +565,8 @@ await check('lookup braucht keine request_id', async () => {
 // faelschbar. Diese Pruefungen halten fest, dass die Zuordnung greift -- nicht,
 // dass sie jemanden aussperrt, der es darauf anlegt.
 
-const lookupRuf = (body) => {
-  const supabase = makeSupabase({ answers: mitHistorie() });
+const lookupRuf = (body, zeilen = HISTORIE) => {
+  const supabase = makeSupabase({ answers: mitHistorie(zeilen) });
   aktuellerClient = supabase.client;
   return handler({
     httpMethod: 'POST', headers: { Authorization: 'Bearer test-secret' },
@@ -572,7 +590,29 @@ await check('Ohne Anrufernummer und ohne Terminnummer gibt es nichts zu hoeren',
   assert.equal(payload.identified_by, 'none');
   // Eigener Grund: er fuehrt im Prompt zur Frage nach der Terminnummer und
   // nicht in die Rueckrufaufnahme.
-  assert.equal(payload.reason, 'calendar_caller_unidentified');
+  assert.equal(payload.reason, 'calendar_appointment_unmatched');
+});
+
+// Codex-Befund vom 14.08. (P1): der Rueckfall auf die Terminnummer war
+// UNERREICHBAR. Wer von einem anderen Anschluss anruft, hat eine gueltige
+// Anrufernummer -- die erste Fassung leitete daraus "kein Termin vorhanden" ab
+// und liess den Agenten eine Rueckrufanfrage aufnehmen, statt nach der Nummer
+// zu fragen. Genau der Fall, fuer den Rueckfall B gebaut wurde; Abnahmepunkt 13
+// waere daran gescheitert.
+await check('Ein Anruf von einer anderen Nummer fuehrt zur Terminnummer', async () => {
+  const { payload } = await lookupRuf({ caller_id: '+41780000000' });
+  assert.equal(payload.appointment_count, 0);
+  assert.equal(payload.identified_by, 'caller_id');
+  assert.equal(payload.reason, 'calendar_appointment_unmatched',
+    'der Anruf von einer anderen Nummer landet in der Rueckrufaufnahme statt bei der Terminnummer');
+});
+
+await check('Eine unbekannte Terminnummer wird nicht als "kein Termin" abgetan', async () => {
+  const { payload } = await lookupRuf({ booking_reference: '999999' });
+  assert.equal(payload.appointment_count, 0);
+  assert.equal(payload.identified_by, 'booking_reference');
+  assert.equal(payload.reason, 'calendar_booking_reference_unknown',
+    'die falsch verstandene Nummer laesst sich nicht mehr zurueckfragen');
 });
 
 await check('Die Terminnummer ist der Rueckfall ohne Anrufernummer', async () => {
@@ -593,7 +633,7 @@ await check('Eine unterdrueckte Nummer gilt nicht als Kennung', async () => {
   // Identitaet -- und der erste, der bucht, oeffnet sie fuer alle weiteren.
   const { payload } = await lookupRuf({ caller_id: 'anonymous' });
   assert.equal(payload.identified_by, 'none');
-  assert.equal(payload.reason, 'calendar_caller_unidentified');
+  assert.equal(payload.reason, 'calendar_appointment_unmatched');
 });
 
 // Der Fall, den die Gegenprobe erst sichtbar gemacht hat: bei 'anonymous' ist
@@ -606,7 +646,7 @@ await check('Ein numerischer Platzhalter gilt nicht als Kennung', async () => {
   // alle anonymen Anrufenden.
   const { payload } = await lookupRuf({ caller_id: '+266696687' });
   assert.equal(payload.identified_by, 'none');
-  assert.equal(payload.reason, 'calendar_caller_unidentified');
+  assert.equal(payload.reason, 'calendar_appointment_unmatched');
 });
 
 // Und die Gegenrichtung: der Platzhalter darf keine echte Nummer mitreissen.
@@ -615,11 +655,13 @@ await check('Eine echte Nummer bleibt eine Kennung', async () => {
   assert.equal(payload.identified_by, 'caller_id');
 });
 
-await check('Ein Anrufer ohne anstehenden Termin hoert einen anderen Grund', async () => {
-  const { payload } = await lookupRuf({ caller_id: '+41780000000' });
+// Nur wenn im ganzen Betrieb nichts ansteht, ist die Frage nach der
+// Terminnummer sinnlos -- dann und nur dann sagt der Agent "kein Termin".
+await check('Ohne anstehende Termine im Betrieb wird nicht nach der Nummer gefragt', async () => {
+  const { payload } = await lookupRuf({ caller_id: '+41780000000' }, HISTORIE_LEER);
   assert.equal(payload.appointment_count, 0);
   assert.equal(payload.reason, 'calendar_no_upcoming_appointment',
-    '"kein Termin" ist nicht dasselbe wie "nicht zuordenbar"');
+    '"kein Termin" ist nicht dasselbe wie "nicht zugeordnet"');
 });
 
 await check('Altbestand ohne Bindung wird nicht vorgelesen', async () => {
@@ -628,11 +670,66 @@ await check('Altbestand ohne Bindung wird nicht vorgelesen', async () => {
     'ein Termin ohne hinterlegte Bindung wird jedem beliebigen Anrufer angeboten');
 });
 
+await check('Eine Buchung ohne Kalender-ID gilt nicht als Termin des aktuellen Kalenders', async () => {
+  const { payload } = await lookupRuf({ caller_id: ANRUFER_A });
+  assert.ok(!payload.appointments.some((termin) => termin.external_event_id === 'evt_ohne_kalender'),
+    'eine Altbuchung ohne Kalender-ID wird vorgelesen -- ihre Absage kann nur im 409-Rueckfall enden');
+});
+
 // Die nationale Schreibweise ist dieselbe Nummer. Ohne Normalisierung waere ein
 // Anrufer je nach Signalisierung mal er selbst und mal ein Fremder.
 await check('Die Anrufernummer wird normalisiert verglichen', async () => {
   const { payload } = await lookupRuf({ caller_id: '079 123 45 67' });
   assert.equal(payload.appointment_count, 2);
+});
+
+// Codex-Befund vom 14.08. (P2): `created_at` ist der Zeitpunkt des Claims, nicht
+// der der erfolgreichen Kalenderaenderung. Ueberlappen sich zwei Verschiebungen,
+// kann die zuerst beanspruchte zuletzt fertig werden -- dann ist SIE der
+// Kalenderstand, und die Wiedergabe nach Anlage meldet die veraltete Zeit.
+const HISTORIE_UEBERLAPPEND = [
+  { external_event_id: 'evt_x', connection_id: 'conn_1', action: 'book', created_at: '2026-08-01T10:00:00Z',
+    details: { caller_reference: ANRUFER_A, calendar_id: 'cal_1', completed_at: '2026-08-01T10:00:05Z',
+               response: { start: '2027-09-01T06:00:00.000Z', end: '2027-09-01T06:30:00.000Z' } } },
+  // Zuerst beansprucht (10:00:00), zuletzt fertig (10:00:30) -- das ist der
+  // Stand, der im Kalender steht.
+  { external_event_id: 'evt_x', connection_id: 'conn_1', action: 'reschedule', created_at: '2026-08-02T10:00:00Z',
+    details: { caller_reference: ANRUFER_A, calendar_id: 'cal_1', completed_at: '2026-08-02T10:00:30Z',
+               response: { start: '2027-09-03T06:00:00.000Z', end: '2027-09-03T06:30:00.000Z' } } },
+  // Spaeter beansprucht (10:00:10), aber frueher fertig (10:00:20).
+  { external_event_id: 'evt_x', connection_id: 'conn_1', action: 'reschedule', created_at: '2026-08-02T10:00:10Z',
+    details: { caller_reference: ANRUFER_A, calendar_id: 'cal_1', completed_at: '2026-08-02T10:00:20Z',
+               response: { start: '2027-09-02T06:00:00.000Z', end: '2027-09-02T06:30:00.000Z' } } }
+];
+
+await check('Ueberlappende Verschiebungen zaehlen nach Abschluss, nicht nach Anlage', async () => {
+  const { payload } = await lookupRuf({ caller_id: ANRUFER_A }, HISTORIE_UEBERLAPPEND);
+  assert.equal(payload.appointment_count, 1);
+  assert.equal(payload.appointments[0].start, '2027-09-03T06:00:00.000Z',
+    'die Wiedergabe folgt der Claim-Reihenfolge und meldet eine veraltete Zeit');
+});
+
+// Die Kollisionssperre der Terminnummer laesst sich am Handler nicht scharf
+// pruefen: eine zufaellige Ziehung trifft eine bestimmte Nummer praktisch nie,
+// der Fall waere also auch ohne Sperre gruen. Geprueft wird deshalb direkt an
+// der Ziehung.
+const { bookingReference } = require('../customer-dashboard/netlify/functions/_lib/caller-identity.js');
+
+await check('Eine belegte Terminnummer wird neu gezogen', async () => {
+  let gefragt = 0;
+  // Die ersten fuenf Kandidaten gelten als belegt.
+  const teilweiseVergeben = { has: () => (gefragt++ < 5) };
+  const nummer = bookingReference(teilweiseVergeben);
+  assert.match(nummer, /^\d{6}$/);
+  assert.equal(gefragt, 6, 'die Ziehung wiederholt bei einer Kollision nicht');
+});
+
+await check('Ist alles belegt, bricht die Buchung ab statt doppelt zu vergeben', async () => {
+  // Eine kollidierende Nummer still auszugeben hiesse, dass zwei Personen den
+  // Termin der jeweils anderen absagen koennen -- schlimmer als eine
+  // gescheiterte Buchung.
+  assert.throws(() => bookingReference({ has: () => true }),
+    /calendar_booking_reference_exhausted/);
 });
 
 const cancelRuf = (body) => {

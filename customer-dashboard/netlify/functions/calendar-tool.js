@@ -202,9 +202,26 @@ async function loadAppointmentHistory(sb, customerId) {
 // Kalender. `null` schaltet den Filter ab -- gebraucht fuer die
 // Eigentuemer-Pruefung, die auch dann greifen soll, wenn ein Termin ueber diesen
 // Filter herausfaellt.
+// Nach ABSCHLUSS geordnet, nicht nach Anlage.
+//
+// Codex-Befund vom 14.08. (P2): `created_at` ist der Zeitpunkt des
+// processing-Claims, nicht der der erfolgreichen Aenderung am Kalender.
+// Ueberlappen sich zwei Verschiebungen desselben Termins, kann die zuerst
+// beanspruchte zuletzt fertig werden -- dann ist SIE der Kalenderstand, waehrend
+// diese Wiedergabe die andere zuletzt anwendet und eine veraltete Zeit meldet.
+// `details.completed_at` steht in jeder Erfolgszeile aus dem Claim-Pfad; nur
+// Altzeilen ohne ihn fallen auf `created_at` zurueck.
+function orderByCompletion(rows) {
+  return [...(rows || [])].sort((a, b) => {
+    const links = new Date(a.details?.completed_at || a.created_at || 0).getTime() || 0;
+    const rechts = new Date(b.details?.completed_at || b.created_at || 0).getTime() || 0;
+    return links - rechts;
+  });
+}
+
 function resolveAppointments(rows, connection) {
   const offen = new Map();
-  for (const zeile of rows || []) {
+  for (const zeile of orderByCompletion(rows)) {
     const id = String(zeile.external_event_id || '').trim();
     if (!id) continue;
     // Eine Absage gilt unabhaengig davon, ueber welche Verbindung sie lief:
@@ -221,10 +238,21 @@ function resolveAppointments(rows, connection) {
     // Kalenderwechsel in ein DELETE auf den falschen Kalender.
     if (connection) {
       if (zeile.connection_id && connection.id && zeile.connection_id !== connection.id) continue;
-      // `calendar_id` wird seit dem 13.08. mitgeschrieben. Aeltere Zeilen haben
-      // ihn nicht -- die faengt die Verbindungspruefung oben ab.
+      // `calendar_id` MUSS dastehen und passen.
+      //
+      // Vorher war die Bedingung `kalender && kalender !== ...` -- eine Zeile
+      // ohne Kalender-ID kam also durch, mit dem Argument, die
+      // Verbindungspruefung fange sie ab. Codex-Befund vom 14.08. (P2): sie tut
+      // es nicht. `select_calendar` in calendar-connections.js setzt
+      // `selected_calendar_id` auf der BESTEHENDEN Verbindungszeile um -- die
+      // `connection_id` bleibt dieselbe. Nach einem Kalenderwechsel an Ort und
+      // Stelle stehen Altbuchungen des alten Kalenders also weiter in der Liste,
+      // und ihre Absage kann nur im 409-Rueckfall enden.
+      //
+      // Wo nichts steht, wissen wir es nicht -- und "wir wissen es nicht" darf
+      // nicht als "gehoert zum aktuellen Kalender" durchgehen.
       const kalender = zeile.details?.calendar_id;
-      if (kalender && connection.selected_calendar_id && kalender !== connection.selected_calendar_id) continue;
+      if (!kalender || (connection.selected_calendar_id && kalender !== connection.selected_calendar_id)) continue;
     }
 
     const antwort = zeile.details?.response || {};
@@ -252,6 +280,13 @@ function upcomingAppointments(offen, now = Date.now()) {
       return Number.isFinite(beginn) && beginn > now;
     })
     .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
+}
+
+// Die im Bestand dieses Betriebs schon vergebenen Terminnummern. Nur die
+// anstehenden: nur sie kann das Nachschlagen ueberhaupt zurueckgeben, und nur
+// dort waere eine Doppelvergabe eine Verwechslung.
+function issuedReferences(offen, now = Date.now()) {
+  return new Set(upcomingAppointments(offen, now).map((termin) => termin.booking_reference).filter(Boolean));
 }
 
 async function audit(sb, input) {
@@ -385,6 +420,10 @@ exports.handler = async (event) => {
 
     let externalEventId = String(body.external_event_id || '').trim() || null;
     let bestehenderTermin = null;
+    // Schon vergebene Terminnummern -- gebraucht ueberall dort, wo eine neue
+    // gezogen wird. Bei reschedule und cancel faellt der Bestand als Nebenprodukt
+    // der Eigentuemer-Pruefung an; book holt ihn eigens.
+    let vergebeneBelege = new Set();
     if (['reschedule', 'cancel'].includes(action)) {
       if (!externalEventId) throw new Error('external_event_id_required');
       const { data: managedEvents, error: managedError } = await sb.from('calendar_booking_audit')
@@ -404,7 +443,9 @@ exports.handler = async (event) => {
       // nicht "ist es heute noch absagbar" -- letzteres beantwortet bereits die
       // Pruefung oben. Ein Termin, den der Verbindungsfilter herauswirft,
       // verloere sonst still seinen Eigentuemer.
-      bestehenderTermin = resolveAppointments(await loadAppointmentHistory(sb, customerId), null).get(externalEventId) || null;
+      const offeneTermine = resolveAppointments(await loadAppointmentHistory(sb, customerId), null);
+      bestehenderTermin = offeneTermine.get(externalEventId) || null;
+      vergebeneBelege = issuedReferences(offeneTermine);
       const konflikt = ownershipConflict(bestehenderTermin, identitaet);
       if (konflikt) {
         const error = new Error(konflikt);
@@ -467,13 +508,34 @@ exports.handler = async (event) => {
       const modus = identitaet.callerReference
         ? 'caller_id'
         : (identitaet.bookingReference ? 'booking_reference' : 'none');
-      // Drei verschiedene Auskuenfte, nicht eine: "ich kann dich nicht zuordnen"
-      // fuehrt zur Frage nach der Terminnummer, "du hast keinen Termin" zur
-      // Rueckrufaufnahme. Ein gemeinsames "nichts gefunden" wuerde den Agenten
-      // in den falschen der beiden Saetze schicken.
+      // Drei verschiedene Auskuenfte, nicht eine -- und jede fuehrt im Prompt in
+      // einen anderen Satz. Ein gemeinsames "nichts gefunden" schickte den
+      // Agenten in den falschen.
+      //
+      // Codex-Befund vom 14.08. (P1): die erste Fassung machte den Rueckfall auf
+      // die Terminnummer UNERREICHBAR. Sie fragte nach `modus` -- und wer von
+      // einem anderen Anschluss anruft, hat eine gueltige Anrufernummer, also
+      // modus='caller_id'. Der Fall lief damit in "du hast keinen Termin" und
+      // der Agent nahm eine Rueckrufanfrage auf, statt nach der Nummer zu
+      // fragen. Das ist genau der Anwendungsfall, fuer den Rueckfall B gebaut
+      // wurde; er waere in der Abnahme (Punkt 13) durchgefallen.
+      //
+      // Massgeblich ist deshalb nicht, WOMIT gesucht wurde, sondern was noch
+      // uebrig ist:
       const grund = termine.length
         ? null
-        : (modus === 'none' ? 'calendar_caller_unidentified' : 'calendar_no_upcoming_appointment');
+        // Der Betrieb hat ueberhaupt keinen anstehenden Termin -- nach einer
+        // Terminnummer zu fragen brauchte niemand.
+        : (anstehende.length === 0
+          ? 'calendar_no_upcoming_appointment'
+          // Eine Terminnummer wurde genannt und passte nicht. Weiterfragen
+          // brachte nichts mehr; der Agent liest sie einmal zur Kontrolle
+          // zurueck.
+          : (identitaet.bookingReference
+            ? 'calendar_booking_reference_unknown'
+            // Es gibt anstehende Termine, nur keinen fuer diesen Anruf: die
+            // Terminnummer ist noch ungefragt.
+            : 'calendar_appointment_unmatched'));
       responsePayload = {
         ok: true,
         action,
@@ -651,15 +713,20 @@ exports.handler = async (event) => {
         conflict.details = { busy: availability.busy };
         throw conflict;
       }
-      const eventRecord = await createEvent(connection.provider, token.accessToken, connection.selected_calendar_id, input);
-      externalEventId = String(eventRecord.id || '').trim();
       // Die Terminnummer entsteht bei JEDER Buchung, nicht nur wenn die
       // Anrufernummer fehlt. Sie ist der Rueckfall fuer den naechsten Anruf --
       // von einem anderen Anschluss, mit unterdrueckter Nummer, oder wenn
       // jemand fuer eine andere Person gebucht hat. Zu diesem Zeitpunkt weiss
       // niemand, ob er gebraucht wird; ihn erst dann zu erzeugen, wenn er
       // fehlt, geht nicht.
-      const beleg = bookingReference();
+      //
+      // VOR createEvent gezogen: die Ziehung kann bei erschoepftem Nummernraum
+      // abbrechen, und ein Abbruch nach dem Anlegen hinterliesse einen Termin im
+      // Kalender, den unsere Historie nie gesehen hat.
+      vergebeneBelege = issuedReferences(resolveAppointments(await loadAppointmentHistory(sb, customerId), null));
+      const beleg = bookingReference(vergebeneBelege);
+      const eventRecord = await createEvent(connection.provider, token.accessToken, connection.selected_calendar_id, input);
+      externalEventId = String(eventRecord.id || '').trim();
       auditZusatz = { caller_reference: identitaet.callerReference || null, booking_reference: beleg };
       responsePayload = {
         ok: true, action, external_event_id: externalEventId,
@@ -688,7 +755,7 @@ exports.handler = async (event) => {
       // Kennung des aktuellen Anrufs nach. Eine Terminnummer bekommt ein solcher
       // Termin bei dieser Gelegenheit ebenfalls, damit er kuenftig auffindbar
       // ist.
-      const beleg = bestehenderTermin?.booking_reference || bookingReference();
+      const beleg = bestehenderTermin?.booking_reference || bookingReference(vergebeneBelege);
       auditZusatz = {
         caller_reference: bestehenderTermin?.caller_reference || identitaet.callerReference || null,
         booking_reference: beleg

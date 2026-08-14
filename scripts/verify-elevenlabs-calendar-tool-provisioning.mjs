@@ -380,7 +380,22 @@ try {
       if (pfad.endsWith('/tools?page_size=100')) {
         return antwort({ tools: [{ id: 'tool_manage', tool_config: { name: 'manage_voxera_calendar' } }] });
       }
-      return antwort({ id: pfad.includes('tool_manage') ? 'tool_manage' : 'tool_cancel' });
+      // Die ID richtet sich nach dem GESENDETEN Werkzeugnamen.
+      //
+      // Codex-Befund vom 14.08. (P2): vorher lieferte der Ersatz fuer alles,
+      // was nicht manage war, dieselbe ID 'tool_cancel' -- und die Zusicherung
+      // unten nahm ['tool_manage','tool_cancel','tool_cancel'] ausdruecklich
+      // hin. Damit blieb der Test genau in dem Fehlerfall gruen, in dem das
+      // Nachschlagewerkzeug unter der ID des Absagewerkzeugs gefuehrt wird:
+      // agentToolIds() entdoppelt die Liste, und der Agent haette gar kein
+      // Nachschlagewerkzeug.
+      const gesendet = options.body ? JSON.parse(String(options.body))?.tool_config?.name : '';
+      const idFuer = {
+        manage_voxera_calendar: 'tool_manage',
+        cancel_voxera_appointment: 'tool_cancel',
+        find_voxera_appointments: 'tool_lookup'
+      };
+      return antwort({ id: idFuer[gesendet] || 'tool_unbekannt' });
     };
     try {
       helper.resetCache();
@@ -396,8 +411,11 @@ try {
       assert.ok(schreibend.includes('cancel_voxera_appointment'));
       assert.ok(schreibend.includes('find_voxera_appointments'));
       // Zurueckgegeben wird in der Reihenfolge der Werkzeugliste, nicht in der
-      // Anlegereihenfolge.
-      assert.deepEqual(ids, ['tool_manage', 'tool_cancel', 'tool_cancel']);
+      // Anlegereihenfolge -- und mit DREI verschiedenen IDs. Faellt eine mit
+      // einer anderen zusammen, entdoppelt agentToolIds() sie weg und dem
+      // Agenten fehlt ein Werkzeug.
+      assert.deepEqual(ids, ['tool_manage', 'tool_cancel', 'tool_lookup']);
+      assert.equal(new Set(ids).size, 3, 'zwei Kalenderwerkzeuge teilen sich eine ID');
     } finally {
       globalThis.fetch = echtesFetch2;
       helper.resetCache();
@@ -498,10 +516,19 @@ try {
   // fuehrt zur Frage danach -- nicht in die Rueckrufaufnahme und erst recht
   // nicht in eine Suche mit availability.
   assert.match(block, /booking_reference/, 'Der Prompt kennt die Terminnummer nicht');
-  assert.match(block, /calendar_caller_unidentified/,
-    'Der Prompt behandelt den Fall "nicht zuordenbar" nicht');
+  // Drei Gründe, drei verschiedene Sätze. Sie fielen in der ersten Fassung
+  // teilweise zusammen -- und genau dadurch war der Rückfall auf die
+  // Terminnummer für Anrufe von einer anderen Nummer unerreichbar (Codex-P1).
+  assert.match(block, /calendar_appointment_unmatched/,
+    'Der Prompt behandelt den Fall "nicht zugeordnet" nicht');
+  assert.match(block, /calendar_booking_reference_unknown/,
+    'Der Prompt behandelt eine falsch verstandene Terminnummer nicht');
   assert.match(block, /calendar_no_upcoming_appointment/,
-    'Der Prompt unterscheidet "nicht zuordenbar" nicht von "kein Termin"');
+    'Der Prompt unterscheidet "nicht zugeordnet" nicht von "kein Termin"');
+  // Der Server darf die drei auch nicht wieder zusammenlegen.
+  for (const grund of ['calendar_appointment_unmatched', 'calendar_booking_reference_unknown', 'calendar_no_upcoming_appointment']) {
+    if (!source.core.includes(grund)) failures.push('Der Grund fehlt im Werkzeug: ' + grund);
+  }
 
   // GRENZE: eine Anrufernummer ist keine Authentifizierung. Sie ist faelschbar.
   // Der Prompt darf sie nirgends als Schutz darstellen -- ein Satz wie "nur Sie

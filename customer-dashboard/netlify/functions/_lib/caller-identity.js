@@ -67,11 +67,31 @@ function callerReference(raw) {
 // am Telefon vorzulesen und aufzuschreiben, lang genug, um sie im Bestand eines
 // einzelnen Betriebs nicht zufaellig zu treffen.
 //
-// Sie wird NICHT auf Kollisionen geprueft. Bei mehreren Treffern liest der
-// Agent sie vor und laesst waehlen, statt zu raten -- dieselbe Regel gilt schon
-// fuer mehrere Termine derselben Nummer.
-function bookingReference() {
-  return String(crypto.randomInt(0, 10 ** BUCHUNGSNUMMER_STELLEN)).padStart(BUCHUNGSNUMMER_STELLEN, '0');
+// `vergeben` sind die Nummern der anstehenden Termine desselben Betriebs.
+//
+// Sie wurde zuerst OHNE diese Pruefung gezogen, mit dem Argument, bei mehreren
+// Treffern lese der Agent eben vor und lasse waehlen. Codex-Befund vom 14.08.
+// (P2): das ist hier nicht harmlos. `matchesCaller()` nimmt die Terminnummer
+// unabhaengig von der Anrufernummer an -- zwei gleiche Nummern heissen also,
+// dass die eine Person den Termin der anderen vorgelesen bekommt und absagen
+// kann. Genau der Ausgang, den diese Bindung verhindern soll, nur mit
+// zusaetzlichem Zufall davor. Bei ~100 anstehenden Terminen liegt die
+// Wahrscheinlichkeit im Promillebereich -- das ist selten, aber nichts, dessen
+// Folge man in Kauf nimmt.
+const ZIEHVERSUCHE = 12;
+
+function bookingReference(vergeben = new Set()) {
+  for (let versuch = 0; versuch < ZIEHVERSUCHE; versuch += 1) {
+    const kandidat = String(crypto.randomInt(0, 10 ** BUCHUNGSNUMMER_STELLEN)).padStart(BUCHUNGSNUMMER_STELLEN, '0');
+    if (!vergeben.has(kandidat)) return kandidat;
+  }
+  // Unerreichbar, solange der Bestand nicht in die Groessenordnung von 10^6
+  // anstehenden Terminen geht. Eine kollidierende Nummer still auszugeben waere
+  // schlimmer als eine gescheiterte Buchung -- deshalb hier ein Abbruch und
+  // keine Notloesung.
+  const error = new Error('calendar_booking_reference_exhausted');
+  error.status = 503;
+  throw error;
 }
 
 // Was am Telefon gesprochen wird, kommt selten sauber an: "vier acht eins",
@@ -125,6 +145,7 @@ function ownershipConflict(termin, identitaet) {
 
 module.exports = {
   BUCHUNGSNUMMER_STELLEN,
+  ZIEHVERSUCHE,
   callerReference,
   bookingReference,
   normalizeBookingReference,
