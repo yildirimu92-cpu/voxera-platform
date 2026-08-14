@@ -182,7 +182,21 @@ async function loadBlockingUpdates(sb, customerId, startIso, endIso) {
 // Gelesen wird chronologisch, damit die Historie sich selbst aufloest: ein
 // reschedule ueberschreibt die Zeiten seiner Buchung, ein cancel nimmt den
 // Termin wieder heraus.
-const LOOKUP_LIMIT = 5;
+// Die Antwort war bis zum 14.08. auf fuenf Termine beschnitten, mit der
+// Gesamtzahl daneben. Codex-Befund (P2): damit war ein sechster Termin
+// PRINZIPIELL unerreichbar -- das Werkzeug kennt weder Blaettern noch Filter
+// noch eine Folgeaktion, seine `external_event_id` kam also nie heraus, und er
+// liess sich weder verschieben noch absagen. Dieselbe Bauform wie der
+// urspruengliche Befund dieses PR: eine Grenze, die eine Aktion nicht bremst,
+// sondern unmoeglich macht.
+//
+// Die Liste ist ausserdem seit der Anrufer-Bindung auf die anrufende Person
+// gefiltert -- es sind ihre eigenen Termine, nicht die des Betriebs. Es gibt
+// also keinen Grund, ihr davon etwas vorzuenthalten. Die Grenze bleibt nur als
+// Schutz vor einer entgleisten Antwortgroesse stehen und liegt so hoch, dass
+// sie im Gespraech nicht erreicht wird; wie viele davon vorgelesen werden,
+// regelt der Prompt (hoechstens drei).
+const LOOKUP_LIMIT = 50;
 
 async function loadAppointmentHistory(sb, customerId) {
   const { data, error } = await sb.from('calendar_booking_audit')
@@ -306,6 +320,28 @@ function issuedReferences(rows) {
     if (beleg) belege.add(beleg);
   }
   return belege;
+}
+
+// Terminnummern, die JE an mehr als einen Termin gegangen sind.
+//
+// Codex-Befund vom 14.08. (P2): die Mehrdeutigkeit wurde nur im Bestand der
+// anstehenden Termine gesucht. Faellt einer der beiden kollidierenden Termine
+// weg -- abgesagt oder vergangen --, sieht der andere wieder eindeutig aus, und
+// der Zettel der ersten Person oeffnet ihn erneut. Eine Doppelvergabe
+// verjaehrt aber nicht: beide Zettel bleiben im Umlauf, also bleibt die Nummer
+// dauerhaft unbrauchbar.
+function ambiguousReferences(rows) {
+  const proBeleg = new Map();
+  for (const zeile of rows || []) {
+    const beleg = String(zeile?.details?.booking_reference || '');
+    const id = String(zeile?.external_event_id || '').trim();
+    if (!beleg || !id) continue;
+    if (!proBeleg.has(beleg)) proBeleg.set(beleg, new Set());
+    proBeleg.get(beleg).add(id);
+  }
+  const mehrdeutig = new Set();
+  for (const [beleg, ids] of proBeleg) if (ids.size > 1) mehrdeutig.add(beleg);
+  return mehrdeutig;
 }
 
 async function audit(sb, input) {
@@ -469,7 +505,10 @@ exports.handler = async (event) => {
       // Eine mehrdeutige Terminnummer darf auch hier nichts erlauben -- sonst
       // waere die Entschaerfung beim Nachschlagen an der Absage vorbei
       // umgangen. Siehe matchAppointments() in _lib/caller-identity.js.
-      const { belegMehrdeutig } = matchAppointments(upcomingAppointments(offeneTermine), identitaet);
+      const { belegMehrdeutig } = matchAppointments(
+        upcomingAppointments(offeneTermine), identitaet,
+        { mehrdeutigeBelege: ambiguousReferences(verlauf) }
+      );
       const konflikt = ownershipConflict(
         bestehenderTermin,
         belegMehrdeutig ? { ...identitaet, bookingReference: '' } : identitaet
@@ -536,7 +575,8 @@ exports.handler = async (event) => {
 
     if (action === 'lookup') {
       // Kein Kalenderaufruf: die Antwort kommt aus unserer eigenen Tabelle.
-      const anstehende = upcomingAppointments(resolveAppointments(await loadAppointmentHistory(sb, customerId), connection));
+      const verlaufNachschlagen = await loadAppointmentHistory(sb, customerId);
+      const anstehende = upcomingAppointments(resolveAppointments(verlaufNachschlagen, connection));
       // Gefiltert auf die anrufende Person.
       //
       // Bis zum 14.08. stand hier `anstehende` ungefiltert -- und das hiess: wer
@@ -548,7 +588,10 @@ exports.handler = async (event) => {
       // Die Bindung ist die Anrufernummer, ersatzweise die Terminnummer. Sie ist
       // eine Zuordnung und kein Nachweis -- die Begruendung und ihre Grenzen
       // stehen in _lib/caller-identity.js.
-      const { treffer: termine, belegMehrdeutig } = matchAppointments(anstehende, identitaet);
+      const { treffer: termine, belegMehrdeutig } = matchAppointments(
+        anstehende, identitaet,
+        { mehrdeutigeBelege: ambiguousReferences(verlaufNachschlagen) }
+      );
       const modus = identitaet.callerReference
         ? 'caller_id'
         : (identitaet.bookingReference ? 'booking_reference' : 'none');

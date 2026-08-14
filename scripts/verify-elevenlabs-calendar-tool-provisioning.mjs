@@ -448,10 +448,17 @@ try {
   assert.match(block, /find_voxera_appointments/, 'Der Prompt nennt das Nachschlagewerkzeug nicht');
   assert.match(block, /Ein freier Zeitraum ist kein Termin/,
     'Der Prompt verbietet nicht, eine freie Zeit als gefundenen Termin auszugeben');
-  assert.match(block, /Mehrere Termine: lies sie vor/,
+  assert.match(block, /Mehrere Termine: lies höchstens die drei nächsten vor/,
     'Der Prompt regelt den Mehrfachfall nicht');
   assert.match(block, /Rate nie, welcher gemeint ist/,
     'Der Prompt erlaubt weiterhin zu raten, welcher Termin gemeint ist');
+
+  // Codex-Befund vom 14.08. (P1): der Prompt gab die Terminnummer nur an das
+  // Absagewerkzeug weiter. Wer von einem anderen Anschluss VERSCHIEBEN will,
+  // findet seinen Termin -- und wird abgelehnt.
+  const verschieben = block.split("\n").find((zeile) => /^11\./.test(zeile)) || "";
+  assert.match(verschieben, /booking_reference/,
+    "Der Prompt gibt die Terminnummer beim Verschieben nicht mit -- der Rückfall endet in einer Ablehnung");
 
   // Und der Prompt muss den Agenten auf das neue Werkzeug verweisen.
   assert.match(block, /cancel_voxera_appointment/, 'Der Prompt nennt das Absagewerkzeug nicht');
@@ -504,7 +511,10 @@ try {
   for (const token of [
     "require('./_lib/caller-identity')",
     'identityFromBody(body)',
-    'matchAppointments(anstehende, identitaet)',
+    'matchAppointments(',
+    // Die Mehrdeutigkeit wird aus der GANZEN Historie bestimmt, nicht aus dem
+    // aktuellen Bestand -- eine Doppelvergabe verjährt nicht.
+    'ambiguousReferences(',
     'ownershipConflict(',
     'caller_reference:',
     'booking_reference:'

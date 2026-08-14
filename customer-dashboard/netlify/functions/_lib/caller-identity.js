@@ -143,7 +143,16 @@ function matchesCaller(termin, identitaet) {
 // Das verhindert die Kollision nicht, es nimmt ihr die Folge. Soll die
 // Terminnummer je fuer sich allein tragen, braucht es eine eindeutige
 // Datenbankschranke -- siehe PR-Text.
-function matchAppointments(termine, identitaet) {
+// `mehrdeutigeBelege` sind die Nummern, die JE an mehr als einen Termin
+// gegangen sind -- ermittelt aus der ganzen Historie, nicht aus dem aktuellen
+// Bestand.
+//
+// Codex-Befund vom 14.08. (P2): die erste Fassung sah die Mehrdeutigkeit nur im
+// Bestand der ANSTEHENDEN Termine. Faellt einer der beiden kollidierenden
+// Termine weg -- abgesagt oder vergangen --, sieht der andere wieder eindeutig
+// aus, und der alte Zettel der ersten Person oeffnet ihn erneut. Eine
+// Doppelvergabe verjaehrt aber nicht: beide Zettel bleiben im Umlauf.
+function matchAppointments(termine, identitaet, { mehrdeutigeBelege } = {}) {
   const liste = Array.isArray(termine) ? termine : [];
   const anrufer = String(identitaet?.callerReference || '');
   const beleg = String(identitaet?.bookingReference || '');
@@ -154,7 +163,7 @@ function matchAppointments(termine, identitaet) {
   const perBeleg = beleg
     ? liste.filter((termin) => termin?.booking_reference && termin.booking_reference === beleg)
     : [];
-  const belegMehrdeutig = perBeleg.length > 1;
+  const belegMehrdeutig = Boolean(beleg) && (perBeleg.length > 1 || Boolean(mehrdeutigeBelege?.has?.(beleg)));
 
   const treffer = [...perAnrufer];
   if (!belegMehrdeutig) {

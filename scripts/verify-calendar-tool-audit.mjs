@@ -1117,6 +1117,52 @@ await check('Kette: buchen, von einer anderen Nummer nachschlagen, mit der Termi
   assert.equal(danach.appointment_count, 0, 'der abgesagte Termin steht weiter in der Liste');
 });
 
+// Codex-Befund vom 14.08. (P1): der Prompt gab die Terminnummer nur an das
+// ABSAGEwerkzeug weiter. Wer von einem anderen Anschluss verschieben will,
+// findet den Termin -- und die Verschiebung wird abgelehnt.
+await check('Kette: die Terminnummer traegt auch beim Verschieben', async () => {
+  verfuegbarkeit = { available: true, busy: [] };
+  const welt = makeLivingSupabase();
+  const gebucht = await kettenRuf(welt, {
+    action: 'book', request_id: 'schieb_1', start: DI('10:00'), end: DI('10:30'), caller_id: ANRUFER_A
+  });
+  const beleg = gebucht.booking_reference;
+
+  // Ohne die Nummer: abgelehnt -- das ist richtig so.
+  const ohne = await kettenRuf(welt, {
+    action: 'reschedule', request_id: 'schieb_2', external_event_id: gebucht.external_event_id,
+    caller_id: ANRUFER_C, start: DI('11:00'), end: DI('11:30')
+  });
+  assert.equal(ohne.error, 'calendar_appointment_not_yours');
+
+  // Mit der Nummer: geht durch.
+  const mit = await kettenRuf(welt, {
+    action: 'reschedule', request_id: 'schieb_3', external_event_id: gebucht.external_event_id,
+    caller_id: ANRUFER_C, booking_reference: beleg, start: DI('11:00'), end: DI('11:30')
+  });
+  assert.equal(mit.ok, true, JSON.stringify(mit));
+  assert.equal(mit.booking_reference, beleg, 'die Terminnummer aendert sich beim Verschieben');
+});
+
+// Codex-Befund vom 14.08. (P2): die Antwort war auf fuenf Termine beschnitten,
+// mit der Gesamtzahl daneben -- ein sechster war damit prinzipiell
+// unerreichbar, weil das Werkzeug weder Blaettern noch Filter kennt.
+await check('Auch der sechste eigene Termin kommt in der Antwort vor', async () => {
+  const viele = Array.from({ length: 7 }, (_, index) => ({
+    external_event_id: 'evt_v' + index, connection_id: 'conn_1', action: 'book',
+    created_at: `2026-08-0${index + 1}T10:00:00Z`,
+    details: {
+      caller_reference: ANRUFER_A, booking_reference: '90000' + index, calendar_id: 'cal_1',
+      response: { start: `2027-09-1${index}T06:00:00.000Z`, end: `2027-09-1${index}T06:30:00.000Z` }
+    }
+  }));
+  const { payload } = await lookupRuf({ caller_id: ANRUFER_A }, viele);
+  assert.equal(payload.appointment_count, 7);
+  assert.equal(payload.appointments.length, 7,
+    'ein Termin jenseits der Grenze kann seine external_event_id nie liefern');
+  assert.ok(payload.appointments.some((termin) => termin.external_event_id === 'evt_v6'));
+});
+
 await check('Kette: die gesprochene Terminnummer traegt auch mit Trennzeichen', async () => {
   verfuegbarkeit = { available: true, busy: [] };
   const welt = makeLivingSupabase();
@@ -1191,6 +1237,28 @@ await check('Eine mehrdeutige Terminnummer weist keinen Termin zu', async () => 
   const { payload } = await lookupRuf({ booking_reference: '777777' }, doppelt);
   assert.equal(payload.appointment_count, 0,
     'eine doppelt vergebene Nummer liest den Termin einer fremden Person vor');
+  assert.equal(payload.reason, 'calendar_booking_reference_unknown');
+});
+
+// Codex-Befund vom 14.08. (P2): die Mehrdeutigkeit wurde nur im BESTAND
+// gesucht. Faellt einer der beiden kollidierenden Termine weg, sieht der andere
+// wieder eindeutig aus -- und der alte Zettel oeffnet ihn erneut. Eine
+// Doppelvergabe verjaehrt aber nicht.
+await check('Eine einmal doppelt vergebene Nummer bleibt unbrauchbar', async () => {
+  const einerAbgesagt = [
+    { external_event_id: 'evt_p', connection_id: 'conn_1', action: 'book', created_at: '2026-08-01T10:00:00Z',
+      details: { caller_reference: ANRUFER_A, booking_reference: '777777', calendar_id: 'cal_1',
+                 response: { start: '2027-08-20T06:00:00.000Z', end: '2027-08-20T06:30:00.000Z' } } },
+    { external_event_id: 'evt_q', connection_id: 'conn_1', action: 'book', created_at: '2026-08-02T10:00:00Z',
+      details: { caller_reference: ANRUFER_B, booking_reference: '777777', calendar_id: 'cal_1',
+                 response: { start: '2027-08-21T06:00:00.000Z', end: '2027-08-21T06:30:00.000Z' } } },
+    // evt_p faellt weg -- danach steht nur noch evt_q mit dieser Nummer.
+    { external_event_id: 'evt_p', connection_id: 'conn_1', action: 'cancel', created_at: '2026-08-03T10:00:00Z',
+      details: { caller_reference: ANRUFER_A, calendar_id: 'cal_1', response: { cancelled: true } } }
+  ];
+  const { payload } = await lookupRuf({ booking_reference: '777777' }, einerAbgesagt);
+  assert.equal(payload.appointment_count, 0,
+    'nach dem Wegfall des einen Termins oeffnet die alte Nummer wieder den fremden');
   assert.equal(payload.reason, 'calendar_booking_reference_unknown');
 });
 
