@@ -730,6 +730,52 @@ test('die Migration definiert set_updated_at, bevor sie den Trigger anlegt', () 
     'die bestehende Funktion darf nicht ersetzt werden -- an ihr haengen sieben weitere Tabellen');
 });
 
+test('die Dringlichkeits-Beschreibung traegt den Folgen-Massstab, nicht die Signalbedingung', () => {
+  // Die Team-SMS traegt kein Anliegen mehr; die Dringlichkeit ist die einzige
+  // Angabe, die "jetzt oder morgen" beantwortet. Sie entsteht in der
+  // strukturierten Auswertung, und die liest NICHT den Gespraechsprompt,
+  // sondern diese Beschreibung. Faellt sie auf "nur aus Anrufer-Aussagen"
+  // zurueck, bleibt das Feld wieder auf 58 % leer -- und die SMS verliert
+  // ihren einzigen Entscheidungsgehalt.
+  const cfg = fs.readFileSync(
+    path.join(__dirname, '..', '..', 'admin-panel', 'netlify', 'functions', '_lib', 'elevenlabs-agent-config.js'),
+    'utf8'
+  );
+  const block = cfg.split('urgency: {')[1].split('},')[0];
+
+  assert.doesNotMatch(block, /Nur aus Anrufer-Aussagen ableiten/,
+    'die Signalbedingung ist zurueck -- sie war die Ursache der 58 % leeren Felder');
+  assert.match(block, /FOLGE DES WARTENS/, 'der Massstab fehlt');
+  assert.match(block, /Autobahn/, 'Grenzfall Fahrzeug fehlt');
+  assert.match(block, /Eimer/, 'Grenzfall Wasser fehlt');
+  assert.match(block, /Stufe IMMER ein/, 'die Rueckfallregel fehlt');
+  assert.match(block, /Ohne verwertbare Information: niedrig/,
+    'die Rueckfallregel muss "niedrig" sagen, nicht "leer lassen"');
+
+  // Kein enum -- bewusst. lead_quality hat keines und erreicht 29 von 33; der
+  // Hebel ist die Rueckfallregel. Ein enum waere eine zweite Aenderung an
+  // derselben Stelle, die den Testanruf nicht mehr zuordenbar macht.
+  assert.doesNotMatch(block, /enum:/, 'enum ist bewusst nicht Teil dieser Aenderung');
+});
+
+test('die L1-Migration stellt den Massstab um und sichert vorher', () => {
+  const sql = fs.readFileSync(
+    path.join(__dirname, '..', '..', 'supabase', 'migrations',
+      '20260814190000_prompt_l1_dringlichkeit_folgenmassstab.sql'),
+    'utf8'
+  );
+  // Sicherung vor der Aenderung: ohne Versionierung (#929) ist die Kopie der
+  // einzige Rueckweg.
+  assert.match(sql, /sicherung_2026-08-14_vor_folgenmassstab/);
+  // Ankerpruefung: die Migration darf bei "nicht gefunden" nicht still
+  // durchlaufen, sonst sieht ein Fehlschlag aus wie ein Erfolg.
+  assert.match(sql, /raise exception 'Abbruch: Anker 1/);
+  assert.match(sql, /raise exception 'Abbruch: Anker 2/);
+  assert.match(sql, /raise exception 'Abbruch: Anker 3/);
+  // Kein vollstaendiges Ueberschreiben des Prompts.
+  assert.doesNotMatch(sql, /set value = '/, 'L1 darf nicht als Ganzes ersetzt werden');
+});
+
 test('der Retry-Worker kennt beide SMS-Ereignistypen', () => {
   const worker = fs.readFileSync(
     path.join(__dirname, '..', '..', 'admin-panel', 'netlify', 'functions', 'outbox-retry-worker.js'),

@@ -265,9 +265,32 @@ const AGENT_DEFINITION = Object.freeze({
         type: 'string',
         description: 'Geschäftspotenzial: hot = konkrete Handlungsabsicht. warm = allgemeines Interesse. cold = kein Geschäftsbezug. Im Zweifel warm.'
       },
+      // Der Massstab steht hier und nicht nur im Prompt, weil die strukturierte
+      // Auswertung ein EIGENES Modell ist (platform_settings.analysis_llm,
+      // weiter unten) und den Gespraechsprompt nicht liest. Gemessen an
+      // caller_name: L1 macht den Namen zur Pflicht, die Beschreibung sagt
+      // "Niemals raten" -- befuellt sind 7 von 43. Eine Regel wirkt dort, wo
+      // das auswertende Modell liest, also hier.
+      //
+      // Bewusst OHNE `enum`: lead_quality hat keines und erreicht 29 von 33.
+      // Der Hebel ist die Rueckfallregel, nicht die geschlossene Liste.
+      //
+      // "Ohne verwertbare Information: niedrig" statt leer lassen ist eine
+      // Entscheidung vom 14.08.: Fuer die Nacht-SMS fuehren "niedrig" und
+      // "nicht eingestuft" zur selben Handlung, und ein befuelltes Feld ist
+      // auswertbar. Der Preis: der Unterschied zwischen "nicht dringend" und
+      // "nicht einstufbar" geht verloren.
       urgency: {
         type: 'string',
-        description: 'Dringlichkeit: hoch / mittel / niedrig. Nur aus Anrufer-Aussagen ableiten.'
+        description: 'Dringlichkeit: hoch / mittel / niedrig. Massstab ist die FOLGE DES WARTENS, '
+          + 'nicht ob der Anrufer Eile geäussert hat. '
+          + 'hoch = Warten verursacht Schaden, der später nicht mehr behebbar ist, oder Menschen sind gefährdet. '
+          + 'mittel = Warten kostet Geld, Termine oder Komfort, ohne bleibenden Schaden. '
+          + 'niedrig = Warten kostet nichts ausser Zeit. '
+          + 'Nicht das Thema entscheidet, sondern die Lage: dasselbe Fahrzeug mit demselben Defekt ist hoch '
+          + 'auf der Autobahn und niedrig in der eigenen Garage; dieselbe Menge Wasser ist mittel mit einem '
+          + 'Eimer darunter und hoch ohne Auffangmöglichkeit auf Parkett. '
+          + 'Stufe IMMER ein. Ohne verwertbare Information: niedrig.'
       },
       next_action: {
         type: 'string',
