@@ -103,23 +103,45 @@ const SOFT_TIMEOUT_MESSAGES = Object.freeze({
   en: 'One moment'
 });
 
-// Die Floskel fuer die Sprache des Kunden. Unbekannte oder fehlende Sprache
-// faellt auf die Vorgabe zurueck -- dieselbe Regel wie bei `agent.language`.
+// Die Floskel fuer die Sprache des Kunden -- oder `null`, wenn wir die
+// gesprochene Sprache nicht mit Sicherheit benennen koennen.
+//
+// Codex-Befund vom 14.08. (P1): `ai_language` kennt neben den vier Einzel-
+// sprachen auch MISCHWERTE -- `de_en`, `de_en_fr`, `de_fr_it_en`. Der
+// Prompt-Bauer definiert sie ausdruecklich als Agenten mit automatischem
+// Sprachwechsel ("Deutsch (Standard), Englisch und Franzoesisch mit
+// automatischem Wechsel", prompt-builder-v2.js). Ein Rueckfall auf Deutsch
+// behandelt sie wie unbekannte Werte -- und unterbraeche ein englisch
+// gefuehrtes Gespraech ab Sekunde vier auf Deutsch.
+//
+// Fuer diese Werte wird die Floskel deshalb GAR NICHT gesetzt. Eine Zuordnung,
+// die falsch raten kann, ist schlechter als keine: beim Sync bleibt der
+// Ist-Zustand des Agenten stehen, beim Anlegen bleibt die Floskel aus. Das
+// kostet einen mehrsprachigen Agenten die Ueberbrueckung langer Zuege -- die
+// ehrlichere Kosten, verglichen mit einer Unterbrechung in der falschen
+// Sprache.
+//
+// Die saubere Loesung waere eine Floskel, die der AKTIVEN Gespraechssprache
+// folgt. Die ginge nur ueber `use_llm_generated_message` -- am 10.08.
+// verworfen, weil sie zwei Aufgaben in ein Feld legt -- oder ueber
+// `additional_soft_timeout_messages`, dessen Semantik wir nicht belegen
+// koennen. Eigenes Ticket, nicht dieser PR.
+//
+// Ein leerer oder fehlender Wert ist KEIN Mischwert: `agent.language` faellt
+// dort selbst auf DEFAULT_LANGUAGE zurueck, der Agent spricht also nachweislich
+// Deutsch, und die deutsche Floskel ist richtig.
 //
 // OFFENE UNSTIMMIGKEIT, damit sie nicht unbemerkt bleibt: `agent.language`
 // selbst wird vom Sync NICHT gesendet (siehe die Anmerkung an
 // CUSTOMER_SPECIFIC_PATHS -- bewusst zurueckgestellt). Wechselt ein Kunde nach
 // dem Anlegen seine Sprache, spricht der Agent also weiter Deutsch, waehrend
-// diese Floskel ab dem naechsten Sync franzoesisch waere.
-//
-// Das ist kein Grund, hier wieder Deutsch fest zu verdrahten: dann bekaeme ein
-// von Anfang an franzoesischsprachiger Agent dauerhaft eine deutsche Floskel,
-// und das ist der haeufigere Fall. Die saubere Loesung ist die dort
-// beschriebene -- `language` in die Nutzlast aufnehmen, zusammen mit einer
-// Pruefung, die CUSTOMER_SPECIFIC_PATHS gegen die Pfade der Nutzlast haelt.
-// Dieser PR nimmt sie nicht vorweg.
+// diese Floskel ab dem naechsten Sync franzoesisch waere. Die saubere Loesung
+// ist die dort beschriebene -- `language` in die Nutzlast aufnehmen, zusammen
+// mit einer Pruefung, die CUSTOMER_SPECIFIC_PATHS gegen die Pfade der Nutzlast
+// haelt. Dieser PR nimmt sie nicht vorweg.
 function softTimeoutConfigFor(language) {
   const sprache = String(language || '').trim().toLowerCase();
+  if (sprache && !SOFT_TIMEOUT_MESSAGES[sprache]) return null;
   return {
     timeout_seconds: AGENT_DEFINITION.conversation_config.turn.soft_timeout_config.timeout_seconds,
     message: SOFT_TIMEOUT_MESSAGES[sprache] || SOFT_TIMEOUT_MESSAGES[DEFAULT_LANGUAGE],
@@ -426,7 +448,17 @@ function buildAgentConfig({ customer = {}, prompt = '', firstMessage = null, too
   body.conversation_config.agent.language = customer.ai_language || DEFAULT_LANGUAGE;
   // Dieselbe Sprache wie der Agent -- sonst bekaeme ein neu angelegter
   // franzoesischsprachiger Agent eine deutsche Wartefloskel.
-  body.conversation_config.turn.soft_timeout_config = softTimeoutConfigFor(customer.ai_language);
+  //
+  // Bei einem Mischwert (`de_en_fr` und Geschwister) liefert die Funktion
+  // `null`: die Gespraechssprache steht dann erst zur Laufzeit fest. Weglassen
+  // koennen wir das Feld hier nicht -- AGENT_DEFINITION traegt es bereits, und
+  // ein geklontes Objekt haette sonst die deutsche Vorgabe. Also wird die
+  // Floskel ausdruecklich AUSGESCHALTET. Das ist der Zustand von vor dem
+  // 14.08., und er ist fuer diesen Fall der richtige: lieber keine Floskel als
+  // eine in der falschen Sprache.
+  const wartefloskel = softTimeoutConfigFor(customer.ai_language);
+  body.conversation_config.turn.soft_timeout_config = wartefloskel
+    || { ...body.conversation_config.turn.soft_timeout_config, timeout_seconds: -1 };
   if (firstMessage !== null && firstMessage !== undefined) {
     body.conversation_config.agent.first_message = firstMessage;
   }
@@ -571,6 +603,11 @@ function buildSyncPatch({ customer = {}, prompt = '', firstMessage = null, toolI
   const agent = { prompt: promptPatch };
   if (firstMessage !== null && firstMessage !== undefined) agent.first_message = firstMessage;
 
+  // Bei einem Mischwert bleibt `turn` ganz weg -- siehe softTimeoutConfigFor().
+  // Weglassen heisst hier: der Agent behaelt, was er hat. Das ist die einzige
+  // Aussage, die wir fuer einen sprachwechselnden Agenten verantworten koennen.
+  const wartefloskel = softTimeoutConfigFor(customer.ai_language);
+
   return {
     conversation_config: {
       agent,
@@ -597,7 +634,7 @@ function buildSyncPatch({ customer = {}, prompt = '', firstMessage = null, toolI
       // mitzusenden hiesse, sie von einer BEOBACHTUNG zu einer ZUSICHERUNG zu
       // machen, und diese Unterscheidung ist weiter unten ausdruecklich
       // begruendet.
-      turn: { soft_timeout_config: softTimeoutConfigFor(customer.ai_language) }
+      turn: wartefloskel ? { soft_timeout_config: wartefloskel } : undefined
     },
     platform_settings: {
       privacy: {

@@ -315,16 +315,61 @@ for (const [sprache, floskel] of Object.entries(FLOSKELN)) {
       .conversation_config.turn.soft_timeout_config.message === floskel
   );
 }
-// Eine unbekannte oder fehlende Sprache darf keinen leeren Text senden --
-// ElevenLabs spraeche dann gar nichts, und die 15 Sekunden Stille waeren
-// zurueck, ohne dass irgendwo etwas fehlschlaegt.
-for (const unbekannt of [null, undefined, '', 'xx']) {
+// Eine FEHLENDE Sprache darf keinen leeren Text senden -- ElevenLabs spraeche
+// dann gar nichts, und die 15 Sekunden Stille waeren zurueck, ohne dass
+// irgendwo etwas fehlschlaegt. Sie ist auch kein Mischwert: `agent.language`
+// faellt selbst auf Deutsch zurueck, der Agent spricht also Deutsch.
+for (const fehlt of [null, undefined, '']) {
   check(
-    `Unbekannte Sprache ${JSON.stringify(unbekannt)} faellt auf Deutsch zurueck`,
-    buildSyncPatch({ customer: { ai_language: unbekannt }, prompt: 'P' })
+    `Fehlende Sprache ${JSON.stringify(fehlt)} faellt auf Deutsch zurueck`,
+    buildSyncPatch({ customer: { ai_language: fehlt }, prompt: 'P' })
       .conversation_config.turn.soft_timeout_config.message === FLOSKELN.de
   );
 }
+
+// Codex-Befund vom 14.08. (P1): `ai_language` kennt Mischwerte, und der
+// Prompt-Bauer definiert sie als Agenten mit automatischem Sprachwechsel. Ein
+// Rueckfall auf Deutsch unterbraeche ein englisch gefuehrtes Gespraech auf
+// Deutsch. Fuer diese Werte wird die Floskel GAR NICHT gesetzt.
+//
+// Die Liste steht hier bewusst als eigene Aufzaehlung und wird nicht aus dem
+// Produktionscode gelesen: eine Zusicherung, die dieselbe Quelle liest, die
+// sie pruefen soll, waere ein Vakuum-Pass. Sie stammt aus `languageMap` in
+// prompt-builder-v2.js -- kommt dort ein Mischwert dazu, muss er auch hier
+// stehen, und bis dahin faengt ihn die Regel fuer unbekannte Werte.
+const MISCHSPRACHEN = ['de_en', 'de_en_fr', 'de_fr_it_en'];
+for (const gemischt of MISCHSPRACHEN) {
+  check(
+    `Mischwert ${gemischt} bekommt vom Sync gar keine Floskel`,
+    buildSyncPatch({ customer: { ai_language: gemischt }, prompt: 'P' })
+      .conversation_config.turn === undefined
+  );
+  // Beim Anlegen laesst sich das Feld nicht weglassen -- AGENT_DEFINITION
+  // traegt es bereits. Also ausdruecklich aus, statt still auf Deutsch.
+  check(
+    `Mischwert ${gemischt} bekommt beim Anlegen eine ausgeschaltete Floskel`,
+    buildAgentConfig({ customer: { ai_language: gemischt }, prompt: 'P', firstMessage: 'G', toolIds: [] })
+      .conversation_config.turn.soft_timeout_config.timeout_seconds === -1
+  );
+}
+// Ein unbekannter Wert wird wie ein Mischwert behandelt, nicht wie eine
+// fehlende Sprache: wir wissen dann nicht, was der Agent spricht, und raten
+// nicht. Der Unterschied zu `''` ist der Kern der Regel.
+check(
+  'Unbekannte Sprache bekommt keine Floskel statt einer geratenen',
+  buildSyncPatch({ customer: { ai_language: 'xx' }, prompt: 'P' })
+    .conversation_config.turn === undefined
+);
+// Und die Sperre darf nicht mehr wegnehmen als die Floskel: Prompt und
+// Begruessung muessen einen mehrsprachigen Agenten weiterhin erreichen.
+check(
+  'Der Mischwert-Fall sendet Prompt und Begruessung weiterhin',
+  (() => {
+    const body = buildSyncPatch({ customer: { ai_language: 'de_en_fr' }, prompt: 'P', firstMessage: 'G' });
+    return body.conversation_config.agent.prompt.prompt === 'P'
+      && body.conversation_config.agent.first_message === 'G';
+  })()
+);
 // Und die Floskel bleibt gesprochener Text, kein Modellauftrag: mit
 // use_llm_generated_message=true wuerde das Modell selbst formulieren -- genau
 // die zweite Aufgabe im selben Feld, gegen die am 10.08. entschieden wurde.
