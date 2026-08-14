@@ -7,7 +7,7 @@ const { calendarEnabledForCustomer } = require('./_lib/calendar-rollout');
 const { bookingWindowError, bookingTimingError } = require('./_lib/booking-window');
 const { ensureAccessToken, checkAvailability, createEvent, updateEvent, deleteEvent } = require('./_lib/calendar-providers');
 const { SLOT_LIMIT, blockingUpdateFor, bookableSlots, freeSlots } = require('./_lib/calendar-slots');
-const { bookingReference, identityFromBody, matchesCaller, ownershipConflict } = require('./_lib/caller-identity');
+const { bookingReference, identityFromBody, matchAppointments, ownershipConflict } = require('./_lib/caller-identity');
 
 const headers = { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' };
 const reply = (statusCode, payload) => ({ statusCode, headers, body: JSON.stringify(payload) });
@@ -282,11 +282,30 @@ function upcomingAppointments(offen, now = Date.now()) {
     .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
 }
 
-// Die im Bestand dieses Betriebs schon vergebenen Terminnummern. Nur die
-// anstehenden: nur sie kann das Nachschlagen ueberhaupt zurueckgeben, und nur
-// dort waere eine Doppelvergabe eine Verwechslung.
-function issuedReferences(offen, now = Date.now()) {
-  return new Set(upcomingAppointments(offen, now).map((termin) => termin.booking_reference).filter(Boolean));
+// Jede Terminnummer, die dieser Betrieb JE ausgegeben hat.
+//
+// Zuerst waren es nur die anstehenden Termine, mit dem Argument, nur die koenne
+// das Nachschlagen zurueckgeben. Codex-Befund vom 14.08. (P2): das uebersieht,
+// dass die anrufende Person ihre Nummer behaelt. Faellt ein Termin in die
+// Vergangenheit und wird dieselbe Nummer spaeter neu vergeben, oeffnet der alte
+// Zettel den Termin einer fremden Person -- `matchesCaller()` nimmt die Nummer
+// unabhaengig von der Anrufernummer an.
+//
+// Gelesen wird deshalb aus den ROHZEILEN, nicht aus dem aufgeloesten Bestand:
+// abgesagte und vergangene Termine sind aus dem Bestand verschwunden, ihre
+// Nummern sind aber weiterhin im Umlauf.
+//
+// Der Vorrat sind 10^6 Nummern. Bei tausend je ausgegebenen liegt die
+// Kollisionswahrscheinlichkeit der naechsten Ziehung bei einem Promille, und die
+// Ziehung wiederholt sich; erst im hohen fuenfstelligen Bereich wuerde die
+// Stellenzahl knapp.
+function issuedReferences(rows) {
+  const belege = new Set();
+  for (const zeile of rows || []) {
+    const beleg = String(zeile?.details?.booking_reference || '');
+    if (beleg) belege.add(beleg);
+  }
+  return belege;
 }
 
 async function audit(sb, input) {
@@ -443,10 +462,18 @@ exports.handler = async (event) => {
       // nicht "ist es heute noch absagbar" -- letzteres beantwortet bereits die
       // Pruefung oben. Ein Termin, den der Verbindungsfilter herauswirft,
       // verloere sonst still seinen Eigentuemer.
-      const offeneTermine = resolveAppointments(await loadAppointmentHistory(sb, customerId), null);
+      const verlauf = await loadAppointmentHistory(sb, customerId);
+      const offeneTermine = resolveAppointments(verlauf, null);
       bestehenderTermin = offeneTermine.get(externalEventId) || null;
-      vergebeneBelege = issuedReferences(offeneTermine);
-      const konflikt = ownershipConflict(bestehenderTermin, identitaet);
+      vergebeneBelege = issuedReferences(verlauf);
+      // Eine mehrdeutige Terminnummer darf auch hier nichts erlauben -- sonst
+      // waere die Entschaerfung beim Nachschlagen an der Absage vorbei
+      // umgangen. Siehe matchAppointments() in _lib/caller-identity.js.
+      const { belegMehrdeutig } = matchAppointments(upcomingAppointments(offeneTermine), identitaet);
+      const konflikt = ownershipConflict(
+        bestehenderTermin,
+        belegMehrdeutig ? { ...identitaet, bookingReference: '' } : identitaet
+      );
       if (konflikt) {
         const error = new Error(konflikt);
         error.status = 403;
@@ -479,7 +506,24 @@ exports.handler = async (event) => {
       claimedAuditId = claim?.id || null;
     }
 
-    const token = await ensureAccessToken(sb, connection);
+    // Der Zugriffsschluessel wird erst geholt, wenn der Anbieter wirklich
+    // gefragt wird.
+    //
+    // Codex-Befund vom 14.08. (P2): er wurde vor der Verzweigung geholt -- also
+    // auch fuer `lookup`, das ausschliesslich unsere eigene Audit-Tabelle liest.
+    // Ist der Aktualisierungsschluessel abgelaufen oder zurueckgezogen, wirft
+    // ensureAccessToken() und markiert die Verbindung unter Umstaenden als
+    // reauthorization_required -- und das Nachschlagen scheitert, obwohl seine
+    // Quelle vollstaendig gesund ist. Genau dann ist es aber am wichtigsten:
+    // "ich finde Ihren Termin nicht" waehrend eines Anbieterausfalls.
+    //
+    // Nebenwirkung mit demselben Vorzeichen: ein geschlossener Tag beantwortet
+    // availability jetzt ohne jeden Anbieterkontakt.
+    let tokenZwischenspeicher = null;
+    const holeToken = async () => {
+      if (!tokenZwischenspeicher) tokenZwischenspeicher = await ensureAccessToken(sb, connection);
+      return tokenZwischenspeicher;
+    };
     const startIso = body.start ? iso(body.start, 'start') : null;
     const endIso = body.end ? iso(body.end, 'end') : null;
     let responsePayload;
@@ -504,7 +548,7 @@ exports.handler = async (event) => {
       // Die Bindung ist die Anrufernummer, ersatzweise die Terminnummer. Sie ist
       // eine Zuordnung und kein Nachweis -- die Begruendung und ihre Grenzen
       // stehen in _lib/caller-identity.js.
-      const termine = anstehende.filter((termin) => matchesCaller(termin, identitaet));
+      const { treffer: termine, belegMehrdeutig } = matchAppointments(anstehende, identitaet);
       const modus = identitaet.callerReference
         ? 'caller_id'
         : (identitaet.bookingReference ? 'booking_reference' : 'none');
@@ -520,22 +564,32 @@ exports.handler = async (event) => {
       // fragen. Das ist genau der Anwendungsfall, fuer den Rueckfall B gebaut
       // wurde; er waere in der Abnahme (Punkt 13) durchgefallen.
       //
-      // Massgeblich ist deshalb nicht, WOMIT gesucht wurde, sondern was noch
-      // uebrig ist:
+      // Massgeblich ist deshalb nicht, WOMIT gesucht wurde, sondern was fuer
+      // DIESEN Anruf noch offen ist.
+      //
+      // Die zweite Fassung fragte zusaetzlich `anstehende.length === 0` ab, um
+      // "der Betrieb hat gar keinen Termin" eigens zu melden. Codex-Befund vom
+      // 14.08. (P2): das ist betriebsweiter Zustand, und ein beliebiger Anrufer
+      // haette daran ablesen koennen, ob dieser Betrieb ueberhaupt Voxera-
+      // Termine anstehen hat. Schlimmer noch, die Auskunft war nicht einmal
+      // gedeckt: `anstehende` laesst Altbestand und fremde Kalender weg, "es
+      // steht nichts an" waere also auch sachlich falsch gewesen.
+      //
+      // Und wir KOENNEN es gar nicht wissen: wer hier nichts trifft, hat
+      // entweder keinen Termin oder einen unter einer anderen Nummer. Beides
+      // sieht von hier aus gleich aus. Also wird auch beides gleich beantwortet
+      // -- mit der Frage nach der Terminnummer. Der Preis ist eine zusaetzliche
+      // Frage bei jemandem, der wirklich keinen Termin hat; der Gegenwert ist,
+      // dass die Antwort nichts behauptet, was wir nicht belegen koennen.
       const grund = termine.length
         ? null
-        // Der Betrieb hat ueberhaupt keinen anstehenden Termin -- nach einer
-        // Terminnummer zu fragen brauchte niemand.
-        : (anstehende.length === 0
-          ? 'calendar_no_upcoming_appointment'
-          // Eine Terminnummer wurde genannt und passte nicht. Weiterfragen
-          // brachte nichts mehr; der Agent liest sie einmal zur Kontrolle
-          // zurueck.
-          : (identitaet.bookingReference
-            ? 'calendar_booking_reference_unknown'
-            // Es gibt anstehende Termine, nur keinen fuer diesen Anruf: die
-            // Terminnummer ist noch ungefragt.
-            : 'calendar_appointment_unmatched'));
+        // Eine Terminnummer wurde genannt und hat nicht zugewiesen -- entweder
+        // passte sie zu nichts, oder sie war mehrdeutig und traegt deshalb
+        // nichts. Der Agent liest sie einmal zur Kontrolle zurueck.
+        : ((identitaet.bookingReference || belegMehrdeutig)
+          ? 'calendar_booking_reference_unknown'
+          // Noch keine Terminnummer im Spiel: danach fragen.
+          : 'calendar_appointment_unmatched');
       responsePayload = {
         ok: true,
         action,
@@ -566,8 +620,12 @@ exports.handler = async (event) => {
         // gar kein Termin anstand oder ob die Zuordnung danebenlag.
         details: {
           appointment_count: termine.length,
+          // Betriebsweite Zahl -- sie steht hier und NICHT in der Antwort an den
+          // Agenten. Fuer die Diagnose ist sie unentbehrlich, dem Anrufenden
+          // gegenueber waere sie eine Auskunft ueber fremde Termine.
           upcoming_total: anstehende.length,
           identified_by: modus,
+          booking_reference_ambiguous: belegMehrdeutig,
           caller_reference: identitaet.callerReference || null,
           reason: grund
         }
@@ -596,7 +654,7 @@ exports.handler = async (event) => {
         // Antwort schon fest -- das spart denselben API-Aufruf, den vorher die
         // Kurzschluss-Abfrage auf das ganze Fenster gespart hat.
         const window = bufferedWindow(startIso, endIso, settings);
-        const result = await checkAvailability(connection.provider, token.accessToken, connection.selected_calendar_id, window.start, window.end);
+        const result = await checkAvailability(connection.provider, (await holeToken()).accessToken, connection.selected_calendar_id, window.start, window.end);
         busy = result.busy;
         slots = freeSlots(plan.slots, busy, settings);
       }
@@ -706,7 +764,7 @@ exports.handler = async (event) => {
       const input = eventInput(body, settings);
       assertBookable(input.start, input.end, settings, openingHours, blockingUpdates);
       const window = bufferedWindow(input.start, input.end, settings);
-      const availability = await checkAvailability(connection.provider, token.accessToken, connection.selected_calendar_id, window.start, window.end);
+      const availability = await checkAvailability(connection.provider, (await holeToken()).accessToken, connection.selected_calendar_id, window.start, window.end);
       if (!availability.available) {
         const conflict = new Error('calendar_slot_unavailable');
         conflict.status = 409;
@@ -723,9 +781,9 @@ exports.handler = async (event) => {
       // VOR createEvent gezogen: die Ziehung kann bei erschoepftem Nummernraum
       // abbrechen, und ein Abbruch nach dem Anlegen hinterliesse einen Termin im
       // Kalender, den unsere Historie nie gesehen hat.
-      vergebeneBelege = issuedReferences(resolveAppointments(await loadAppointmentHistory(sb, customerId), null));
+      vergebeneBelege = issuedReferences(await loadAppointmentHistory(sb, customerId));
       const beleg = bookingReference(vergebeneBelege);
-      const eventRecord = await createEvent(connection.provider, token.accessToken, connection.selected_calendar_id, input);
+      const eventRecord = await createEvent(connection.provider, (await holeToken()).accessToken, connection.selected_calendar_id, input);
       externalEventId = String(eventRecord.id || '').trim();
       auditZusatz = { caller_reference: identitaet.callerReference || null, booking_reference: beleg };
       responsePayload = {
@@ -738,14 +796,22 @@ exports.handler = async (event) => {
       const input = eventInput(body, settings);
       assertBookable(input.start, input.end, settings, openingHours, blockingUpdates);
       const window = bufferedWindow(input.start, input.end, settings);
-      const availability = await checkAvailability(connection.provider, token.accessToken, connection.selected_calendar_id, window.start, window.end, externalEventId);
+      const availability = await checkAvailability(connection.provider, (await holeToken()).accessToken, connection.selected_calendar_id, window.start, window.end, externalEventId);
       if (!availability.available) {
         const conflict = new Error('calendar_slot_unavailable');
         conflict.status = 409;
         conflict.details = { busy: availability.busy };
         throw conflict;
       }
-      const eventRecord = await updateEvent(connection.provider, token.accessToken, connection.selected_calendar_id, externalEventId, input);
+      // VOR updateEvent gezogen -- aus demselben Grund wie bei book.
+      //
+      // Codex-Befund vom 14.08. (P2): die Ziehung stand hinter updateEvent. Bei
+      // einem Altbestandstermin ohne Nummer haette ein Abbruch der Ziehung
+      // bedeutet, dass der Kalender schon die neue Zeit traegt, die Antwort aber
+      // 503 lautet und keine Erfolgszeile entsteht -- ein Termin, der verschoben
+      // ist, ohne dass unsere Historie davon weiss.
+      const beleg = bestehenderTermin?.booking_reference || bookingReference(vergebeneBelege);
+      const eventRecord = await updateEvent(connection.provider, (await holeToken()).accessToken, connection.selected_calendar_id, externalEventId, input);
       // Die Bindung wird FORTGESCHRIEBEN, nicht neu gesetzt: verschoben wird ein
       // bestehender Termin, und wer ihn verschiebt, uebernimmt ihn nicht. Sonst
       // koennte ein Verschieben still den Eigentuemer wechseln -- und das waere
@@ -755,7 +821,6 @@ exports.handler = async (event) => {
       // Kennung des aktuellen Anrufs nach. Eine Terminnummer bekommt ein solcher
       // Termin bei dieser Gelegenheit ebenfalls, damit er kuenftig auffindbar
       // ist.
-      const beleg = bestehenderTermin?.booking_reference || bookingReference(vergebeneBelege);
       auditZusatz = {
         caller_reference: bestehenderTermin?.caller_reference || identitaet.callerReference || null,
         booking_reference: beleg
@@ -767,7 +832,7 @@ exports.handler = async (event) => {
         booking_reference: beleg
       };
     } else {
-      const geloescht = await deleteEvent(connection.provider, token.accessToken, connection.selected_calendar_id, externalEventId);
+      const geloescht = await deleteEvent(connection.provider, (await holeToken()).accessToken, connection.selected_calendar_id, externalEventId);
       // Ein 404 ist keine Absage.
       //
       // `deleteEvent()` behandelt 404 als Erfolg und meldet `already_missing`;
@@ -885,4 +950,11 @@ exports.handler = async (event) => {
   }
 };
 
-exports._test = { verifyToolAuth, verifyHmac, validateWindow, assertTiming, bufferedWindow };
+exports._test = {
+  verifyToolAuth, verifyHmac, validateWindow, assertTiming, bufferedWindow,
+  // Zwei reine Funktionen, die sich am laufenden Handler nur unscharf pruefen
+  // lassen: die Nummernvergabe zieht zufaellig, und ein Zufallstreffer auf eine
+  // BESTIMMTE Nummer bleibt aus, ob die Sperre nun greift oder nicht. Direkt
+  // geprueft ist die Zusicherung dagegen eindeutig.
+  issuedReferences, resolveAppointments, upcomingAppointments
+};

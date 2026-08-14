@@ -126,6 +126,43 @@ function matchesCaller(termin, identitaet) {
   return false;
 }
 
+// Ordnet eine Liste anstehender Termine dem aktuellen Anruf zu -- und meldet,
+// ob die genannte Terminnummer MEHRDEUTIG war.
+//
+// Codex-Befund vom 14.08. (P2): die Ziehung prueft den Bestand, aber zwei
+// gleichzeitige Buchungen koennen denselben Bestand lesen, bevor eine von beiden
+// geschrieben hat. Die Wiederholungsschleife verhindert also die
+// nacheinander entstehende Kollision, nicht die gleichzeitige.
+//
+// Statt einer datenbankseitigen Reservierung wird hier der SCHADEN entschaerft:
+// eine Nummer, die auf mehrere Termine passt, weist keinen davon zu. Sie wird
+// dadurch fuer beide unbrauchbar -- und genau das ist die sichere Richtung. Wer
+// sie nennt, kommt ueber die eigene Anrufernummer oder ueber einen Rueckruf
+// weiter, aber niemand bekommt den Termin einer fremden Person.
+//
+// Das verhindert die Kollision nicht, es nimmt ihr die Folge. Soll die
+// Terminnummer je fuer sich allein tragen, braucht es eine eindeutige
+// Datenbankschranke -- siehe PR-Text.
+function matchAppointments(termine, identitaet) {
+  const liste = Array.isArray(termine) ? termine : [];
+  const anrufer = String(identitaet?.callerReference || '');
+  const beleg = String(identitaet?.bookingReference || '');
+
+  const perAnrufer = anrufer
+    ? liste.filter((termin) => termin?.caller_reference && termin.caller_reference === anrufer)
+    : [];
+  const perBeleg = beleg
+    ? liste.filter((termin) => termin?.booking_reference && termin.booking_reference === beleg)
+    : [];
+  const belegMehrdeutig = perBeleg.length > 1;
+
+  const treffer = [...perAnrufer];
+  if (!belegMehrdeutig) {
+    for (const termin of perBeleg) if (!treffer.includes(termin)) treffer.push(termin);
+  }
+  return { treffer, belegMehrdeutig };
+}
+
 // NACHSICHTIG. Zurueckgewiesen wird nur der WIDERSPRUCH.
 //
 // Gebraucht beim Absagen und Verschieben. Der Unterschied zum Nachschlagen ist
@@ -150,6 +187,7 @@ module.exports = {
   bookingReference,
   normalizeBookingReference,
   identityFromBody,
+  matchAppointments,
   matchesCaller,
   ownershipConflict
 };

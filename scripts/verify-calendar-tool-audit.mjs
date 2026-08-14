@@ -71,6 +71,113 @@ function makeSupabase({ answers = {} } = {}) {
   return { client: { from: chain }, inserts, updates };
 }
 
+// ── Mitschreibender Supabase-Ersatz ─────────────────────────────────────────
+//
+// Der Ersatz oben antwortet aus einer festen Tabelle. Damit laesst sich jede
+// Etappe einzeln pruefen -- aber keine KETTE: die Historie ist handgeschrieben,
+// die Terminnummern stehen vorab drin, und keine Antwort haengt davon ab, was
+// ein frueherer Aufruf geschrieben hat.
+//
+// Genau daran ist der P1 vom 14.08. vorbeigelaufen. Abnahmepunkt 13 -- buchen,
+// von einer ANDEREN Nummer anrufen, die vorgelesene Terminnummer nennen --
+// haette ihn gefunden; als automatisierter Fall gab es ihn nicht, weil der
+// Ersatz die Nummer aus der Buchung nicht zurueckgeben konnte. Ein
+// Abnahmepunkt, der einen Fehler findet, den kein Test findet, findet ihn erst
+// beim Testanruf.
+//
+// Dieser Ersatz fuehrt calendar_booking_audit als echte Tabelle: insert legt an,
+// update aendert, und Abfragen filtern ueber die gesammelte Aufrufkette. Die
+// uebrigen Tabellen bleiben statisch.
+function makeLivingSupabase({ settings = SETTINGS, connection = CONNECTION, vorbestand = [] } = {}) {
+  const statisch = antworten({ settings, connection });
+  const zeilen = vorbestand.map((zeile, index) => ({ id: 'vor_' + index, ...zeile }));
+  const inserts = [];
+  const updates = [];
+  let laufNr = 0;
+  // Ersatz fuer created_at: streng aufsteigend, damit die Reihenfolge im Test
+  // nicht von der Uhr abhaengt.
+  let uhr = Date.parse('2026-08-14T12:00:00Z');
+
+  const passt = (zeile, ops) => ops.every((op) => {
+    if (op.name === 'eq') return String(zeile[op.args[0]] ?? '') === String(op.args[1] ?? '');
+    if (op.name === 'in') return op.args[1].includes(zeile[op.args[0]]);
+    return true;
+  });
+
+  function auditKette() {
+    const ops = [];
+    const self = {
+      then(resolve, reject) {
+        try {
+          const einfuegung = ops.find((op) => op.name === 'insert');
+          if (einfuegung) return Promise.resolve({ data: { id: einfuegung.args[0].id }, error: null }).then(resolve, reject);
+
+          const aenderung = ops.find((op) => op.name === 'update');
+          if (aenderung) {
+            for (const zeile of zeilen) {
+              if (passt(zeile, ops)) Object.assign(zeile, aenderung.args[0]);
+            }
+            return Promise.resolve({ data: null, error: null }).then(resolve, reject);
+          }
+
+          let treffer = zeilen.filter((zeile) => passt(zeile, ops));
+          if (ops.some((op) => op.name === 'order')) {
+            treffer = [...treffer].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+          }
+          const grenze = ops.find((op) => op.name === 'limit');
+          if (grenze) treffer = treffer.slice(0, grenze.args[0]);
+          const einzeln = ops.some((op) => op.name === 'maybeSingle');
+          return Promise.resolve({ data: einzeln ? (treffer[0] || null) : treffer, error: null }).then(resolve, reject);
+        } catch (error) {
+          return Promise.reject(error).then(resolve, reject);
+        }
+      }
+    };
+    for (const name of KETTENGLIEDER) {
+      self[name] = (...args) => { ops.push({ name, args }); return self; };
+    }
+    self.insert = (row) => {
+      laufNr += 1;
+      uhr += 1000;
+      const angelegt = { id: 'audit_' + laufNr, created_at: new Date(uhr).toISOString(), ...row };
+      zeilen.push(angelegt);
+      inserts.push({ table: 'calendar_booking_audit', row: angelegt });
+      ops.push({ name: 'insert', args: [angelegt] });
+      return self;
+    };
+    self.update = (patch) => {
+      updates.push({ table: 'calendar_booking_audit', patch });
+      ops.push({ name: 'update', args: [patch] });
+      return self;
+    };
+    return self;
+  }
+
+  function statischeKette(table) {
+    const ops = [];
+    const self = {
+      then(resolve, reject) {
+        const antwort = statisch[table];
+        try {
+          const ergebnis = typeof antwort === 'function' ? antwort(ops) : (antwort ?? { data: null, error: null });
+          return Promise.resolve(ergebnis).then(resolve, reject);
+        } catch (error) {
+          return Promise.reject(error).then(resolve, reject);
+        }
+      }
+    };
+    for (const name of [...KETTENGLIEDER, 'insert', 'update']) {
+      self[name] = (...args) => { ops.push({ name, args }); return self; };
+    }
+    return self;
+  }
+
+  return {
+    client: { from: (table) => (table === 'calendar_booking_audit' ? auditKette() : statischeKette(table)) },
+    zeilen, inserts, updates
+  };
+}
+
 // ── Modulersatz ─────────────────────────────────────────────────────────────
 const stubs = new Map();
 const echtesLoad = Module._load;
@@ -89,11 +196,23 @@ let providerFehler = null;
 // spaetere Zuweisung an stubs.get(...).deleteEvent erreicht die Bindung nicht
 // mehr und der Fall waere still gruen.
 let loeschErgebnis = { deleted: true, already_missing: false };
+// Ebenfalls Modulvariablen, aus genau demselben Grund:
+//   - `tokenFehler` stellt einen zurueckgezogenen Aktualisierungsschluessel.
+//   - `kalenderAufrufe` zaehlt, ob der Anbieter ueberhaupt gefragt wurde.
+// Der Zaehler ersetzt einen frueheren Test, der dafuer
+// stubs.get(...).checkAvailability austauschte -- und der deshalb gruen war,
+// egal was das Werkzeug tat.
+let tokenFehler = null;
+let kalenderAufrufe = 0;
 
 stubs.set('@supabase/supabase-js', { createClient: () => aktuellerClient });
 stubs.set('./_lib/calendar-providers', {
-  ensureAccessToken: async () => ({ accessToken: 'token', connection: {} }),
+  ensureAccessToken: async () => {
+    if (tokenFehler) throw tokenFehler;
+    return { accessToken: 'token', connection: {} };
+  },
   checkAvailability: async () => {
+    kalenderAufrufe += 1;
     if (providerFehler) throw providerFehler;
     return verfuegbarkeit;
   },
@@ -108,7 +227,8 @@ process.env.CALENDAR_ROLLOUT_CUSTOMER_IDS = '*';
 process.env.SUPABASE_URL = 'https://example.invalid';
 process.env.SUPABASE_SERVICE_ROLE_KEY = 'service-key';
 
-const { handler } = require('../customer-dashboard/netlify/functions/calendar-tool.js');
+const handlerModul = require('../customer-dashboard/netlify/functions/calendar-tool.js');
+const { handler } = handlerModul;
 
 const WOCHE = { mon: [['08:00', '17:00']], tue: [['08:00', '17:00']], wed: [['08:00', '17:00']], thu: [['08:00', '17:00']], fri: [['08:00', '17:00']], sat: [], sun: [] };
 const SETTINGS = {
@@ -255,20 +375,29 @@ await check('Ein voll belegter Halbtag antwortet mit Begruendung', async () => {
 });
 
 await check('Ein geschlossener Tag fragt den Kalender gar nicht erst', async () => {
-  let gefragt = false;
   verfuegbarkeit = { available: true, busy: [] };
-  const vorher = stubs.get('./_lib/calendar-providers').checkAvailability;
-  stubs.get('./_lib/calendar-providers').checkAvailability = async () => { gefragt = true; return verfuegbarkeit; };
-  try {
-    // 2027-08-14 ist ein Samstag, an dem keine Buchungszeiten liegen.
-    const { payload } = await ruf({
-      action: 'availability', agent_id: 'agent_1',
-      start: '2027-08-14T08:00:00+02:00', end: '2027-08-14T12:00:00+02:00'
-    });
-    assert.equal(payload.available, false);
-    assert.equal(payload.reason, 'calendar_closed_on_this_day');
-    assert.equal(gefragt, false, 'Der Kalender wurde ohne Not befragt');
-  } finally { stubs.get('./_lib/calendar-providers').checkAvailability = vorher; }
+  // Der Zaehler steht im echten Ersatz. Vorher tauschte dieser Test
+  // stubs.get(...).checkAvailability aus -- eine Zuweisung, die
+  // calendar-tool.js nie erreicht, weil es die Anbieterfunktionen beim Require
+  // destrukturiert. Die Zusicherung war damit gruen, egal was das Werkzeug tat.
+  kalenderAufrufe = 0;
+  // 2027-08-14 ist ein Samstag, an dem keine Buchungszeiten liegen.
+  const { payload } = await ruf({
+    action: 'availability', agent_id: 'agent_1',
+    start: '2027-08-14T08:00:00+02:00', end: '2027-08-14T12:00:00+02:00'
+  });
+  assert.equal(payload.available, false);
+  assert.equal(payload.reason, 'calendar_closed_on_this_day');
+  assert.equal(kalenderAufrufe, 0, 'Der Kalender wurde ohne Not befragt');
+});
+
+// Gegenstueck zur Zeile darueber: der Zaehler muss auch hochgehen koennen,
+// sonst waere die Null oben wieder nichts wert.
+await check('Ein offener Tag fragt den Kalender sehr wohl', async () => {
+  verfuegbarkeit = { available: true, busy: [] };
+  kalenderAufrufe = 0;
+  await ruf({ action: 'availability', agent_id: 'agent_1', start: DI('08:00'), end: DI('12:00') });
+  assert.equal(kalenderAufrufe, 1, 'der Zaehler bewegt sich nie -- die Null oben belegt nichts');
 });
 
 await check('Ein Fenster kuerzer als die Termindauer meldet das eigens', async () => {
@@ -432,6 +561,8 @@ await check('Ein nicht freigeschalteter Kunde hinterlaesst wenigstens eine Logze
 // jedem von beiden die Termine des anderen vor, samt Termin-IDs.
 const ANRUFER_A = '+41791234567';
 const ANRUFER_B = '+41799999999';
+// Ein dritter Anschluss -- dieselbe Person wie A, aber von unterwegs.
+const ANRUFER_C = '+41765550101';
 const BELEG_B = '654321';
 
 // Historie: gebucht, verschoben, abgesagt, plus ein vergangener Termin.
@@ -655,13 +786,31 @@ await check('Eine echte Nummer bleibt eine Kennung', async () => {
   assert.equal(payload.identified_by, 'caller_id');
 });
 
-// Nur wenn im ganzen Betrieb nichts ansteht, ist die Frage nach der
-// Terminnummer sinnlos -- dann und nur dann sagt der Agent "kein Termin".
-await check('Ohne anstehende Termine im Betrieb wird nicht nach der Nummer gefragt', async () => {
-  const { payload } = await lookupRuf({ caller_id: '+41780000000' }, HISTORIE_LEER);
-  assert.equal(payload.appointment_count, 0);
-  assert.equal(payload.reason, 'calendar_no_upcoming_appointment',
-    '"kein Termin" ist nicht dasselbe wie "nicht zugeordnet"');
+// Codex-Befund vom 14.08. (P2): die zweite Fassung meldete einen eigenen Grund,
+// wenn im ganzen Betrieb nichts anstand. Das ist betriebsweiter Zustand -- ein
+// beliebiger Anrufer haette daran ablesen koennen, ob dieser Betrieb ueberhaupt
+// Voxera-Termine anstehen hat. Und gedeckt war die Auskunft nicht einmal:
+// Altbestand und fremde Kalender fehlen in der Zahl.
+//
+// Die Antwort muss deshalb IDENTISCH sein, ob der Betrieb voll oder leer ist.
+await check('Ein leerer Betrieb ist von aussen nicht von einem vollen zu unterscheiden', async () => {
+  const leer = await lookupRuf({ caller_id: '+41780000000' }, HISTORIE_LEER);
+  const voll = await lookupRuf({ caller_id: '+41780000000' }, HISTORIE);
+  assert.equal(leer.payload.appointment_count, 0);
+  assert.equal(voll.payload.appointment_count, 0);
+  assert.equal(leer.payload.reason, 'calendar_appointment_unmatched');
+  assert.deepEqual(leer.payload, voll.payload,
+    'die Antwort verraet, ob der Betrieb ueberhaupt anstehende Termine hat');
+});
+
+// Die Zahl darf trotzdem nicht verlorengehen -- ohne sie waere hinterher nicht
+// zu klaeren, ob die Zuordnung danebenlag oder wirklich nichts anstand. Sie
+// gehoert in die Audit-Zeile, nicht in die Antwort.
+await check('Die betriebsweite Zahl steht in der Audit-Zeile, nicht in der Antwort', async () => {
+  const { payload, supabase } = await lookupRuf({ caller_id: '+41780000000' });
+  assert.equal(Object.hasOwn(payload, 'upcoming_total'), false,
+    'die betriebsweite Zahl geht an den Agenten hinaus');
+  assert.equal(auditZeilen(supabase)[0].row.details.upcoming_total, 4);
 });
 
 await check('Altbestand ohne Bindung wird nicht vorgelesen', async () => {
@@ -908,6 +1057,189 @@ await check('Ein nicht gefundener Termin bestaetigt keine Absage', async () => {
     assert.equal(payload.error, 'calendar_event_already_missing');
     assert.notEqual(payload.cancelled, true);
   } finally { loeschErgebnis = { deleted: true, already_missing: false }; }
+});
+
+// ── Abnahmepunkt 13 als automatisierter Fall ────────────────────────────────
+//
+// "Buchen lassen, die vorgelesene Nummer notieren, dann von einer anderen
+// Nummer anrufen und sie nennen." Der Punkt stand in der Abnahme-Checkliste und
+// war richtig formuliert -- er haette den P1 vom 14.08. gefunden. Nur wird er
+// erst beim Testanruf ausgefuehrt, und bis dahin ist der Fehler unterwegs.
+//
+// Was ihn als Test verhindert hat, war nicht der Fall selbst, sondern der
+// Ersatz: eine feste Antworttabelle kann die Terminnummer aus der Buchung nicht
+// zurueckgeben. Mit dem mitschreibenden Ersatz laeuft die ganze Kette.
+
+async function kettenRuf(welt, body) {
+  aktuellerClient = welt.client;
+  const response = await handler({
+    httpMethod: 'POST', headers: { Authorization: 'Bearer test-secret' },
+    body: JSON.stringify({ agent_id: 'agent_1', ...body })
+  });
+  return JSON.parse(response.body);
+}
+
+await check('Kette: buchen, von einer anderen Nummer nachschlagen, mit der Terminnummer absagen', async () => {
+  verfuegbarkeit = { available: true, busy: [] };
+  const welt = makeLivingSupabase();
+
+  // 1. Anrufer A bucht. Die Terminnummer kommt aus der Antwort, nicht aus dem Test.
+  const gebucht = await kettenRuf(welt, {
+    action: 'book', request_id: 'kette_1', start: DI('10:00'), end: DI('10:30'), caller_id: ANRUFER_A
+  });
+  assert.equal(gebucht.ok, true, JSON.stringify(gebucht));
+  const beleg = gebucht.booking_reference;
+  assert.match(String(beleg), /^\d{6}$/, 'die Buchung nennt keine Terminnummer');
+
+  // 2. Anruf von einem ANDEREN Anschluss, ohne Terminnummer. Genau hier lag der
+  // P1: die Antwort schickte den Agenten in die Rueckrufaufnahme, statt nach
+  // der Nummer zu fragen -- der Rueckfall war damit unerreichbar.
+  const ohneNummer = await kettenRuf(welt, { action: 'lookup', caller_id: ANRUFER_C });
+  assert.equal(ohneNummer.appointment_count, 0, 'der fremde Anschluss sieht den Termin ohne Nummer');
+  assert.equal(ohneNummer.reason, 'calendar_appointment_unmatched',
+    'der Anruf von einer anderen Nummer erreicht die Frage nach der Terminnummer nicht');
+
+  // 3. Mit der vorgelesenen Nummer.
+  const mitNummer = await kettenRuf(welt, { action: 'lookup', caller_id: ANRUFER_C, booking_reference: beleg });
+  assert.equal(mitNummer.appointment_count, 1, 'die vorgelesene Terminnummer findet den Termin nicht');
+  assert.equal(mitNummer.appointments[0].external_event_id, gebucht.external_event_id);
+
+  // 4. Und sie traegt bis zur Absage.
+  const abgesagt = await kettenRuf(welt, {
+    action: 'cancel', request_id: 'kette_2',
+    external_event_id: gebucht.external_event_id, caller_id: ANRUFER_C, booking_reference: beleg
+  });
+  assert.equal(abgesagt.ok, true, JSON.stringify(abgesagt));
+  assert.equal(abgesagt.cancelled, true);
+
+  // 5. Danach ist er auch fuer den urspruenglichen Anschluss weg.
+  const danach = await kettenRuf(welt, { action: 'lookup', caller_id: ANRUFER_A });
+  assert.equal(danach.appointment_count, 0, 'der abgesagte Termin steht weiter in der Liste');
+});
+
+await check('Kette: die gesprochene Terminnummer traegt auch mit Trennzeichen', async () => {
+  verfuegbarkeit = { available: true, busy: [] };
+  const welt = makeLivingSupabase();
+  const gebucht = await kettenRuf(welt, {
+    action: 'book', request_id: 'kette_3', start: DI('10:00'), end: DI('10:30'), caller_id: ANRUFER_A
+  });
+  const gesprochen = String(gebucht.booking_reference).replace(/(\d{3})(\d{3})/, 'Nummer $1-$2.');
+  const gefunden = await kettenRuf(welt, { action: 'lookup', caller_id: ANRUFER_C, booking_reference: gesprochen });
+  assert.equal(gefunden.appointment_count, 1);
+});
+
+await check('Kette: ohne die Terminnummer bleibt der Termin fuer Fremde unsichtbar und unabsagbar', async () => {
+  verfuegbarkeit = { available: true, busy: [] };
+  const welt = makeLivingSupabase();
+  const gebucht = await kettenRuf(welt, {
+    action: 'book', request_id: 'kette_4', start: DI('10:00'), end: DI('10:30'), caller_id: ANRUFER_A
+  });
+  const fremd = await kettenRuf(welt, { action: 'lookup', caller_id: ANRUFER_B });
+  assert.equal(fremd.appointment_count, 0);
+  // Selbst mit der -- anderswoher bekannten -- Termin-ID.
+  const versuch = await kettenRuf(welt, {
+    action: 'cancel', request_id: 'kette_5',
+    external_event_id: gebucht.external_event_id, caller_id: ANRUFER_B
+  });
+  assert.equal(versuch.ok, false);
+  assert.equal(versuch.error, 'calendar_appointment_not_yours');
+});
+
+// Codex-Befund vom 14.08. (P2): die Buchung schrieb ihre Terminnummer bisher
+// nur in den Bestand der ANSTEHENDEN Termine. Wer seine Nummer behaelt und
+// dessen Termin vergangen ist, haette sie spaeter bei einem fremden Termin
+// wiedergefunden.
+//
+// Geprueft wird DIREKT an issuedReferences(), nicht ueber eine Buchung. Der
+// erste Anlauf war ein Kettenfall: vergangenen Termin mit der Nummer 424242
+// hinterlegen, buchen, und pruefen, dass die neue Nummer nicht 424242 ist. Der
+// war gruen, ob die Sperre nun griff oder nicht -- eine Ziehung aus einer
+// Million trifft eine bestimmte Nummer praktisch nie. Dieselbe Prueffalle wie
+// bei der Kollisionssperre.
+const { issuedReferences } = handlerModul._test;
+
+await check('Jede je ausgegebene Nummer gilt als vergeben', async () => {
+  const belege = issuedReferences([
+    // Anstehend.
+    { action: 'book', details: { booking_reference: '111111', response: { start: '2027-08-10T06:00:00.000Z' } } },
+    // Vergangen -- die anrufende Person hat den Zettel trotzdem noch.
+    { action: 'book', details: { booking_reference: '424242', response: { start: '2026-08-05T06:00:00.000Z' } } },
+    // Abgesagt -- ebenso.
+    { action: 'book', details: { booking_reference: '555555', response: { start: '2027-08-11T06:00:00.000Z' } } },
+    { action: 'cancel', details: { booking_reference: '555555', response: { cancelled: true } } },
+    // Ohne Nummer: nichts hinzuzufuegen.
+    { action: 'book', details: { response: { start: '2027-08-12T06:00:00.000Z' } } }
+  ]);
+  assert.ok(belege.has('111111'), 'die anstehende Nummer fehlt');
+  assert.ok(belege.has('424242'), 'eine vergangene Nummer wird wieder freigegeben');
+  assert.ok(belege.has('555555'), 'eine abgesagte Nummer wird wieder freigegeben');
+  assert.equal(belege.size, 3);
+});
+
+// Codex-Befund vom 14.08. (P2): zwei gleichzeitige Buchungen koennen denselben
+// Bestand lesen und dieselbe Nummer ziehen. Verhindert wird das hier nicht --
+// entschaerft wird die FOLGE: eine mehrdeutige Nummer weist keinen Termin zu.
+await check('Eine mehrdeutige Terminnummer weist keinen Termin zu', async () => {
+  const doppelt = [
+    { external_event_id: 'evt_p', connection_id: 'conn_1', action: 'book', created_at: '2026-08-01T10:00:00Z',
+      details: { caller_reference: ANRUFER_A, booking_reference: '777777', calendar_id: 'cal_1',
+                 response: { start: '2027-08-20T06:00:00.000Z', end: '2027-08-20T06:30:00.000Z' } } },
+    { external_event_id: 'evt_q', connection_id: 'conn_1', action: 'book', created_at: '2026-08-02T10:00:00Z',
+      details: { caller_reference: ANRUFER_B, booking_reference: '777777', calendar_id: 'cal_1',
+                 response: { start: '2027-08-21T06:00:00.000Z', end: '2027-08-21T06:30:00.000Z' } } }
+  ];
+  const { payload } = await lookupRuf({ booking_reference: '777777' }, doppelt);
+  assert.equal(payload.appointment_count, 0,
+    'eine doppelt vergebene Nummer liest den Termin einer fremden Person vor');
+  assert.equal(payload.reason, 'calendar_booking_reference_unknown');
+});
+
+await check('Eine mehrdeutige Terminnummer erlaubt auch keine Absage', async () => {
+  const doppelt = [
+    { external_event_id: 'evt_p', connection_id: 'conn_1', action: 'book', created_at: '2026-08-01T10:00:00Z',
+      details: { caller_reference: ANRUFER_A, booking_reference: '777777', calendar_id: 'cal_1',
+                 response: { start: '2027-08-20T06:00:00.000Z', end: '2027-08-20T06:30:00.000Z' } } },
+    { external_event_id: 'evt_q', connection_id: 'conn_1', action: 'book', created_at: '2026-08-02T10:00:00Z',
+      details: { caller_reference: ANRUFER_B, booking_reference: '777777', calendar_id: 'cal_1',
+                 response: { start: '2027-08-21T06:00:00.000Z', end: '2027-08-21T06:30:00.000Z' } } }
+  ];
+  const supabase = makeSupabase({ answers: mitHistorie(doppelt) });
+  aktuellerClient = supabase.client;
+  const response = await handler({
+    httpMethod: 'POST', headers: { Authorization: 'Bearer test-secret' },
+    body: JSON.stringify({ action: 'cancel', agent_id: 'agent_1', request_id: 'mehrdeutig',
+      external_event_id: 'evt_q', booking_reference: '777777' })
+  });
+  assert.equal(response.statusCode, 403);
+  assert.equal(JSON.parse(response.body).error, 'calendar_appointment_not_yours');
+});
+
+// Codex-Befund vom 14.08. (P2): `lookup` liest ausschliesslich unsere eigene
+// Tabelle -- haing aber am Anbieter-Zugriffsschluessel, weil der vor der
+// Verzweigung geholt wurde. Ein zurueckgezogener Aktualisierungsschluessel liess
+// das Nachschlagen scheitern, obwohl seine Quelle gesund ist.
+await check('lookup kommt ohne Anbieter-Zugriffsschluessel aus', async () => {
+  tokenFehler = Object.assign(new Error('calendar_reauthorization_required'), { status: 401 });
+  try {
+    const { response, payload } = await lookupRuf({ caller_id: ANRUFER_A });
+    assert.equal(response.statusCode, 200, 'das Nachschlagen haengt weiterhin am Anbieter');
+    assert.equal(payload.appointment_count, 2);
+  } finally { tokenFehler = null; }
+});
+
+// Und die Gegenrichtung, damit die Zeile darueber nicht bloss deshalb gruen ist,
+// weil der gestellte Schluessel nie geworfen haette.
+await check('book scheitert sehr wohl an einem zurueckgezogenen Schluessel', async () => {
+  tokenFehler = Object.assign(new Error('calendar_reauthorization_required'), { status: 401 });
+  try {
+    verfuegbarkeit = { available: true, busy: [] };
+    const welt = makeLivingSupabase();
+    const versuch = await kettenRuf(welt, {
+      action: 'book', request_id: 'token_1', start: DI('10:00'), end: DI('10:30'), caller_id: ANRUFER_A
+    });
+    assert.equal(versuch.ok, false, 'der gestellte Schluesselfehler kommt nirgends an');
+    assert.equal(versuch.error, 'calendar_reauthorization_required');
+  } finally { tokenFehler = null; }
 });
 
 // ── Punkt 4: kein geratener Anbieter im Fehlerpfad ──────────────────────────

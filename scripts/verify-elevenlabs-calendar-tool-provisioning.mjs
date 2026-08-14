@@ -504,8 +504,8 @@ try {
   for (const token of [
     "require('./_lib/caller-identity')",
     'identityFromBody(body)',
-    'matchesCaller(termin, identitaet)',
-    'ownershipConflict(bestehenderTermin, identitaet)',
+    'matchAppointments(anstehende, identitaet)',
+    'ownershipConflict(',
     'caller_reference:',
     'booking_reference:'
   ]) {
@@ -516,18 +516,53 @@ try {
   // fuehrt zur Frage danach -- nicht in die Rueckrufaufnahme und erst recht
   // nicht in eine Suche mit availability.
   assert.match(block, /booking_reference/, 'Der Prompt kennt die Terminnummer nicht');
-  // Drei Gründe, drei verschiedene Sätze. Sie fielen in der ersten Fassung
-  // teilweise zusammen -- und genau dadurch war der Rückfall auf die
-  // Terminnummer für Anrufe von einer anderen Nummer unerreichbar (Codex-P1).
+  // Zwei Gründe, zwei verschiedene Sätze. In der ersten Fassung fielen sie
+  // zusammen -- und genau dadurch war der Rückfall auf die Terminnummer für
+  // Anrufe von einer anderen Nummer unerreichbar (Codex-P1).
   assert.match(block, /calendar_appointment_unmatched/,
     'Der Prompt behandelt den Fall "nicht zugeordnet" nicht');
   assert.match(block, /calendar_booking_reference_unknown/,
     'Der Prompt behandelt eine falsch verstandene Terminnummer nicht');
-  assert.match(block, /calendar_no_upcoming_appointment/,
-    'Der Prompt unterscheidet "nicht zugeordnet" nicht von "kein Termin"');
-  // Der Server darf die drei auch nicht wieder zusammenlegen.
-  for (const grund of ['calendar_appointment_unmatched', 'calendar_booking_reference_unknown', 'calendar_no_upcoming_appointment']) {
+  for (const grund of ['calendar_appointment_unmatched', 'calendar_booking_reference_unknown']) {
     if (!source.core.includes(grund)) failures.push('Der Grund fehlt im Werkzeug: ' + grund);
+  }
+
+  // Und der dritte darf NICHT zurückkommen. Er meldete betriebsweiten Zustand
+  // an einen beliebigen Anrufer -- und behauptete dabei etwas, das die Zahl
+  // gar nicht deckte (Altbestand und fremde Kalender fehlen darin).
+  if (source.core.includes('calendar_no_upcoming_appointment')) {
+    failures.push('Der Grund "kein anstehender Termin" ist zurück -- er verrät betriebsweiten Zustand');
+  }
+  // Der alte Wortlaut von Schritt 16, wörtlich. Kommt er zurück, behauptet der
+  // Agent wieder etwas über fremde Termine.
+  assert.ok(!/steht überhaupt kein Termin an/.test(block),
+    'Der Prompt behauptet wieder, es gebe keinen Termin — das wissen wir nicht');
+  assert.match(block, /Sage dabei nie, es gebe keinen Termin/,
+    'Dem Agenten ist nicht verboten, "Sie haben keinen Termin" zu sagen');
+
+  // Die Terminnummer wird gezogen, BEVOR der Anbieter etwas ändert.
+  //
+  // Codex-Befund vom 14.08. (P2): die Ziehung kann bei erschöpftem Nummernraum
+  // abbrechen. Steht sie hinter dem Anbieteraufruf, ist der Termin angelegt
+  // bzw. verschoben, die Antwort lautet 503, und keine Erfolgszeile hält fest,
+  // was im Kalender passiert ist.
+  //
+  // Am laufenden Handler ist das nicht prüfbar — der Abbruch verlangt einen
+  // erschöpften Nummernraum, den ein Test nicht herstellen kann. Geprüft wird
+  // deshalb die Reihenfolge im Quelltext. Das ist schwächer als ein Fall, aber
+  // es fängt genau die Änderung, die den Befund zurückbrächte.
+  for (const [zweig, anbieteraufruf] of [['book', 'createEvent('], ['reschedule', 'updateEvent(']]) {
+    const start = source.core.indexOf(`action === '${zweig}'`);
+    const ende = zweig === 'book'
+      ? source.core.indexOf("action === 'reschedule'", start)
+      : source.core.indexOf('\n    } else {', start);
+    const abschnitt = source.core.slice(start, ende > start ? ende : undefined);
+    const ziehung = abschnitt.indexOf('bookingReference(');
+    const aenderung = abschnitt.indexOf(anbieteraufruf);
+    assert.ok(ziehung >= 0 && aenderung >= 0,
+      `${zweig}: Ziehung oder Anbieteraufruf nicht gefunden`);
+    assert.ok(ziehung < aenderung,
+      `${zweig}: die Terminnummer wird erst nach ${anbieteraufruf} gezogen — ein Abbruch liesse den Kalender geändert zurück`);
   }
 
   // GRENZE: eine Anrufernummer ist keine Authentifizierung. Sie ist faelschbar.
