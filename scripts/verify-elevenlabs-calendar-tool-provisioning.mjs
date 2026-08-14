@@ -423,7 +423,8 @@ try {
 
   // Der Server muss die Aktion auch annehmen.
   assert.match(source.core, /'lookup'/, 'Das Werkzeug kennt die Aktion lookup nicht');
-  assert.match(source.core, /loadUpcomingAppointments/, 'Die Nachschlage-Abfrage fehlt');
+  assert.match(source.core, /loadAppointmentHistory/, 'Die Nachschlage-Abfrage fehlt');
+  assert.match(source.core, /upcomingAppointments\(/, 'Die Begrenzung auf anstehende Termine fehlt');
 
   // Prompt: der Weg ueber das Nachschlagen, und das Verbot der Fehldeutung.
   assert.match(block, /find_voxera_appointments/, 'Der Prompt nennt das Nachschlagewerkzeug nicht');
@@ -442,6 +443,75 @@ try {
     'Der Prompt sagt nicht, dass der Weg ohne Zeitangabe auskommt');
   assert.match(block, /Frage nicht nach Datum oder Uhrzeit/,
     'Der Prompt laesst den Agenten weiterhin nach der Uhrzeit des Termins fragen');
+
+  // ── Anrufer-Bindung (14.08.) ──────────────────────────────────────────────
+  //
+  // Bis hierher lieferte `lookup` die anstehenden Termine des KUNDEN, also des
+  // Betriebs -- an jeden, der anrief, samt Termin-IDs und damit samt der
+  // Moeglichkeit, fremde Termine abzusagen.
+  //
+  // Gebunden wird an die Anrufernummer, mit der Terminnummer als Rueckfall.
+  // Die Nummer kommt von ElevenLabs als system__caller_id.
+  for (const [name, schema] of [
+    ['manage', body],
+    ['cancel', cancelBody],
+    ['lookup', lookupBody]
+  ]) {
+    assert.deepEqual(schema.properties.caller_id, { type: 'string', dynamic_variable: 'system__caller_id' },
+      `${name}: die Anrufernummer wird nicht als dynamische Variable gesetzt`);
+    // KEINE Pflichtangabe. system__caller_id gibt es nur bei
+    // Telefongespraechen; im Widget-Testchat ist sie leer. Stuende sie in
+    // `required`, waere das Werkzeug dort unbenutzbar -- und der Testkanal ist
+    // genau der, auf dem wir sie am wenigsten haben.
+    assert.ok(!schema.required.includes('caller_id'),
+      `${name}: caller_id ist Pflicht -- ohne Telefonkanal bricht das Werkzeug damit`);
+    assert.ok(!schema.required.includes('booking_reference'),
+      `${name}: die Terminnummer ist Pflicht, obwohl die meisten sie nicht zur Hand haben`);
+    // Das Modell darf die Anrufernummer nicht selbst befuellen: eine
+    // Beschreibung macht aus dem Feld eine LLM-Eingabe, und dann kann der
+    // Agent sich seine Zuordnung erfinden.
+    assert.equal(Object.hasOwn(schema.properties.caller_id, 'description'), false,
+      `${name}: caller_id traegt eine Beschreibung und wird damit vom Modell befuellbar`);
+  }
+  // Der Rueckfall muss dort stehen, wo er gebraucht wird: beim Nachschlagen und
+  // beim Absagen.
+  assert.match(lookupBody.properties.booking_reference.description, /Terminnummer/,
+    'Das Nachschlagewerkzeug kennt die Terminnummer nicht');
+  assert.match(cancelBody.properties.booking_reference.description, /Terminnummer/,
+    'Das Absagewerkzeug kennt die Terminnummer nicht');
+  assert.match(lookupBody.properties.booking_reference.description, /[Nn]iemals erfinden/,
+    'Die Terminnummer darf geraten werden');
+
+  // Server: die Bindung, ihre beiden Richtungen, und die Filterung.
+  for (const token of [
+    "require('./_lib/caller-identity')",
+    'identityFromBody(body)',
+    'matchesCaller(termin, identitaet)',
+    'ownershipConflict(bestehenderTermin, identitaet)',
+    'caller_reference:',
+    'booking_reference:'
+  ]) {
+    if (!source.core.includes(token)) failures.push('Anrufer-Bindung fehlt im Werkzeug: ' + token);
+  }
+
+  // Prompt: die Terminnummer wird vorgelesen, und der Nicht-Zuordnungsfall
+  // fuehrt zur Frage danach -- nicht in die Rueckrufaufnahme und erst recht
+  // nicht in eine Suche mit availability.
+  assert.match(block, /booking_reference/, 'Der Prompt kennt die Terminnummer nicht');
+  assert.match(block, /calendar_caller_unidentified/,
+    'Der Prompt behandelt den Fall "nicht zuordenbar" nicht');
+  assert.match(block, /calendar_no_upcoming_appointment/,
+    'Der Prompt unterscheidet "nicht zuordenbar" nicht von "kein Termin"');
+
+  // GRENZE: eine Anrufernummer ist keine Authentifizierung. Sie ist faelschbar.
+  // Der Prompt darf sie nirgends als Schutz darstellen -- ein Satz wie "nur Sie
+  // koennen Ihren Termin absagen" waere ein Versprechen ohne Deckung.
+  assert.ok(!/[Ss]icherheit|[Aa]uthentifiz|[Ii]dentität bestätig|[Vv]erifizier|zu Ihrem Schutz|nur Sie können/.test(block),
+    'Der Prompt stellt die Anrufernummer als Sicherheitsmerkmal dar');
+  // Und die Grenze muss im Code stehen, nicht nur im Ticket.
+  assert.match(fs.readFileSync('customer-dashboard/netlify/functions/_lib/caller-identity.js', 'utf8'),
+    /KEINE AUTHENTIFIZIERUNG/,
+    'Die Grenze der Anrufernummer ist im Code nicht benannt');
 } catch (error) {
   failures.push('Provisioning helper contract failed: ' + error.message);
 }

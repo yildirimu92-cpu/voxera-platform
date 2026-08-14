@@ -125,6 +125,25 @@ function dynamicProperty(type, variable) {
   };
 }
 
+// Die Anrufernummer, gesetzt von ElevenLabs -- das Modell waehlt sie nicht.
+//
+// `system__caller_id` gibt es NUR bei Telefongespraechen. Im Widget-Testchat
+// und bei jedem anderen Kanal ist die Variable leer. Sie steht deshalb in
+// KEINEM der drei Werkzeuge in `required`: eine Pflichtangabe, die auf einem
+// ganzen Kanal nicht existiert, macht das Werkzeug dort unbenutzbar.
+//
+// GRENZE: eine Anrufernummer ist keine Authentifizierung. Sie ist faelschbar
+// und teilbar; ElevenLabs schreibt das ueber die eigene Variable selbst. Sie
+// ordnet einen Termin einer Person zu, sie weist nichts nach. Die ausfuehrliche
+// Begruendung steht in
+// customer-dashboard/netlify/functions/_lib/caller-identity.js.
+const CALLER_ID_PROPERTY = () => dynamicProperty('string', 'system__caller_id');
+
+// Der Rueckfall, wenn keine Anrufernummer vorliegt oder von einem anderen
+// Anschluss angerufen wird. Anders als caller_id kommt sie vom Modell -- die
+// anrufende Person liest sie vor.
+const BOOKING_REFERENCE_PROPERTY = () => llmProperty('string', 'Terminnummer aus der Buchungsbestätigung, sechs Ziffern. Nur angeben, wenn die anrufende Person sie von sich aus nennt oder auf Nachfrage vorliest. Niemals erfinden und niemals raten.');
+
 // Gemeinsame Huelle beider Werkzeuge: gleiche URL, gleiches Geheimnis, gleiche
 // Kopfzeilen. Nur Name, Beschreibung und Rumpfschema unterscheiden sich.
 function toolEnvelope(secretId, { name, description, requestBodySchema }) {
@@ -188,6 +207,8 @@ function buildToolConfig(secretId) {
           agent_id: dynamicProperty('string', 'system__agent_id'),
           conversation_id: dynamicProperty('string', 'system__conversation_id'),
           agent_turns: dynamicProperty('number', 'system__agent_turns'),
+          caller_id: CALLER_ID_PROPERTY(),
+          booking_reference: BOOKING_REFERENCE_PROPERTY(),
           start: llmProperty('string', 'Beginn als vollständiger ISO-8601-Zeitstempel mit Schweizer Offset, zum Beispiel 2026-08-05T10:00:00+02:00. Der Zeitraum start bis end darf höchstens 8 Stunden umfassen; frage sonst nach einem Halbtag. Für Absagen ' + CANCEL_TOOL_NAME + ' verwenden, das ohne Zeitangaben auskommt.'),
           end: llmProperty('string', 'Ende als vollständiger ISO-8601-Zeitstempel mit Schweizer Offset. Bei book und reschedule ist es genau die konfigurierte Termindauer nach start.'),
           title: llmProperty('string', 'Kurzer Kalendertitel für book oder reschedule.'),
@@ -220,7 +241,7 @@ function buildToolConfig(secretId) {
 function buildLookupToolConfig(secretId) {
   return toolEnvelope(secretId, {
     name: LOOKUP_TOOL_NAME,
-    description: 'Listet die anstehenden von Voxera gebuchten Termine der anrufenden Person auf, mit ihren Termin-IDs. Verwenden, bevor ein Termin abgesagt oder verschoben wird, und immer dann, wenn jemand seinen Termin nicht genau benennen kann. Verlangt keine Zeitangaben.',
+    description: 'Listet die anstehenden von Voxera gebuchten Termine der anrufenden Person auf, mit ihren Termin-IDs. Verwenden, bevor ein Termin abgesagt oder verschoben wird, und immer dann, wenn jemand seinen Termin nicht genau benennen kann. Verlangt keine Zeitangaben. Zugeordnet wird über die Anrufernummer; ist keine vorhanden, kann die Terminnummer aus der Buchungsbestätigung angegeben werden.',
     requestBodySchema: {
       type: 'object',
       description: 'Nachschlagen der anstehenden Termine für den aktuell sprechenden Voxera-Agenten.',
@@ -230,7 +251,9 @@ function buildLookupToolConfig(secretId) {
         }),
         agent_id: dynamicProperty('string', 'system__agent_id'),
         conversation_id: dynamicProperty('string', 'system__conversation_id'),
-        agent_turns: dynamicProperty('number', 'system__agent_turns')
+        agent_turns: dynamicProperty('number', 'system__agent_turns'),
+        caller_id: CALLER_ID_PROPERTY(),
+        booking_reference: BOOKING_REFERENCE_PROPERTY()
       },
       required: ['action', 'agent_id', 'conversation_id']
     }
@@ -258,6 +281,8 @@ function buildCancelToolConfig(secretId) {
         agent_id: dynamicProperty('string', 'system__agent_id'),
         conversation_id: dynamicProperty('string', 'system__conversation_id'),
         agent_turns: dynamicProperty('number', 'system__agent_turns'),
+        caller_id: CALLER_ID_PROPERTY(),
+        booking_reference: BOOKING_REFERENCE_PROPERTY(),
         external_event_id: llmProperty('string', 'Von Voxera zurückgegebene Kalendertermin-ID des abzusagenden Termins. Niemals erfinden — ohne echte ID keine Absage.')
       },
       required: ['action', 'agent_id', 'conversation_id', 'external_event_id']
@@ -389,6 +414,18 @@ async function agentToolIds(agentId, calendarToolIds, { attach }) {
 // mindestens einen buchbaren Termin", nicht mehr "der ganze Zeitraum ist frei".
 // Ohne diesen Hinweis wuerde der Agent bei available=true einen halben Tag als
 // frei anbieten.
+//
+// Schritte 10, 14 und 15 gehoeren seit dem 2026-08-14 zur Anrufer-Bindung. Das
+// Nachschlagen liefert nur noch Termine, die der anrufenden Person zugeordnet
+// sind -- vorher las es jedem Anrufer die anstehenden Termine ALLER Kunden des
+// Betriebs vor, samt Termin-IDs. Zugeordnet wird ueber die Anrufernummer, mit
+// der Terminnummer als Rueckfall.
+//
+// Der Prompt stellt das ausdruecklich NICHT als Schutz dar, und Schritt 10
+// begruendet die Terminnummer mit dem Wiederfinden, nicht mit Sicherheit. Eine
+// Anrufernummer ist faelschbar; ein Satz wie "nur Sie koennen Ihren Termin
+// absagen" waere ein Versprechen, das wir nicht halten koennen. Siehe
+// customer-dashboard/netlify/functions/_lib/caller-identity.js.
 function calendarPromptBlock(settings = {}, appointmentMode = '') {
   if (appointmentMode !== 'direct') return '';
   if (!settings.feature_enabled || !settings.active_provider) return '';
@@ -406,12 +443,15 @@ function calendarPromptBlock(settings = {}, appointmentMode = '') {
     '7. Ist free_slots leer: Sage nur, dass in diesem Zeitraum nichts frei ist, und frage nach einer Alternative — zum Beispiel nach dem anderen Halbtag oder einem anderen Tag.',
     '8. Buche erst nach dieser Bestätigung mit action=book, und zwar genau eine Zeit aus free_slots. Erfinde keine anderen Zeiten.',
     '9. Bestätige einen Termin erst, wenn das Tool ok=true zurückgibt.',
-    '10. Verwende reschedule nur mit einer echten external_event_id. Erfinde diese ID niemals — hol sie dir mit ' + LOOKUP_TOOL_NAME + '.',
-    '11. Ein freier Zeitraum ist kein Termin. Meldet availability available=true oder ein leeres busy, heisst das: dort ist NICHTS gebucht. Sage niemals, du habest einen Termin gefunden, weil eine Zeit frei war. availability beantwortet nur, was buchbar ist — nie, ob jemand einen Termin hat.',
-    '12. Will jemand einen bestehenden Termin absagen oder verschieben, rufe zuerst ' + LOOKUP_TOOL_NAME + ' auf. Es braucht keine Zeitangabe und liefert die anstehenden Termine mit ihren IDs. Frage nicht nach Datum oder Uhrzeit — die meisten Menschen wissen das nicht mehr, und du brauchst es nicht.',
-    '13. Genau ein Termin in der Antwort: nenne ihn mit Datum und Uhrzeit und lass ihn bestätigen. Mehrere Termine: lies sie vor und lass die anrufende Person wählen. Kein Termin: sage, dass du keinen anstehenden Termin findest, und nimm eine Rückrufanfrage auf. Rate nie, welcher gemeint ist.',
-    '14. Für die Absage verwende dann ' + CANCEL_TOOL_NAME + ' mit der external_event_id aus der Antwort von ' + LOOKUP_TOOL_NAME + '.',
-    '15. Antwortet das Tool nicht mit ok=true, sprich nie über den Fehler, das Werkzeug oder den Kalender. Sage, dass du den Termin nicht selbst bestätigen kannst, und nimm eine vollständige Rückrufanfrage auf. Die Wörter Fehler, System, Tool, Schnittstelle und Kalender kommen dabei nicht vor.'
+    '10. Nenne nach jeder Buchung die booking_reference aus der Tool-Antwort als Terminnummer, Ziffer für Ziffer, und bitte darum, sie zu notieren. Sag dazu, dass sie hilft, den Termin wiederzufinden, falls später von einer anderen Nummer aus angerufen wird. Erfinde diese Nummer nie — nenne nur, was das Tool zurückgegeben hat.',
+    '11. Verwende reschedule nur mit einer echten external_event_id. Erfinde diese ID niemals — hol sie dir mit ' + LOOKUP_TOOL_NAME + '.',
+    '12. Ein freier Zeitraum ist kein Termin. Meldet availability available=true oder ein leeres busy, heisst das: dort ist NICHTS gebucht. Sage niemals, du habest einen Termin gefunden, weil eine Zeit frei war. availability beantwortet nur, was buchbar ist — nie, ob jemand einen Termin hat.',
+    '13. Will jemand einen bestehenden Termin absagen oder verschieben, rufe zuerst ' + LOOKUP_TOOL_NAME + ' auf. Es braucht keine Zeitangabe und liefert die anstehenden Termine mit ihren IDs. Frage nicht nach Datum oder Uhrzeit — die meisten Menschen wissen das nicht mehr, und du brauchst es nicht.',
+    '14. Meldet die Antwort reason=calendar_caller_unidentified, konnte das Werkzeug den Anruf keinem Termin zuordnen. Frage dann nach der sechsstelligen Terminnummer aus der Buchungsbestätigung und rufe ' + LOOKUP_TOOL_NAME + ' erneut auf, diesmal mit booking_reference. Wird keine genannt, nimm eine Rückrufanfrage auf.',
+    '15. Meldet die Antwort reason=calendar_no_upcoming_appointment, steht kein Termin an. Sage das und nimm eine Rückrufanfrage auf. Suche dann nicht mit availability weiter — ein freier Zeitraum ist kein Termin.',
+    '16. Genau ein Termin in der Antwort: nenne ihn mit Datum und Uhrzeit und lass ihn bestätigen. Mehrere Termine: lies sie vor und lass die anrufende Person wählen. Rate nie, welcher gemeint ist.',
+    '17. Für die Absage verwende dann ' + CANCEL_TOOL_NAME + ' mit der external_event_id aus der Antwort von ' + LOOKUP_TOOL_NAME + ' — und mit derselben booking_reference, falls du danach gefragt hast.',
+    '18. Antwortet das Tool nicht mit ok=true, sprich nie über den Fehler, das Werkzeug oder den Kalender. Sage, dass du den Termin nicht selbst bestätigen kannst, und nimm eine vollständige Rückrufanfrage auf. Die Wörter Fehler, System, Tool, Schnittstelle und Kalender kommen dabei nicht vor.'
   ].join('\n');
 }
 

@@ -428,29 +428,46 @@ await check('Ein nicht freigeschalteter Kunde hinterlaesst wenigstens eine Logze
 // Termins aus einem FRUEHEREN Gespraech nicht finden -- Absagen war in einem
 // neuen Anruf prinzipiell unmoeglich.
 
+// Zwei Anrufende beim selben Betrieb. Bis zum 14.08. las das Nachschlagen
+// jedem von beiden die Termine des anderen vor, samt Termin-IDs.
+const ANRUFER_A = '+41791234567';
+const ANRUFER_B = '+41799999999';
+const BELEG_B = '654321';
+
 // Historie: gebucht, verschoben, abgesagt, plus ein vergangener Termin.
 const HISTORIE = [
   { external_event_id: 'evt_alt', connection_id: 'conn_1', action: 'book', created_at: '2026-08-01T10:00:00Z',
-    details: { response: { start: '2026-08-05T08:00:00.000Z', end: '2026-08-05T08:30:00.000Z' } } },
+    details: { caller_reference: ANRUFER_A, response: { start: '2026-08-05T08:00:00.000Z', end: '2026-08-05T08:30:00.000Z' } } },
   { external_event_id: 'evt_a', connection_id: 'conn_1', action: 'book', created_at: '2026-08-02T10:00:00Z',
-    details: { response: { start: '2027-08-10T06:00:00.000Z', end: '2027-08-10T06:30:00.000Z' } } },
+    details: { caller_reference: ANRUFER_A, booking_reference: '111111',
+               response: { start: '2027-08-10T06:00:00.000Z', end: '2027-08-10T06:30:00.000Z' } } },
   { external_event_id: 'evt_b', connection_id: 'conn_1', action: 'book', created_at: '2026-08-03T10:00:00Z',
-    details: { response: { start: '2027-08-11T06:00:00.000Z', end: '2027-08-11T06:30:00.000Z' } } },
+    details: { caller_reference: ANRUFER_A, booking_reference: '222222',
+               response: { start: '2027-08-11T06:00:00.000Z', end: '2027-08-11T06:30:00.000Z' } } },
   { external_event_id: 'evt_b', connection_id: 'conn_1', action: 'reschedule', created_at: '2026-08-04T10:00:00Z',
-    details: { response: { start: '2027-08-12T09:00:00.000Z', end: '2027-08-12T09:30:00.000Z' } } },
+    details: { caller_reference: ANRUFER_A, booking_reference: '222222',
+               response: { start: '2027-08-12T09:00:00.000Z', end: '2027-08-12T09:30:00.000Z' } } },
   { external_event_id: 'evt_weg', connection_id: 'conn_1', action: 'book', created_at: '2026-08-05T10:00:00Z',
-    details: { response: { start: '2027-08-13T06:00:00.000Z', end: '2027-08-13T06:30:00.000Z' } } },
+    details: { caller_reference: ANRUFER_A, response: { start: '2027-08-13T06:00:00.000Z', end: '2027-08-13T06:30:00.000Z' } } },
   { external_event_id: 'evt_weg', connection_id: 'conn_1', action: 'cancel', created_at: '2026-08-06T10:00:00Z',
-    details: { response: { cancelled: true } } },
+    details: { caller_reference: ANRUFER_A, response: { cancelled: true } } },
   // Codex-Befund vom 13.08. (P1): Buchungen aus einer frueheren Verbindung oder
   // von einem anderen Kalender sind heute nicht mehr absagbar.
   { external_event_id: 'evt_fremde_verbindung', action: 'book', created_at: '2026-08-07T10:00:00Z',
     connection_id: 'conn_alt',
-    details: { response: { start: '2027-08-14T06:00:00.000Z', end: '2027-08-14T06:30:00.000Z' } } },
+    details: { caller_reference: ANRUFER_A, response: { start: '2027-08-14T06:00:00.000Z', end: '2027-08-14T06:30:00.000Z' } } },
   { external_event_id: 'evt_fremder_kalender', action: 'book', created_at: '2026-08-08T10:00:00Z',
     connection_id: 'conn_1', calendar_id: 'cal_anderer',
-    details: { response: { start: '2027-08-15T06:00:00.000Z', end: '2027-08-15T06:30:00.000Z' },
-               calendar_id: 'cal_anderer' } }
+    details: { caller_reference: ANRUFER_A, response: { start: '2027-08-15T06:00:00.000Z', end: '2027-08-15T06:30:00.000Z' },
+               calendar_id: 'cal_anderer' } },
+  // Der Termin einer ANDEREN anrufenden Person. Bewusst der frueheste der
+  // anstehenden -- leckt die Filterung, steht er ganz oben in der Liste.
+  { external_event_id: 'evt_fremd', connection_id: 'conn_1', action: 'book', created_at: '2026-08-09T10:00:00Z',
+    details: { caller_reference: ANRUFER_B, booking_reference: BELEG_B,
+               response: { start: '2027-08-09T06:00:00.000Z', end: '2027-08-09T06:30:00.000Z' } } },
+  // Altbestand: vor dem 14.08. gebucht, traegt deshalb keine Bindung.
+  { external_event_id: 'evt_ohne_bindung', connection_id: 'conn_1', action: 'book', created_at: '2026-08-10T10:00:00Z',
+    details: { response: { start: '2027-08-08T06:00:00.000Z', end: '2027-08-08T06:30:00.000Z' } } }
 ];
 
 const mitHistorie = () => ({
@@ -468,7 +485,7 @@ await check('lookup liefert anstehende Termine ohne jede Zeitangabe', async () =
   aktuellerClient = supabase.client;
   const response = await handler({
     httpMethod: 'POST', headers: { Authorization: 'Bearer test-secret' },
-    body: JSON.stringify({ action: 'lookup', agent_id: 'agent_1' })
+    body: JSON.stringify({ action: 'lookup', agent_id: 'agent_1', caller_id: ANRUFER_A })
   });
   const payload = JSON.parse(response.body);
   assert.equal(payload.ok, true, JSON.stringify(payload));
@@ -494,13 +511,19 @@ await check('lookup schreibt genau eine Audit-Zeile und nennt keine Termine dari
   aktuellerClient = supabase.client;
   await handler({
     httpMethod: 'POST', headers: { Authorization: 'Bearer test-secret' },
-    body: JSON.stringify({ action: 'lookup', agent_id: 'agent_1' })
+    body: JSON.stringify({ action: 'lookup', agent_id: 'agent_1', caller_id: ANRUFER_A })
   });
   const zeilen = auditZeilen(supabase);
   assert.equal(zeilen.length, 1, `erwartet 1 Zeile, geschrieben: ${zeilen.length}`);
   assert.equal(zeilen[0].row.action, 'lookup');
   assert.equal(zeilen[0].row.details.appointment_count, 2);
   assert.equal(Object.hasOwn(zeilen[0].row.details, 'appointments'), false);
+  // Ohne diese drei Felder liesse sich "warum fand er meinen Termin nicht"
+  // spaeter nicht beantworten: die blosse Null unterscheidet nicht zwischen
+  // "kein Termin" und "Zuordnung danebengegangen".
+  assert.equal(zeilen[0].row.details.identified_by, 'caller_id');
+  assert.equal(zeilen[0].row.details.caller_reference, ANRUFER_A);
+  assert.equal(zeilen[0].row.details.upcoming_total, 4);
 });
 
 await check('lookup braucht keine request_id', async () => {
@@ -508,10 +531,242 @@ await check('lookup braucht keine request_id', async () => {
   aktuellerClient = supabase.client;
   const response = await handler({
     httpMethod: 'POST', headers: { Authorization: 'Bearer test-secret' },
-    body: JSON.stringify({ action: 'lookup', agent_id: 'agent_1' })
+    body: JSON.stringify({ action: 'lookup', agent_id: 'agent_1', caller_id: ANRUFER_A })
   });
   assert.equal(response.statusCode, 200);
   assert.notEqual(JSON.parse(response.body).error, 'calendar_request_id_required');
+});
+
+// ── Anrufer-Bindung (14.08.) ───────────────────────────────────────────────
+//
+// Vorher lieferte lookup die anstehenden Termine des KUNDEN -- also des
+// Betriebs -- an jeden, der anrief. Mit Termin-ID, und damit mit der
+// Moeglichkeit, den Termin einer fremden Person abzusagen.
+//
+// GRENZE: die Anrufernummer ist eine Zuordnung, kein Nachweis. Sie ist
+// faelschbar. Diese Pruefungen halten fest, dass die Zuordnung greift -- nicht,
+// dass sie jemanden aussperrt, der es darauf anlegt.
+
+const lookupRuf = (body) => {
+  const supabase = makeSupabase({ answers: mitHistorie() });
+  aktuellerClient = supabase.client;
+  return handler({
+    httpMethod: 'POST', headers: { Authorization: 'Bearer test-secret' },
+    body: JSON.stringify({ action: 'lookup', agent_id: 'agent_1', ...body })
+  }).then((response) => ({ response, payload: JSON.parse(response.body), supabase }));
+};
+
+await check('lookup nennt keine Termine fremder Anrufender', async () => {
+  const { payload } = await lookupRuf({ caller_id: ANRUFER_A });
+  const ids = payload.appointments.map((termin) => termin.external_event_id);
+  assert.ok(!ids.includes('evt_fremd'),
+    'der Termin einer anderen anrufenden Person wird vorgelesen -- samt Termin-ID');
+  assert.equal(payload.appointment_count, 2);
+  assert.equal(payload.identified_by, 'caller_id');
+});
+
+await check('Ohne Anrufernummer und ohne Terminnummer gibt es nichts zu hoeren', async () => {
+  const { payload } = await lookupRuf({});
+  assert.deepEqual(payload.appointments, []);
+  assert.equal(payload.appointment_count, 0);
+  assert.equal(payload.identified_by, 'none');
+  // Eigener Grund: er fuehrt im Prompt zur Frage nach der Terminnummer und
+  // nicht in die Rueckrufaufnahme.
+  assert.equal(payload.reason, 'calendar_caller_unidentified');
+});
+
+await check('Die Terminnummer ist der Rueckfall ohne Anrufernummer', async () => {
+  const { payload } = await lookupRuf({ booking_reference: BELEG_B });
+  assert.deepEqual(payload.appointments.map((termin) => termin.external_event_id), ['evt_fremd']);
+  assert.equal(payload.identified_by, 'booking_reference');
+  assert.equal(Object.hasOwn(payload, 'reason'), false);
+});
+
+await check('Eine gesprochene Terminnummer wird auf ihre Ziffern reduziert', async () => {
+  const { payload } = await lookupRuf({ booking_reference: 'Nummer 654-321.' });
+  assert.deepEqual(payload.appointments.map((termin) => termin.external_event_id), ['evt_fremd']);
+});
+
+await check('Eine unterdrueckte Nummer gilt nicht als Kennung', async () => {
+  // Telefonieanbieter setzen statt einer Nummer Werte wie "anonymous". Geht ein
+  // solcher Wert als Kennung durch, teilen sich alle anonymen Anrufer eine
+  // Identitaet -- und der erste, der bucht, oeffnet sie fuer alle weiteren.
+  const { payload } = await lookupRuf({ caller_id: 'anonymous' });
+  assert.equal(payload.identified_by, 'none');
+  assert.equal(payload.reason, 'calendar_caller_unidentified');
+});
+
+// Der Fall, den die Gegenprobe erst sichtbar gemacht hat: bei 'anonymous' ist
+// die Zeile oben gruen, weil die Telefonnummer-Normalisierung alles Buchstaben-
+// hafte verwirft -- die Platzhalter-Liste wird dafuer gar nicht gebraucht. Ein
+// numerischer Platzhalter kommt dagegen sauber durch die Normalisierung.
+await check('Ein numerischer Platzhalter gilt nicht als Kennung', async () => {
+  // +266696687 ist ANONYMOUS auf der Telefontastatur und eine gueltige
+  // E.164-Nummer. Ohne eigene Sperre waere sie eine gemeinsame Kennung fuer
+  // alle anonymen Anrufenden.
+  const { payload } = await lookupRuf({ caller_id: '+266696687' });
+  assert.equal(payload.identified_by, 'none');
+  assert.equal(payload.reason, 'calendar_caller_unidentified');
+});
+
+// Und die Gegenrichtung: der Platzhalter darf keine echte Nummer mitreissen.
+await check('Eine echte Nummer bleibt eine Kennung', async () => {
+  const { payload } = await lookupRuf({ caller_id: ANRUFER_A });
+  assert.equal(payload.identified_by, 'caller_id');
+});
+
+await check('Ein Anrufer ohne anstehenden Termin hoert einen anderen Grund', async () => {
+  const { payload } = await lookupRuf({ caller_id: '+41780000000' });
+  assert.equal(payload.appointment_count, 0);
+  assert.equal(payload.reason, 'calendar_no_upcoming_appointment',
+    '"kein Termin" ist nicht dasselbe wie "nicht zuordenbar"');
+});
+
+await check('Altbestand ohne Bindung wird nicht vorgelesen', async () => {
+  const { payload } = await lookupRuf({ caller_id: ANRUFER_A });
+  assert.ok(!payload.appointments.some((termin) => termin.external_event_id === 'evt_ohne_bindung'),
+    'ein Termin ohne hinterlegte Bindung wird jedem beliebigen Anrufer angeboten');
+});
+
+// Die nationale Schreibweise ist dieselbe Nummer. Ohne Normalisierung waere ein
+// Anrufer je nach Signalisierung mal er selbst und mal ein Fremder.
+await check('Die Anrufernummer wird normalisiert verglichen', async () => {
+  const { payload } = await lookupRuf({ caller_id: '079 123 45 67' });
+  assert.equal(payload.appointment_count, 2);
+});
+
+const cancelRuf = (body) => {
+  const supabase = makeSupabase({ answers: mitHistorie() });
+  aktuellerClient = supabase.client;
+  return handler({
+    httpMethod: 'POST', headers: { Authorization: 'Bearer test-secret' },
+    body: JSON.stringify({ action: 'cancel', agent_id: 'agent_1', ...body })
+  }).then((response) => ({ response, payload: JSON.parse(response.body), supabase }));
+};
+
+await check('Der Termin einer fremden Person laesst sich nicht absagen', async () => {
+  const { response, payload } = await cancelRuf({
+    request_id: 'req_fremd', external_event_id: 'evt_fremd', caller_id: ANRUFER_A
+  });
+  assert.equal(response.statusCode, 403);
+  assert.equal(payload.error, 'calendar_appointment_not_yours');
+});
+
+await check('Der eigene Termin laesst sich absagen', async () => {
+  const { response, payload } = await cancelRuf({
+    request_id: 'req_eigen', external_event_id: 'evt_a', caller_id: ANRUFER_A
+  });
+  assert.equal(response.statusCode, 200, JSON.stringify(payload));
+  assert.equal(payload.cancelled, true);
+});
+
+await check('Die Terminnummer reicht auch fuers Absagen', async () => {
+  const { response, payload } = await cancelRuf({
+    request_id: 'req_beleg', external_event_id: 'evt_fremd', booking_reference: BELEG_B
+  });
+  assert.equal(response.statusCode, 200, JSON.stringify(payload));
+  assert.equal(payload.cancelled, true);
+});
+
+// Bewusst NACHSICHTIG, anders als beim Nachschlagen: das Nachschlagen GIBT eine
+// Termin-ID heraus, das Absagen VERLANGT sie. Wer sie hat, hat sie aus einer
+// Voxera-Antwort. Ein Altbestand ohne Bindung bliebe sonst fuer immer
+// unabsagbar.
+await check('Altbestand ohne Bindung bleibt absagbar', async () => {
+  const { response, payload } = await cancelRuf({
+    request_id: 'req_alt', external_event_id: 'evt_ohne_bindung', caller_id: ANRUFER_A
+  });
+  assert.equal(response.statusCode, 200, JSON.stringify(payload));
+  assert.equal(payload.cancelled, true);
+});
+
+await check('Die abgewiesene Absage hinterlaesst, wer es versucht hat', async () => {
+  const { supabase } = await cancelRuf({
+    request_id: 'req_fremd2', external_event_id: 'evt_fremd', caller_id: ANRUFER_A
+  });
+  const zeilen = auditZeilen(supabase);
+  assert.equal(zeilen.length, 1, `erwartet 1 Zeile, geschrieben: ${zeilen.length}`);
+  assert.equal(zeilen[0].row.status, 'failed');
+  assert.equal(zeilen[0].row.details.error, 'calendar_appointment_not_yours');
+  assert.equal(zeilen[0].row.details.caller_reference, ANRUFER_A);
+});
+
+await check('Eine Buchung nennt eine Terminnummer und schreibt die Bindung mit', async () => {
+  verfuegbarkeit = { available: true, busy: [] };
+  const supabase = makeSupabase({ answers: mitHistorie() });
+  aktuellerClient = supabase.client;
+  const response = await handler({
+    httpMethod: 'POST', headers: { Authorization: 'Bearer test-secret' },
+    body: JSON.stringify({
+      action: 'book', agent_id: 'agent_1', request_id: 'req_buch',
+      start: DI('10:00'), end: DI('10:30'), caller_id: ANRUFER_A
+    })
+  });
+  const payload = JSON.parse(response.body);
+  assert.equal(payload.ok, true, JSON.stringify(payload));
+  assert.match(String(payload.booking_reference), /^\d{6}$/,
+    'die Buchung nennt keine vorlesbare Terminnummer');
+  const abschluss = supabase.updates.find((entry) => entry.patch.status === 'success');
+  assert.equal(abschluss.patch.details.caller_reference, ANRUFER_A);
+  assert.equal(abschluss.patch.details.booking_reference, payload.booking_reference);
+});
+
+// Verschieben darf den Eigentuemer nicht wechseln -- sonst waere es genau der
+// Weg an der Pruefung vorbei, den sie verhindern soll.
+await check('Verschieben schreibt die Bindung fort statt sie neu zu setzen', async () => {
+  verfuegbarkeit = { available: true, busy: [] };
+  const supabase = makeSupabase({ answers: mitHistorie() });
+  aktuellerClient = supabase.client;
+  const response = await handler({
+    httpMethod: 'POST', headers: { Authorization: 'Bearer test-secret' },
+    body: JSON.stringify({
+      action: 'reschedule', agent_id: 'agent_1', request_id: 'req_schieb',
+      external_event_id: 'evt_fremd', booking_reference: BELEG_B,
+      start: DI('10:00'), end: DI('10:30')
+    })
+  });
+  const payload = JSON.parse(response.body);
+  assert.equal(payload.ok, true, JSON.stringify(payload));
+  const abschluss = supabase.updates.find((entry) => entry.patch.status === 'success');
+  assert.equal(abschluss.patch.details.caller_reference, ANRUFER_B,
+    'das Verschieben hat den Termin still uebernommen');
+  assert.equal(abschluss.patch.details.booking_reference, BELEG_B,
+    'die Terminnummer aendert sich beim Verschieben');
+});
+
+await check('Verschieben traegt beim Altbestand eine Bindung nach', async () => {
+  verfuegbarkeit = { available: true, busy: [] };
+  const supabase = makeSupabase({ answers: mitHistorie() });
+  aktuellerClient = supabase.client;
+  const response = await handler({
+    httpMethod: 'POST', headers: { Authorization: 'Bearer test-secret' },
+    body: JSON.stringify({
+      action: 'reschedule', agent_id: 'agent_1', request_id: 'req_schieb_alt',
+      external_event_id: 'evt_ohne_bindung', caller_id: ANRUFER_A,
+      start: DI('10:00'), end: DI('10:30')
+    })
+  });
+  const payload = JSON.parse(response.body);
+  assert.equal(payload.ok, true, JSON.stringify(payload));
+  const abschluss = supabase.updates.find((entry) => entry.patch.status === 'success');
+  assert.equal(abschluss.patch.details.caller_reference, ANRUFER_A);
+  assert.match(String(abschluss.patch.details.booking_reference), /^\d{6}$/);
+});
+
+await check('Ein fremder Termin laesst sich auch nicht verschieben', async () => {
+  verfuegbarkeit = { available: true, busy: [] };
+  const supabase = makeSupabase({ answers: mitHistorie() });
+  aktuellerClient = supabase.client;
+  const response = await handler({
+    httpMethod: 'POST', headers: { Authorization: 'Bearer test-secret' },
+    body: JSON.stringify({
+      action: 'reschedule', agent_id: 'agent_1', request_id: 'req_schieb_fremd',
+      external_event_id: 'evt_fremd', caller_id: ANRUFER_A,
+      start: DI('10:00'), end: DI('10:30')
+    })
+  });
+  assert.equal(response.statusCode, 403);
+  assert.equal(JSON.parse(response.body).error, 'calendar_appointment_not_yours');
 });
 
 // Die Audit-Zeile trug zuerst nur Zahlen. Am 13.08. liess sich damit nicht
