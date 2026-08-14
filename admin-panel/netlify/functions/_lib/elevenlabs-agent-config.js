@@ -521,7 +521,30 @@ function buildSyncPatch({ customer = {}, prompt = '', firstMessage = null, toolI
   return {
     conversation_config: {
       agent,
-      tts: customer.voice_id ? { voice_id: customer.voice_id } : undefined
+      tts: customer.voice_id ? { voice_id: customer.voice_id } : undefined,
+      // Die Wartefloskel MUSS mitgesendet werden, sonst erreicht sie niemanden.
+      //
+      // Codex-Befund vom 14.08. (P1): AGENT_DEFINITION beschreibt den
+      // Sollzustand, angewandt wird sie aber nur beim ANLEGEN --
+      // elevenlabs-provision-agent lehnt einen bestehenden Agenten mit 409 ab.
+      // Der laufende Sync schickt diesen Ausschnitt hier, und `turn` stand
+      // nicht darin. Die Aenderung von -1 auf 4 haette damit ausschliesslich
+      // kuenftige Agenten erreicht -- kein einziger Bestandskunde, auch nicht
+      // der Testagent, an dem die 15 Sekunden Stille gemessen wurden.
+      //
+      // Gesendet wird das GANZE soft_timeout_config-Objekt, nicht nur das
+      // geaenderte Feld: ob ElevenLabs innerhalb eines Teilbaums zusammenfuehrt
+      // oder ersetzt, ist fuer diese Ebene nicht belegt. Bei Ersatz fielen
+      // `message` und `use_llm_generated_message` sonst weg.
+      //
+      // Bewusst NUR dieses eine Feld aus `turn`. Die uebrigen Werte dort
+      // (turn_timeout, turn_model, turn_eagerness) haben dasselbe Problem --
+      // auch sie gelten nur fuer neue Agenten. Das ist ein eigener Befund und
+      // gehoert nicht in einen PR, der die Wartefloskel behebt: sie hier
+      // mitzusenden hiesse, sie von einer BEOBACHTUNG zu einer ZUSICHERUNG zu
+      // machen, und diese Unterscheidung ist weiter unten ausdruecklich
+      // begruendet.
+      turn: { soft_timeout_config: clone(AGENT_DEFINITION.conversation_config.turn.soft_timeout_config) }
     },
     platform_settings: {
       privacy: {

@@ -101,6 +101,12 @@ check('turn_timeout ist 5',       sent.conversation_config.turn.turn_timeout ===
 // beim Befund vom 10.08., bei -1 waere sie aus und die 15 Sekunden Stille aus
 // dem Testanruf blieben unkommentiert. Geprueft wird deshalb das Fenster
 // zwischen normalem Zug und Kaskadenschwelle.
+// Codex-Befund vom 14.08. (P2): die beiden Fenstergrenzen allein lassen auch 1
+// oder 7 durch -- beides wuerde spuerbar aendern, wann die Floskel spricht,
+// ohne dass CI etwas meldet. Das Fenster begruendet die Wahl, der feste Wert
+// haelt sie fest; beides zusammen, wie bei den Nachbarwerten.
+check('Wartefloskel steht auf vier Sekunden',
+  sent.conversation_config.turn.soft_timeout_config.timeout_seconds === 4);
 check('Wartefloskel spricht verzoegert, nicht sofort',
   sent.conversation_config.turn.soft_timeout_config.timeout_seconds > 0);
 check('Wartefloskel bleibt unter der Kaskadenschwelle',
@@ -249,8 +255,20 @@ check(
 );
 // Der Kern des Befunds: der Sync darf nirgends mehr ein prompt-Objekt aus nur
 // prompt/tool_ids bauen.
+// 14.08.: EIN Feld ist dazugekommen, und zwar bewusst.
+//
+// Die Regel unten lautet: kein Feld aus der Definition, das die Handabstimmung
+// vom 10.08. zuruecknehmen wuerde. `soft_timeout_config` nimmt nichts zurueck
+// -- es TRAEGT die neueste Abstimmung (14.08., -1 auf 4). Ohne Mitsenden
+// erreicht sie niemanden: AGENT_DEFINITION wird nur beim ANLEGEN angewandt,
+// und die Provisionierung lehnt bestehende Agenten mit 409 ab. Codex-Befund
+// (P1) auf #1002.
+//
+// Der Unterschied zu `turn_model` und den uebrigen Verbotenen ist nicht der
+// Wert, sondern die Absicht: dort wollen wir NICHT ueberschreiben, hier ist das
+// Ueberschreiben der ganze Zweck.
 check(
-  'Der Sync-Koerper enthaelt genau die Felder von vor #932',
+  'Der Sync-Koerper enthaelt die Felder von vor #932 plus die Wartefloskel',
   (() => {
     const body = buildSyncPatch({ customer: { voice_id: 'v' }, prompt: 'P', firstMessage: 'G', toolIds: ['t'] });
     const paths = [...expectedLeaves(body).keys()].sort();
@@ -259,11 +277,24 @@ check(
       'conversation_config.agent.prompt.prompt',
       'conversation_config.agent.prompt.tool_ids',
       'conversation_config.tts.voice_id',
+      'conversation_config.turn.soft_timeout_config.timeout_seconds',
+      'conversation_config.turn.soft_timeout_config.message',
+      'conversation_config.turn.soft_timeout_config.use_llm_generated_message',
       'platform_settings.privacy.record_voice',
       'platform_settings.privacy.retention_days',
       'platform_settings.privacy.zero_retention_mode'
     ].sort());
   })()
+);
+
+// Und der Punkt, an dem der Befund haengt: der laufende Sync muss die Floskel
+// tatsaechlich mitschicken, nicht nur die Definition sie tragen. Ohne diese
+// Zeile waere die Aenderung fuer jeden Bestandskunden wirkungslos -- und beim
+// Testanruf haette es ausgesehen, als wirke die Einstellung nicht.
+check(
+  'Der Sync traegt die Wartefloskel zu bestehenden Agenten',
+  buildSyncPatch({ customer: {}, prompt: 'P' })
+    .conversation_config.turn.soft_timeout_config.timeout_seconds === 4
 );
 // Der eigentliche Regressionsschutz dieses Umbaus: Kein Feld aus der
 // Definition, das nicht schon vor #932 gesendet wurde, darf in den
