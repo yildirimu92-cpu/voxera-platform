@@ -29,23 +29,38 @@ Ohne diese vier ist jedes Testergebnis unbrauchbar oder irreführend. Der Preise
 
 ### Test 3 — Team komplett unerreichbar, Anrufer darf nichts bekommen
 
-**Aufbau.** Alle Empfänger des Testkunden auf eine bekannte **Festnetznummer** setzen (Twilio antwortet mit 21614, permanent). Kein Code, keine Simulation — eine echte Zurückweisung von Twilio.
+**Zusicherung, wörtlich, vor dem Anruf festgehalten:**
+
+> Erreicht der Erstversand für **keinen** Team-Empfänger eine Annahme durch Twilio (`team_angenommen = 0`), unterbleibt der Versand der Anrufer-Bestätigung vollständig — unabhängig davon, ob der Anrufer selbst erreichbar wäre.
+
+Ein Test, der eine Abwesenheit nachweisen soll, braucht das Kriterium vor dem Anruf, nicht danach zurechtgelegt.
+
+**Schleifenprüfung an `+41445052800` — abgeschlossen (2026-08-15).** Ein SMS-Versuch an die eigene Voxera-Nummer löst keinen Webhook aus und kann keine Schleife erzeugen:
+
+1. Kein Inbound-SMS-Handler existiert im Repository — keine Route in `netlify.toml`, keine Suche nach `MessagingResponse`/`SmsStatus`/`Body=` findet einen Treffer.
+2. Der einzige Twilio-Eingang (`twilio-inbound-router.js`) verlangt `CallSid` hart und weist alles ohne diesen ab — eine Inbound-SMS-Nutzlast trägt `MessageSid`, keinen `CallSid`, und fiele in `missing mandatory fields`.
+3. Antworten sind konstruktiv unmöglich: Absender ist die alphanumerische Kennung „Voxera", einwegfähig.
+4. **Konsole geprüft:** kein Messaging-Webhook an `+41445052800` hinterlegt, Capabilities **Voice-only**. Gegenprobe an `+13509006176` bestätigt, dass die Ansicht einen Messaging-Webhook anzeigen *würde*, wenn einer existierte — die leere Anzeige ist damit kein blinder Fleck der Konsole, sondern ein echtes Ergebnis.
+
+**Aufbau.** Alle **aktiven** Empfänger des Testkunden auf `+41445052800` (Voxera-Nummer, Twilio-Capability Voice-only, garantiert 21614) — praktisch bedeutet das: **ein** aktiver Empfänger, weil die Unique-Constraint auf `(customer_id, channel, phone_e164)` eine zweite Zeile mit derselben Nummer ohnehin verbietet. Die beiden Mobilnummern aus Etappe B (`+41763103313`, `+41799268933`) werden für diesen Test auf `active = false` gesetzt, nicht gelöscht — sie werden für Test 1/2/4 wieder gebraucht. Kein Code, keine Simulation — eine echte Zurückweisung von Twilio.
 
 **Anruf.** Von einer Mobilnummer, damit der Anrufer grundsätzlich erreichbar *wäre*. Genau darin liegt der Test: der Versand an ihn ist möglich und muss trotzdem unterbleiben.
 
-**Erwartet:**
+**Positivkontrolle — ohne Zustellung, aus demselben Codepfad.** Eine echte Zustellung an eine funktionierende Mobilnummer taugt hier **nicht** als Kontrolle: Sie müsste als zusätzlicher Team-Empfänger in denselben Anruf, würde aber `team_angenommen` von 0 auf 1 heben — und laut Test 4 dieses Plans geht die Anrufer-SMS dann **regulär raus**. Eine solche Kontrolle würde also nicht Test 3 bestätigen, sondern ihn durch Test 4 ersetzen und ein widersprüchliches Ergebnis erzeugen.
 
-| Ort | Erwartung |
+Der Nachweis, dass die Team-Schleife tatsächlich gelaufen ist und nicht vorzeitig abgebrochen wurde, kommt stattdessen aus den Zählern der Abschlusszeile selbst: `team_versucht = 1` (nicht 0) belegt, dass der eine Empfänger bearbeitet wurde, bevor über die Anrufer-SMS entschieden wurde. Das ist ein präziserer Beleg als eine angekommene SMS, weil er aus dem geprüften Codepfad selbst stammt statt aus einer Beobachtung am Gerät — die laut Kopf dieses Plans ohnehin keinen Nachweis darstellt.
+
+**Erwartet — geschlossene Tabelle.** Jedes Ergebnis, das in keiner Zeile steht, gilt als **Test ungültig**, nicht als bestanden.
+
+| Beobachtung | Einordnung |
 |---|---|
-| Log | `sms_anrufer_unterdrueckt` mit `grund: "team_nicht_erreicht"` — **error**-Stufe |
-| Log | je Empfänger `sms_skipped_permanent`, `code: 21614` — **info**, nicht error |
-| `outbox_events` | je Team-Empfänger eine Zeile auf `dead` (nicht `failed`) |
-| `outbox_events` | **keine** Zeile mit `event_type = 'sms_caller_confirmation'` |
-| Gerät des Anrufers | keine SMS |
+| `team_versucht = 1`, `team_angenommen = 0`, Code `21614` auf der Team-Zeile; **keine** Zeile mit `event_type = 'sms_caller_confirmation'`; Log `sms_anrufer_unterdrueckt` mit `grund: "team_nicht_erreicht"` (error) | **Bestanden** |
+| dieselbe Team-Lage, aber **eine** `sms_caller_confirmation`-Zeile vorhanden oder eine SMS am Gerät des Anrufers ankommt | **Regel gebrochen** — echter Befund, Kanal geht nicht in Produktion |
+| Team-Zeile auf `sent` statt `dead`/`failed` (Code ungleich 21614, z. B. 21606, 21408, oder kein Code) | **Aufbau ungültig** — die Nummer nimmt SMS entgegen; kein Befund über die Unterdrückungsregel |
+| Timeout, kein Twilio-Antwortcode, oder **keine** Team-Zeile in `outbox_events` überhaupt | **Test ungültig** — Lauf ist vor der Verarbeitung abgebrochen, sagt nichts über die Regel |
+| jede sonstige Kombination, die hier nicht steht | **Test ungültig** |
 
-**Fehlschlag heisst:** Es kommt eine Anrufer-SMS an. Dann behauptet das System gegenüber jemandem am Strassenrand, sein Anliegen sei aufgenommen — während niemand im Team davon weiss. Der Kanal geht in diesem Fall **nicht** in Produktion.
-
-**Zusatzprüfung.** Stehen die Team-Zeilen auf `failed` statt `dead`, sammelt der Retry-Worker sie im nächsten Lauf wieder ein und schickt vier weitere Requests an Twilio, die alle dasselbe Ergebnis bringen. Kein Zustellfehler, aber bezahlte Verschwendung.
+**Zusatzprüfung.** Stehen die Team-Zeilen auf `failed` statt `dead`, sammelt der Retry-Worker sie im nächsten Lauf wieder ein und schickt weitere Requests an Twilio, die dasselbe Ergebnis bringen. Kein Zustellfehler, aber bezahlte Verschwendung.
 
 *`outbox_events` führt in **keiner** der beiden Umgebungen eine Spalte `dead_lettered_at` (geprüft 2026-08-15). `markOutboxTerminal()` fällt deshalb planmässig auf seinen zweiten Weg zurück und schreibt `status = 'dead'` ohne Zeitstempel. Das ist das erwartete Verhalten, kein Befund — der Zeitpunkt steht in `last_attempt_at`.*
 
