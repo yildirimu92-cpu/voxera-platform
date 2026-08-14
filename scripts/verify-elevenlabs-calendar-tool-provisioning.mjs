@@ -27,6 +27,7 @@ for (const key of Object.keys(files)) {
 for (const token of [
   "TOOL_NAME = 'manage_voxera_calendar'",
   "CANCEL_TOOL_NAME = 'cancel_voxera_appointment'",
+  "LOOKUP_TOOL_NAME = 'find_voxera_appointments'",
   "SECRET_NAME = 'voxera_calendar_authorization'",
   "'/secrets'",
   "'/tools'",
@@ -379,7 +380,22 @@ try {
       if (pfad.endsWith('/tools?page_size=100')) {
         return antwort({ tools: [{ id: 'tool_manage', tool_config: { name: 'manage_voxera_calendar' } }] });
       }
-      return antwort({ id: pfad.includes('tool_manage') ? 'tool_manage' : 'tool_cancel' });
+      // Die ID richtet sich nach dem GESENDETEN Werkzeugnamen.
+      //
+      // Codex-Befund vom 14.08. (P2): vorher lieferte der Ersatz fuer alles,
+      // was nicht manage war, dieselbe ID 'tool_cancel' -- und die Zusicherung
+      // unten nahm ['tool_manage','tool_cancel','tool_cancel'] ausdruecklich
+      // hin. Damit blieb der Test genau in dem Fehlerfall gruen, in dem das
+      // Nachschlagewerkzeug unter der ID des Absagewerkzeugs gefuehrt wird:
+      // agentToolIds() entdoppelt die Liste, und der Agent haette gar kein
+      // Nachschlagewerkzeug.
+      const gesendet = options.body ? JSON.parse(String(options.body))?.tool_config?.name : '';
+      const idFuer = {
+        manage_voxera_calendar: 'tool_manage',
+        cancel_voxera_appointment: 'tool_cancel',
+        find_voxera_appointments: 'tool_lookup'
+      };
+      return antwort({ id: idFuer[gesendet] || 'tool_unbekannt' });
     };
     try {
       helper.resetCache();
@@ -390,21 +406,184 @@ try {
         // die Beschreibung des Buchungswerkzeugs nennt das Absagewerkzeug
         // selbst, eine Teilstringsuche waere hier blind.
         .map((call) => JSON.parse(String(call.body)).tool_config.name);
-      assert.deepEqual(schreibend, ['cancel_voxera_appointment', 'manage_voxera_calendar'],
-        'Das Buchungswerkzeug wird geaendert, bevor das Absagewerkzeug existiert');
+      assert.equal(schreibend.at(-1), 'manage_voxera_calendar',
+        'Das geteilte Buchungswerkzeug wird geaendert, bevor seine Ersatzwerkzeuge existieren');
+      assert.ok(schreibend.includes('cancel_voxera_appointment'));
+      assert.ok(schreibend.includes('find_voxera_appointments'));
       // Zurueckgegeben wird in der Reihenfolge der Werkzeugliste, nicht in der
-      // Anlegereihenfolge.
-      assert.deepEqual(ids, ['tool_manage', 'tool_cancel']);
+      // Anlegereihenfolge -- und mit DREI verschiedenen IDs. Faellt eine mit
+      // einer anderen zusammen, entdoppelt agentToolIds() sie weg und dem
+      // Agenten fehlt ein Werkzeug.
+      assert.deepEqual(ids, ['tool_manage', 'tool_cancel', 'tool_lookup']);
+      assert.equal(new Set(ids).size, 3, 'zwei Kalenderwerkzeuge teilen sich eine ID');
     } finally {
       globalThis.fetch = echtesFetch2;
       helper.resetCache();
     }
   }
 
+  // ── Nachschlagewerkzeug (13.08.) ──────────────────────────────────────────
+  //
+  // Der Agent konnte die external_event_id eines Termins aus einem FRUEHEREN
+  // Gespraech nicht finden -- Absagen war in einem neuen Anruf prinzipiell
+  // unmoeglich. Das Werkzeug verlangt bewusst GAR KEINE Angabe zum Termin:
+  // alles, was hier stuende, muesste das Modell raten.
+  const lookup = helper.buildLookupToolConfig('secret_1');
+  assert.equal(lookup.name, 'find_voxera_appointments');
+  assert.equal(lookup.api_schema.url, config.api_schema.url);
+  const lookupBody = lookup.api_schema.request_body_schema;
+  for (const feld of ['start', 'end', 'external_event_id']) {
+    assert.equal(Object.hasOwn(lookupBody.properties, feld), false,
+      `Das Nachschlageschema verlangt ${feld} -- genau das weiss der Anrufende nicht`);
+  }
+  assert.deepEqual(lookupBody.required, ['action', 'agent_id', 'conversation_id']);
+  assert.deepEqual(lookupBody.properties.action.enum, ['lookup']);
+
+  // Der Server muss die Aktion auch annehmen.
+  assert.match(source.core, /'lookup'/, 'Das Werkzeug kennt die Aktion lookup nicht');
+  assert.match(source.core, /loadAppointmentHistory/, 'Die Nachschlage-Abfrage fehlt');
+  assert.match(source.core, /upcomingAppointments\(/, 'Die Begrenzung auf anstehende Termine fehlt');
+
+  // Prompt: der Weg ueber das Nachschlagen, und das Verbot der Fehldeutung.
+  assert.match(block, /find_voxera_appointments/, 'Der Prompt nennt das Nachschlagewerkzeug nicht');
+  assert.match(block, /Ein freier Zeitraum ist kein Termin/,
+    'Der Prompt verbietet nicht, eine freie Zeit als gefundenen Termin auszugeben');
+  assert.match(block, /Mehrere Termine: lies höchstens die drei nächsten vor/,
+    'Der Prompt regelt den Mehrfachfall nicht');
+  assert.match(block, /Rate nie, welcher gemeint ist/,
+    'Der Prompt erlaubt weiterhin zu raten, welcher Termin gemeint ist');
+
+  // Codex-Befund vom 14.08. (P1): der Prompt gab die Terminnummer nur an das
+  // Absagewerkzeug weiter. Wer von einem anderen Anschluss VERSCHIEBEN will,
+  // findet seinen Termin -- und wird abgelehnt.
+  const verschieben = block.split("\n").find((zeile) => /^11\./.test(zeile)) || "";
+  assert.match(verschieben, /booking_reference/,
+    "Der Prompt gibt die Terminnummer beim Verschieben nicht mit -- der Rückfall endet in einer Ablehnung");
+
   // Und der Prompt muss den Agenten auf das neue Werkzeug verweisen.
   assert.match(block, /cancel_voxera_appointment/, 'Der Prompt nennt das Absagewerkzeug nicht');
-  assert.match(block, /braucht keine Zeitangaben/,
-    'Der Prompt sagt nicht, dass die Absage ohne Zeitangaben auskommt');
+  // Wortlaut seit dem 13.08. beim Nachschlagen statt beim Absagen -- dort wird
+  // die Zeitangabe tatsaechlich erspart, die Absage bekommt die ID von dort.
+  assert.match(block, /keine Zeitangabe/,
+    'Der Prompt sagt nicht, dass der Weg ohne Zeitangabe auskommt');
+  assert.match(block, /Frage nicht nach Datum oder Uhrzeit/,
+    'Der Prompt laesst den Agenten weiterhin nach der Uhrzeit des Termins fragen');
+
+  // ── Anrufer-Bindung (14.08.) ──────────────────────────────────────────────
+  //
+  // Bis hierher lieferte `lookup` die anstehenden Termine des KUNDEN, also des
+  // Betriebs -- an jeden, der anrief, samt Termin-IDs und damit samt der
+  // Moeglichkeit, fremde Termine abzusagen.
+  //
+  // Gebunden wird an die Anrufernummer, mit der Terminnummer als Rueckfall.
+  // Die Nummer kommt von ElevenLabs als system__caller_id.
+  for (const [name, schema] of [
+    ['manage', body],
+    ['cancel', cancelBody],
+    ['lookup', lookupBody]
+  ]) {
+    assert.deepEqual(schema.properties.caller_id, { type: 'string', dynamic_variable: 'system__caller_id' },
+      `${name}: die Anrufernummer wird nicht als dynamische Variable gesetzt`);
+    // KEINE Pflichtangabe. system__caller_id gibt es nur bei
+    // Telefongespraechen; im Widget-Testchat ist sie leer. Stuende sie in
+    // `required`, waere das Werkzeug dort unbenutzbar -- und der Testkanal ist
+    // genau der, auf dem wir sie am wenigsten haben.
+    assert.ok(!schema.required.includes('caller_id'),
+      `${name}: caller_id ist Pflicht -- ohne Telefonkanal bricht das Werkzeug damit`);
+    assert.ok(!schema.required.includes('booking_reference'),
+      `${name}: die Terminnummer ist Pflicht, obwohl die meisten sie nicht zur Hand haben`);
+    // Das Modell darf die Anrufernummer nicht selbst befuellen: eine
+    // Beschreibung macht aus dem Feld eine LLM-Eingabe, und dann kann der
+    // Agent sich seine Zuordnung erfinden.
+    assert.equal(Object.hasOwn(schema.properties.caller_id, 'description'), false,
+      `${name}: caller_id traegt eine Beschreibung und wird damit vom Modell befuellbar`);
+  }
+  // Der Rueckfall muss dort stehen, wo er gebraucht wird: beim Nachschlagen und
+  // beim Absagen.
+  assert.match(lookupBody.properties.booking_reference.description, /Terminnummer/,
+    'Das Nachschlagewerkzeug kennt die Terminnummer nicht');
+  assert.match(cancelBody.properties.booking_reference.description, /Terminnummer/,
+    'Das Absagewerkzeug kennt die Terminnummer nicht');
+  assert.match(lookupBody.properties.booking_reference.description, /[Nn]iemals erfinden/,
+    'Die Terminnummer darf geraten werden');
+
+  // Server: die Bindung, ihre beiden Richtungen, und die Filterung.
+  for (const token of [
+    "require('./_lib/caller-identity')",
+    'identityFromBody(body)',
+    'matchAppointments(',
+    // Die Mehrdeutigkeit wird aus der GANZEN Historie bestimmt, nicht aus dem
+    // aktuellen Bestand -- eine Doppelvergabe verjährt nicht.
+    'ambiguousReferences(',
+    'ownershipConflict(',
+    'caller_reference:',
+    'booking_reference:'
+  ]) {
+    if (!source.core.includes(token)) failures.push('Anrufer-Bindung fehlt im Werkzeug: ' + token);
+  }
+
+  // Prompt: die Terminnummer wird vorgelesen, und der Nicht-Zuordnungsfall
+  // fuehrt zur Frage danach -- nicht in die Rueckrufaufnahme und erst recht
+  // nicht in eine Suche mit availability.
+  assert.match(block, /booking_reference/, 'Der Prompt kennt die Terminnummer nicht');
+  // Zwei Gründe, zwei verschiedene Sätze. In der ersten Fassung fielen sie
+  // zusammen -- und genau dadurch war der Rückfall auf die Terminnummer für
+  // Anrufe von einer anderen Nummer unerreichbar (Codex-P1).
+  assert.match(block, /calendar_appointment_unmatched/,
+    'Der Prompt behandelt den Fall "nicht zugeordnet" nicht');
+  assert.match(block, /calendar_booking_reference_unknown/,
+    'Der Prompt behandelt eine falsch verstandene Terminnummer nicht');
+  for (const grund of ['calendar_appointment_unmatched', 'calendar_booking_reference_unknown']) {
+    if (!source.core.includes(grund)) failures.push('Der Grund fehlt im Werkzeug: ' + grund);
+  }
+
+  // Und der dritte darf NICHT zurückkommen. Er meldete betriebsweiten Zustand
+  // an einen beliebigen Anrufer -- und behauptete dabei etwas, das die Zahl
+  // gar nicht deckte (Altbestand und fremde Kalender fehlen darin).
+  if (source.core.includes('calendar_no_upcoming_appointment')) {
+    failures.push('Der Grund "kein anstehender Termin" ist zurück -- er verrät betriebsweiten Zustand');
+  }
+  // Der alte Wortlaut von Schritt 16, wörtlich. Kommt er zurück, behauptet der
+  // Agent wieder etwas über fremde Termine.
+  assert.ok(!/steht überhaupt kein Termin an/.test(block),
+    'Der Prompt behauptet wieder, es gebe keinen Termin — das wissen wir nicht');
+  assert.match(block, /Sage dabei nie, es gebe keinen Termin/,
+    'Dem Agenten ist nicht verboten, "Sie haben keinen Termin" zu sagen');
+
+  // Die Terminnummer wird gezogen, BEVOR der Anbieter etwas ändert.
+  //
+  // Codex-Befund vom 14.08. (P2): die Ziehung kann bei erschöpftem Nummernraum
+  // abbrechen. Steht sie hinter dem Anbieteraufruf, ist der Termin angelegt
+  // bzw. verschoben, die Antwort lautet 503, und keine Erfolgszeile hält fest,
+  // was im Kalender passiert ist.
+  //
+  // Am laufenden Handler ist das nicht prüfbar — der Abbruch verlangt einen
+  // erschöpften Nummernraum, den ein Test nicht herstellen kann. Geprüft wird
+  // deshalb die Reihenfolge im Quelltext. Das ist schwächer als ein Fall, aber
+  // es fängt genau die Änderung, die den Befund zurückbrächte.
+  for (const [zweig, anbieteraufruf] of [['book', 'createEvent('], ['reschedule', 'updateEvent(']]) {
+    const start = source.core.indexOf(`action === '${zweig}'`);
+    const ende = zweig === 'book'
+      ? source.core.indexOf("action === 'reschedule'", start)
+      : source.core.indexOf('\n    } else {', start);
+    const abschnitt = source.core.slice(start, ende > start ? ende : undefined);
+    const ziehung = abschnitt.indexOf('bookingReference(');
+    const aenderung = abschnitt.indexOf(anbieteraufruf);
+    assert.ok(ziehung >= 0 && aenderung >= 0,
+      `${zweig}: Ziehung oder Anbieteraufruf nicht gefunden`);
+    assert.ok(ziehung < aenderung,
+      `${zweig}: die Terminnummer wird erst nach ${anbieteraufruf} gezogen — ein Abbruch liesse den Kalender geändert zurück`);
+  }
+
+  // GRENZE: eine Anrufernummer ist keine Authentifizierung. Sie ist faelschbar.
+  // Der Prompt darf sie nirgends als Schutz darstellen -- ein Satz wie "nur Sie
+  // koennen Ihren Termin absagen" waere ein Versprechen ohne Deckung.
+  assert.ok(!/[Ss]icherheit|[Aa]uthentifiz|[Ii]dentität bestätig|[Vv]erifizier|zu Ihrem Schutz|nur Sie können/.test(block),
+    'Der Prompt stellt die Anrufernummer als Sicherheitsmerkmal dar');
+  // Und die Grenze muss im Code stehen, nicht nur im Ticket.
+  assert.match(fs.readFileSync('customer-dashboard/netlify/functions/_lib/caller-identity.js', 'utf8'),
+    /KEINE AUTHENTIFIZIERUNG/,
+    'Die Grenze der Anrufernummer ist im Code nicht benannt');
 } catch (error) {
   failures.push('Provisioning helper contract failed: ' + error.message);
 }

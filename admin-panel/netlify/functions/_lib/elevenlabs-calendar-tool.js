@@ -18,6 +18,18 @@ const TOOL_NAME = 'manage_voxera_calendar';
 // zu tun. Ein zweites Werkzeug mit eigenem Schema loest das, ohne die
 // Verbindlichkeit fuer die anderen drei Aktionen aufzugeben.
 const CANCEL_TOOL_NAME = 'cancel_voxera_appointment';
+// Nachschlagen ist ein drittes Werkzeug, seit dem 2026-08-13.
+//
+// Testanruf vom 13.08.: ein Kunde, der absagen will, kennt die Uhrzeit seines
+// Termins selten. Der Agent hatte keine Moeglichkeit, die `external_event_id`
+// eines Termins aus einem FRUEHEREN Gespraech zu finden -- sie existiert nur im
+// Kontext des Buchungsgespraechs. Absagen in einem neuen Anruf war damit
+// prinzipiell unmoeglich.
+//
+// Der Versuch, den Termin ueber availability zu suchen, scheiterte zweimal: ein
+// ganzer Tag ueberschreitet die 8-Stunden-Grenze, und eine freie Zeit ist kein
+// Beleg fuer einen Termin.
+const LOOKUP_TOOL_NAME = 'find_voxera_appointments';
 const SECRET_NAME = 'voxera_calendar_authorization';
 const DEFAULT_TOOL_URL = 'https://dashboard.voxera.ch/.netlify/functions/calendar-agent-tool';
 
@@ -113,6 +125,25 @@ function dynamicProperty(type, variable) {
   };
 }
 
+// Die Anrufernummer, gesetzt von ElevenLabs -- das Modell waehlt sie nicht.
+//
+// `system__caller_id` gibt es NUR bei Telefongespraechen. Im Widget-Testchat
+// und bei jedem anderen Kanal ist die Variable leer. Sie steht deshalb in
+// KEINEM der drei Werkzeuge in `required`: eine Pflichtangabe, die auf einem
+// ganzen Kanal nicht existiert, macht das Werkzeug dort unbenutzbar.
+//
+// GRENZE: eine Anrufernummer ist keine Authentifizierung. Sie ist faelschbar
+// und teilbar; ElevenLabs schreibt das ueber die eigene Variable selbst. Sie
+// ordnet einen Termin einer Person zu, sie weist nichts nach. Die ausfuehrliche
+// Begruendung steht in
+// customer-dashboard/netlify/functions/_lib/caller-identity.js.
+const CALLER_ID_PROPERTY = () => dynamicProperty('string', 'system__caller_id');
+
+// Der Rueckfall, wenn keine Anrufernummer vorliegt oder von einem anderen
+// Anschluss angerufen wird. Anders als caller_id kommt sie vom Modell -- die
+// anrufende Person liest sie vor.
+const BOOKING_REFERENCE_PROPERTY = () => llmProperty('string', 'Terminnummer aus der Buchungsbestätigung, sechs Ziffern. Nur angeben, wenn die anrufende Person sie von sich aus nennt oder auf Nachfrage vorliest. Niemals erfinden und niemals raten.');
+
 // Gemeinsame Huelle beider Werkzeuge: gleiche URL, gleiches Geheimnis, gleiche
 // Kopfzeilen. Nur Name, Beschreibung und Rumpfschema unterscheiden sich.
 function toolEnvelope(secretId, { name, description, requestBodySchema }) {
@@ -176,6 +207,8 @@ function buildToolConfig(secretId) {
           agent_id: dynamicProperty('string', 'system__agent_id'),
           conversation_id: dynamicProperty('string', 'system__conversation_id'),
           agent_turns: dynamicProperty('number', 'system__agent_turns'),
+          caller_id: CALLER_ID_PROPERTY(),
+          booking_reference: BOOKING_REFERENCE_PROPERTY(),
           start: llmProperty('string', 'Beginn als vollständiger ISO-8601-Zeitstempel mit Schweizer Offset, zum Beispiel 2026-08-05T10:00:00+02:00. Der Zeitraum start bis end darf höchstens 8 Stunden umfassen; frage sonst nach einem Halbtag. Für Absagen ' + CANCEL_TOOL_NAME + ' verwenden, das ohne Zeitangaben auskommt.'),
           end: llmProperty('string', 'Ende als vollständiger ISO-8601-Zeitstempel mit Schweizer Offset. Bei book und reschedule ist es genau die konfigurierte Termindauer nach start.'),
           title: llmProperty('string', 'Kurzer Kalendertitel für book oder reschedule.'),
@@ -202,6 +235,31 @@ function buildToolConfig(secretId) {
   });
 }
 
+// Das Nachschlagewerkzeug. Es verlangt GAR KEINE Angaben zum Termin -- weder
+// Zeit noch ID. Genau das ist der Punkt: der Anrufende weiss beides meistens
+// nicht, und alles, was das Modell hier angeben muesste, muesste es raten.
+function buildLookupToolConfig(secretId) {
+  return toolEnvelope(secretId, {
+    name: LOOKUP_TOOL_NAME,
+    description: 'Listet die anstehenden von Voxera gebuchten Termine der anrufenden Person auf, mit ihren Termin-IDs. Verwenden, bevor ein Termin abgesagt oder verschoben wird, und immer dann, wenn jemand seinen Termin nicht genau benennen kann. Verlangt keine Zeitangaben. Zugeordnet wird über die Anrufernummer; ist keine vorhanden, kann die Terminnummer aus der Buchungsbestätigung angegeben werden.',
+    requestBodySchema: {
+      type: 'object',
+      description: 'Nachschlagen der anstehenden Termine für den aktuell sprechenden Voxera-Agenten.',
+      properties: {
+        action: llmProperty('string', 'Immer lookup. Dieses Werkzeug kann nichts anderes.', {
+          enum: ['lookup']
+        }),
+        agent_id: dynamicProperty('string', 'system__agent_id'),
+        conversation_id: dynamicProperty('string', 'system__conversation_id'),
+        agent_turns: dynamicProperty('number', 'system__agent_turns'),
+        caller_id: CALLER_ID_PROPERTY(),
+        booking_reference: BOOKING_REFERENCE_PROPERTY()
+      },
+      required: ['action', 'agent_id', 'conversation_id']
+    }
+  });
+}
+
 // Das Absagewerkzeug. Bewusst so klein wie moeglich: eine Termin-ID und die
 // beiden Kennungen, die ElevenLabs ohnehin einsetzt. Kein start, kein end,
 // keine Dauer -- nichts, was das Modell erfinden koennte.
@@ -223,6 +281,8 @@ function buildCancelToolConfig(secretId) {
         agent_id: dynamicProperty('string', 'system__agent_id'),
         conversation_id: dynamicProperty('string', 'system__conversation_id'),
         agent_turns: dynamicProperty('number', 'system__agent_turns'),
+        caller_id: CALLER_ID_PROPERTY(),
+        booking_reference: BOOKING_REFERENCE_PROPERTY(),
         external_event_id: llmProperty('string', 'Von Voxera zurückgegebene Kalendertermin-ID des abzusagenden Termins. Niemals erfinden — ohne echte ID keine Absage.')
       },
       required: ['action', 'agent_id', 'conversation_id', 'external_event_id']
@@ -230,7 +290,7 @@ function buildCancelToolConfig(secretId) {
   });
 }
 
-const TOOL_NAMES = Object.freeze([TOOL_NAME, CANCEL_TOOL_NAME]);
+const TOOL_NAMES = Object.freeze([TOOL_NAME, CANCEL_TOOL_NAME, LOOKUP_TOOL_NAME]);
 
 // Angelegt wird in der umgekehrten Reihenfolge: erst das Absagewerkzeug, dann
 // das Buchungswerkzeug.
@@ -245,10 +305,12 @@ const TOOL_NAMES = Object.freeze([TOOL_NAME, CANCEL_TOOL_NAME]);
 // Andersherum ist die Zwischenzeit harmlos: dann gibt es beide Wege kurz
 // gleichzeitig, und das Modell kann in dieser Spanne noch ueber manage
 // absagen.
-const PROVISION_ORDER = Object.freeze([CANCEL_TOOL_NAME, TOOL_NAME]);
+const PROVISION_ORDER = Object.freeze([CANCEL_TOOL_NAME, LOOKUP_TOOL_NAME, TOOL_NAME]);
 
 function toolConfigFor(name, secretId) {
-  return name === CANCEL_TOOL_NAME ? buildCancelToolConfig(secretId) : buildToolConfig(secretId);
+  if (name === CANCEL_TOOL_NAME) return buildCancelToolConfig(secretId);
+  if (name === LOOKUP_TOOL_NAME) return buildLookupToolConfig(secretId);
+  return buildToolConfig(secretId);
 }
 
 // Legt beide Kalenderwerkzeuge an oder bringt sie auf den aktuellen Stand und
@@ -352,6 +414,18 @@ async function agentToolIds(agentId, calendarToolIds, { attach }) {
 // mindestens einen buchbaren Termin", nicht mehr "der ganze Zeitraum ist frei".
 // Ohne diesen Hinweis wuerde der Agent bei available=true einen halben Tag als
 // frei anbieten.
+//
+// Schritte 10, 14 und 15 gehoeren seit dem 2026-08-14 zur Anrufer-Bindung. Das
+// Nachschlagen liefert nur noch Termine, die der anrufenden Person zugeordnet
+// sind -- vorher las es jedem Anrufer die anstehenden Termine ALLER Kunden des
+// Betriebs vor, samt Termin-IDs. Zugeordnet wird ueber die Anrufernummer, mit
+// der Terminnummer als Rueckfall.
+//
+// Der Prompt stellt das ausdruecklich NICHT als Schutz dar, und Schritt 10
+// begruendet die Terminnummer mit dem Wiederfinden, nicht mit Sicherheit. Eine
+// Anrufernummer ist faelschbar; ein Satz wie "nur Sie koennen Ihren Termin
+// absagen" waere ein Versprechen, das wir nicht halten koennen. Siehe
+// customer-dashboard/netlify/functions/_lib/caller-identity.js.
 function calendarPromptBlock(settings = {}, appointmentMode = '') {
   if (appointmentMode !== 'direct') return '';
   if (!settings.feature_enabled || !settings.active_provider) return '';
@@ -369,9 +443,16 @@ function calendarPromptBlock(settings = {}, appointmentMode = '') {
     '7. Ist free_slots leer: Sage nur, dass in diesem Zeitraum nichts frei ist, und frage nach einer Alternative — zum Beispiel nach dem anderen Halbtag oder einem anderen Tag.',
     '8. Buche erst nach dieser Bestätigung mit action=book, und zwar genau eine Zeit aus free_slots. Erfinde keine anderen Zeiten.',
     '9. Bestätige einen Termin erst, wenn das Tool ok=true zurückgibt.',
-    '10. Verwende reschedule nur mit einer echten external_event_id aus einer früheren Voxera-Buchung. Erfinde diese ID niemals.',
-    '11. Für eine Absage verwende das Werkzeug ' + CANCEL_TOOL_NAME + ' mit der external_event_id des Termins. Es braucht keine Zeitangaben — frage nicht nach Datum oder Uhrzeit, nur nach dem Termin, den die anrufende Person absagen möchte.',
-    '12. Antwortet das Tool nicht mit ok=true, sprich nie über den Fehler, das Werkzeug oder den Kalender. Sage, dass du den Termin nicht selbst bestätigen kannst, und nimm eine vollständige Rückrufanfrage auf. Die Wörter Fehler, System, Tool, Schnittstelle und Kalender kommen dabei nicht vor.'
+    '10. Nenne nach jeder Buchung die booking_reference aus der Tool-Antwort als Terminnummer, Ziffer für Ziffer, und bitte darum, sie zu notieren. Sag dazu, dass sie hilft, den Termin wiederzufinden, falls später von einer anderen Nummer aus angerufen wird. Erfinde diese Nummer nie — nenne nur, was das Tool zurückgegeben hat.',
+    '11. Verwende reschedule nur mit einer echten external_event_id. Erfinde diese ID niemals — hol sie dir mit ' + LOOKUP_TOOL_NAME + '. Hast du beim Nachschlagen nach der Terminnummer gefragt, gib dieselbe booking_reference auch beim Verschieben mit, sonst wird es abgelehnt.',
+    '12. Ein freier Zeitraum ist kein Termin. Meldet availability available=true oder ein leeres busy, heisst das: dort ist NICHTS gebucht. Sage niemals, du habest einen Termin gefunden, weil eine Zeit frei war. availability beantwortet nur, was buchbar ist — nie, ob jemand einen Termin hat.',
+    '13. Will jemand einen bestehenden Termin absagen oder verschieben, rufe zuerst ' + LOOKUP_TOOL_NAME + ' auf. Es braucht keine Zeitangabe und liefert die anstehenden Termine mit ihren IDs. Frage nicht nach Datum oder Uhrzeit — die meisten Menschen wissen das nicht mehr, und du brauchst es nicht.',
+    '14. Meldet die Antwort reason=calendar_appointment_unmatched, konnte das Werkzeug den Anruf keinem Termin zuordnen — das ist der Normalfall, wenn jemand von einer anderen Nummer anruft. Frage dann nach der sechsstelligen Terminnummer aus der Buchungsbestätigung und rufe ' + LOOKUP_TOOL_NAME + ' erneut auf, diesmal mit booking_reference. Sage dabei nie, es gebe keinen Termin — du weisst das nicht. Wird keine Nummer genannt, nimm eine Rückrufanfrage auf.',
+    '15. Meldet die Antwort reason=calendar_booking_reference_unknown, hat die genannte Terminnummer keinen Termin zugeordnet. Lies sie einmal zur Kontrolle Ziffer für Ziffer zurück und frage, ob du sie richtig verstanden hast. Stimmt sie, nimm eine Rückrufanfrage auf.',
+    '16. Meldet die Antwort reason=calendar_too_many_appointments, sind es zu viele Termine, um sie am Telefon zu ordnen. Zähle keine auf und wähle keinen aus, sondern nimm eine Rückrufanfrage auf.',
+    '17. Genau ein Termin in der Antwort: nenne ihn mit Datum und Uhrzeit und lass ihn bestätigen. Mehrere Termine: lies höchstens die drei nächsten vor und lass die anrufende Person wählen; gibt es mehr, sage das, ohne alle aufzuzählen. Rate nie, welcher gemeint ist.',
+    '18. Für die Absage verwende dann ' + CANCEL_TOOL_NAME + ' mit der external_event_id aus der Antwort von ' + LOOKUP_TOOL_NAME + ' — und mit derselben booking_reference, falls du danach gefragt hast.',
+    '19. Antwortet das Tool nicht mit ok=true, sprich nie über den Fehler, das Werkzeug oder den Kalender. Sage, dass du den Termin nicht selbst bestätigen kannst, und nimm eine vollständige Rückrufanfrage auf. Die Wörter Fehler, System, Tool, Schnittstelle und Kalender kommen dabei nicht vor.'
   ].join('\n');
 }
 
@@ -383,11 +464,13 @@ function resetCache() {
 module.exports = {
   TOOL_NAME,
   CANCEL_TOOL_NAME,
+  LOOKUP_TOOL_NAME,
   TOOL_NAMES,
   SECRET_NAME,
   configured,
   buildToolConfig,
   buildCancelToolConfig,
+  buildLookupToolConfig,
   ensureWorkspaceSecret,
   ensureWorkspaceTools,
   findWorkspaceToolIds,

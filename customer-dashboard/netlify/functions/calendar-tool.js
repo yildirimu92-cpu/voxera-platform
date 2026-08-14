@@ -7,6 +7,7 @@ const { calendarEnabledForCustomer } = require('./_lib/calendar-rollout');
 const { bookingWindowError, bookingTimingError, bufferedWindow, windowSpanError } = require('./_lib/booking-window');
 const { ensureAccessToken, checkAvailability, createEvent, updateEvent, deleteEvent } = require('./_lib/calendar-providers');
 const { SLOT_LIMIT, blockingUpdateFor, bookableSlots, freeSlots } = require('./_lib/calendar-slots');
+const { bookingReference, identityFromBody, matchAppointments, ownershipConflict } = require('./_lib/caller-identity');
 
 const headers = { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' };
 const reply = (statusCode, payload) => ({ statusCode, headers, body: JSON.stringify(payload) });
@@ -159,6 +160,333 @@ async function loadBlockingUpdates(sb, customerId, startIso, endIso) {
   return data || [];
 }
 
+// Anstehende Voxera-Termine eines Kunden -- aus unserer eigenen Audit-Tabelle,
+// nicht aus dem Kalender.
+//
+// Anlass: Testanruf vom 13.08. Ein Kunde, der absagen will, kennt die Uhrzeit
+// seines Termins selten. "Ich weiss es wirklich nicht mehr" fuehrte in eine
+// Sackgasse: der Agent hat keine Moeglichkeit, die `external_event_id` eines
+// Termins aus einem FRUEHEREN Gespraech zu finden -- die ID existiert nur im
+// Kontext des Buchungsgespraechs. Absagen in einem neuen Anruf war damit
+// prinzipiell unmoeglich, nicht bloss fehlerhaft.
+//
+// Die Quelle ist bewusst calendar_booking_audit und nicht der Kalender: dort
+// steht bereits, welche Termine Voxera fuer diesen Kunden gebucht hat, und
+// genau darauf beruht schon die Pruefung calendar_event_not_managed_by_voxera.
+// Kein zusaetzlicher Kalender-Scope, keine Zeitfenster-Raterei, keine
+// 8-Stunden-Grenze.
+//
+// Gelesen wird chronologisch, damit die Historie sich selbst aufloest: ein
+// reschedule ueberschreibt die Zeiten seiner Buchung, ein cancel nimmt den
+// Termin wieder heraus.
+// Die Antwort war bis zum 14.08. auf fuenf Termine beschnitten, mit der
+// Gesamtzahl daneben. Codex-Befund (P2): damit war ein sechster Termin
+// PRINZIPIELL unerreichbar -- das Werkzeug kennt weder Blaettern noch Filter
+// noch eine Folgeaktion, seine `external_event_id` kam also nie heraus, und er
+// liess sich weder verschieben noch absagen. Dieselbe Bauform wie der
+// urspruengliche Befund dieses PR: eine Grenze, die eine Aktion nicht bremst,
+// sondern unmoeglich macht.
+//
+// Die Liste ist ausserdem seit der Anrufer-Bindung auf die anrufende Person
+// gefiltert -- es sind ihre eigenen Termine, nicht die des Betriebs. Es gibt
+// also keinen Grund, ihr davon etwas vorzuenthalten.
+//
+// Zweiter Codex-Befund (P2) zur angehobenen Grenze: 50 statt 5 macht den Fall
+// seltener, nicht erreichbar. Richtig -- und trotzdem wird hier NICHT
+// geblaettert. Ein Sprachagent, der eine Seite zwei anfordert, liest im besten
+// Fall fuenfzig Termine vor; das ist kein Gespraech mehr. Was stattdessen
+// bleibt, ist die Regel, die dieser PR ueberall sonst anwendet: KEINE STILLE
+// KUERZUNG. Wird die Grenze erreicht, sagt die Antwort es (`truncated`,
+// `calendar_too_many_appointments`), und der Agent nimmt eine Rueckrufanfrage
+// auf, statt aus einem Ausschnitt zu waehlen. Ein Mensch loest den Fall besser
+// als ein Blaetterprotokoll.
+const LOOKUP_LIMIT = 50;
+
+// Geblaettert, und bei Erreichen der Grenze ABGEBROCHEN statt gekuerzt.
+//
+// Codex-Befund vom 14.08. (P1): die Abfrage stand ohne Bereichsangabe da.
+// PostgREST liefert hoechstens `db-max-rows` Zeilen (bei Supabase ueblicherweise
+// 1000) und sagt es nicht dazu. Sortiert wird aeltestzuerst -- weggefallen waere
+// also ausgerechnet das NEUESTE Stueck Historie. Die Folgen sind genau die, die
+// dieser PR sonst verhindert: eine Absage, die nicht mitgelesen wird, laesst den
+// Termin wieder auferstehen; eine Verschiebung, die fehlt, meldet die alte Zeit;
+// und die Nummernvergabe wie die Mehrdeutigkeitspruefung rechnen mit einem
+// Ausschnitt.
+//
+// Derselbe Befund und dieselbe Antwort wie bei der Belegungsliste der Anbieter
+// (MAX_BUSY_PAGES in _lib/calendar-providers.js): eine unvollstaendige Historie
+// ist nicht die halbe Wahrheit, sondern eine falsche. Wird die Grenze erreicht,
+// wirft die Funktion -- der Agent geht in die Rueckrufaufnahme, statt auf
+// lueckenhaften Daten zu arbeiten.
+const HISTORY_PAGE_SIZE = 500;
+const MAX_HISTORY_PAGES = 40;
+
+// Geblaettert wird ueber den Schluessel, nicht ueber einen Versatz.
+//
+// Zwei Codex-Befunde haben dieselbe Stelle nacheinander getroffen. Der erste:
+// ohne eindeutigen Sortierschluessel ist die Reihenfolge bei gleichem
+// `created_at` undefiniert, und an einer Seitengrenze erscheint eine Zeile
+// zweimal und eine andere nie. Der zweite: auch mit eindeutigem Schluessel
+// teilen sich die Seitenabfragen KEINE Momentaufnahme -- wechselt zwischen
+// zwei Seiten ein nebenlaeufiger Anspruch von `processing` auf `success`,
+// schiebt sich seine aeltere Zeile in den bereits gelesenen Bereich, und der
+// naechste Versatz ueberspringt eine Zeile. Verschwinden koennte dabei wieder
+// ausgerechnet eine Absage.
+//
+// Beides faellt weg, wenn nicht nach Versatz, sondern nach dem zuletzt
+// gesehenen Schluessel geblaettert wird: `id` ist ein UUID-Primaerschluessel,
+// also eindeutig und vollstaendig sortierbar. Eine BESTEHENDE Zeile kann damit
+// weder uebersprungen noch doppelt gelesen werden, egal was nebenher passiert.
+// Eine waehrend des Lesens fertig werdende Zeile kann fehlen -- das ist
+// dasselbe wie eine Momentaufnahme kurz davor und die einzige Lesart, die
+// ueberhaupt konsistent ist.
+//
+// Die Lesereihenfolge muss dafuer nicht chronologisch sein: aufgeloest wird seit
+// dem 14.08. je Termin ueber mutationTime(), nicht ueber die Abfragefolge.
+async function loadAppointmentHistory(sb, customerId) {
+  const alle = [];
+  let cursor = null;
+  for (let seite = 0; seite < MAX_HISTORY_PAGES; seite += 1) {
+    let abfrage = sb.from('calendar_booking_audit')
+      // `request_id` steht seit dem 14.08. mit dabei -- siehe die
+      // Absagesperre im Handler.
+      .select('id,request_id,external_event_id,action,details,connection_id,created_at')
+      .eq('customer_id', customerId)
+      .eq('status', 'success')
+      .in('action', ['book', 'reschedule', 'cancel'])
+      .order('id', { ascending: true })
+      .limit(HISTORY_PAGE_SIZE);
+    if (cursor) abfrage = abfrage.gt('id', cursor);
+    const { data, error } = await abfrage;
+    if (error) throw error;
+    const zeilen = data || [];
+    alle.push(...zeilen);
+    if (zeilen.length < HISTORY_PAGE_SIZE) return alle;
+    cursor = zeilen[zeilen.length - 1].id;
+  }
+
+  // Genau volle letzte Seite heisst nicht "es kommt noch was".
+  //
+  // Codex-Befund vom 14.08. (P2): bei exakt 20 000 Zeilen ist die vierzigste
+  // Seite legitim voll, die Schleife laeuft aus -- und der Abbruch traf eine
+  // VOLLSTAENDIG gelesene Historie. Weil loadAppointmentHistory() unter allen
+  // vier Aktionen liegt, haette dieser eine Randwert Nachschlagen, Buchen,
+  // Absagen und Verschieben zugleich lahmgelegt. Ein Fehler in der Sicherung,
+  // die zehn Minuten vorher gegen einen anderen Fehler gebaut wurde.
+  //
+  // Eine einzelne Zeile hinter der Grenze entscheidet es.
+  const { data: rest, error } = await sb.from('calendar_booking_audit')
+    .select('id')
+    .eq('customer_id', customerId)
+    .eq('status', 'success')
+    .in('action', ['book', 'reschedule', 'cancel'])
+    .gt('id', cursor)
+    .order('id', { ascending: true })
+    .limit(1);
+  if (error) throw error;
+  if (!(rest || []).length) return alle;
+
+  const truncated = new Error('calendar_history_truncated');
+  truncated.status = 503;
+  throw truncated;
+}
+
+// Loest die Historie zum aktuellen Stand auf: ein reschedule ueberschreibt die
+// Zeiten seiner Buchung, ein cancel nimmt den Termin wieder heraus.
+//
+// `connection` filtert auf die heute aktive Verbindung und den heute gewaehlten
+// Kalender. `null` schaltet den Filter ab -- gebraucht fuer die
+// Eigentuemer-Pruefung, die auch dann greifen soll, wenn ein Termin ueber diesen
+// Filter herausfaellt.
+// Nach ABSCHLUSS geordnet, nicht nach Anlage.
+//
+// Codex-Befund vom 14.08. (P2): `created_at` ist der Zeitpunkt des
+// processing-Claims, nicht der der erfolgreichen Aenderung am Kalender.
+// Ueberlappen sich zwei Verschiebungen desselben Termins, kann die zuerst
+// beanspruchte zuletzt fertig werden -- dann ist SIE der Kalenderstand, waehrend
+// diese Wiedergabe die andere zuletzt anwendet und eine veraltete Zeit meldet.
+// `details.completed_at` steht in jeder Erfolgszeile aus dem Claim-Pfad; nur
+// Altzeilen ohne ihn fallen auf `created_at` zurueck.
+// Wann diese Aenderung beim ANBIETER wirksam wurde.
+//
+// `completed_at` ist der Zeitpunkt, zu dem unsere Antwort zurueckkam -- nicht
+// der, zu dem der Anbieter geaendert hat. Codex-Befund vom 14.08. (P2): bei
+// zwei ueberlappenden Verschiebungen kann der Anbieter A vor B anwenden,
+// waehrend die Antwort auf B zuerst eintrifft. Dann waere B der Kalenderstand,
+// die Wiedergabe nach Antwortankunft meldete aber A.
+//
+// Google liefert `updated`, Microsoft `lastModifiedDateTime` -- beides die
+// Aenderungszeit des Anbieters selbst. Sie wird seit dem 14.08. mitgeschrieben
+// und ist der erste Schluessel.
+//
+// Restrisiko, offen benannt: Altzeilen und Absagen haben sie nicht und fallen
+// auf unsere Zeiten zurueck. Deshalb wird nur noch INNERHALB eines Termins
+// sortiert (die Reihenfolge zwischen verschiedenen Terminen ist fuer das
+// Ergebnis ohne Bedeutung) und eine Absage gilt als endgueltig -- damit kann
+// keine Uhrenabweichung einen abgesagten Termin wieder auferstehen lassen.
+// Eine echte Serialisierung je Termin waere die strengere Loesung; sie braucht
+// eine Sperre und ist eine eigene Aenderung.
+function mutationTime(zeile) {
+  const wert = zeile?.details?.provider_updated_at
+    || zeile?.details?.completed_at
+    || zeile?.created_at;
+  return new Date(wert || 0).getTime() || 0;
+}
+
+function cancelledEventIds(rows) {
+  return new Set(
+    (rows || [])
+      .filter((zeile) => zeile?.action === 'cancel')
+      .map((zeile) => String(zeile.external_event_id || '').trim())
+      .filter(Boolean)
+  );
+}
+
+function resolveAppointments(rows, connection) {
+  const alle = rows || [];
+
+  // Absagen sind endgueltig, und zwar unabhaengig von jeder Sortierung. Das
+  // nimmt der Reihenfolge die einzige Richtung, in der ein Fehler wirklich
+  // gefaehrlich waere: einen abgesagten Termin wieder anzubieten.
+  //
+  // Gilt unabhaengig davon, ueber welche Verbindung die Absage lief.
+  //
+  // Die Annahme dahinter -- "nach einer Absage taucht dieselbe Termin-ID nicht
+  // wieder auf" -- war bis zum 14.08. eine ANNAHME. Codex-Befund (P2): stellt
+  // jemand einen geloeschten Kalendereintrag wieder her und laesst ihn dann
+  // ueber Voxera verschieben, kommt die Pruefung auf "von Voxera verwaltet"
+  // durch, eine neue Erfolgszeile entsteht -- und diese Menge hier blendet den
+  // Termin trotzdem fuer immer aus. Ein Termin, den es gibt und den niemand
+  // findet.
+  //
+  // Durchgesetzt wird sie jetzt am Eingang: cancelledEventIds() sperrt
+  // Verschieben und Absagen auf einer bereits abgesagten ID. Damit entsteht die
+  // unerreichbare Zeile gar nicht erst, statt hier nachtraeglich verdeckt zu
+  // werden.
+  const abgesagt = cancelledEventIds(alle);
+
+  const proTermin = new Map();
+  for (const zeile of alle) {
+    if (zeile.action === 'cancel') continue;
+    const id = String(zeile.external_event_id || '').trim();
+    if (!id || abgesagt.has(id)) continue;
+
+    // Angeboten wird nur, was ueber die HEUTE aktive Verbindung und den heute
+    // gewaehlten Kalender auch absagbar ist.
+    //
+    // Codex-Befund vom 13.08. (P1): die Historie ist kundenweit. Wechselt ein
+    // Kunde den Anbieter oder den Kalender, stehen alte Buchungen weiter drin.
+    // Beim Absagen laufen sie dann in zwei verschiedene Fallen -- beim
+    // Anbieterwechsel in calendar_event_not_managed_by_voxera, beim
+    // Kalenderwechsel in ein DELETE auf den falschen Kalender.
+    if (connection) {
+      if (zeile.connection_id && connection.id && zeile.connection_id !== connection.id) continue;
+      // `calendar_id` MUSS dastehen und passen.
+      //
+      // Vorher war die Bedingung `kalender && kalender !== ...` -- eine Zeile
+      // ohne Kalender-ID kam also durch, mit dem Argument, die
+      // Verbindungspruefung fange sie ab. Codex-Befund vom 14.08. (P2): sie tut
+      // es nicht. `select_calendar` in calendar-connections.js setzt
+      // `selected_calendar_id` auf der BESTEHENDEN Verbindungszeile um -- die
+      // `connection_id` bleibt dieselbe. Nach einem Kalenderwechsel an Ort und
+      // Stelle stehen Altbuchungen des alten Kalenders also weiter in der Liste,
+      // und ihre Absage kann nur im 409-Rueckfall enden.
+      //
+      // Wo nichts steht, wissen wir es nicht -- und "wir wissen es nicht" darf
+      // nicht als "gehoert zum aktuellen Kalender" durchgehen.
+      const kalender = zeile.details?.calendar_id;
+      if (!kalender || (connection.selected_calendar_id && kalender !== connection.selected_calendar_id)) continue;
+    }
+
+    if (!proTermin.has(id)) proTermin.set(id, []);
+    proTermin.get(id).push(zeile);
+  }
+
+  const offen = new Map();
+  for (const [id, zeilen] of proTermin) {
+    // Die juengste Zeile, die ueberhaupt Zeiten traegt. Eine spaetere ohne
+    // Zeiten darf die frueheren nicht entwerten -- das tat die Vorgaengerfassung
+    // mit ihrem `continue` beilaeufig richtig, und das soll so bleiben.
+    const massgeblich = [...zeilen]
+      .sort((a, b) => mutationTime(a) - mutationTime(b))
+      .reverse()
+      .find((zeile) => zeile.details?.response?.start && zeile.details?.response?.end);
+    if (!massgeblich) continue;
+
+    const antwort = massgeblich.details.response;
+    offen.set(id, {
+      external_event_id: id,
+      start: antwort.start,
+      end: antwort.end,
+      // Seit dem 14.08.: an WEN der Termin gebunden ist. Aeltere Zeilen tragen
+      // beides nicht -- siehe die Erlaeuterung in _lib/caller-identity.js, wo
+      // sich Nachschlagen (streng) und Absagen (nachsichtig) unterscheiden.
+      caller_reference: String(massgeblich.details?.caller_reference || '') || null,
+      booking_reference: String(massgeblich.details?.booking_reference || '') || null
+    });
+  }
+  return offen;
+}
+
+// Nur anstehende. Ein Bestandskunde haette sonst eine Liste, die mit jedem
+// vergangenen Termin unbrauchbarer wird.
+function upcomingAppointments(offen, now = Date.now()) {
+  return [...offen.values()]
+    .filter((termin) => {
+      const beginn = new Date(termin.start).getTime();
+      return Number.isFinite(beginn) && beginn > now;
+    })
+    .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
+}
+
+// Jede Terminnummer, die dieser Betrieb JE ausgegeben hat.
+//
+// Zuerst waren es nur die anstehenden Termine, mit dem Argument, nur die koenne
+// das Nachschlagen zurueckgeben. Codex-Befund vom 14.08. (P2): das uebersieht,
+// dass die anrufende Person ihre Nummer behaelt. Faellt ein Termin in die
+// Vergangenheit und wird dieselbe Nummer spaeter neu vergeben, oeffnet der alte
+// Zettel den Termin einer fremden Person -- `matchesCaller()` nimmt die Nummer
+// unabhaengig von der Anrufernummer an.
+//
+// Gelesen wird deshalb aus den ROHZEILEN, nicht aus dem aufgeloesten Bestand:
+// abgesagte und vergangene Termine sind aus dem Bestand verschwunden, ihre
+// Nummern sind aber weiterhin im Umlauf.
+//
+// Der Vorrat sind 10^6 Nummern. Bei tausend je ausgegebenen liegt die
+// Kollisionswahrscheinlichkeit der naechsten Ziehung bei einem Promille, und die
+// Ziehung wiederholt sich; erst im hohen fuenfstelligen Bereich wuerde die
+// Stellenzahl knapp.
+function issuedReferences(rows) {
+  const belege = new Set();
+  for (const zeile of rows || []) {
+    const beleg = String(zeile?.details?.booking_reference || '');
+    if (beleg) belege.add(beleg);
+  }
+  return belege;
+}
+
+// Terminnummern, die JE an mehr als einen Termin gegangen sind.
+//
+// Codex-Befund vom 14.08. (P2): die Mehrdeutigkeit wurde nur im Bestand der
+// anstehenden Termine gesucht. Faellt einer der beiden kollidierenden Termine
+// weg -- abgesagt oder vergangen --, sieht der andere wieder eindeutig aus, und
+// der Zettel der ersten Person oeffnet ihn erneut. Eine Doppelvergabe
+// verjaehrt aber nicht: beide Zettel bleiben im Umlauf, also bleibt die Nummer
+// dauerhaft unbrauchbar.
+function ambiguousReferences(rows) {
+  const proBeleg = new Map();
+  for (const zeile of rows || []) {
+    const beleg = String(zeile?.details?.booking_reference || '');
+    const id = String(zeile?.external_event_id || '').trim();
+    if (!beleg || !id) continue;
+    if (!proBeleg.has(beleg)) proBeleg.set(beleg, new Set());
+    proBeleg.get(beleg).add(id);
+  }
+  const mehrdeutig = new Set();
+  for (const [beleg, ids] of proBeleg) if (ids.size > 1) mehrdeutig.add(beleg);
+  return mehrdeutig;
+}
+
 async function audit(sb, input) {
   const { error } = await sb.from('calendar_booking_audit').insert(input);
   if (error) console.warn('[calendar-tool] audit failed', { error: error.message, action: input.action });
@@ -194,12 +522,20 @@ exports.handler = async (event) => {
   catch (_error) { return reply(400, { ok: false, error: 'invalid_json' }); }
 
   const action = String(body.action || '').trim().toLowerCase();
-  const allowedActions = ['availability', 'book', 'reschedule', 'cancel'];
+  const allowedActions = ['availability', 'book', 'reschedule', 'cancel', 'lookup'];
   if (!allowedActions.includes(action)) return reply(400, { ok: false, error: 'calendar_action_unsupported' });
   const requestId = String(body.request_id || '').trim().slice(0, 200) || null;
+  // `lookup` steht hier bewusst nicht: es ist ein Lesezugriff ohne
+  // Seiteneffekt, eine Wiederholung schadet nicht.
   if (['book', 'reschedule', 'cancel'].includes(action) && !requestId) {
     return reply(400, { ok: false, error: 'calendar_request_id_required' });
   }
+  // Wer ruft an? Siehe _lib/caller-identity.js -- ausdruecklich eine Zuordnung
+  // und KEINE Authentifizierung. Beide Felder sind optional: `caller_id` liefert
+  // ElevenLabs nur bei Telefongespraechen, die Terminnummer nennt nur, wer eine
+  // hat. Faellt beides weg, findet das Nachschlagen nichts, und der Agent geht
+  // in die Rueckrufaufnahme.
+  const identitaet = identityFromBody(body);
   let claimedAuditId = null;
   // Ausserhalb des try deklariert, damit der catch-Block sie sehen kann. Der
   // Fehlerpfad schreibt seit #930 Schritt C selbst eine Audit-Zeile -- mit
@@ -281,6 +617,11 @@ exports.handler = async (event) => {
     const openingHours = customerRow?.ai_opening_hours || null;
 
     let externalEventId = String(body.external_event_id || '').trim() || null;
+    let bestehenderTermin = null;
+    // Schon vergebene Terminnummern -- gebraucht ueberall dort, wo eine neue
+    // gezogen wird. Bei reschedule und cancel faellt der Bestand als Nebenprodukt
+    // der Eigentuemer-Pruefung an; book holt ihn eigens.
+    let vergebeneBelege = new Set();
     if (['reschedule', 'cancel'].includes(action)) {
       if (!externalEventId) throw new Error('external_event_id_required');
       const { data: managedEvents, error: managedError } = await sb.from('calendar_booking_audit')
@@ -293,6 +634,66 @@ exports.handler = async (event) => {
         .limit(1);
       if (managedError) throw managedError;
       if (!managedEvents?.length) return reply(403, { ok: false, error: 'calendar_event_not_managed_by_voxera' });
+
+      // Gehoert der Termin zu diesem Anruf?
+      //
+      // Ohne Verbindungsfilter aufgeloest: die Frage ist "wer hat gebucht" und
+      // nicht "ist es heute noch absagbar" -- letzteres beantwortet bereits die
+      // Pruefung oben. Ein Termin, den der Verbindungsfilter herauswirft,
+      // verloere sonst still seinen Eigentuemer.
+      const verlauf = await loadAppointmentHistory(sb, customerId);
+      // Eine abgesagte Termin-ID nimmt keine weitere Aenderung mehr an.
+      //
+      // Codex-Befund vom 14.08. (P2): ohne diese Schranke konnte eine Buchung,
+      // deren Kalendereintrag jemand von Hand wiederhergestellt hat, ueber
+      // Voxera verschoben werden -- die Erfolgszeile entstand, und die
+      // Aufloesung blendete den Termin danach fuer immer aus. Ein Termin, den es
+      // gibt und den niemand findet, ist schlimmer als eine Ablehnung: die
+      // Ablehnung fuehrt in Schritt 19 und damit zu einem Menschen.
+      // Die EIGENE Absage sperrt nicht.
+      //
+      // Codex-Befund vom 14.08. (P1): eine Wiederholung derselben Anfrage --
+      // Absage beim Anbieter erfolgt, Antwort unterwegs verloren -- duerfe hier
+      // nicht in die Sperre laufen, sondern muesse die gespeicherte
+      // Erfolgsantwort bekommen.
+      //
+      // Nachgemessen: die Wiederholungspruefung weiter oben faengt das bereits
+      // ab, und ein eigener Fall belegt es seit `ed1dc97`. Der Befund liess sich
+      // an dieser Fassung nicht nachstellen.
+      //
+      // Trotzdem geaendert, denn "faengt eine andere Stelle ab" ist eine
+      // schwaechere Zusage als "kann hier gar nicht passieren": die obere
+      // Pruefung liest die Zeile ueber die request_id, und ein Lesevorgang kann
+      // veraltet sein. Die Sperre gilt deshalb nur noch fuer Absagen aus einer
+      // ANDEREN Anfrage. Fuer die eigene faellt sie durch und landet unten im
+      // Anspruchskonflikt, der wiederum die Erfolgsantwort ausliefert.
+      const fremdeAbsage = verlauf.some((zeile) => zeile.action === 'cancel'
+        && String(zeile.external_event_id || '').trim() === externalEventId
+        && String(zeile.request_id || '') !== String(requestId || ''));
+      if (fremdeAbsage) {
+        const error = new Error('calendar_event_already_cancelled');
+        error.status = 409;
+        throw error;
+      }
+      const offeneTermine = resolveAppointments(verlauf, null);
+      bestehenderTermin = offeneTermine.get(externalEventId) || null;
+      vergebeneBelege = issuedReferences(verlauf);
+      // Eine mehrdeutige Terminnummer darf auch hier nichts erlauben -- sonst
+      // waere die Entschaerfung beim Nachschlagen an der Absage vorbei
+      // umgangen. Siehe matchAppointments() in _lib/caller-identity.js.
+      const { belegMehrdeutig } = matchAppointments(
+        upcomingAppointments(offeneTermine), identitaet,
+        { mehrdeutigeBelege: ambiguousReferences(verlauf) }
+      );
+      const konflikt = ownershipConflict(
+        bestehenderTermin,
+        belegMehrdeutig ? { ...identitaet, bookingReference: '' } : identitaet
+      );
+      if (konflikt) {
+        const error = new Error(konflikt);
+        error.status = 403;
+        throw error;
+      }
     }
 
     if (requestId) {
@@ -320,14 +721,149 @@ exports.handler = async (event) => {
       claimedAuditId = claim?.id || null;
     }
 
-    const token = await ensureAccessToken(sb, connection);
+    // Der Zugriffsschluessel wird erst geholt, wenn der Anbieter wirklich
+    // gefragt wird.
+    //
+    // Codex-Befund vom 14.08. (P2): er wurde vor der Verzweigung geholt -- also
+    // auch fuer `lookup`, das ausschliesslich unsere eigene Audit-Tabelle liest.
+    // Ist der Aktualisierungsschluessel abgelaufen oder zurueckgezogen, wirft
+    // ensureAccessToken() und markiert die Verbindung unter Umstaenden als
+    // reauthorization_required -- und das Nachschlagen scheitert, obwohl seine
+    // Quelle vollstaendig gesund ist. Genau dann ist es aber am wichtigsten:
+    // "ich finde Ihren Termin nicht" waehrend eines Anbieterausfalls.
+    //
+    // Nebenwirkung mit demselben Vorzeichen: ein geschlossener Tag beantwortet
+    // availability jetzt ohne jeden Anbieterkontakt.
+    let tokenZwischenspeicher = null;
+    const holeToken = async () => {
+      if (!tokenZwischenspeicher) tokenZwischenspeicher = await ensureAccessToken(sb, connection);
+      return tokenZwischenspeicher;
+    };
     const startIso = body.start ? iso(body.start, 'start') : null;
     const endIso = body.end ? iso(body.end, 'end') : null;
     let responsePayload;
+    // Was ausser der Antwort in die Audit-Zeile gehoert. Fuer book und
+    // reschedule ist das die Bindung des Termins an die anrufende Person --
+    // ohne sie in der Zeile findet das Nachschlagen ihn spaeter nicht wieder.
+    let auditZusatz = {};
 
     const blockingUpdates = await loadBlockingUpdates(sb, customerId, startIso, endIso);
 
-    if (action === 'availability') {
+    if (action === 'lookup') {
+      // Kein Kalenderaufruf: die Antwort kommt aus unserer eigenen Tabelle.
+      const verlaufNachschlagen = await loadAppointmentHistory(sb, customerId);
+      const anstehende = upcomingAppointments(resolveAppointments(verlaufNachschlagen, connection));
+      // Gefiltert auf die anrufende Person.
+      //
+      // Bis zum 14.08. stand hier `anstehende` ungefiltert -- und das hiess: wer
+      // bei einem Betrieb anruft, bekommt die anstehenden Termine ALLER Kunden
+      // dieses Betriebs vorgelesen, mit ihren Termin-IDs, und kann sie damit
+      // absagen. Das war kein Randfall, sondern der Normalfall jedes zweiten
+      // Anrufs.
+      //
+      // Die Bindung ist die Anrufernummer, ersatzweise die Terminnummer. Sie ist
+      // eine Zuordnung und kein Nachweis -- die Begruendung und ihre Grenzen
+      // stehen in _lib/caller-identity.js.
+      const { treffer: termine, belegMehrdeutig } = matchAppointments(
+        anstehende, identitaet,
+        { mehrdeutigeBelege: ambiguousReferences(verlaufNachschlagen) }
+      );
+      const modus = identitaet.callerReference
+        ? 'caller_id'
+        : (identitaet.bookingReference ? 'booking_reference' : 'none');
+      // Drei verschiedene Auskuenfte, nicht eine -- und jede fuehrt im Prompt in
+      // einen anderen Satz. Ein gemeinsames "nichts gefunden" schickte den
+      // Agenten in den falschen.
+      //
+      // Codex-Befund vom 14.08. (P1): die erste Fassung machte den Rueckfall auf
+      // die Terminnummer UNERREICHBAR. Sie fragte nach `modus` -- und wer von
+      // einem anderen Anschluss anruft, hat eine gueltige Anrufernummer, also
+      // modus='caller_id'. Der Fall lief damit in "du hast keinen Termin" und
+      // der Agent nahm eine Rueckrufanfrage auf, statt nach der Nummer zu
+      // fragen. Das ist genau der Anwendungsfall, fuer den Rueckfall B gebaut
+      // wurde; er waere in der Abnahme (Punkt 13) durchgefallen.
+      //
+      // Massgeblich ist deshalb nicht, WOMIT gesucht wurde, sondern was fuer
+      // DIESEN Anruf noch offen ist.
+      //
+      // Die zweite Fassung fragte zusaetzlich `anstehende.length === 0` ab, um
+      // "der Betrieb hat gar keinen Termin" eigens zu melden. Codex-Befund vom
+      // 14.08. (P2): das ist betriebsweiter Zustand, und ein beliebiger Anrufer
+      // haette daran ablesen koennen, ob dieser Betrieb ueberhaupt Voxera-
+      // Termine anstehen hat. Schlimmer noch, die Auskunft war nicht einmal
+      // gedeckt: `anstehende` laesst Altbestand und fremde Kalender weg, "es
+      // steht nichts an" waere also auch sachlich falsch gewesen.
+      //
+      // Und wir KOENNEN es gar nicht wissen: wer hier nichts trifft, hat
+      // entweder keinen Termin oder einen unter einer anderen Nummer. Beides
+      // sieht von hier aus gleich aus. Also wird auch beides gleich beantwortet
+      // -- mit der Frage nach der Terminnummer. Der Preis ist eine zusaetzliche
+      // Frage bei jemandem, der wirklich keinen Termin hat; der Gegenwert ist,
+      // dass die Antwort nichts behauptet, was wir nicht belegen koennen.
+      // Keine stille Kuerzung: mehr Termine als die Antwort fasst ist ein
+      // eigener Ausgang, kein stillschweigend abgeschnittener Erfolg.
+      const gekuerzt = termine.length > LOOKUP_LIMIT;
+      const grund = gekuerzt
+        ? 'calendar_too_many_appointments'
+        : (termine.length
+          ? null
+          // Eine Terminnummer wurde genannt und hat nicht zugewiesen -- entweder
+          // passte sie zu nichts, oder sie war mehrdeutig und traegt deshalb
+          // nichts. Der Agent liest sie einmal zur Kontrolle zurueck.
+          : ((identitaet.bookingReference || belegMehrdeutig)
+            ? 'calendar_booking_reference_unknown'
+            // Noch keine Terminnummer im Spiel: danach fragen.
+            : 'calendar_appointment_unmatched'));
+      responsePayload = {
+        ok: true,
+        action,
+        // Bei Ueberschreitung wird GAR NICHTS herausgegeben.
+        //
+        // Codex-Befund vom 14.08. (P2): die erste Fassung meldete `truncated`
+        // und lieferte trotzdem fuenfzig verwertbare Termin-IDs. Der Prompt bat
+        // das Modell, keine davon zu waehlen -- und genau das ist der Fehler,
+        // den dieser PR an anderer Stelle selbst benennt: Prosa ist keine
+        // Vorgabe. Wer den Rueckrufpfad erzwingen will, darf nichts
+        // Verwertbares mitgeben.
+        appointments: gekuerzt ? [] : termine.map((termin) => ({
+          external_event_id: termin.external_event_id,
+          start: termin.start,
+          end: termin.end
+        })),
+        appointment_count: termine.length,
+        identified_by: modus,
+        ...(gekuerzt ? { truncated: true } : {}),
+        timezone: String(settings.timezone || 'Europe/Zurich'),
+        ...(grund ? { reason: grund } : {})
+      };
+      auditGeschrieben = true;
+      await audit(sb, {
+        customer_id: customerId,
+        connection_id: connection.id,
+        provider: connection.provider,
+        action,
+        actor_type: 'assistant',
+        status: 'success',
+        // Nur die Anzahl: die Termine selbst stehen bereits als eigene Zeilen
+        // in dieser Tabelle, eine zweite Kopie waere Ballast.
+        //
+        // `caller_reference` und die beiden Zahlen daneben sind kein Ballast,
+        // sondern die einzige Moeglichkeit, "warum fand er meinen Termin nicht"
+        // spaeter zu beantworten: ohne sie liesse sich nicht unterscheiden, ob
+        // gar kein Termin anstand oder ob die Zuordnung danebenlag.
+        details: {
+          appointment_count: termine.length,
+          // Betriebsweite Zahl -- sie steht hier und NICHT in der Antwort an den
+          // Agenten. Fuer die Diagnose ist sie unentbehrlich, dem Anrufenden
+          // gegenueber waere sie eine Auskunft ueber fremde Termine.
+          upcoming_total: anstehende.length,
+          identified_by: modus,
+          booking_reference_ambiguous: belegMehrdeutig,
+          caller_reference: identitaet.callerReference || null,
+          reason: grund
+        }
+      });
+    } else if (action === 'availability') {
       validateWindow(startIso, endIso, settings);
       // Ausserhalb der Buchungszeiten oder waehrend einer Schliessung ist der
       // Zeitraum nicht verfuegbar -- das ist eine Antwort, kein Fehler. Ein
@@ -351,7 +887,7 @@ exports.handler = async (event) => {
         // Antwort schon fest -- das spart denselben API-Aufruf, den vorher die
         // Kurzschluss-Abfrage auf das ganze Fenster gespart hat.
         const window = bufferedWindow(startIso, endIso, settings);
-        const result = await checkAvailability(connection.provider, token.accessToken, connection.selected_calendar_id, window.start, window.end);
+        const result = await checkAvailability(connection.provider, (await holeToken()).accessToken, connection.selected_calendar_id, window.start, window.end);
         busy = result.busy;
         slots = freeSlots(plan.slots, busy, settings);
       }
@@ -437,6 +973,18 @@ exports.handler = async (event) => {
           requested_end: endIso,
           reason: responsePayload.reason || null,
           busy_count: Array.isArray(responsePayload.busy) ? responsePayload.busy.length : 0,
+          // Grenzen der Belegung, ohne Titel und ohne Teilnehmer.
+          //
+          // Die Zeile trug zuerst nur Zahlen -- bewusst, um den Kalender des
+          // Kunden nicht zu spiegeln. Am 13.08. liess sich damit die Frage
+          // "welcher Termin fiel weg" nicht beantworten, und genau die wird im
+          // Zweifelsfall zuerst gestellt: die Slot-Zahl allein unterscheidet
+          // nicht zwischen einem Termin um 09:00 und einem um 09:30, beide
+          // ergeben dieselbe Anzahl. Anfang und Ende sind der Pruefnachweis
+          // fuer unsere eigene Rechnung, kein Abbild des Kundenkalenders.
+          busy_windows: Array.isArray(responsePayload.busy)
+            ? responsePayload.busy.slice(0, 20).map((eintrag) => ({ start: eintrag.start, end: eintrag.end }))
+            : [],
           // Zahlen, keine Zeitstempel: die Zeile soll belegen, wie die Antwort
           // zustande kam, und nicht den Kalender des Kunden in unsere
           // Audit-Tabelle spiegeln.
@@ -449,39 +997,100 @@ exports.handler = async (event) => {
       const input = eventInput(body, settings);
       assertBookable(input.start, input.end, settings, openingHours, blockingUpdates);
       const window = bufferedWindow(input.start, input.end, settings);
-      const availability = await checkAvailability(connection.provider, token.accessToken, connection.selected_calendar_id, window.start, window.end);
+      const availability = await checkAvailability(connection.provider, (await holeToken()).accessToken, connection.selected_calendar_id, window.start, window.end);
       if (!availability.available) {
         const conflict = new Error('calendar_slot_unavailable');
         conflict.status = 409;
         conflict.details = { busy: availability.busy };
         throw conflict;
       }
-      const eventRecord = await createEvent(connection.provider, token.accessToken, connection.selected_calendar_id, input);
+      // Die Terminnummer entsteht bei JEDER Buchung, nicht nur wenn die
+      // Anrufernummer fehlt. Sie ist der Rueckfall fuer den naechsten Anruf --
+      // von einem anderen Anschluss, mit unterdrueckter Nummer, oder wenn
+      // jemand fuer eine andere Person gebucht hat. Zu diesem Zeitpunkt weiss
+      // niemand, ob er gebraucht wird; ihn erst dann zu erzeugen, wenn er
+      // fehlt, geht nicht.
+      //
+      // VOR createEvent gezogen: die Ziehung kann bei erschoepftem Nummernraum
+      // abbrechen, und ein Abbruch nach dem Anlegen hinterliesse einen Termin im
+      // Kalender, den unsere Historie nie gesehen hat.
+      vergebeneBelege = issuedReferences(await loadAppointmentHistory(sb, customerId));
+      const beleg = bookingReference(vergebeneBelege);
+      const eventRecord = await createEvent(connection.provider, (await holeToken()).accessToken, connection.selected_calendar_id, input);
       externalEventId = String(eventRecord.id || '').trim();
+      auditZusatz = {
+        caller_reference: identitaet.callerReference || null,
+        booking_reference: beleg,
+        // Die Aenderungszeit des ANBIETERS, nicht unsere. Siehe mutationTime().
+        provider_updated_at: eventRecord.updated || eventRecord.lastModifiedDateTime || null
+      };
       responsePayload = {
         ok: true, action, external_event_id: externalEventId,
         event_url: eventRecord.htmlLink || eventRecord.webLink || null,
-        start: input.start, end: input.end, timezone: input.timezone
+        start: input.start, end: input.end, timezone: input.timezone,
+        booking_reference: beleg
       };
     } else if (action === 'reschedule') {
       const input = eventInput(body, settings);
       assertBookable(input.start, input.end, settings, openingHours, blockingUpdates);
       const window = bufferedWindow(input.start, input.end, settings);
-      const availability = await checkAvailability(connection.provider, token.accessToken, connection.selected_calendar_id, window.start, window.end, externalEventId);
+      const availability = await checkAvailability(connection.provider, (await holeToken()).accessToken, connection.selected_calendar_id, window.start, window.end, externalEventId);
       if (!availability.available) {
         const conflict = new Error('calendar_slot_unavailable');
         conflict.status = 409;
         conflict.details = { busy: availability.busy };
         throw conflict;
       }
-      const eventRecord = await updateEvent(connection.provider, token.accessToken, connection.selected_calendar_id, externalEventId, input);
+      // VOR updateEvent gezogen -- aus demselben Grund wie bei book.
+      //
+      // Codex-Befund vom 14.08. (P2): die Ziehung stand hinter updateEvent. Bei
+      // einem Altbestandstermin ohne Nummer haette ein Abbruch der Ziehung
+      // bedeutet, dass der Kalender schon die neue Zeit traegt, die Antwort aber
+      // 503 lautet und keine Erfolgszeile entsteht -- ein Termin, der verschoben
+      // ist, ohne dass unsere Historie davon weiss.
+      const beleg = bestehenderTermin?.booking_reference || bookingReference(vergebeneBelege);
+      const eventRecord = await updateEvent(connection.provider, (await holeToken()).accessToken, connection.selected_calendar_id, externalEventId, input);
+      // Die Bindung wird FORTGESCHRIEBEN, nicht neu gesetzt: verschoben wird ein
+      // bestehender Termin, und wer ihn verschiebt, uebernimmt ihn nicht. Sonst
+      // koennte ein Verschieben still den Eigentuemer wechseln -- und das waere
+      // genau der Weg, den die Pruefung oben verhindern soll.
+      //
+      // Nur wo nichts hinterlegt ist (Altbestand), traegt das Verschieben die
+      // Kennung des aktuellen Anrufs nach. Eine Terminnummer bekommt ein solcher
+      // Termin bei dieser Gelegenheit ebenfalls, damit er kuenftig auffindbar
+      // ist.
+      auditZusatz = {
+        caller_reference: bestehenderTermin?.caller_reference || identitaet.callerReference || null,
+        booking_reference: beleg,
+        provider_updated_at: eventRecord.updated || eventRecord.lastModifiedDateTime || null
+      };
       responsePayload = {
         ok: true, action, external_event_id: externalEventId,
         event_url: eventRecord.htmlLink || eventRecord.webLink || null,
-        start: input.start, end: input.end, timezone: input.timezone
+        start: input.start, end: input.end, timezone: input.timezone,
+        booking_reference: beleg
       };
     } else {
-      await deleteEvent(connection.provider, token.accessToken, connection.selected_calendar_id, externalEventId);
+      const geloescht = await deleteEvent(connection.provider, (await holeToken()).accessToken, connection.selected_calendar_id, externalEventId);
+      // Ein 404 ist keine Absage.
+      //
+      // `deleteEvent()` behandelt 404 als Erfolg und meldet `already_missing`;
+      // der Rueckgabewert wurde bis zum 13.08. verworfen und `cancelled: true`
+      // fest verdrahtet. Damit bestaetigte ein DELETE auf den FALSCHEN Kalender
+      // eine Absage, die nicht stattgefunden hat -- der Termin blieb stehen,
+      // der Anrufende hoerte "ist storniert".
+      //
+      // Wir koennen die beiden Ursachen nicht unterscheiden: schon geloescht,
+      // oder am falschen Ort gesucht. Also bestaetigen wir nicht. Der
+      // Fehlerpfad fuehrt in Schritt 15 des Kalenderblocks -- der Agent sagt,
+      // dass er die Absage nicht selbst bestaetigen kann, und nimmt eine
+      // Rueckrufanfrage auf.
+      if (geloescht?.already_missing) {
+        const error = new Error('calendar_event_already_missing');
+        error.status = 409;
+        throw error;
+      }
+      auditZusatz = { caller_reference: identitaet.callerReference || null };
       responsePayload = { ok: true, action, external_event_id: externalEventId, cancelled: true };
     }
 
@@ -489,7 +1098,17 @@ exports.handler = async (event) => {
       const { error } = await sb.from('calendar_booking_audit').update({
         external_event_id: externalEventId,
         status: 'success',
-        details: { response: responsePayload, completed_at: new Date().toISOString() }
+        details: {
+          response: responsePayload,
+          // Auf WELCHEM Kalender der Termin liegt. Ohne diese Angabe kann das
+          // Nachschlagen nach einem Kalenderwechsel nicht mehr unterscheiden,
+          // welche Buchung noch absagbar ist.
+          calendar_id: connection.selected_calendar_id,
+          // Eigene Felder statt Ableitung aus `response`: die Antwortform gehoert
+          // dem Agenten und darf sich aendern, die Bindung ist unser Schluessel.
+          ...auditZusatz,
+          completed_at: new Date().toISOString()
+        }
       }).eq('id', claimedAuditId);
       if (error) throw error;
     } else if (!auditGeschrieben) {
@@ -502,7 +1121,7 @@ exports.handler = async (event) => {
         actor_type: 'assistant',
         external_event_id: externalEventId,
         status: 'success',
-        details: { response: responsePayload }
+        details: { response: responsePayload, ...auditZusatz }
       });
     }
     return reply(200, responsePayload);
@@ -554,6 +1173,9 @@ exports.handler = async (event) => {
           error: error?.message || 'calendar_tool_failed',
           requested_start: body?.start || null,
           requested_end: body?.end || null,
+          // Bei calendar_appointment_not_yours ist genau das die Frage, die
+          // hinterher gestellt wird: wer hat es versucht.
+          caller_reference: identitaet.callerReference || null,
           failed_at: new Date().toISOString()
         }
       });
@@ -567,4 +1189,11 @@ exports.handler = async (event) => {
   }
 };
 
-exports._test = { verifyToolAuth, verifyHmac, validateWindow, assertTiming, bufferedWindow };
+exports._test = {
+  verifyToolAuth, verifyHmac, validateWindow, assertTiming, bufferedWindow,
+  // Zwei reine Funktionen, die sich am laufenden Handler nur unscharf pruefen
+  // lassen: die Nummernvergabe zieht zufaellig, und ein Zufallstreffer auf eine
+  // BESTIMMTE Nummer bleibt aus, ob die Sperre nun greift oder nicht. Direkt
+  // geprueft ist die Zusicherung dagegen eindeutig.
+  issuedReferences, resolveAppointments, upcomingAppointments, loadAppointmentHistory
+};
