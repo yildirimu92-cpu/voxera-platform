@@ -758,22 +758,30 @@ test('die Dringlichkeits-Beschreibung traegt den Folgen-Massstab, nicht die Sign
   assert.doesNotMatch(block, /enum:/, 'enum ist bewusst nicht Teil dieser Aenderung');
 });
 
-test('die L1-Migration stellt den Massstab um und sichert vorher', () => {
-  const sql = fs.readFileSync(
-    path.join(__dirname, '..', '..', 'supabase', 'migrations',
-      '20260814190000_prompt_l1_dringlichkeit_folgenmassstab.sql'),
+test('jede der drei Stufen traegt ein Beispiel', () => {
+  const cfg = fs.readFileSync(
+    path.join(__dirname, '..', '..', 'admin-panel', 'netlify', 'functions', '_lib', 'elevenlabs-agent-config.js'),
     'utf8'
   );
-  // Sicherung vor der Aenderung: ohne Versionierung (#929) ist die Kopie der
-  // einzige Rueckweg.
-  assert.match(sql, /sicherung_2026-08-14_vor_folgenmassstab/);
-  // Ankerpruefung: die Migration darf bei "nicht gefunden" nicht still
-  // durchlaufen, sonst sieht ein Fehlschlag aus wie ein Erfolg.
-  assert.match(sql, /raise exception 'Abbruch: Anker 1/);
-  assert.match(sql, /raise exception 'Abbruch: Anker 2/);
-  assert.match(sql, /raise exception 'Abbruch: Anker 3/);
-  // Kein vollstaendiges Ueberschreiben des Prompts.
-  assert.doesNotMatch(sql, /set value = '/, 'L1 darf nicht als Ganzes ersetzt werden');
+  const block = cfg.split('urgency: {')[1].split('},')[0];
+  // Eine Definition ohne Beispiel ist die Form, an der Einstufungen scheitern.
+  assert.equal((block.match(/Beispiel:/g) || []).length, 3,
+    'jede Stufe braucht genau ein Beispiel');
+});
+
+test('der isolierte Test bleibt isoliert: kein gleichzeitiger Prompt-Eingriff', () => {
+  // Der Testanruf misst genau eine Aenderung. Kommt eine Migration auf
+  // prompt_master_l1 dazu, bevor gemessen wurde, ist das Ergebnis nicht mehr
+  // zuordenbar -- und die Architekturfrage bleibt offen, obwohl ein Testanruf
+  // verbraucht wurde.
+  const migrationen = path.join(__dirname, '..', '..', 'supabase', 'migrations');
+  const treffer = fs.readdirSync(migrationen).filter(f => {
+    if (!f.endsWith('.sql')) return false;
+    const inhalt = fs.readFileSync(path.join(migrationen, f), 'utf8');
+    return /update\s+public\.system_config[\s\S]{0,400}prompt_master_l1/i.test(inhalt);
+  });
+  assert.deepEqual(treffer, [],
+    'Eine Migration aendert prompt_master_l1. Erst messen, dann den Prompt anfassen: ' + treffer.join(', '));
 });
 
 test('der Retry-Worker kennt beide SMS-Ereignistypen', () => {

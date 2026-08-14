@@ -88,6 +88,51 @@ Das Ortsfeld (`TICKET_ORT_UND_RUECKRUFNUMMER_2026-08-11.md`) wurde hinter dieses
 
 ---
 
+## Isolierter Test — Stand 14.08., wartet auf Messung
+
+Statt Minimum und Ausbau in einem Zug zu bauen, geht **eine einzige Änderung** voraus, die die offene Architekturfrage entscheidet.
+
+**Geändert:** nur die Feldbeschreibung von `urgency` in `elevenlabs-agent-config.js`. Folgen-Massstab statt Signalbedingung, drei Stufen mit je einem Beispiel, beide Grenzfälle, Rückfallregel `Stufe IMMER ein. Ohne verwertbare Information: niedrig.`
+
+**Nicht geändert:** der Prompt. Kein `enum`. Keine Struktur.
+
+**Was der Test beantwortet:** Trägt eine Rückfallregel in der Feldbeschreibung — ohne `enum`, ohne Prompt-Eingriff? Steigt die Quote, ist der Hebel bewiesen und die Wahl zwischen „von Hand nachziehen" und „Sync erweitern" wird auf einer Messung getroffen statt auf einer Annahme. Bleibt sie, ist die Annahme falsch, dass die Auswertung nur dort liest.
+
+Er läuft nicht in #965 hinein, weil er den Prompt nicht anfasst — eine Standardpersönlichkeit kann keine Feldbeschreibung überlagern.
+
+### Warum `niedrig` und nicht „leer lassen"
+
+Ich hatte „leer lassen" vorgeschlagen, weil eine erfundene Einstufung nicht als Lücke erkennbar wäre. Der Einwand ist gegenstandslos: **Die Rückfallregel richtet sich an das auswertende Modell, sie ist keine Vorgabe im Code.** Damit bleiben beide Fälle unterscheidbar:
+
+| Fall | Feld | SMS zeigt |
+|---|---|---|
+| Modell hat bewertet, nichts deutet auf Eile | `niedrig` | „Dringlichkeit: niedrig" |
+| Modell lief nicht oder scheiterte | leer | „Dringlichkeit: unbekannt" |
+
+Und für die Wirkung auf die SMS ist `niedrig` das bessere: Die Nachricht trägt ohne Anliegen allein die Dringlichkeit — ein leeres Feld sagt dort nichts, `niedrig` ist eine Aussage.
+
+### Grenze der Datenbasis
+
+**Die Zahlen stammen aus 43 Testanrufen eines E2E-Kontos, nicht von echten Kunden.** Die Quoten der Felder sind untereinander vergleichbar, weil sie durch dieselben Gespräche liefen — die absoluten Werte sind nicht auf Echtbetrieb übertragbar. Bei den Selbstvorstellungen ist **n = 6**, davon 3 nicht extrahiert.
+
+**Was den Befund trägt, ist nicht die Stichprobe, sondern die Übereinstimmung von Struktur und Daten:** zwei getrennte Modelle, `data_collection` beim Auswertungsmodell, und drei Felder, deren Quote der Beschreibungsform folgt statt dem Prompt. Fiele eines der beiden weg, wäre der Befund nicht belastbar.
+
+*(Ein erster Suchausdruck traf 42 von 43 Transkripten und war wertlos — „hier ist" kommt überall vor. Erst die Positivkontrolle gegen die 7 befüllten Felder zeigte das; nachgeschärft auf 6.)*
+
+### Zurückgestellt: der L1-Eingriff
+
+Vorbereitet und bewusst **nicht** mitgeschickt, damit der Testanruf eine Änderung misst. Nach der Messung fällig, als chirurgische Migration mit Sicherung und Ankerprüfung (`prompt_master_l1` hat keine Versionierung, #929):
+
+1. **`- Dringlichkeit (wenn Anrufer Hinweise gibt)`** aus dem OPTIONAL-Block entfernen.
+2. **`Bei Dringlichkeits-Signalen:`** ersetzen durch den Folgen-Massstab mit den drei Stufen, beiden Grenzfällen und dem Satz: *„Frage aktiv nach, was du für die Einstufung brauchst — beim Fahrzeug den Standort, beim Wasserschaden, ob es aufgefangen wird. Ohne diese Angabe ist die Stufe nicht bestimmbar."*
+3. **`Was als Notfall gilt definiert der Branchen-Layer.`** → *„Was darüber hinaus als Notfall gilt, definiert der Branchen-Layer."*
+
+Der Trockenlauf gegen den Live-Text ist gelaufen (lesend): alle drei Anker gefunden, 9 787 → 10 516 Zeichen.
+
+**Der Prompt-Teil bleibt nötig, auch wenn der Test gelingt** — aber für etwas anderes: Er sorgt dafür, dass der Assistent den Standort **erfragt**. Ohne die Angabe im Transkript kann auch die beste Feldbeschreibung nach dem Folgen-Massstab nicht einstufen. Prompt und Beschreibung sind arbeitsteilig, nicht alternativ.
+
+---
+
 ## Der Schnitt: Minimum gegen Ausbau
 
 Zwei Tage sind zu viel für einen Blocker. Der Auftrag zerfällt sauber, und der Grund dafür ist inhaltlich, nicht organisatorisch: **Der Massstab ist branchenunabhängig, nur die Beispiele sind es nicht.**

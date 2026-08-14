@@ -32,7 +32,6 @@ on:
       - 'admin-panel/netlify/functions/outbox-retry-worker.js'
       - 'customer-dashboard/tests/sms-notification.test.cjs'
       - 'admin-panel/netlify/functions/_lib/elevenlabs-agent-config.js'
-      - 'supabase/migrations/20260814190000_prompt_l1_dringlichkeit_folgenmassstab.sql'
       - '.github/workflows/verify-sms-notification.yml'
   workflow_dispatch:
 

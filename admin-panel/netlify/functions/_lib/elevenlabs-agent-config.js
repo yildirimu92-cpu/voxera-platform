@@ -276,17 +276,36 @@ const AGENT_DEFINITION = Object.freeze({
       // Der Hebel ist die Rueckfallregel, nicht die geschlossene Liste.
       //
       // "Ohne verwertbare Information: niedrig" statt leer lassen ist eine
-      // Entscheidung vom 14.08.: Fuer die Nacht-SMS fuehren "niedrig" und
-      // "nicht eingestuft" zur selben Handlung, und ein befuelltes Feld ist
-      // auswertbar. Der Preis: der Unterschied zwischen "nicht dringend" und
-      // "nicht einstufbar" geht verloren.
+      // Entscheidung vom 14.08. Sie kostet den ehrlichen Lueckenfall NICHT:
+      // Die Regel richtet sich an das auswertende Modell, sie ist keine
+      // Vorgabe im Code. Hat das Modell bewertet und nichts Eiliges gefunden,
+      // steht `niedrig`. Lief es gar nicht oder scheiterte es, bleibt das Feld
+      // leer und die SMS schreibt weiterhin "Dringlichkeit: unbekannt". Beide
+      // Faelle bleiben unterscheidbar.
+      //
+      // ── Isolierter Test, Stand 14.08. ──────────────────────────────────────
+      // Diese Aenderung geht BEWUSST ALLEIN. Der Prompt bleibt unangetastet,
+      // damit ein Testanruf genau eine Aenderung misst.
+      //
+      // Sie entscheidet die offene Architekturfrage: Traegt eine Rueckfallregel
+      // in der Feldbeschreibung, ohne `enum` und ohne Prompt-Eingriff? Steigt
+      // die Quote, ist der Hebel bewiesen. Bleibt sie, ist die Annahme falsch,
+      // dass die Auswertung nur hier liest.
+      //
+      // Der vorbereitete L1-Prompt-Eingriff (Signalbedingung raus,
+      // Nachfrage-Anweisung rein) liegt in
+      // docs/TICKET_DRINGLICHKEIT_PFLICHTFELD_2026-08-11.md und folgt erst
+      // nach der Messung.
       urgency: {
         type: 'string',
-        description: 'Dringlichkeit: hoch / mittel / niedrig. Massstab ist die FOLGE DES WARTENS, '
-          + 'nicht ob der Anrufer Eile geäussert hat. '
+        description: 'Dringlichkeit: hoch / mittel / niedrig. Massstab ist die FOLGE DES WARTENS — '
+          + 'was passiert, wenn das Anliegen bis morgen liegen bleibt — und NICHT, ob der Anrufer Eile geäussert hat. '
           + 'hoch = Warten verursacht Schaden, der später nicht mehr behebbar ist, oder Menschen sind gefährdet. '
-          + 'mittel = Warten kostet Geld, Termine oder Komfort, ohne bleibenden Schaden. '
+          + 'Beispiel: Fahrzeug steht auf der Autobahn, Personen daneben. '
+          + 'mittel = Warten kostet Geld, Termine oder Komfort, aber ohne bleibenden Schaden. '
+          + 'Beispiel: Fahrzeug steht verkehrssicher auf einem Parkplatz, ein Anschlusstermin ist in Gefahr. '
           + 'niedrig = Warten kostet nichts ausser Zeit. '
+          + 'Beispiel: Terminvereinbarung, Preisanfrage, Rückfrage zu einer Rechnung. '
           + 'Nicht das Thema entscheidet, sondern die Lage: dasselbe Fahrzeug mit demselben Defekt ist hoch '
           + 'auf der Autobahn und niedrig in der eigenen Garage; dieselbe Menge Wasser ist mittel mit einem '
           + 'Eimer darunter und hoch ohne Auffangmöglichkeit auf Parkett. '
