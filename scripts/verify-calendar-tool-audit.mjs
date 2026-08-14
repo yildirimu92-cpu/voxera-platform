@@ -55,6 +55,51 @@ function check(name, fn) {
 // und fragt beim Aufloesen eine Tabelle von Antworten.
 const KETTENGLIEDER = ['select', 'eq', 'in', 'lt', 'gt', 'limit', 'maybeSingle', 'order', 'neq', 'range'];
 
+// Sortiert wie PostgREST -- einschliesslich dessen, was PostgREST NICHT
+// zusichert.
+//
+// Codex-Befund vom 14.08. (P2): tragen mehrere Zeilen denselben `created_at`,
+// ist ihre Reihenfolge undefiniert. Zwei Bereichsabfragen koennen sie also
+// verschieden anordnen, und an einer Seitengrenze heisst das: eine Zeile
+// erscheint zweimal, eine andere nie.
+//
+// Ein Ersatz, der immer stabil sortiert, kann diesen Fehler nicht zeigen -- er
+// waere gruen, ob der Zweitschluessel nun da ist oder nicht. Deshalb dreht
+// dieser Ersatz Gleichstandsgruppen bei jeder zweiten Abfrage um. Wo ein
+// eindeutiger Zweitschluessel sortiert wird, gibt es keine Gleichstaende und
+// nichts zu drehen.
+let abfrageNummer = 0;
+
+function sortiereWiePostgrest(zeilen, ops) {
+  const schluessel = ops.filter((op) => op.name === 'order').map((op) => op.args[0]);
+  if (!schluessel.length) return zeilen;
+
+  const sortiert = [...zeilen].sort((a, b) => {
+    for (const feld of schluessel) {
+      const links = a?.[feld];
+      const rechts = b?.[feld];
+      if (links < rechts) return -1;
+      if (links > rechts) return 1;
+    }
+    return 0;
+  });
+
+  abfrageNummer += 1;
+  if (abfrageNummer % 2 === 0) return sortiert;
+
+  // Gleichstandsgruppen umdrehen: dieselbe gueltige Sortierung, andere
+  // Reihenfolge.
+  const gleich = (a, b) => schluessel.every((feld) => a?.[feld] === b?.[feld]);
+  const ergebnis = [];
+  let block = [];
+  for (const zeile of sortiert) {
+    if (block.length && !gleich(block[0], zeile)) { ergebnis.push(...block.reverse()); block = []; }
+    block.push(zeile);
+  }
+  ergebnis.push(...block.reverse());
+  return ergebnis;
+}
+
 function makeSupabase({ answers = {} } = {}) {
   const inserts = [];
   const updates = [];
@@ -143,10 +188,7 @@ function makeLivingSupabase({ settings = SETTINGS, connection = CONNECTION, vorb
             return Promise.resolve({ data: null, error: null }).then(resolve, reject);
           }
 
-          let treffer = zeilen.filter((zeile) => passt(zeile, ops));
-          if (ops.some((op) => op.name === 'order')) {
-            treffer = [...treffer].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-          }
+          let treffer = sortiereWiePostgrest(zeilen.filter((zeile) => passt(zeile, ops)), ops);
           // `range` MUSS der Ersatz beherrschen, seit die Historie geblaettert
           // gelesen wird. Ein Ersatz, der den Bereich ignoriert, gibt jeder
           // Seite dieselben Zeilen -- die Schleife im Werkzeug liefe endlos oder
@@ -233,6 +275,15 @@ let loeschErgebnis = { deleted: true, already_missing: false };
 // egal was das Werkzeug tat.
 let tokenFehler = null;
 let kalenderAufrufe = 0;
+// Welche Anbieterform der Ersatz zurueckgibt. Google nennt das Feld `updated`,
+// Microsoft `lastModifiedDateTime` -- beide muessen im Werkzeug ankommen.
+const ANBIETER_ZEIT = '2026-08-02T10:02:03.000Z';
+let anbieterForm = 'google';
+function anbieterZeitfeld() {
+  if (anbieterForm === 'google') return { updated: ANBIETER_ZEIT };
+  if (anbieterForm === 'microsoft') return { lastModifiedDateTime: ANBIETER_ZEIT };
+  return {};
+}
 
 stubs.set('@supabase/supabase-js', { createClient: () => aktuellerClient });
 stubs.set('./_lib/calendar-providers', {
@@ -245,8 +296,18 @@ stubs.set('./_lib/calendar-providers', {
     if (providerFehler) throw providerFehler;
     return verfuegbarkeit;
   },
-  createEvent: async () => ({ id: 'evt_1', htmlLink: 'https://example.invalid/evt_1' }),
-  updateEvent: async () => ({ id: 'evt_1' }),
+  // Die Antwortform der Anbieter, nicht eine erfundene.
+  //
+  // Codex-Befund vom 14.08. (P2): der Ersatz lieferte weder Googles `updated`
+  // noch Microsofts `lastModifiedDateTime`. Der Regressionstest fuer die
+  // Anbieterzeit setzte das Feld selbst in die Audit-Zeile -- er belegte damit,
+  // dass die AUFLOESUNG es beachtet, aber nie, dass der Buchungspfad es
+  // ueberhaupt hineinschreibt. Ein Tippfehler an dieser Stelle waere gruen
+  // geblieben, und die Produktion waere still auf `completed_at`
+  // zurueckgefallen -- also genau in das Wettrennen, gegen das das Feld gebaut
+  // wurde.
+  createEvent: async () => ({ id: 'evt_1', htmlLink: 'https://example.invalid/evt_1', ...anbieterZeitfeld() }),
+  updateEvent: async () => ({ id: 'evt_1', ...anbieterZeitfeld() }),
   deleteEvent: async () => loeschErgebnis
 });
 
@@ -654,9 +715,12 @@ const mitHistorie = (zeilen = HISTORIE) => ({
     if (ops.some((op) => op.name === 'insert')) return { data: { id: 'audit_1' }, error: null };
     if (ops.some((op) => op.name === 'order')) {
       // Der Bereich wird beachtet, sonst saehe die Blaetterung im Werkzeug
-      // jede Seite gleich und die Schleife braeche nie ab.
+      // jede Seite gleich und die Schleife braeche nie ab. Sortiert wird wie
+      // PostgREST, einschliesslich der undefinierten Reihenfolge bei
+      // Gleichstand.
+      const geordnet = sortiereWiePostgrest(zeilen, ops);
       const bereich = ops.find((op) => op.name === 'range');
-      return { data: bereich ? zeilen.slice(bereich.args[0], bereich.args[1] + 1) : zeilen, error: null };
+      return { data: bereich ? geordnet.slice(bereich.args[0], bereich.args[1] + 1) : geordnet, error: null };
     }
     if (ops.some((op) => op.name === 'limit')) return { data: [{ id: 'audit_alt' }], error: null };
     return { data: null, error: null };
@@ -917,6 +981,88 @@ await check('Die Anbieterzeit schlaegt die Ankunft unserer Antwort', async () =>
   const { payload } = await lookupRuf({ caller_id: ANRUFER_A }, verdreht);
   assert.equal(payload.appointments[0].start, '2027-09-07T06:00:00.000Z',
     'die Wiedergabe folgt der Antwortankunft und meldet damit den falschen Kalenderstand');
+});
+
+// Codex-Befund vom 14.08. (P2): der Fall darueber setzt provider_updated_at
+// selbst in die Audit-Zeile. Er belegt damit, dass die AUFLOESUNG das Feld
+// beachtet -- aber nie, dass der Buchungspfad es hineinschreibt. Beides gehoert
+// geprueft, und zwar in beiden Anbieterformen.
+for (const [form, feld] of [['google', 'updated'], ['microsoft', 'lastModifiedDateTime']]) {
+  await check(`Die Anbieterzeit aus ${feld} landet in der Audit-Zeile (${form})`, async () => {
+    anbieterForm = form;
+    try {
+      verfuegbarkeit = { available: true, busy: [] };
+      const welt = makeLivingSupabase({ connection: { ...CONNECTION, provider: form } });
+      const gebucht = await kettenRuf(welt, {
+        action: 'book', request_id: 'anbieterzeit_' + form,
+        start: DI('10:00'), end: DI('10:30'), caller_id: ANRUFER_A
+      });
+      assert.equal(gebucht.ok, true, JSON.stringify(gebucht));
+      const abschluss = welt.updates.find((eintrag) => eintrag.patch.status === 'success');
+      assert.equal(abschluss.patch.details.provider_updated_at, ANBIETER_ZEIT,
+        `die Anbieterzeit aus ${feld} kommt nicht in der Audit-Zeile an -- die Sortierung faellt still auf completed_at zurueck`);
+
+      // Und beim Verschieben ebenso.
+      const verschoben = await kettenRuf(welt, {
+        action: 'reschedule', request_id: 'anbieterzeit_schieb_' + form,
+        external_event_id: gebucht.external_event_id, caller_id: ANRUFER_A,
+        start: DI('11:00'), end: DI('11:30')
+      });
+      assert.equal(verschoben.ok, true, JSON.stringify(verschoben));
+      const zweiter = welt.updates.filter((eintrag) => eintrag.patch.status === 'success').at(-1);
+      assert.equal(zweiter.patch.details.provider_updated_at, ANBIETER_ZEIT);
+    } finally { anbieterForm = 'google'; }
+  });
+}
+
+// Liefert der Anbieter gar nichts, faellt die Sortierung auf unsere Zeiten
+// zurueck -- das ist der dokumentierte Rueckfall und darf die Buchung nicht
+// scheitern lassen.
+await check('Ohne Anbieterzeit bleibt die Buchung moeglich', async () => {
+  anbieterForm = 'keine';
+  try {
+    verfuegbarkeit = { available: true, busy: [] };
+    const welt = makeLivingSupabase();
+    const gebucht = await kettenRuf(welt, {
+      action: 'book', request_id: 'ohne_anbieterzeit',
+      start: DI('10:00'), end: DI('10:30'), caller_id: ANRUFER_A
+    });
+    assert.equal(gebucht.ok, true, JSON.stringify(gebucht));
+    const abschluss = welt.updates.find((eintrag) => eintrag.patch.status === 'success');
+    assert.equal(abschluss.patch.details.provider_updated_at, null);
+  } finally { anbieterForm = 'google'; }
+});
+
+// Codex-Befund vom 14.08. (P2): "nach einer Absage taucht dieselbe Termin-ID
+// nicht wieder auf" war eine Annahme. Stellt jemand den Kalendereintrag von
+// Hand wieder her, kommt ein Verschieben durch die Verwaltungspruefung -- und
+// die Aufloesung blendet den Termin danach fuer immer aus.
+await check('Eine abgesagte Termin-ID nimmt keine Aenderung mehr an', async () => {
+  verfuegbarkeit = { available: true, busy: [] };
+  const welt = makeLivingSupabase();
+  const gebucht = await kettenRuf(welt, {
+    action: 'book', request_id: 'wieder_1', start: DI('10:00'), end: DI('10:30'), caller_id: ANRUFER_A
+  });
+  const abgesagt = await kettenRuf(welt, {
+    action: 'cancel', request_id: 'wieder_2',
+    external_event_id: gebucht.external_event_id, caller_id: ANRUFER_A
+  });
+  assert.equal(abgesagt.cancelled, true);
+
+  const spaeter = await kettenRuf(welt, {
+    action: 'reschedule', request_id: 'wieder_3',
+    external_event_id: gebucht.external_event_id, caller_id: ANRUFER_A,
+    start: DI('11:00'), end: DI('11:30')
+  });
+  assert.equal(spaeter.ok, false, 'die Verschiebung erzeugt eine Zeile, die niemand mehr findet');
+  assert.equal(spaeter.error, 'calendar_event_already_cancelled');
+
+  // Und die Absage bleibt ebenfalls gesperrt.
+  const nochmal = await kettenRuf(welt, {
+    action: 'cancel', request_id: 'wieder_4',
+    external_event_id: gebucht.external_event_id, caller_id: ANRUFER_A
+  });
+  assert.equal(nochmal.error, 'calendar_event_already_cancelled');
 });
 
 // Die gefaehrliche Richtung: eine Absage darf sich durch keine Sortierung
@@ -1288,6 +1434,48 @@ await check('Die Historie wird ueber die Seitengrenze hinaus gelesen', async () 
 // legitim voll -- der Abbruch traf eine vollstaendig gelesene Historie. Weil
 // loadAppointmentHistory() unter allen vier Aktionen liegt, haette dieser eine
 // Randwert Nachschlagen, Buchen, Absagen und Verschieben zugleich lahmgelegt.
+// Codex-Befund vom 14.08. (P2): tragen viele Zeilen denselben created_at --
+// bei einem Betrieb mit regem availability-Verkehr der Normalfall --, ist ihre
+// Reihenfolge ohne eindeutigen Zweitschluessel undefiniert. Ueber eine
+// Seitengrenze hinweg heisst das: eine Zeile zweimal, eine andere nie. Und
+// verschwinden kann dabei ausgerechnet eine Absage.
+await check('Gleiche Zeitstempel zerreissen die Blaetterung nicht', async () => {
+  const gleicheZeit = '2026-05-01T10:00:00Z';
+  const zeilen = [];
+  for (let index = 0; index < 600; index += 1) {
+    zeilen.push({
+      id: 'aud_' + String(index).padStart(4, '0'),
+      external_event_id: 'evt_g' + index, connection_id: 'conn_1', action: 'book',
+      created_at: gleicheZeit,
+      details: { caller_reference: ANRUFER_B, calendar_id: 'cal_1',
+                 response: { start: '2027-09-20T06:00:00.000Z', end: '2027-09-20T06:30:00.000Z' } }
+    });
+  }
+  // Die Buchung in der Mitte (sie ueberlebt beide Anordnungen), die Absage weit
+  // hinten -- bei umgedrehter Gleichstandsgruppe faellt genau sie aus dem
+  // gelesenen Fenster.
+  zeilen[200] = {
+    id: 'aud_0200', external_event_id: 'evt_zerrissen', connection_id: 'conn_1', action: 'book',
+    created_at: gleicheZeit,
+    details: { caller_reference: ANRUFER_A, calendar_id: 'cal_1',
+               response: { start: '2027-09-21T06:00:00.000Z', end: '2027-09-21T06:30:00.000Z' } }
+  };
+  zeilen[590] = {
+    id: 'aud_0590', external_event_id: 'evt_zerrissen', connection_id: 'conn_1', action: 'cancel',
+    created_at: gleicheZeit,
+    details: { caller_reference: ANRUFER_A, calendar_id: 'cal_1', response: { cancelled: true } }
+  };
+  // Der Ersatz dreht Gleichstandsgruppen bei jeder zweiten Abfrage um. Welche
+  // der beiden Seiten die gedrehte ist, entscheidet hier ueber das Ergebnis --
+  // deshalb wird der Zaehler festgesetzt, statt ihn vom Verlauf der uebrigen
+  // Faelle abhaengen zu lassen. Ohne das waere dieser Fall mal scharf und mal
+  // zufaellig gruen.
+  abfrageNummer = 1;
+  const { payload } = await lookupRuf({ caller_id: ANRUFER_A }, zeilen);
+  assert.equal(payload.appointment_count, 0,
+    'die Absage ist zwischen zwei Seiten verlorengegangen -- der Termin ist wieder da');
+});
+
 await check('Eine genau volle letzte Seite ist kein Abbruch', async () => {
   const zeilen = langeHistorie(20000);
   zeilen[0] = {

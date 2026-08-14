@@ -229,11 +229,20 @@ async function loadAppointmentHistory(sb, customerId) {
   for (let seite = 0; seite < MAX_HISTORY_PAGES; seite += 1) {
     const von = seite * HISTORY_PAGE_SIZE;
     const { data, error } = await sb.from('calendar_booking_audit')
-      .select('external_event_id,action,details,connection_id,created_at')
+      .select('id,external_event_id,action,details,connection_id,created_at')
       .eq('customer_id', customerId)
       .eq('status', 'success')
       .in('action', ['book', 'reschedule', 'cancel'])
       .order('created_at', { ascending: true })
+      // Zweiter, EINDEUTIGER Schluessel.
+      //
+      // Codex-Befund vom 14.08. (P2): mehrere Zeilen koennen denselben
+      // created_at tragen -- der availability-Verkehr eines Betriebs erzeugt sie
+      // im Sekundentakt. Ohne eindeutigen Zweitschluessel ist die Reihenfolge
+      // innerhalb einer solchen Gruppe undefiniert, und an einer Seitengrenze
+      // heisst das: eine Zeile erscheint auf beiden Seiten, eine andere auf
+      // keiner. Verschwinden koennte dabei ausgerechnet eine Absage.
+      .order('id', { ascending: true })
       .range(von, von + HISTORY_PAGE_SIZE - 1);
     if (error) throw error;
     const zeilen = data || [];
@@ -252,11 +261,12 @@ async function loadAppointmentHistory(sb, customerId) {
   //
   // Eine einzelne Zeile hinter der Grenze entscheidet es.
   const { data: rest, error } = await sb.from('calendar_booking_audit')
-    .select('external_event_id')
+    .select('id')
     .eq('customer_id', customerId)
     .eq('status', 'success')
     .in('action', ['book', 'reschedule', 'cancel'])
     .order('created_at', { ascending: true })
+    .order('id', { ascending: true })
     .range(MAX_HISTORY_PAGES * HISTORY_PAGE_SIZE, MAX_HISTORY_PAGES * HISTORY_PAGE_SIZE);
   if (error) throw error;
   if (!(rest || []).length) return alle;
@@ -308,21 +318,37 @@ function mutationTime(zeile) {
   return new Date(wert || 0).getTime() || 0;
 }
 
-function resolveAppointments(rows, connection) {
-  const alle = rows || [];
-
-  // Absagen sind endgueltig, und zwar unabhaengig von jeder Sortierung: eine
-  // Termin-ID wird nach einer Absage nie wieder vergeben, ein spaeteres
-  // Verschieben derselben ID kann es also nicht geben. Sie hier vorweg
-  // auszuschliessen nimmt der Reihenfolge die einzige Richtung, in der ein
-  // Fehler gefaehrlich waere: einen abgesagten Termin wieder anzubieten.
-  //
-  // Gilt unabhaengig davon, ueber welche Verbindung die Absage lief.
-  const abgesagt = new Set(
-    alle.filter((zeile) => zeile?.action === 'cancel')
+function cancelledEventIds(rows) {
+  return new Set(
+    (rows || [])
+      .filter((zeile) => zeile?.action === 'cancel')
       .map((zeile) => String(zeile.external_event_id || '').trim())
       .filter(Boolean)
   );
+}
+
+function resolveAppointments(rows, connection) {
+  const alle = rows || [];
+
+  // Absagen sind endgueltig, und zwar unabhaengig von jeder Sortierung. Das
+  // nimmt der Reihenfolge die einzige Richtung, in der ein Fehler wirklich
+  // gefaehrlich waere: einen abgesagten Termin wieder anzubieten.
+  //
+  // Gilt unabhaengig davon, ueber welche Verbindung die Absage lief.
+  //
+  // Die Annahme dahinter -- "nach einer Absage taucht dieselbe Termin-ID nicht
+  // wieder auf" -- war bis zum 14.08. eine ANNAHME. Codex-Befund (P2): stellt
+  // jemand einen geloeschten Kalendereintrag wieder her und laesst ihn dann
+  // ueber Voxera verschieben, kommt die Pruefung auf "von Voxera verwaltet"
+  // durch, eine neue Erfolgszeile entsteht -- und diese Menge hier blendet den
+  // Termin trotzdem fuer immer aus. Ein Termin, den es gibt und den niemand
+  // findet.
+  //
+  // Durchgesetzt wird sie jetzt am Eingang: cancelledEventIds() sperrt
+  // Verschieben und Absagen auf einer bereits abgesagten ID. Damit entsteht die
+  // unerreichbare Zeile gar nicht erst, statt hier nachtraeglich verdeckt zu
+  // werden.
+  const abgesagt = cancelledEventIds(alle);
 
   const proTermin = new Map();
   for (const zeile of alle) {
@@ -601,6 +627,19 @@ exports.handler = async (event) => {
       // Pruefung oben. Ein Termin, den der Verbindungsfilter herauswirft,
       // verloere sonst still seinen Eigentuemer.
       const verlauf = await loadAppointmentHistory(sb, customerId);
+      // Eine abgesagte Termin-ID nimmt keine weitere Aenderung mehr an.
+      //
+      // Codex-Befund vom 14.08. (P2): ohne diese Schranke konnte eine Buchung,
+      // deren Kalendereintrag jemand von Hand wiederhergestellt hat, ueber
+      // Voxera verschoben werden -- die Erfolgszeile entstand, und die
+      // Aufloesung blendete den Termin danach fuer immer aus. Ein Termin, den es
+      // gibt und den niemand findet, ist schlimmer als eine Ablehnung: die
+      // Ablehnung fuehrt in Schritt 19 und damit zu einem Menschen.
+      if (cancelledEventIds(verlauf).has(externalEventId)) {
+        const error = new Error('calendar_event_already_cancelled');
+        error.status = 409;
+        throw error;
+      }
       const offeneTermine = resolveAppointments(verlauf, null);
       bestehenderTermin = offeneTermine.get(externalEventId) || null;
       vergebeneBelege = issuedReferences(verlauf);
