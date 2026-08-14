@@ -111,6 +111,23 @@ Ich hatte „leer lassen" vorgeschlagen, weil eine erfundene Einstufung nicht al
 
 Und für die Wirkung auf die SMS ist `niedrig` das bessere: Die Nachricht trägt ohne Anliegen allein die Dringlichkeit — ein leeres Feld sagt dort nichts, `niedrig` ist eine Aussage.
 
+### Messung — zwei Testanrufe am 14./15.08.
+
+| Anruf | Inhalt | `urgency` | Deutung |
+|---|---|---|---|
+| `92453c19`, 77 s | Auto springt nicht an, **„am Parkplatz"**; Anrufer sagt „ich brauche jetzt grad sofort Hilfe"; Assistent antwortet „Ich markiere das als kritisch"; `category = notfall` | **`mittel`** | **Aussagekräftig.** Drei Signale zeigten auf `hoch`, das Modell setzte `mittel` — ableitbar allein aus dem Standort. Genau die Umkehrung, die die Änderung bewirken sollte. |
+| `d2fb8f53`, 24 s | „Wann haben Sie am Samstag offen?", beantwortet, aufgelegt | **`niedrig`** | **Schwach.** Erwartungsgemäss, aber nicht beweiskräftig — ein vergleichbarer Anruf um 21:38 (`ae953310`, `informationsanfrage`) bekam ebenfalls `niedrig`, mutmasslich noch unter der alten Regel. |
+
+**Der erste Anruf ist der Beleg, der zweite nicht.** Beim zweiten hätte auch die alte Signalregel `niedrig` ergeben können; der erste ist unter der alten Regel schwer zu erklären.
+
+**Was noch offen ist: die Rückfallregel selbst.** Sie greift bei „kein Eile-Signal" nachweislich — aber der eigentliche Prüffall ist „**kein Anliegen**". Dafür gibt es genau einen Datenpunkt: der `#965`-Testanruf `05841c4e` („Sind Sie ein Mensch?", 21:38:40) bekam **LEER**. Unter der neuen Regel müsste er `niedrig` sein.
+
+> **Offene Frage an den Auftraggeber:** War die neue Feldbeschreibung um 21:38 bereits gesetzt?
+> **Ja** → die Rückfallregel trägt den Fall „kein Anliegen" nicht, und es braucht eine andere Formulierung oder doch ein `enum`.
+> **Nein** → ungetestet, und der entscheidende dritte Testanruf ist eine Wiederholung von „Sind Sie ein Mensch?".
+
+Nicht messbar von hier: ob der gespeicherte Agent die neue Fassung trägt. `elevenlabs_sync_log.config_drift` beobachtet nur `tts` und `turn`, nicht `platform_settings`. Alle Aussagen oben sind **Verhaltensbeobachtungen, kein Konfigurationsnachweis**.
+
 ### Grenze der Datenbasis
 
 **Die Zahlen stammen aus 43 Testanrufen eines E2E-Kontos, nicht von echten Kunden.** Die Quoten der Felder sind untereinander vergleichbar, weil sie durch dieselben Gespräche liefen — die absoluten Werte sind nicht auf Echtbetrieb übertragbar. Bei den Selbstvorstellungen ist **n = 6**, davon 3 nicht extrahiert.
