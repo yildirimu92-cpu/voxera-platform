@@ -233,6 +233,30 @@ test('eine numerische Konfiguration wird als Nummer durchgelassen', () => {
   assert.equal(r.alphanumerisch, false);
 });
 
+// Der Standardwert im Code und der in Netlify eingetragene Wert sind beide
+// 'Voxera'. Ohne quelle waeren die beiden Faelle am Ergebnis nicht zu
+// unterscheiden -- und damit die Frage "kommt die Variable in der Function an"
+// nur noch aus der Netlify-Oberflaeche zu beantworten, nicht aus dem
+// Zielsystem.
+test('quelle unterscheidet gesetzte Variable vom gleichlautenden Standardwert', () => {
+  const ausEnv = transport.resolveSender({ TWILIO_SMS_FROM: 'Voxera' });
+  const ausFallback = transport.resolveSender({});
+
+  assert.equal(ausEnv.sender, ausFallback.sender, 'Voraussetzung des Tests: beide ergeben denselben Absender');
+  assert.equal(ausEnv.quelle, 'env');
+  assert.equal(ausFallback.quelle, 'standardwert');
+});
+
+test('quelle steht auch dann fest, wenn der Absender abgewiesen wird', () => {
+  const r = transport.resolveSender({ TWILIO_SMS_FROM: 'VoxeraSchweizAG' });
+  assert.equal(r.sender, null);
+  assert.equal(r.quelle, 'env', 'sonst waere bei Fehlkonfiguration nicht erkennbar, wer den Wert gesetzt hat');
+});
+
+test('Leerzeichen allein zaehlen nicht als gesetzte Variable', () => {
+  assert.equal(transport.resolveSender({ TWILIO_SMS_FROM: '   ' }).quelle, 'standardwert');
+});
+
 // ───────────────────────────────────────────────────────────────────────────
 // Fehlereinordnung -- daran haengt der Festnetz-Fall
 // ───────────────────────────────────────────────────────────────────────────
@@ -712,6 +736,19 @@ test('sms-transport.js ist in beiden Funktionsverzeichnissen identisch', () => {
   assert.equal(a, b, 'Die Kopien sind auseinandergelaufen. Beide Dateien gleich halten.');
 });
 
+test('die Herkunft des Absenders wird protokolliert, nicht nur der Absender', () => {
+  // Ohne from_quelle ist die Frage "kommt TWILIO_SMS_FROM in der Function an"
+  // aus dem Zielsystem nicht beantwortbar: gesetzter Wert und Standardwert
+  // sind beide 'Voxera' und ergeben denselben Versand.
+  const src = fs.readFileSync(path.join(LIB, 'sms-delivery.js'), 'utf8');
+  assert.match(src, /from_quelle:\s*senderQuelle/,
+    'from_quelle fehlt in der Outbox-Nutzlast');
+  const iErfolg = src.indexOf("'sms_send_succeeded'");
+  assert.ok(iErfolg > -1);
+  assert.match(src.slice(iErfolg, iErfolg + 240), /from_quelle/,
+    'die Erfolgszeile im Log nennt die Herkunft des Absenders nicht');
+});
+
 test('die Migration definiert set_updated_at, bevor sie den Trigger anlegt', () => {
   // Die Funktion existiert in Produktion, ist aber in keiner Migrationsdatei
   // definiert -- sie wurde seinerzeit direkt auf der Datenbank angelegt. Eine
@@ -730,6 +767,60 @@ test('die Migration definiert set_updated_at, bevor sie den Trigger anlegt', () 
     'die bestehende Funktion darf nicht ersetzt werden -- an ihr haengen sieben weitere Tabellen');
 });
 
+test('die Dringlichkeits-Beschreibung traegt den Folgen-Massstab, nicht die Signalbedingung', () => {
+  // Die Team-SMS traegt kein Anliegen mehr; die Dringlichkeit ist die einzige
+  // Angabe, die "jetzt oder morgen" beantwortet. Sie entsteht in der
+  // strukturierten Auswertung, und die liest NICHT den Gespraechsprompt,
+  // sondern diese Beschreibung. Faellt sie auf "nur aus Anrufer-Aussagen"
+  // zurueck, bleibt das Feld wieder auf 58 % leer -- und die SMS verliert
+  // ihren einzigen Entscheidungsgehalt.
+  const cfg = fs.readFileSync(
+    path.join(__dirname, '..', '..', 'admin-panel', 'netlify', 'functions', '_lib', 'elevenlabs-agent-config.js'),
+    'utf8'
+  );
+  const block = cfg.split('urgency: {')[1].split('},')[0];
+
+  assert.doesNotMatch(block, /Nur aus Anrufer-Aussagen ableiten/,
+    'die Signalbedingung ist zurueck -- sie war die Ursache der 58 % leeren Felder');
+  assert.match(block, /FOLGE DES WARTENS/, 'der Massstab fehlt');
+  assert.match(block, /Autobahn/, 'Grenzfall Fahrzeug fehlt');
+  assert.match(block, /Eimer/, 'Grenzfall Wasser fehlt');
+  assert.match(block, /Stufe IMMER ein/, 'die Rueckfallregel fehlt');
+  assert.match(block, /Ohne verwertbare Information: niedrig/,
+    'die Rueckfallregel muss "niedrig" sagen, nicht "leer lassen"');
+
+  // Kein enum -- bewusst. lead_quality hat keines und erreicht 29 von 33; der
+  // Hebel ist die Rueckfallregel. Ein enum waere eine zweite Aenderung an
+  // derselben Stelle, die den Testanruf nicht mehr zuordenbar macht.
+  assert.doesNotMatch(block, /enum:/, 'enum ist bewusst nicht Teil dieser Aenderung');
+});
+
+test('jede der drei Stufen traegt ein Beispiel', () => {
+  const cfg = fs.readFileSync(
+    path.join(__dirname, '..', '..', 'admin-panel', 'netlify', 'functions', '_lib', 'elevenlabs-agent-config.js'),
+    'utf8'
+  );
+  const block = cfg.split('urgency: {')[1].split('},')[0];
+  // Eine Definition ohne Beispiel ist die Form, an der Einstufungen scheitern.
+  assert.equal((block.match(/Beispiel:/g) || []).length, 3,
+    'jede Stufe braucht genau ein Beispiel');
+});
+
+test('der isolierte Test bleibt isoliert: kein gleichzeitiger Prompt-Eingriff', () => {
+  // Der Testanruf misst genau eine Aenderung. Kommt eine Migration auf
+  // prompt_master_l1 dazu, bevor gemessen wurde, ist das Ergebnis nicht mehr
+  // zuordenbar -- und die Architekturfrage bleibt offen, obwohl ein Testanruf
+  // verbraucht wurde.
+  const migrationen = path.join(__dirname, '..', '..', 'supabase', 'migrations');
+  const treffer = fs.readdirSync(migrationen).filter(f => {
+    if (!f.endsWith('.sql')) return false;
+    const inhalt = fs.readFileSync(path.join(migrationen, f), 'utf8');
+    return /update\s+public\.system_config[\s\S]{0,400}prompt_master_l1/i.test(inhalt);
+  });
+  assert.deepEqual(treffer, [],
+    'Eine Migration aendert prompt_master_l1. Erst messen, dann den Prompt anfassen: ' + treffer.join(', '));
+});
+
 test('der Retry-Worker kennt beide SMS-Ereignistypen', () => {
   const worker = fs.readFileSync(
     path.join(__dirname, '..', '..', 'admin-panel', 'netlify', 'functions', 'outbox-retry-worker.js'),
@@ -737,4 +828,23 @@ test('der Retry-Worker kennt beide SMS-Ereignistypen', () => {
   );
   assert.match(worker, /isSmsEventType/, 'sonst fallen SMS-Zeilen in "unsupported event_type"');
   assert.match(worker, /delivery\.permanent/, 'permanente Fehler duerfen das Wiederholungsbudget nicht aufbrauchen');
+});
+
+test('der Retry-Worker belegt die Absenderherkunft seiner eigenen Site', () => {
+  // voxera-admin ist die einzige Stelle, an der TWILIO_SMS_FROM aus DIESEM
+  // Projekt gelesen wird, und der Worker laeuft nur im Fehlerfall an. Ohne
+  // diese Logzeile bliebe die zweite Umgebung dauerhaft unbelegt -- Test 8 des
+  // Testplans haette dann kein Ergebnis, sondern nur eine Beobachtung.
+  const worker = fs.readFileSync(
+    path.join(__dirname, '..', '..', 'admin-panel', 'netlify', 'functions', 'outbox-retry-worker.js'),
+    'utf8'
+  );
+  assert.match(worker, /resolveSender/, 'der Worker liest seine eigene Absenderkonfiguration nicht');
+  assert.match(worker, /'retry_sms_absender'/, 'die Herkunft wird nicht protokolliert');
+  assert.match(worker, /site: 'voxera-admin'/,
+    'ohne Site-Kennung ist die Zeile im Logbestand nicht von der Dashboard-Site zu trennen');
+  // Der Payload darf beim Nachliefern nicht veraendert werden: er traegt die
+  // Herkunft des ERSTVERSANDS, und der Text muss der von damals bleiben.
+  assert.doesNotMatch(worker, /payload\.from_quelle\s*=/,
+    'der Worker darf die Nutzlast des Erstversands nicht ueberschreiben');
 });

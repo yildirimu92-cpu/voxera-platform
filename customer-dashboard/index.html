@@ -16987,46 +16987,29 @@ async function loadCustomerMeta(forceReload) {
         }
         return true;
       });
-      const activeSet = new Set(activeAddons.map(a => a.addon_code));
-      // ACHTUNG -- diese beiden Codes sind falsch, und das ist derzeit das
-      // einzige, was uns vor einer Falschaussage schuetzt.
+      // Die Addon-Flags smsNotifyAddon / smsCallerAddon standen hier bis zum
+      // 15.08.2026 und sind entfernt.
       //
-      // Im Katalog (voxera_addons, Produktion) heissen die Addons
-      // 'sms_notify' und 'sms_endkunde'. 'sms_notify_kunde' und
-      // 'sms_confirm_caller' existieren dort nicht, die Pruefung kann also
-      // nie zutreffen -- beide Flags sind konstant false.
+      // Sie lasen ein GEBUCHTES ADDON und wurden als ZUSTELLBELEG angezeigt --
+      // ein gruenes "✓ SMS" je Anruf in der Anfragenliste. Das war auch mit
+      // korrekten Addon-Codes falsch: Ob jemand die Erweiterung gebucht hat,
+      // sagt nichts darueber, ob eine SMS rausging. Es sagt insbesondere nichts
+      // ueber den haeufigsten Fall, in dem keine rausgeht -- unterdrueckte
+      // Rufnummer oder Festnetzanschluss des Anrufers.
       //
-      // Wer die Codes hier korrigiert, ohne den SMS-Versand zu bauen, schaltet
-      // damit die Anzeige weiter unten scharf: die Anfragenliste rendert ein
-      // gruenes "✓ SMS" je Anruf, gesteuert von smsCallerAddon (Suchbegriff:
-      // call-meta-item mit ✓ SMS). Das Dashboard behauptet dann gegenueber dem
-      // Kunden, der Anrufer habe eine Bestaetigung per SMS erhalten -- fuer
-      // einen Versand, den es nicht gibt. Bei einem Abschleppdienst heisst das:
-      // jemand am Strassenrand gilt als benachrichtigt, ohne es zu sein.
-      //
-      // Belegt: die Twilio-Messages-API wird im Repository nirgends aufgerufen,
-      // calls.sms_sent ist auf allen Produktionszeilen false, outbox_events
-      // kennt ausschliesslich E-Mail-Ereignistypen.
-      //
-      // REGEL: Codes und Anzeige erst zusammen mit dem Versand korrigieren.
-      // Nicht vorher, auch nicht "schon mal vorbereitend".
-      // Siehe docs/SMS_BENACHRICHTIGUNG_DIAGNOSE_2026-08-11.md
-      customerMeta.smsNotifyAddon = activeSet.has('sms_notify_kunde');
-      customerMeta.smsCallerAddon = activeSet.has('sms_confirm_caller');
+      // Ein echter Beleg je Anruf braucht Twilio-Status-Callbacks. Solange die
+      // nicht existieren, zeigt das Dashboard hier nichts an, statt etwas zu
+      // behaupten. Siehe docs/SMS_BENACHRICHTIGUNG_DIAGNOSE_2026-08-11.md.
       // customerMeta.extraMinutes (aktive 'minutes_block'-Addons × 50) stand
       // hier bis zum 12.08.2026. Der Addon-Code existiert im Katalog nicht,
       // die Summe war konstant 0 -- sie haette dem Kunden aber ein groesseres
       // Kontingent gezeigt, als die Rechnung kennt. Kontingent = Vertrag.
     } else {
       customerMeta.customerAddons = [];
-      customerMeta.smsNotifyAddon = false;
-      customerMeta.smsCallerAddon = false;
     }
   } catch(e) {
     if (generation !== vxAccountGeneration) return customerMeta;
     customerMeta.customerAddons = [];
-    customerMeta.smsNotifyAddon = false;
-    customerMeta.smsCallerAddon = false;
   }
   // Render profile photo if available
   renderProfilePhoto(customerMeta.avatarUrl || null, customerMeta.customerEmail || '');
@@ -22759,24 +22742,12 @@ function renderList(containerId, records, opts) {
           ${displayPhone?`<span class="call-meta-item call-meta-phone">${escHtml(displayPhone)}</span>`:''}
           ${(categoryLabel && !isDashLikePlaceholder(categoryLabel))?`<span class="call-meta-item">${escHtml(categoryLabel)}</span>`:''}
           ${durationLabel && durationLabel !== '–' ? `<span class="call-meta-item">⏱ ${escHtml(durationLabel)}</span>` : ''}
-          ${/* ACHTUNG -- dieses Abzeichen behauptet einen Versand, den es nicht gibt.
-                Es haengt an customerMeta.smsCallerAddon, und das ist heute nur deshalb
-                konstant false, weil der Addon-Code oben falsch geschrieben ist
-                ('sms_confirm_caller' statt 'sms_endkunde'). Das Abzeichen ist also
-                unsichtbar -- aus Versehen, nicht aus Absicht.
-
-                Zweiter Fehler, unabhaengig vom ersten: das Abzeichen liest ein
-                ADDON, keinen ZUSTELLBELEG. Selbst mit gebautem Versand saehe der
-                Kunde "✓ SMS" an jedem Anruf, sobald das Addon gebucht ist -- auch
-                bei unterdrueckter Rufnummer (dann gibt es keinen Empfaenger), auch
-                bei fehlgeschlagenem Versand. Der Beleg je Anruf muesste aus dem
-                tatsaechlichen Versandergebnis kommen; calls.sms_sent taugt dafuer
-                ebenfalls nicht, weil es ein einzelnes Boolean fuer bis zu sechs
-                Empfaenger ist (5x Team + 1x Anrufer).
-
-                REGEL: nicht scharfschalten, bevor Versand UND Zustellbeleg stehen.
-                Siehe docs/SMS_BENACHRICHTIGUNG_DIAGNOSE_2026-08-11.md */''}
-          ${(!isManualTaskRecord(r) && customerMeta && customerMeta.smsCallerAddon) ? '<span class="call-meta-item" style="color:#059669;font-weight:600;">✓ SMS</span>' : ''}
+          ${/* Hier stand bis zum 15.08.2026 ein gruenes "✓ SMS"-Abzeichen. Es
+                las ein gebuchtes ADDON und zeigte es als ZUSTELLBELEG -- auch
+                mit korrekten Addon-Codes waere das falsch gewesen. Ein Beleg je
+                Anruf braucht Twilio-Status-Callbacks; solange die fehlen, steht
+                hier nichts. Lieber keine Anzeige als eine, die behauptet, ein
+                Anrufer am Strassenrand sei benachrichtigt worden. */''}
         </div>
         ${taskDueLabel?`<div class="task-due-pill ${taskDueClass}" style="margin-top:6px;">${escHtml(taskDueLabel)}</div>`:''}
         ${(isLiveCall || isProcessingCall || isShortAbandonedCall) && !callSummary ? `<div class="call-summary" style="color:#94A3B8;font-style:italic;">${isLiveCall ? (escHtml(assistantName) + ' nimmt entgegen…') : (isProcessingCall ? 'Zusammenfassung wird erstellt…' : 'Der Anrufer hat aufgelegt, bevor eine Anfrage aufgenommen wurde.')}</div>` : (callSummary?`<div class="call-summary">${escHtml(callSummary)}</div>`:'')}

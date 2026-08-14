@@ -3,7 +3,7 @@
 const { createClient } = require('@supabase/supabase-js');
 const { markOutboxSent, markOutboxFailed, markOutboxTerminal } = require('./_lib/webhook-outbox');
 const { isMailEngineType, resolveMailWebhook } = require('./_lib/mail-delivery');
-const { isSmsEventType, sendSmsViaTwilio } = require('./_lib/sms-transport');
+const { isSmsEventType, sendSmsViaTwilio, resolveSender } = require('./_lib/sms-transport');
 const { resolveDashboardUrl, logActivationTarget } = require('./_lib/activation-url');
 
 function log(level, event, payload = {}) {
@@ -131,7 +131,25 @@ async function dispatchOutboxEvent(sbAdmin, outboxRow) {
     if (!to || !body) {
       return { ok: false, permanent: true, error: 'to/body fehlen im Outbox-Payload - nicht nachlieferbar' };
     }
+    // Die Herkunft des Absenders gehoert hier ins Log und nicht in den Payload:
+    // Der Payload wurde beim Erstversand auf der Dashboard-Site geschrieben und
+    // traegt DEREN from_quelle. Ueberschreiben wuerde die Spur des Erstversands
+    // loeschen; danebenschreiben hiesse, den Payload beim Nachliefern zu
+    // veraendern.
+    //
+    // Ohne diese Zeile bliebe die Umgebung der Admin-Site unbelegt: sie ist die
+    // einzige Stelle, an der TWILIO_SMS_FROM aus DIESEM Projekt gelesen wird,
+    // und der Worker laeuft nur im Fehlerfall an. Eine dort fehlende Variable
+    // faellt im Normalbetrieb nie auf.
+    const { sender, quelle } = resolveSender(process.env);
     const result = await sendSmsViaTwilio({ to, body });
+    log(result.ok ? 'info' : 'warn', 'retry_sms_absender', {
+      outbox_id: outboxRow.id,
+      event_type: outboxRow.event_type,
+      from: sender,
+      from_quelle: quelle,
+      site: 'voxera-admin'
+    });
     return { ok: result.ok, permanent: result.permanent === true, error: result.error };
   }
 

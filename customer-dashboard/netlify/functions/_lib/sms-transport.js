@@ -93,32 +93,52 @@ function toStr(v) { return v == null ? '' : String(v).trim(); }
  * Eine rein numerische Konfiguration wird als Telefonnummer durchgelassen:
  * falls doch eine SMS-faehige Nummer beschafft wird, soll nur die
  * Umgebungsvariable wechseln muessen.
+ *
+ *
+ * WARUM `quelle` MITGELIEFERT WIRD
+ *
+ * DEFAULT_SENDER ist 'Voxera' -- und genau das ist auch der Wert, der in beiden
+ * Netlify-Projekten in TWILIO_SMS_FROM eingetragen wurde. Beide Faelle ergeben
+ * denselben Absender, also ist am Versandergebnis NICHT erkennbar, ob die
+ * Variable in der Function ankommt oder ob der Standardwert einspringt.
+ *
+ * Ein erfolgreicher Versand belegt die Variable also nicht. Ohne dieses Feld
+ * bliebe als Nachweis nur die Netlify-Oberflaeche -- die Anzeige davor, nicht
+ * das Zielsystem. Die Unterscheidung zaehlt, sobald der Wert einmal etwas
+ * anderes sein soll als 'Voxera': dann faellt eine nicht durchgereichte
+ * Variable still auf 'Voxera' zurueck, statt aufzufallen.
+ *
+ * `quelle` ist deshalb 'env', wenn TWILIO_SMS_FROM gesetzt ankommt, und
+ * 'standardwert', wenn der Fallback greift. Der Wert landet in der
+ * Outbox-Nutzlast und in der Erfolgszeile im Log.
  */
 function resolveSender(env = process.env) {
-  const raw = toStr(env.TWILIO_SMS_FROM) || DEFAULT_SENDER;
+  const gesetzt = toStr(env.TWILIO_SMS_FROM);
+  const quelle = gesetzt ? 'env' : 'standardwert';
+  const raw = gesetzt || DEFAULT_SENDER;
 
   if (/^\+?[0-9]{8,15}$/.test(raw)) {
     const ziffern = raw.replace(/\D/g, '');
     if (ziffern.length < 8 || ziffern.length > 15) {
-      return { sender: null, alphanumerisch: false, error: `TWILIO_SMS_FROM ist keine gueltige Nummer: ${raw}` };
+      return { sender: null, alphanumerisch: false, quelle, error: `TWILIO_SMS_FROM ist keine gueltige Nummer: ${raw}` };
     }
-    return { sender: `+${ziffern}`, alphanumerisch: false, error: null };
+    return { sender: `+${ziffern}`, alphanumerisch: false, quelle, error: null };
   }
 
   if (raw.length > ALPHA_SENDER_MAX) {
     return {
-      sender: null, alphanumerisch: true,
+      sender: null, alphanumerisch: true, quelle,
       error: `TWILIO_SMS_FROM "${raw}" ist ${raw.length} Zeichen lang, erlaubt sind hoechstens ${ALPHA_SENDER_MAX}.`
     };
   }
   if (!/^[A-Za-z0-9][A-Za-z0-9 ]*$/.test(raw)) {
     return {
-      sender: null, alphanumerisch: true,
+      sender: null, alphanumerisch: true, quelle,
       error: `TWILIO_SMS_FROM "${raw}" enthaelt unzulaessige Zeichen. Erlaubt sind Buchstaben, Ziffern und Leerzeichen.`
     };
   }
 
-  return { sender: raw, alphanumerisch: true, error: null };
+  return { sender: raw, alphanumerisch: true, quelle, error: null };
 }
 
 function resolveTwilioCredentials(env = process.env) {
