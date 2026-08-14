@@ -1107,6 +1107,100 @@ await check('Eine abgesagte Termin-ID nimmt keine Aenderung mehr an', async () =
   assert.equal(wiederholt.cancelled, true);
 });
 
+// Codex-Befund vom 14.08. (P2): die Ausnahme in der Absagesperre -- "die
+// EIGENE Absage sperrt nicht" -- war von keinem Fall gedeckt. Der
+// Wiederholungsfall daneben erreicht sie nie, weil die obere
+// Wiederholungspruefung vorher antwortet.
+//
+// Meine Gegenprobe dazu war wertlos: sie entfernte die Ausnahme UND schaltete
+// die obere Pruefung ab. Dass danach etwas rot wurde, sagt nichts darueber,
+// welche der beiden Aenderungen es verursacht hat. Nachgemessen: die Ausnahme
+// allein zu entfernen liess alle 72 Faelle gruen.
+//
+// Dieser Fall stellt die Lage her, in der die Ausnahme wirklich traegt: die
+// obere Pruefung liest veraltet (die Zeile ist noch nicht sichtbar), die
+// Historie kennt die erfolgreiche Absage mit DERSELBEN request_id, und der
+// Anspruchskonflikt liefert danach die gespeicherte Antwort aus.
+await check('Die Ausnahme in der Absagesperre traegt fuer sich allein', async () => {
+  const GESPEICHERTE_ANTWORT = { ok: true, action: 'cancel', external_event_id: 'evt_s', cancelled: true };
+  const verlauf = [
+    { id: 'row_1', request_id: 'req_frueher', external_event_id: 'evt_s', connection_id: 'conn_1',
+      action: 'book', created_at: '2026-08-01T10:00:00Z',
+      details: { caller_reference: ANRUFER_A, calendar_id: 'cal_1', completed_at: '2026-08-01T10:00:05Z',
+                 response: { start: '2027-10-01T06:00:00.000Z', end: '2027-10-01T06:30:00.000Z' } } },
+    { id: 'row_2', request_id: 'req_s', external_event_id: 'evt_s', connection_id: 'conn_1',
+      action: 'cancel', created_at: '2026-08-02T10:00:00Z',
+      details: { caller_reference: ANRUFER_A, calendar_id: 'cal_1', completed_at: '2026-08-02T10:00:05Z',
+                 response: GESPEICHERTE_ANTWORT } }
+  ];
+  let einzelabfragen = 0;
+  const supabase = makeSupabase({
+    answers: {
+      ...antworten(),
+      calendar_booking_audit: (ops) => {
+        // Der Anspruch kollidiert -- die Zeile gibt es ja bereits.
+        if (ops.some((op) => op.name === 'insert')) return { data: null, error: { code: '23505' } };
+        if (ops.some((op) => op.name === 'order')) return { data: verlauf, error: null };
+        if (ops.some((op) => op.name === 'maybeSingle')) {
+          einzelabfragen += 1;
+          // Erste Abfrage: veralteter Lesevorgang, die Zeile ist noch nicht
+          // sichtbar. Genau die Lage, gegen die die Ausnahme gebaut wurde.
+          if (einzelabfragen === 1) return { data: null, error: null };
+          return { data: { status: 'success', details: { response: GESPEICHERTE_ANTWORT } }, error: null };
+        }
+        if (ops.some((op) => op.name === 'limit')) return { data: [{ id: 'audit_alt' }], error: null };
+        return { data: null, error: null };
+      }
+    }
+  });
+  aktuellerClient = supabase.client;
+  const response = await handler({
+    httpMethod: 'POST', headers: { Authorization: 'Bearer test-secret' },
+    body: JSON.stringify({ action: 'cancel', agent_id: 'agent_1', request_id: 'req_s',
+      external_event_id: 'evt_s', caller_id: ANRUFER_A })
+  });
+  const payload = JSON.parse(response.body);
+  assert.equal(payload.ok, true, JSON.stringify(payload));
+  assert.equal(payload.cancelled, true,
+    'die eigene Absage laeuft in die Sperre, statt die gespeicherte Antwort zu bekommen');
+  assert.equal(einzelabfragen, 2, 'der Anspruchskonflikt wurde gar nicht erreicht');
+});
+
+// Und die Gegenrichtung: eine Absage aus einer FREMDEN Anfrage muss weiterhin
+// sperren, sonst waere die Ausnahme ein Loch statt einer Praezisierung.
+await check('Eine fremde Absage sperrt auch bei veraltetem Lesevorgang', async () => {
+  const verlauf = [
+    { id: 'row_1', request_id: 'req_frueher', external_event_id: 'evt_s', connection_id: 'conn_1',
+      action: 'book', created_at: '2026-08-01T10:00:00Z',
+      details: { caller_reference: ANRUFER_A, calendar_id: 'cal_1', completed_at: '2026-08-01T10:00:05Z',
+                 response: { start: '2027-10-01T06:00:00.000Z', end: '2027-10-01T06:30:00.000Z' } } },
+    { id: 'row_2', request_id: 'req_jemand_anders', external_event_id: 'evt_s', connection_id: 'conn_1',
+      action: 'cancel', created_at: '2026-08-02T10:00:00Z',
+      details: { caller_reference: ANRUFER_A, calendar_id: 'cal_1', completed_at: '2026-08-02T10:00:05Z',
+                 response: { ok: true, cancelled: true } } }
+  ];
+  const supabase = makeSupabase({
+    answers: {
+      ...antworten(),
+      calendar_booking_audit: (ops) => {
+        if (ops.some((op) => op.name === 'insert')) return { data: { id: 'audit_1' }, error: null };
+        if (ops.some((op) => op.name === 'order')) return { data: verlauf, error: null };
+        if (ops.some((op) => op.name === 'maybeSingle')) return { data: null, error: null };
+        if (ops.some((op) => op.name === 'limit')) return { data: [{ id: 'audit_alt' }], error: null };
+        return { data: null, error: null };
+      }
+    }
+  });
+  aktuellerClient = supabase.client;
+  const response = await handler({
+    httpMethod: 'POST', headers: { Authorization: 'Bearer test-secret' },
+    body: JSON.stringify({ action: 'cancel', agent_id: 'agent_1', request_id: 'req_neu',
+      external_event_id: 'evt_s', caller_id: ANRUFER_A })
+  });
+  assert.equal(response.statusCode, 409);
+  assert.equal(JSON.parse(response.body).error, 'calendar_event_already_cancelled');
+});
+
 // Die gefaehrliche Richtung: eine Absage darf sich durch keine Sortierung
 // aufheben lassen. Deshalb gilt sie unabhaengig von jeder Reihenfolge.
 await check('Eine Absage laesst sich durch keine Zeitangabe wieder aufheben', async () => {
