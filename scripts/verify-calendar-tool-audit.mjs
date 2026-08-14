@@ -17,6 +17,29 @@ import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
 
+// ── Feste Uhr ───────────────────────────────────────────────────────────────
+//
+// Die Testdaten liegen auf einem festen Dienstag, dem 2027-08-10. Codex-Befund
+// vom 14.08. (P2): das ist eine Zeitbombe. Ab dem 10.08.2027 liegt dieser
+// Dienstag in der VERGANGENHEIT -- die Buchungsketten scheitern an der
+// Zeitpruefung, und das Nachschlagen wirft die Termine als nicht mehr
+// anstehend weg. Der Arbeitsablauf laeuft ohne Pfadfilter bei jedem Push; er
+// waere an einem Stichtag rot geworden, ohne dass am Produkt etwas kaputt ist.
+//
+// Nachgemessen, bevor gebaut wurde: mit einer auf den 2027-09-01 gestellten Uhr
+// waren 25 der Faelle rot.
+//
+// Die Uhr steht deshalb still. Das ist auch sonst die richtige Wahl: mehrere
+// Faelle rechnen mit Wochentagen und erwarteten Slot-Zahlen, und die duerfen
+// nicht davon abhaengen, wann jemand den Test startet. verify-calendar-slots
+// macht es mit seinem einspeisbaren JETZT seit dem 12.08. genauso.
+//
+// Ueber VERIFY_JETZT laesst sich die Uhr verstellen -- gebraucht genau fuer die
+// Messung oben.
+const JETZT = Date.parse(process.env.VERIFY_JETZT || '2026-08-14T09:00:00Z');
+if (!Number.isFinite(JETZT)) { console.error('VERIFY_JETZT ist kein Zeitpunkt'); process.exit(1); }
+Date.now = () => JETZT;
+
 let failed = 0;
 function check(name, fn) {
   return fn().then(
@@ -30,7 +53,7 @@ function check(name, fn) {
 // Der echte Client kettet .select().eq().maybeSingle() und ist am Ende
 // awaitbar. Dieser Ersatz nimmt jeden Methodenaufruf entgegen, merkt ihn sich
 // und fragt beim Aufloesen eine Tabelle von Antworten.
-const KETTENGLIEDER = ['select', 'eq', 'in', 'lt', 'gt', 'limit', 'maybeSingle', 'order', 'neq'];
+const KETTENGLIEDER = ['select', 'eq', 'in', 'lt', 'gt', 'limit', 'maybeSingle', 'order', 'neq', 'range'];
 
 function makeSupabase({ answers = {} } = {}) {
   const inserts = [];
@@ -124,6 +147,12 @@ function makeLivingSupabase({ settings = SETTINGS, connection = CONNECTION, vorb
           if (ops.some((op) => op.name === 'order')) {
             treffer = [...treffer].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
           }
+          // `range` MUSS der Ersatz beherrschen, seit die Historie geblaettert
+          // gelesen wird. Ein Ersatz, der den Bereich ignoriert, gibt jeder
+          // Seite dieselben Zeilen -- die Schleife im Werkzeug liefe endlos oder
+          // saehe die Blaetterung nie.
+          const bereich = ops.find((op) => op.name === 'range');
+          if (bereich) treffer = treffer.slice(bereich.args[0], bereich.args[1] + 1);
           const grenze = ops.find((op) => op.name === 'limit');
           if (grenze) treffer = treffer.slice(0, grenze.args[0]);
           const einzeln = ops.some((op) => op.name === 'maybeSingle');
@@ -623,7 +652,12 @@ const mitHistorie = (zeilen = HISTORIE) => ({
   ...antworten(),
   calendar_booking_audit: (ops) => {
     if (ops.some((op) => op.name === 'insert')) return { data: { id: 'audit_1' }, error: null };
-    if (ops.some((op) => op.name === 'order')) return { data: zeilen, error: null };
+    if (ops.some((op) => op.name === 'order')) {
+      // Der Bereich wird beachtet, sonst saehe die Blaetterung im Werkzeug
+      // jede Seite gleich und die Schleife braeche nie ab.
+      const bereich = ops.find((op) => op.name === 'range');
+      return { data: bereich ? zeilen.slice(bereich.args[0], bereich.args[1] + 1) : zeilen, error: null };
+    }
     if (ops.some((op) => op.name === 'limit')) return { data: [{ id: 'audit_alt' }], error: null };
     return { data: null, error: null };
   }
@@ -1161,6 +1195,70 @@ await check('Auch der sechste eigene Termin kommt in der Antwort vor', async () 
   assert.equal(payload.appointments.length, 7,
     'ein Termin jenseits der Grenze kann seine external_event_id nie liefern');
   assert.ok(payload.appointments.some((termin) => termin.external_event_id === 'evt_v6'));
+});
+
+// Codex-Befund vom 14.08. (P1): die Historie wurde OHNE Bereichsangabe gelesen.
+// PostgREST gibt hoechstens db-max-rows Zeilen zurueck und sagt es nicht dazu --
+// und weil aeltestzuerst sortiert wird, fiele ausgerechnet das NEUESTE Stueck
+// weg. Eine nicht mitgelesene Absage laesst den Termin wieder auferstehen.
+function langeHistorie(anzahl) {
+  const zeilen = [];
+  for (let index = 0; index < anzahl; index += 1) {
+    zeilen.push({
+      external_event_id: 'evt_m' + index, connection_id: 'conn_1', action: 'book',
+      created_at: new Date(Date.parse('2026-01-01T00:00:00Z') + index * 60000).toISOString(),
+      details: {
+        caller_reference: ANRUFER_B, booking_reference: String(100000 + index), calendar_id: 'cal_1',
+        response: { start: '2027-08-25T06:00:00.000Z', end: '2027-08-25T06:30:00.000Z' }
+      }
+    });
+  }
+  return zeilen;
+}
+
+await check('Die Historie wird ueber die Seitengrenze hinaus gelesen', async () => {
+  // 600 Zeilen bei 500 je Seite: die entscheidende Absage steht auf Seite zwei.
+  const zeilen = langeHistorie(600);
+  zeilen.push({
+    external_event_id: 'evt_spaet', connection_id: 'conn_1', action: 'book',
+    created_at: '2026-06-01T10:00:00Z',
+    details: { caller_reference: ANRUFER_A, booking_reference: '606060', calendar_id: 'cal_1',
+               response: { start: '2027-08-26T06:00:00.000Z', end: '2027-08-26T06:30:00.000Z' } }
+  });
+  zeilen.push({
+    external_event_id: 'evt_spaet', connection_id: 'conn_1', action: 'cancel',
+    created_at: '2026-06-02T10:00:00Z',
+    details: { caller_reference: ANRUFER_A, calendar_id: 'cal_1', response: { cancelled: true } }
+  });
+  const { payload } = await lookupRuf({ caller_id: ANRUFER_A }, zeilen);
+  assert.equal(payload.appointment_count, 0,
+    'die Absage auf der zweiten Seite wurde nicht gelesen -- der Termin ist wieder da');
+});
+
+await check('Eine zu lange Historie bricht ab statt gekuerzt zu rechnen', async () => {
+  // 40 Seiten a 500 sind die Grenze; 20001 Zeilen reissen sie.
+  const { response, payload } = await lookupRuf({ caller_id: ANRUFER_A }, langeHistorie(20001));
+  assert.equal(payload.ok, false, 'eine abgeschnittene Historie wird stillschweigend verwendet');
+  assert.equal(payload.error, 'calendar_history_truncated');
+  assert.equal(response.statusCode, 503);
+});
+
+// Codex-Befund vom 14.08. (P2): die angehobene Grenze macht den Fall seltener,
+// nicht erreichbar. Geblaettert wird trotzdem nicht -- aber gekuerzt wird auch
+// nicht mehr still.
+await check('Zu viele Termine werden gemeldet, nicht abgeschnitten', async () => {
+  const viele = Array.from({ length: 51 }, (_, index) => ({
+    external_event_id: 'evt_z' + index, connection_id: 'conn_1', action: 'book',
+    created_at: new Date(Date.parse('2026-02-01T00:00:00Z') + index * 60000).toISOString(),
+    details: {
+      caller_reference: ANRUFER_A, booking_reference: String(200000 + index), calendar_id: 'cal_1',
+      response: { start: '2027-08-27T06:00:00.000Z', end: '2027-08-27T06:30:00.000Z' }
+    }
+  }));
+  const { payload } = await lookupRuf({ caller_id: ANRUFER_A }, viele);
+  assert.equal(payload.appointment_count, 51);
+  assert.equal(payload.truncated, true, 'die Kuerzung bleibt unbemerkt');
+  assert.equal(payload.reason, 'calendar_too_many_appointments');
 });
 
 await check('Kette: die gesprochene Terminnummer traegt auch mit Trennzeichen', async () => {

@@ -192,21 +192,57 @@ async function loadBlockingUpdates(sb, customerId, startIso, endIso) {
 //
 // Die Liste ist ausserdem seit der Anrufer-Bindung auf die anrufende Person
 // gefiltert -- es sind ihre eigenen Termine, nicht die des Betriebs. Es gibt
-// also keinen Grund, ihr davon etwas vorzuenthalten. Die Grenze bleibt nur als
-// Schutz vor einer entgleisten Antwortgroesse stehen und liegt so hoch, dass
-// sie im Gespraech nicht erreicht wird; wie viele davon vorgelesen werden,
-// regelt der Prompt (hoechstens drei).
+// also keinen Grund, ihr davon etwas vorzuenthalten.
+//
+// Zweiter Codex-Befund (P2) zur angehobenen Grenze: 50 statt 5 macht den Fall
+// seltener, nicht erreichbar. Richtig -- und trotzdem wird hier NICHT
+// geblaettert. Ein Sprachagent, der eine Seite zwei anfordert, liest im besten
+// Fall fuenfzig Termine vor; das ist kein Gespraech mehr. Was stattdessen
+// bleibt, ist die Regel, die dieser PR ueberall sonst anwendet: KEINE STILLE
+// KUERZUNG. Wird die Grenze erreicht, sagt die Antwort es (`truncated`,
+// `calendar_too_many_appointments`), und der Agent nimmt eine Rueckrufanfrage
+// auf, statt aus einem Ausschnitt zu waehlen. Ein Mensch loest den Fall besser
+// als ein Blaetterprotokoll.
 const LOOKUP_LIMIT = 50;
 
+// Geblaettert, und bei Erreichen der Grenze ABGEBROCHEN statt gekuerzt.
+//
+// Codex-Befund vom 14.08. (P1): die Abfrage stand ohne Bereichsangabe da.
+// PostgREST liefert hoechstens `db-max-rows` Zeilen (bei Supabase ueblicherweise
+// 1000) und sagt es nicht dazu. Sortiert wird aeltestzuerst -- weggefallen waere
+// also ausgerechnet das NEUESTE Stueck Historie. Die Folgen sind genau die, die
+// dieser PR sonst verhindert: eine Absage, die nicht mitgelesen wird, laesst den
+// Termin wieder auferstehen; eine Verschiebung, die fehlt, meldet die alte Zeit;
+// und die Nummernvergabe wie die Mehrdeutigkeitspruefung rechnen mit einem
+// Ausschnitt.
+//
+// Derselbe Befund und dieselbe Antwort wie bei der Belegungsliste der Anbieter
+// (MAX_BUSY_PAGES in _lib/calendar-providers.js): eine unvollstaendige Historie
+// ist nicht die halbe Wahrheit, sondern eine falsche. Wird die Grenze erreicht,
+// wirft die Funktion -- der Agent geht in die Rueckrufaufnahme, statt auf
+// lueckenhaften Daten zu arbeiten.
+const HISTORY_PAGE_SIZE = 500;
+const MAX_HISTORY_PAGES = 40;
+
 async function loadAppointmentHistory(sb, customerId) {
-  const { data, error } = await sb.from('calendar_booking_audit')
-    .select('external_event_id,action,details,connection_id,created_at')
-    .eq('customer_id', customerId)
-    .eq('status', 'success')
-    .in('action', ['book', 'reschedule', 'cancel'])
-    .order('created_at', { ascending: true });
-  if (error) throw error;
-  return data || [];
+  const alle = [];
+  for (let seite = 0; seite < MAX_HISTORY_PAGES; seite += 1) {
+    const von = seite * HISTORY_PAGE_SIZE;
+    const { data, error } = await sb.from('calendar_booking_audit')
+      .select('external_event_id,action,details,connection_id,created_at')
+      .eq('customer_id', customerId)
+      .eq('status', 'success')
+      .in('action', ['book', 'reschedule', 'cancel'])
+      .order('created_at', { ascending: true })
+      .range(von, von + HISTORY_PAGE_SIZE - 1);
+    if (error) throw error;
+    const zeilen = data || [];
+    alle.push(...zeilen);
+    if (zeilen.length < HISTORY_PAGE_SIZE) return alle;
+  }
+  const error = new Error('calendar_history_truncated');
+  error.status = 503;
+  throw error;
 }
 
 // Loest die Historie zum aktuellen Stand auf: ein reschedule ueberschreibt die
@@ -624,15 +660,20 @@ exports.handler = async (event) => {
       // -- mit der Frage nach der Terminnummer. Der Preis ist eine zusaetzliche
       // Frage bei jemandem, der wirklich keinen Termin hat; der Gegenwert ist,
       // dass die Antwort nichts behauptet, was wir nicht belegen koennen.
-      const grund = termine.length
-        ? null
-        // Eine Terminnummer wurde genannt und hat nicht zugewiesen -- entweder
-        // passte sie zu nichts, oder sie war mehrdeutig und traegt deshalb
-        // nichts. Der Agent liest sie einmal zur Kontrolle zurueck.
-        : ((identitaet.bookingReference || belegMehrdeutig)
-          ? 'calendar_booking_reference_unknown'
-          // Noch keine Terminnummer im Spiel: danach fragen.
-          : 'calendar_appointment_unmatched');
+      // Keine stille Kuerzung: mehr Termine als die Antwort fasst ist ein
+      // eigener Ausgang, kein stillschweigend abgeschnittener Erfolg.
+      const gekuerzt = termine.length > LOOKUP_LIMIT;
+      const grund = gekuerzt
+        ? 'calendar_too_many_appointments'
+        : (termine.length
+          ? null
+          // Eine Terminnummer wurde genannt und hat nicht zugewiesen -- entweder
+          // passte sie zu nichts, oder sie war mehrdeutig und traegt deshalb
+          // nichts. Der Agent liest sie einmal zur Kontrolle zurueck.
+          : ((identitaet.bookingReference || belegMehrdeutig)
+            ? 'calendar_booking_reference_unknown'
+            // Noch keine Terminnummer im Spiel: danach fragen.
+            : 'calendar_appointment_unmatched'));
       responsePayload = {
         ok: true,
         action,
@@ -643,6 +684,7 @@ exports.handler = async (event) => {
         })),
         appointment_count: termine.length,
         identified_by: modus,
+        ...(gekuerzt ? { truncated: true } : {}),
         timezone: String(settings.timezone || 'Europe/Zurich'),
         ...(grund ? { reason: grund } : {})
       };
