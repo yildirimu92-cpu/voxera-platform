@@ -829,3 +829,22 @@ test('der Retry-Worker kennt beide SMS-Ereignistypen', () => {
   assert.match(worker, /isSmsEventType/, 'sonst fallen SMS-Zeilen in "unsupported event_type"');
   assert.match(worker, /delivery\.permanent/, 'permanente Fehler duerfen das Wiederholungsbudget nicht aufbrauchen');
 });
+
+test('der Retry-Worker belegt die Absenderherkunft seiner eigenen Site', () => {
+  // voxera-admin ist die einzige Stelle, an der TWILIO_SMS_FROM aus DIESEM
+  // Projekt gelesen wird, und der Worker laeuft nur im Fehlerfall an. Ohne
+  // diese Logzeile bliebe die zweite Umgebung dauerhaft unbelegt -- Test 8 des
+  // Testplans haette dann kein Ergebnis, sondern nur eine Beobachtung.
+  const worker = fs.readFileSync(
+    path.join(__dirname, '..', '..', 'admin-panel', 'netlify', 'functions', 'outbox-retry-worker.js'),
+    'utf8'
+  );
+  assert.match(worker, /resolveSender/, 'der Worker liest seine eigene Absenderkonfiguration nicht');
+  assert.match(worker, /'retry_sms_absender'/, 'die Herkunft wird nicht protokolliert');
+  assert.match(worker, /site: 'voxera-admin'/,
+    'ohne Site-Kennung ist die Zeile im Logbestand nicht von der Dashboard-Site zu trennen');
+  // Der Payload darf beim Nachliefern nicht veraendert werden: er traegt die
+  // Herkunft des ERSTVERSANDS, und der Text muss der von damals bleiben.
+  assert.doesNotMatch(worker, /payload\.from_quelle\s*=/,
+    'der Worker darf die Nutzlast des Erstversands nicht ueberschreiben');
+});

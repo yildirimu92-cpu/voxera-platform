@@ -12,13 +12,13 @@ Der Plan prüft nicht, ob Code funktioniert — das tun 57 Tests in `customer-da
 
 ## Voraussetzungen
 
-Ohne diese vier ist jedes Testergebnis unbrauchbar oder irreführend.
+Ohne diese vier ist jedes Testergebnis unbrauchbar oder irreführend. Der Preisentscheid und die WhatsApp-Sperre stehen seit 2026-08-14 in Produktion (Ledger `20260814230710` / `20260814230735`) und sind hier keine Voraussetzung mehr.
 
 | # | Voraussetzung | Zustand | Warum |
 |---|---|---|---|
-| V1 | **`TWILIO_SMS_FROM` erreicht die Function** | eingetragen 2026-08-14 in beiden Netlify-Projekten, Wert `Voxera`; **Nachweis nach dem nächsten Deploy offen** | Der Code fällt bei fehlender Variable auf denselben Wert `Voxera` zurück. Ein erfolgreicher Versand belegt die Variable deshalb **nicht**. Prüfung über `payload->>'from_quelle'` (Erwartung `env`), Verfahren in `SMS_INBETRIEBNAHME_CHECKLISTE_2026-08-11.md`, Abschnitt *Die Prüfung, die ein erfolgreicher Versand nicht ersetzt*. **Auf beiden Sites zu führen** — der Retry-Worker läuft auf `voxera-admin` und käme sonst erst im Fehlerfall zum Vorschein. |
+| V1 | **`TWILIO_SMS_FROM` erreicht die Function** | eingetragen 2026-08-14 in beiden Netlify-Projekten, Wert `Voxera`; **Nachweis offen** | Der Code fällt bei fehlender Variable auf denselben Wert `Voxera` zurück. Ein erfolgreicher Versand belegt die Variable deshalb **nicht**. Prüfung über `from_quelle` (Erwartung `env`), Verfahren in `SMS_INBETRIEBNAHME_CHECKLISTE_2026-08-11.md`, Abschnitt *Die Prüfung, die ein erfolgreicher Versand nicht ersetzt*. **Der Nachweis fällt in den Tests selbst an und braucht keinen eigenen Anruf:** `voxera-dashboard` aus Test 3 bzw. 1 (Outbox-Nutzlast), `voxera-admin` aus **Test 8** (Logzeile `retry_sms_absender`). Er ist damit kein Vorbedingung im Wortsinn, sondern ein Ergebnis — er steht hier, weil er sonst niemandem auffällt. |
 | V2 | **Twilio-Guthaben** | stand bei der Freigabe auf 3.67 USD | Bei sechs SMS je Anruf reicht das für den niedrigen zweistelligen Anrufbereich. Ein leeres Guthaben ist als *wiederholbarer* Fehler eingestuft — Test 4 und 6 würden dann `sms_send_failed` statt der erwarteten Codes zeigen und die Auswertung verfälschen. |
-| V3 | **Empfängertabelle in der Zielumgebung** | Staging: ja (2026-08-14). Produktion: **wartet auf Freigabe** | Fehlt die Tabelle, protokolliert der Pfad `team_tabelle_fehlt` und unterdrückt die Anrufer-SMS — das sieht aus wie Test 3, hat aber eine andere Ursache. Die beiden Fälle sind nur am Grund in der Logzeile zu trennen. |
+| V3 | **Empfängertabelle in der Zielumgebung** | Staging und Produktion: ja (2026-08-14, Ledger `20260814230725`) | Fehlt die Tabelle, protokolliert der Pfad `team_tabelle_fehlt` und unterdrückt die Anrufer-SMS — das sieht aus wie Test 3, hat aber eine andere Ursache. Die beiden Fälle sind nur am Grund in der Logzeile zu trennen. |
 | V4 | **Genau ein Testkunde scharf** | offen (Etappe B) | `sms_notify_enabled = true` bei mehr als einem Kunden macht die Zuordnung der Outbox-Zeilen zum Testanruf unnötig mühsam. |
 
 ---
@@ -92,6 +92,35 @@ Erwartet: kein Versand, keine Outbox-Zeile. Fällt hier trotzdem eine SMS an, gr
 Kein eigener Anruf: über alle Testanrufe hinweg prüfen, ob `sms_mehrere_segmente` je auftritt.
 
 Erwartet: nie. Das Budget liegt im ungünstigsten Fall bei acht Zeichen Luft (`Dringlichkeit: unbekannt` plus voller Link). Tritt die Warnung auf, kostet jede Nachricht bei fünf Empfängern das Doppelte — und zwar dauerhaft, nicht nur im Test.
+
+### Test 8 — Der Retry-Worker auf `voxera-admin`
+
+**Was hier geprüft wird und sonst nirgends.** Die Tests 1–7 laufen vollständig auf `voxera-dashboard`. Der Retry-Worker läuft auf `voxera-admin`, hat eine **eigene** Umgebung und läuft **nur im Fehlerfall** an. Eine dort fehlende oder falsche `TWILIO_SMS_FROM` fällt im Normalbetrieb nie auf — sie zeigt sich erst in dem Moment, in dem etwas nachzuliefern ist, also genau dann, wenn ohnehin schon etwas schiefgeht.
+
+Test 3 hilft hier nicht: permanente Fehler gehen sofort auf `dead`, der Worker sammelt sie nie ein. Es braucht einen **wiederholbaren** Fehler.
+
+**Aufbau.** Auf **`voxera-dashboard`** (und nur dort) `TWILIO_SMS_FROM` vorübergehend auf einen unzulässigen Wert setzen, z. B. `VoxeraSchweizAG` — zwölf Zeichen, die Grenze liegt bei elf. `voxera-admin` behält `Voxera`.
+
+Damit scheitert der Erstversand an der eigenen Prüfung, **bevor** ein Request an Twilio geht: `resolveSender()` liefert einen Fehler, die Outbox-Zeile geht auf `failed` (nicht `dead`), und der Worker holt sie im nächsten Lauf — Zeitplan alle fünf Minuten — mit *seiner* Konfiguration nach.
+
+**Erwartet:**
+
+| Ort | Erwartung |
+|---|---|
+| Log `voxera-dashboard` | `sms_misconfigured` mit `hoechstens 11` im Fehlertext, kein Twilio-Request |
+| `outbox_events` | Zeile auf `failed`, `last_error` trägt die Meldung |
+| Log `voxera-admin` | `retry_sms_absender` mit `from: "Voxera"`, `from_quelle: "env"`, `site: "voxera-admin"` |
+| Log `voxera-admin` | `retry_success` für dieselbe `outbox_id` |
+| `outbox_events` | dieselbe Zeile jetzt auf `sent`, `retry_count` ≥ 1 |
+| Gerät | die SMS kommt an — **verspätet, nicht verloren** |
+
+Das ist zugleich die Probe auf die Zusage, die hinter der ganzen Outbox steht: eine Fehlkonfiguration verzögert, sie vernichtet nicht.
+
+**`from_quelle` steht hier im Log, nicht im Payload.** Der Payload wurde beim Erstversand geschrieben und trägt die Herkunft der *Dashboard*-Site. Ihn nachträglich zu überschreiben würde die Spur des Erstversands löschen; danebenzuschreiben hiesse, den Payload beim Nachliefern zu verändern — und genau das darf er nicht, sonst bekäme der Anrufer Stunden später eine Bestätigung mit frischer Uhrzeit.
+
+**Aufräumen, sofort nach dem Test:** `TWILIO_SMS_FROM` auf `voxera-dashboard` zurück auf `Voxera`. Solange der falsche Wert steht, geht **jede** Erst-SMS über den Umweg des Workers — fünf Minuten Verzögerung bei einem Kanal, der für Notfälle gebaut ist. Deshalb gehört dieser Test in ein Zeitfenster, in dem nur der Testkunde scharf ist.
+
+**Verworfene Variante, mit Grund.** Naheliegender wäre gewesen, `TWILIO_AUTH_TOKEN` auf der Dashboard-Site zu leeren — auch das ist als wiederholbarer Fehler eingestuft. Das fällt aus: dieselbe Variable wird dort von `twilio-inbound-router.js` und `twilio-signature.js` benutzt, also von der **Anrufannahme**. Ein SMS-Test, der die Telefonie abschaltet, ist kein Test, sondern ein Ausfall. `TWILIO_SMS_FROM` wird ausschliesslich von `sms-transport.js` gelesen und ist damit der einzige Hebel, der nur den SMS-Pfad trifft.
 
 ---
 
