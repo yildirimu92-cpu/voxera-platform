@@ -296,6 +296,43 @@ check(
   buildSyncPatch({ customer: {}, prompt: 'P' })
     .conversation_config.turn.soft_timeout_config.timeout_seconds === 4
 );
+
+// Codex-Befund vom 14.08. (P1) -- eine Regression, die der Sync-Fix selbst
+// erzeugt hat: die Floskel stand fest auf Deutsch. Solange sie nur beim
+// Anlegen wirkte, fiel das nicht auf; seit sie zu JEDEM Bestandsagenten
+// gesendet wird, spraeche ein franzoesischer Agent mitten im Gespraech ein
+// deutsches Wort. Geprueft wird der Text pro Sprache, auf BEIDEN Schreibwegen.
+const FLOSKELN = { de: 'Einen Moment', fr: 'Un instant', it: 'Un momento', en: 'One moment' };
+for (const [sprache, floskel] of Object.entries(FLOSKELN)) {
+  check(
+    `Wartefloskel spricht ${sprache} im Sync`,
+    buildSyncPatch({ customer: { ai_language: sprache }, prompt: 'P' })
+      .conversation_config.turn.soft_timeout_config.message === floskel
+  );
+  check(
+    `Wartefloskel spricht ${sprache} beim Anlegen`,
+    buildAgentConfig({ customer: { ai_language: sprache }, prompt: 'P', firstMessage: 'G', toolIds: [] })
+      .conversation_config.turn.soft_timeout_config.message === floskel
+  );
+}
+// Eine unbekannte oder fehlende Sprache darf keinen leeren Text senden --
+// ElevenLabs spraeche dann gar nichts, und die 15 Sekunden Stille waeren
+// zurueck, ohne dass irgendwo etwas fehlschlaegt.
+for (const unbekannt of [null, undefined, '', 'xx']) {
+  check(
+    `Unbekannte Sprache ${JSON.stringify(unbekannt)} faellt auf Deutsch zurueck`,
+    buildSyncPatch({ customer: { ai_language: unbekannt }, prompt: 'P' })
+      .conversation_config.turn.soft_timeout_config.message === FLOSKELN.de
+  );
+}
+// Und die Floskel bleibt gesprochener Text, kein Modellauftrag: mit
+// use_llm_generated_message=true wuerde das Modell selbst formulieren -- genau
+// die zweite Aufgabe im selben Feld, gegen die am 10.08. entschieden wurde.
+check(
+  'Die Wartefloskel wird nicht vom Modell erzeugt',
+  buildSyncPatch({ customer: { ai_language: 'fr' }, prompt: 'P' })
+    .conversation_config.turn.soft_timeout_config.use_llm_generated_message === false
+);
 // Der eigentliche Regressionsschutz dieses Umbaus: Kein Feld aus der
 // Definition, das nicht schon vor #932 gesendet wurde, darf in den
 // Sync-Koerper geraten -- sonst stellt der naechste Kundensync die

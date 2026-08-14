@@ -107,6 +107,12 @@ function makeSupabase({ answers = {} } = {}) {
   // laesst, ob eine Abfrage vorgezogen wurde -- das Ergebnis ist bei
   // sequenzieller wie paralleler Ausfuehrung identisch.
   const tabellen = [];
+  // Codex-Befund vom 14.08. (P2): from() haelt nur die KONSTRUKTION des
+  // Abfragebauers fest. Die Abfrage startet erst, wenn jemand sie awaitet --
+  // ein Rueckbau, der frueh baut und spaet awaitet, saehe in `tabellen`
+  // identisch aus und liefe trotzdem wieder sequenziell. Massgeblich ist der
+  // Zeitpunkt des then().
+  const ausfuehrungen = [];
 
   function chain(table) {
     const ops = [];
@@ -115,6 +121,7 @@ function makeSupabase({ answers = {} } = {}) {
       // mit der gesammelten Aufrufkette -- so kann ein Testfall zwischen
       // "insert" und "select" auf derselben Tabelle unterscheiden.
       then(resolve, reject) {
+        ausfuehrungen.push(table);
         const answer = answers[table];
         try {
           const result = typeof answer === 'function' ? answer(ops) : (answer ?? { data: null, error: null });
@@ -140,7 +147,7 @@ function makeSupabase({ answers = {} } = {}) {
     return self;
   }
 
-  return { client: { from: (table) => { tabellen.push(table); return chain(table); } }, inserts, updates, tabellen };
+  return { client: { from: (table) => { tabellen.push(table); return chain(table); } }, inserts, updates, tabellen, ausfuehrungen };
 }
 
 // ── Mitschreibender Supabase-Ersatz ─────────────────────────────────────────
@@ -420,7 +427,12 @@ await check('Die Oeffnungszeiten werden vor den Kalenderabfragen gestartet', asy
   const { supabase } = await ruf({
     action: 'availability', agent_id: 'agent_1', start: DI('08:00'), end: DI('12:00')
   });
-  const reihenfolge = supabase.tabellen;
+  // Codex-Befund vom 14.08. (P2): geprueft wird die AUSFUEHRUNG, nicht die
+  // Konstruktion. `from()` legt nur den Abfragebauer an; losgeschickt wird die
+  // Abfrage erst beim then(). Ein Rueckbau, der den Bauer frueh anlegt und erst
+  // nach den Kalenderabfragen awaitet, saehe in der Konstruktionsreihenfolge
+  // identisch aus -- und liefe trotzdem wieder sequenziell.
+  const reihenfolge = supabase.ausfuehrungen;
   const oeffnungszeiten = reihenfolge.indexOf('customers', 1);
   const einstellungen = reihenfolge.indexOf('calendar_settings');
   assert.ok(oeffnungszeiten > 0, 'die Oeffnungszeiten werden gar nicht geladen');

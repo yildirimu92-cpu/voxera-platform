@@ -79,6 +79,54 @@ const DEFAULT_VOICE_ID = '1iF3vHdwHKuVKSPDK23Z';
 
 const DEFAULT_LANGUAGE = 'de';
 
+// Die Wartefloskel in den vier unterstuetzten Sprachen.
+//
+// Codex-Befund vom 14.08. (P1): solange `soft_timeout_config` nur beim Anlegen
+// gesetzt wurde, war der fest verdrahtete deutsche Text harmlos -- er erreichte
+// keinen bestehenden Agenten. Seit der Sync ihn mitsendet, ist er es nicht
+// mehr: ein franzoesisch- oder italienischsprachiger Agent wuerde bei jedem
+// langsamen Zug hoerbar auf Deutsch wechseln. Die Sprache selbst ist ein
+// kundenspezifischer Pfad (CUSTOMER_SPECIFIC_PATHS) und wird bewusst nicht
+// synchronisiert -- der Text darf sie also nicht ueberfahren.
+//
+// Es ist eine Reparatur an einer Regression, die diese Aenderung selbst
+// erzeugt hat: vorher stand derselbe deutsche Text da und richtete keinen
+// Schaden an.
+//
+// Der Wortlaut ist bewusst knapp und in allen vier Sprachen dasselbe Register.
+// Er ist von mir gesetzt und sollte von jemandem gegengelesen werden, der die
+// Sprache spricht -- es sind zwei Woerter, aber sie fallen im Gespraech auf.
+const SOFT_TIMEOUT_MESSAGES = Object.freeze({
+  de: 'Einen Moment',
+  fr: 'Un instant',
+  it: 'Un momento',
+  en: 'One moment'
+});
+
+// Die Floskel fuer die Sprache des Kunden. Unbekannte oder fehlende Sprache
+// faellt auf die Vorgabe zurueck -- dieselbe Regel wie bei `agent.language`.
+//
+// OFFENE UNSTIMMIGKEIT, damit sie nicht unbemerkt bleibt: `agent.language`
+// selbst wird vom Sync NICHT gesendet (siehe die Anmerkung an
+// CUSTOMER_SPECIFIC_PATHS -- bewusst zurueckgestellt). Wechselt ein Kunde nach
+// dem Anlegen seine Sprache, spricht der Agent also weiter Deutsch, waehrend
+// diese Floskel ab dem naechsten Sync franzoesisch waere.
+//
+// Das ist kein Grund, hier wieder Deutsch fest zu verdrahten: dann bekaeme ein
+// von Anfang an franzoesischsprachiger Agent dauerhaft eine deutsche Floskel,
+// und das ist der haeufigere Fall. Die saubere Loesung ist die dort
+// beschriebene -- `language` in die Nutzlast aufnehmen, zusammen mit einer
+// Pruefung, die CUSTOMER_SPECIFIC_PATHS gegen die Pfade der Nutzlast haelt.
+// Dieser PR nimmt sie nicht vorweg.
+function softTimeoutConfigFor(language) {
+  const sprache = String(language || '').trim().toLowerCase();
+  return {
+    timeout_seconds: AGENT_DEFINITION.conversation_config.turn.soft_timeout_config.timeout_seconds,
+    message: SOFT_TIMEOUT_MESSAGES[sprache] || SOFT_TIMEOUT_MESSAGES[DEFAULT_LANGUAGE],
+    use_llm_generated_message: false
+  };
+}
+
 // Kundenspezifisch — alles andere kommt unveraendert aus diesem Modul.
 // Als dotted paths gefuehrt, damit die Rueckleseprüfung und der Test sie
 // benennen koennen, ohne sie ein zweites Mal aufzuzaehlen.
@@ -211,7 +259,9 @@ const AGENT_DEFINITION = Object.freeze({
         // Vier Sekunden: oberhalb eines normalen Zuges, unterhalb der
         // Kaskadenschwelle von 8. Wer sie hoert, wartet wirklich.
         timeout_seconds: 4,               // [E] 14.08. — vorher -1, davor 3
-        message: 'Einen Moment',
+        // Vorgabewert. Die tatsaechlich gesendete Fassung richtet sich nach
+        // `customers.ai_language` -- siehe softTimeoutConfigFor().
+        message: SOFT_TIMEOUT_MESSAGES[DEFAULT_LANGUAGE],
         use_llm_generated_message: false  // Statisch — nie LLM-generiert
       }
     },
@@ -374,6 +424,9 @@ function buildAgentConfig({ customer = {}, prompt = '', firstMessage = null, too
   const body = clone(AGENT_DEFINITION);
 
   body.conversation_config.agent.language = customer.ai_language || DEFAULT_LANGUAGE;
+  // Dieselbe Sprache wie der Agent -- sonst bekaeme ein neu angelegter
+  // franzoesischsprachiger Agent eine deutsche Wartefloskel.
+  body.conversation_config.turn.soft_timeout_config = softTimeoutConfigFor(customer.ai_language);
   if (firstMessage !== null && firstMessage !== undefined) {
     body.conversation_config.agent.first_message = firstMessage;
   }
@@ -544,7 +597,7 @@ function buildSyncPatch({ customer = {}, prompt = '', firstMessage = null, toolI
       // mitzusenden hiesse, sie von einer BEOBACHTUNG zu einer ZUSICHERUNG zu
       // machen, und diese Unterscheidung ist weiter unten ausdruecklich
       // begruendet.
-      turn: { soft_timeout_config: clone(AGENT_DEFINITION.conversation_config.turn.soft_timeout_config) }
+      turn: { soft_timeout_config: softTimeoutConfigFor(customer.ai_language) }
     },
     platform_settings: {
       privacy: {

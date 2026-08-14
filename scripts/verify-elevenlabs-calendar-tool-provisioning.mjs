@@ -592,8 +592,17 @@ try {
     'Der Prompt kennt den abgeschlossenen Vorgang nicht als eigene Kategorie');
   assert.match(block, /NIEMALS "wir melden uns bei Ihnen"/,
     'Die Rückruf-Formel ist nach einer Buchung nicht verboten');
+  // Die zweite verbotene Formel. "Ist notiert" klingt harmloser als der
+  // Rückruf, sagt aber dieselbe Unwahrheit: es behauptet eine aufgenommene
+  // Anfrage, wo ein Termin bereits steht.
+  assert.match(block, /oder "ist notiert"/,
+    'Die Notiz-Formel ist nach einem abgeschlossenen Vorgang nicht verboten');
+  // Alle drei Vorgänge brauchen ihre eigene Abschlussformel — fehlt eine,
+  // greift für genau diesen Fall wieder der allgemeine Prompt.
   assert.match(block, /Der Termin ist fix eingetragen\./,
     'Es fehlt die Abschlussformel für eine Buchung');
+  assert.match(block, /Der neue Termin ist eingetragen\./,
+    'Es fehlt die Abschlussformel für eine Verschiebung');
   assert.match(block, /Der Termin ist storniert\./,
     'Es fehlt die Abschlussformel für eine Absage');
 
