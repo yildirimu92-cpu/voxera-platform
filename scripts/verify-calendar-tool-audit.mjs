@@ -169,6 +169,8 @@ function makeLivingSupabase({ settings = SETTINGS, connection = CONNECTION, vorb
   const passt = (zeile, ops) => ops.every((op) => {
     if (op.name === 'eq') return String(zeile[op.args[0]] ?? '') === String(op.args[1] ?? '');
     if (op.name === 'in') return op.args[1].includes(zeile[op.args[0]]);
+    // Keyset-Blaetterung: das Werkzeug blaettert ueber gt(id, cursor).
+    if (op.name === 'gt') return zeile[op.args[0]] > op.args[1];
     return true;
   });
 
@@ -709,23 +711,52 @@ const HISTORIE_LEER = [
     details: { caller_reference: ANRUFER_A, calendar_id: 'cal_1', response: { start: '2026-08-05T08:00:00.000Z', end: '2026-08-05T08:30:00.000Z' } } }
 ];
 
-const mitHistorie = (zeilen = HISTORIE) => ({
+// Jede Zeile bekommt eine id, falls der Testfall keine setzt: das Werkzeug
+// blaettert seit dem 14.08. ueber gt(id, cursor), und ohne id kaeme jede
+// Historie nach der ersten Seite zum Erliegen. Die Nummerierung folgt der
+// Reihenfolge im Testfall, damit sie nachvollziehbar bleibt.
+const mitIds = (zeilen) => zeilen.map((zeile, index) => (
+  zeile.id ? zeile : { ...zeile, id: 'row_' + String(index).padStart(6, '0') }
+));
+
+// `nachzuegler` bildet nach, was Codex am 14.08. als P2 gemeldet hat: eine
+// Zeile, die WAEHREND des Blaetterns von `processing` auf `success` wechselt
+// und dabei mit einer kleineren id (bzw. einem aelteren Zeitstempel) auftaucht.
+// Ueber Versaetze gelesen verschiebt sie alles Nachfolgende und laesst eine
+// bestehende Zeile ausfallen; ueber den Schluessel gelesen kann sie das nicht.
+//
+// Ohne diese Nachbildung liesse sich der Unterschied nicht pruefen -- der
+// frueherer Fall drehte nur ein festes Feld um und kam an diesen Zustandswechsel
+// nicht heran.
+const mitHistorie = (rohzeilen = HISTORIE, { nachzuegler = null } = {}) => {
+  // Ausserhalb der Antwortfunktion, damit der Zaehler ueber die Seitenabfragen
+  // hinweg stehen bleibt.
+  let seitenAbfrage = 0;
+  return {
   ...antworten(),
   calendar_booking_audit: (ops) => {
+    const zeilen = mitIds(rohzeilen);
     if (ops.some((op) => op.name === 'insert')) return { data: { id: 'audit_1' }, error: null };
     if (ops.some((op) => op.name === 'order')) {
-      // Der Bereich wird beachtet, sonst saehe die Blaetterung im Werkzeug
-      // jede Seite gleich und die Schleife braeche nie ab. Sortiert wird wie
-      // PostgREST, einschliesslich der undefinierten Reihenfolge bei
-      // Gleichstand.
-      const geordnet = sortiereWiePostgrest(zeilen, ops);
-      const bereich = ops.find((op) => op.name === 'range');
-      return { data: bereich ? geordnet.slice(bereich.args[0], bereich.args[1] + 1) : geordnet, error: null };
+      seitenAbfrage += 1;
+      // Ab der zweiten Seite ist der Nachzuegler fertig geworden.
+      const bestand = (nachzuegler && seitenAbfrage >= 2) ? [nachzuegler, ...zeilen] : zeilen;
+      // Keyset-Blaetterung nachbilden: erst gt(id, cursor) filtern, dann wie
+      // PostgREST sortieren (einschliesslich der undefinierten Reihenfolge bei
+      // Gleichstand), dann limit anwenden. Ein Ersatz, der den Cursor
+      // ignoriert, saehe jede Seite gleich und die Schleife braeche nie ab.
+      const nachCursor = bestand.filter((zeile) => ops.every((op) => (
+        op.name !== 'gt' || String(zeile[op.args[0]] ?? '') > String(op.args[1] ?? '')
+      )));
+      const geordnet = sortiereWiePostgrest(nachCursor, ops);
+      const grenze = ops.find((op) => op.name === 'limit');
+      return { data: grenze ? geordnet.slice(0, grenze.args[0]) : geordnet, error: null };
     }
     if (ops.some((op) => op.name === 'limit')) return { data: [{ id: 'audit_alt' }], error: null };
     return { data: null, error: null };
   }
-});
+  };
+};
 
 await check('lookup liefert anstehende Termine ohne jede Zeitangabe', async () => {
   const supabase = makeSupabase({ answers: mitHistorie() });
@@ -1485,6 +1516,34 @@ await check('Gleiche Zeitstempel zerreissen die Blaetterung nicht', async () => 
   const { payload } = await lookupRuf({ caller_id: ANRUFER_A }, zeilen);
   assert.equal(payload.appointment_count, 0,
     'die Absage ist zwischen zwei Seiten verlorengegangen -- der Termin ist wieder da');
+});
+
+// Der Unterschied zwischen Keyset- und Versatz-Blaetterung ist am Handler NICHT
+// sichtbar: die Aufloesung sammelt in eine Map, eine doppelt gelesene Zeile
+// faellt also nicht auf. Geprueft wird deshalb direkt an der Leseschleife.
+//
+// Und noch etwas gehoert offen dazu: der von Codex beschriebene Schaden -- eine
+// BESTEHENDE Zeile wird uebersprungen -- laesst sich mit diesem Schema nicht
+// herstellen. Eine Zeile, die von `processing` auf `success` wechselt, kommt
+// HINZU; das Fenster verschiebt sich dadurch nach hinten, und das erzeugt eine
+// Dopplung, keine Luecke. Was Keyset trotzdem besser macht, ist genau das:
+// keine Dopplung, und keine Abhaengigkeit davon, wie viele Zeilen vor dem
+// Cursor liegen.
+await check('Blaettern liest keine Zeile doppelt, auch nicht bei Nachzueglern', async () => {
+  const supabase = makeSupabase({
+    answers: mitHistorie(langeHistorie(600), {
+      nachzuegler: {
+        id: 'row_000000a', external_event_id: 'evt_spaetzuender', connection_id: 'conn_1',
+        action: 'book', created_at: '2026-01-01T08:00:00Z',
+        details: { caller_reference: ANRUFER_B, calendar_id: 'cal_1',
+                   response: { start: '2027-09-26T06:00:00.000Z', end: '2027-09-26T06:30:00.000Z' } }
+      }
+    })
+  });
+  const gelesen = await handlerModul._test.loadAppointmentHistory(supabase.client, 'cust_1');
+  const ids = gelesen.map((zeile) => zeile.id);
+  assert.equal(new Set(ids).size, ids.length,
+    'eine Zeile wurde zweimal gelesen -- das Fenster hat sich unter der laufenden Abfrage verschoben');
 });
 
 await check('Eine genau volle letzte Seite ist kein Abbruch', async () => {

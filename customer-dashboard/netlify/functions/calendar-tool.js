@@ -224,30 +224,48 @@ const LOOKUP_LIMIT = 50;
 const HISTORY_PAGE_SIZE = 500;
 const MAX_HISTORY_PAGES = 40;
 
+// Geblaettert wird ueber den Schluessel, nicht ueber einen Versatz.
+//
+// Zwei Codex-Befunde haben dieselbe Stelle nacheinander getroffen. Der erste:
+// ohne eindeutigen Sortierschluessel ist die Reihenfolge bei gleichem
+// `created_at` undefiniert, und an einer Seitengrenze erscheint eine Zeile
+// zweimal und eine andere nie. Der zweite: auch mit eindeutigem Schluessel
+// teilen sich die Seitenabfragen KEINE Momentaufnahme -- wechselt zwischen
+// zwei Seiten ein nebenlaeufiger Anspruch von `processing` auf `success`,
+// schiebt sich seine aeltere Zeile in den bereits gelesenen Bereich, und der
+// naechste Versatz ueberspringt eine Zeile. Verschwinden koennte dabei wieder
+// ausgerechnet eine Absage.
+//
+// Beides faellt weg, wenn nicht nach Versatz, sondern nach dem zuletzt
+// gesehenen Schluessel geblaettert wird: `id` ist ein UUID-Primaerschluessel,
+// also eindeutig und vollstaendig sortierbar. Eine BESTEHENDE Zeile kann damit
+// weder uebersprungen noch doppelt gelesen werden, egal was nebenher passiert.
+// Eine waehrend des Lesens fertig werdende Zeile kann fehlen -- das ist
+// dasselbe wie eine Momentaufnahme kurz davor und die einzige Lesart, die
+// ueberhaupt konsistent ist.
+//
+// Die Lesereihenfolge muss dafuer nicht chronologisch sein: aufgeloest wird seit
+// dem 14.08. je Termin ueber mutationTime(), nicht ueber die Abfragefolge.
 async function loadAppointmentHistory(sb, customerId) {
   const alle = [];
+  let cursor = null;
   for (let seite = 0; seite < MAX_HISTORY_PAGES; seite += 1) {
-    const von = seite * HISTORY_PAGE_SIZE;
-    const { data, error } = await sb.from('calendar_booking_audit')
-      .select('id,external_event_id,action,details,connection_id,created_at')
+    let abfrage = sb.from('calendar_booking_audit')
+      // `request_id` steht seit dem 14.08. mit dabei -- siehe die
+      // Absagesperre im Handler.
+      .select('id,request_id,external_event_id,action,details,connection_id,created_at')
       .eq('customer_id', customerId)
       .eq('status', 'success')
       .in('action', ['book', 'reschedule', 'cancel'])
-      .order('created_at', { ascending: true })
-      // Zweiter, EINDEUTIGER Schluessel.
-      //
-      // Codex-Befund vom 14.08. (P2): mehrere Zeilen koennen denselben
-      // created_at tragen -- der availability-Verkehr eines Betriebs erzeugt sie
-      // im Sekundentakt. Ohne eindeutigen Zweitschluessel ist die Reihenfolge
-      // innerhalb einer solchen Gruppe undefiniert, und an einer Seitengrenze
-      // heisst das: eine Zeile erscheint auf beiden Seiten, eine andere auf
-      // keiner. Verschwinden koennte dabei ausgerechnet eine Absage.
       .order('id', { ascending: true })
-      .range(von, von + HISTORY_PAGE_SIZE - 1);
+      .limit(HISTORY_PAGE_SIZE);
+    if (cursor) abfrage = abfrage.gt('id', cursor);
+    const { data, error } = await abfrage;
     if (error) throw error;
     const zeilen = data || [];
     alle.push(...zeilen);
     if (zeilen.length < HISTORY_PAGE_SIZE) return alle;
+    cursor = zeilen[zeilen.length - 1].id;
   }
 
   // Genau volle letzte Seite heisst nicht "es kommt noch was".
@@ -265,9 +283,9 @@ async function loadAppointmentHistory(sb, customerId) {
     .eq('customer_id', customerId)
     .eq('status', 'success')
     .in('action', ['book', 'reschedule', 'cancel'])
-    .order('created_at', { ascending: true })
+    .gt('id', cursor)
     .order('id', { ascending: true })
-    .range(MAX_HISTORY_PAGES * HISTORY_PAGE_SIZE, MAX_HISTORY_PAGES * HISTORY_PAGE_SIZE);
+    .limit(1);
   if (error) throw error;
   if (!(rest || []).length) return alle;
 
@@ -635,7 +653,27 @@ exports.handler = async (event) => {
       // Aufloesung blendete den Termin danach fuer immer aus. Ein Termin, den es
       // gibt und den niemand findet, ist schlimmer als eine Ablehnung: die
       // Ablehnung fuehrt in Schritt 19 und damit zu einem Menschen.
-      if (cancelledEventIds(verlauf).has(externalEventId)) {
+      // Die EIGENE Absage sperrt nicht.
+      //
+      // Codex-Befund vom 14.08. (P1): eine Wiederholung derselben Anfrage --
+      // Absage beim Anbieter erfolgt, Antwort unterwegs verloren -- duerfe hier
+      // nicht in die Sperre laufen, sondern muesse die gespeicherte
+      // Erfolgsantwort bekommen.
+      //
+      // Nachgemessen: die Wiederholungspruefung weiter oben faengt das bereits
+      // ab, und ein eigener Fall belegt es seit `ed1dc97`. Der Befund liess sich
+      // an dieser Fassung nicht nachstellen.
+      //
+      // Trotzdem geaendert, denn "faengt eine andere Stelle ab" ist eine
+      // schwaechere Zusage als "kann hier gar nicht passieren": die obere
+      // Pruefung liest die Zeile ueber die request_id, und ein Lesevorgang kann
+      // veraltet sein. Die Sperre gilt deshalb nur noch fuer Absagen aus einer
+      // ANDEREN Anfrage. Fuer die eigene faellt sie durch und landet unten im
+      // Anspruchskonflikt, der wiederum die Erfolgsantwort ausliefert.
+      const fremdeAbsage = verlauf.some((zeile) => zeile.action === 'cancel'
+        && String(zeile.external_event_id || '').trim() === externalEventId
+        && String(zeile.request_id || '') !== String(requestId || ''));
+      if (fremdeAbsage) {
         const error = new Error('calendar_event_already_cancelled');
         error.status = 409;
         throw error;
@@ -1160,5 +1198,5 @@ exports._test = {
   // lassen: die Nummernvergabe zieht zufaellig, und ein Zufallstreffer auf eine
   // BESTIMMTE Nummer bleibt aus, ob die Sperre nun greift oder nicht. Direkt
   // geprueft ist die Zusicherung dagegen eindeutig.
-  issuedReferences, resolveAppointments, upcomingAppointments
+  issuedReferences, resolveAppointments, upcomingAppointments, loadAppointmentHistory
 };
