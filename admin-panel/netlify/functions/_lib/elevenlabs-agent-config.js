@@ -127,9 +127,29 @@ const SOFT_TIMEOUT_MESSAGES = Object.freeze({
 // `additional_soft_timeout_messages`, dessen Semantik wir nicht belegen
 // koennen. Eigenes Ticket, nicht dieser PR.
 //
-// Ein leerer oder fehlender Wert ist KEIN Mischwert: `agent.language` faellt
-// dort selbst auf DEFAULT_LANGUAGE zurueck, der Agent spricht also nachweislich
-// Deutsch, und die deutsche Floskel ist richtig.
+// LEER und UNBEKANNT werden verschieden behandelt, und das ist Absicht, keine
+// Inkonsistenz. Beide stehen nicht in SOFT_TIMEOUT_MESSAGES, aber sie sagen
+// etwas Verschiedenes:
+//
+//   ''/null  -> "keine Sprache gesetzt". `agent.language` faellt dort selbst
+//               auf DEFAULT_LANGUAGE zurueck (siehe buildAgentConfig). Der
+//               Agent spricht also NACHWEISLICH Deutsch -- die deutsche
+//               Floskel ist nicht geraten, sondern hergeleitet.
+//   'xx'     -> "eine Sprache, die wir nicht kennen". Was der Agent damit
+//               spricht, wissen wir nicht. Also raten wir nicht, sondern
+//               senden nichts -- dieselbe Antwort wie beim Mischwert.
+//
+// Im Code ist das genau das `sprache &&` in der Bedingung unten: nur ein
+// NICHT-leerer, unbekannter Wert fuehrt zu `null`. Wer die Bedingung zu
+// `!SOFT_TIMEOUT_MESSAGES[sprache]` vereinfacht, dreht den leeren Fall auf die
+// Mischwert-Seite und nimmt ihm die Floskel.
+//
+// Wie haeufig der leere Fall ist, ist nachgesehen: `customers.ai_language` ist
+// NULLABLE mit Vorgabe `'de'`. Eine neu angelegte Zeile traegt also 'de', der
+// leere Fall entsteht nur durch ein ausdrueckliches NULL -- oder dadurch, dass
+// eine Aufrufstelle ein unvollstaendiges Kundenobjekt uebergibt, was
+// buildSyncPatch() ausdruecklich zulaesst (`customer = {}`). Selten, aber
+// erreichbar, und dann ist Deutsch die belegte Antwort.
 //
 // OFFENE UNSTIMMIGKEIT, damit sie nicht unbemerkt bleibt: `agent.language`
 // selbst wird vom Sync NICHT gesendet (siehe die Anmerkung an
