@@ -78,6 +78,41 @@ Official references:
 5. Create a client secret and store it only in Netlify.
 6. Use a multi-tenant registration if external Microsoft 365 organizations should connect.
 
+### First-time risk: no Microsoft path has ever run against a real tenant
+
+Every Microsoft code path — OAuth, calendar list, availability with paging, create,
+update, delete — is implemented and covered by tests with stubbed responses.
+**None of it has been executed against an actual Microsoft 365 tenant.** The first
+customer who connects Outlook is therefore also the first integration test. Plan the
+onboarding accordingly: connect the account and book a throwaway appointment before
+the customer relies on it.
+
+One specific point to check on that first booking, because it is the likeliest thing
+to be wrong and the hardest to notice:
+
+**The event payload states the time twice.** `microsoftEvent()` in
+`_lib/calendar-providers.js` builds
+
+```js
+start: { dateTime: '2026-08-18T08:00:00.000Z', timeZone: 'UTC' }
+```
+
+The `Z` suffix and `timeZone: 'UTC'` say the same thing. Google accepts the equivalent
+shape and is proven in production; **for Microsoft Graph it is unverified.** If Graph
+ignores the suffix and applies the time zone to a value it reads as local, appointments
+land at the wrong hour — silently, and with a result that looks plausible at every
+layer. Verify against the appointment as it appears in the customer's own Outlook,
+compared with the time agreed on the phone. Do not verify against our API response: it
+echoes back what we sent.
+
+The read path is unaffected — `calendarView` is called with `Prefer: outlook.timezone="UTC"`
+and returns explicit offsets.
+
+Cancellations need no special handling. Graph has no `sendUpdates` parameter, but
+`DELETE` on a meeting in the organizer's calendar sends the cancellation to attendees
+by itself. Voxera appointments usually have no attendees at all, so in practice there
+is nobody to notify.
+
 Official references:
 
 - https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-auth-code-flow
