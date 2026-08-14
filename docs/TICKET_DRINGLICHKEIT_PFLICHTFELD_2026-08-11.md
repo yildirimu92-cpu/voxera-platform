@@ -122,9 +122,11 @@ Und für die Wirkung auf die SMS ist `niedrig` das bessere: Die Nachricht trägt
 
 **Was noch offen ist: die Rückfallregel selbst.** Sie greift bei „kein Eile-Signal" nachweislich — aber der eigentliche Prüffall ist „**kein Anliegen**". Dafür gibt es genau einen Datenpunkt: der `#965`-Testanruf `05841c4e` („Sind Sie ein Mensch?", 21:38:40) bekam **LEER**. Unter der neuen Regel müsste er `niedrig` sein.
 
-> **Offene Frage an den Auftraggeber:** War die neue Feldbeschreibung um 21:38 bereits gesetzt?
-> **Ja** → die Rückfallregel trägt den Fall „kein Anliegen" nicht, und es braucht eine andere Formulierung oder doch ein `enum`.
-> **Nein** → ungetestet, und der entscheidende dritte Testanruf ist eine Wiederholung von „Sind Sie ein Mensch?".
+**Beantwortet am 2026-08-15: Die neue Feldbeschreibung war um 21:38 noch nicht gesetzt.** Sie wurde erst danach eingetragen. Der `#965`-Anruf lief unter der alten Regel.
+
+→ **Die Rückfallregel ist ungetestet, nicht widerlegt.** Der entscheidende Testanruf steht aus: „Sind Sie ein Mensch?", nichts weiter, auflegen. Erwartung `niedrig`; bleibt es leer, braucht es eine andere Formulierung oder doch ein `enum`.
+
+Ablauf und Erwartungswerte aller Testanrufe — auch der beiden nach der L1-Migration — stehen gesammelt in `TICKET_RUECKRUF_PFAD_OHNE_AUSTRITT_2026-08-15.md`, Abschnitt „Wie ein Testanruf die beiden Regeln trennt". Sie stehen dort und nicht hier, weil sie beide Tickets zugleich prüfen.
 
 Nicht messbar von hier: ob der gespeicherte Agent die neue Fassung trägt. `elevenlabs_sync_log.config_drift` beobachtet nur `tts` und `turn`, nicht `platform_settings`. Alle Aussagen oben sind **Verhaltensbeobachtungen, kein Konfigurationsnachweis**.
 
