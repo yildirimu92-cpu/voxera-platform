@@ -240,9 +240,30 @@ async function loadAppointmentHistory(sb, customerId) {
     alle.push(...zeilen);
     if (zeilen.length < HISTORY_PAGE_SIZE) return alle;
   }
-  const error = new Error('calendar_history_truncated');
-  error.status = 503;
-  throw error;
+
+  // Genau volle letzte Seite heisst nicht "es kommt noch was".
+  //
+  // Codex-Befund vom 14.08. (P2): bei exakt 20 000 Zeilen ist die vierzigste
+  // Seite legitim voll, die Schleife laeuft aus -- und der Abbruch traf eine
+  // VOLLSTAENDIG gelesene Historie. Weil loadAppointmentHistory() unter allen
+  // vier Aktionen liegt, haette dieser eine Randwert Nachschlagen, Buchen,
+  // Absagen und Verschieben zugleich lahmgelegt. Ein Fehler in der Sicherung,
+  // die zehn Minuten vorher gegen einen anderen Fehler gebaut wurde.
+  //
+  // Eine einzelne Zeile hinter der Grenze entscheidet es.
+  const { data: rest, error } = await sb.from('calendar_booking_audit')
+    .select('external_event_id')
+    .eq('customer_id', customerId)
+    .eq('status', 'success')
+    .in('action', ['book', 'reschedule', 'cancel'])
+    .order('created_at', { ascending: true })
+    .range(MAX_HISTORY_PAGES * HISTORY_PAGE_SIZE, MAX_HISTORY_PAGES * HISTORY_PAGE_SIZE);
+  if (error) throw error;
+  if (!(rest || []).length) return alle;
+
+  const truncated = new Error('calendar_history_truncated');
+  truncated.status = 503;
+  throw truncated;
 }
 
 // Loest die Historie zum aktuellen Stand auf: ein reschedule ueberschreibt die
@@ -261,22 +282,53 @@ async function loadAppointmentHistory(sb, customerId) {
 // diese Wiedergabe die andere zuletzt anwendet und eine veraltete Zeit meldet.
 // `details.completed_at` steht in jeder Erfolgszeile aus dem Claim-Pfad; nur
 // Altzeilen ohne ihn fallen auf `created_at` zurueck.
-function orderByCompletion(rows) {
-  return [...(rows || [])].sort((a, b) => {
-    const links = new Date(a.details?.completed_at || a.created_at || 0).getTime() || 0;
-    const rechts = new Date(b.details?.completed_at || b.created_at || 0).getTime() || 0;
-    return links - rechts;
-  });
+// Wann diese Aenderung beim ANBIETER wirksam wurde.
+//
+// `completed_at` ist der Zeitpunkt, zu dem unsere Antwort zurueckkam -- nicht
+// der, zu dem der Anbieter geaendert hat. Codex-Befund vom 14.08. (P2): bei
+// zwei ueberlappenden Verschiebungen kann der Anbieter A vor B anwenden,
+// waehrend die Antwort auf B zuerst eintrifft. Dann waere B der Kalenderstand,
+// die Wiedergabe nach Antwortankunft meldete aber A.
+//
+// Google liefert `updated`, Microsoft `lastModifiedDateTime` -- beides die
+// Aenderungszeit des Anbieters selbst. Sie wird seit dem 14.08. mitgeschrieben
+// und ist der erste Schluessel.
+//
+// Restrisiko, offen benannt: Altzeilen und Absagen haben sie nicht und fallen
+// auf unsere Zeiten zurueck. Deshalb wird nur noch INNERHALB eines Termins
+// sortiert (die Reihenfolge zwischen verschiedenen Terminen ist fuer das
+// Ergebnis ohne Bedeutung) und eine Absage gilt als endgueltig -- damit kann
+// keine Uhrenabweichung einen abgesagten Termin wieder auferstehen lassen.
+// Eine echte Serialisierung je Termin waere die strengere Loesung; sie braucht
+// eine Sperre und ist eine eigene Aenderung.
+function mutationTime(zeile) {
+  const wert = zeile?.details?.provider_updated_at
+    || zeile?.details?.completed_at
+    || zeile?.created_at;
+  return new Date(wert || 0).getTime() || 0;
 }
 
 function resolveAppointments(rows, connection) {
-  const offen = new Map();
-  for (const zeile of orderByCompletion(rows)) {
+  const alle = rows || [];
+
+  // Absagen sind endgueltig, und zwar unabhaengig von jeder Sortierung: eine
+  // Termin-ID wird nach einer Absage nie wieder vergeben, ein spaeteres
+  // Verschieben derselben ID kann es also nicht geben. Sie hier vorweg
+  // auszuschliessen nimmt der Reihenfolge die einzige Richtung, in der ein
+  // Fehler gefaehrlich waere: einen abgesagten Termin wieder anzubieten.
+  //
+  // Gilt unabhaengig davon, ueber welche Verbindung die Absage lief.
+  const abgesagt = new Set(
+    alle.filter((zeile) => zeile?.action === 'cancel')
+      .map((zeile) => String(zeile.external_event_id || '').trim())
+      .filter(Boolean)
+  );
+
+  const proTermin = new Map();
+  for (const zeile of alle) {
+    if (zeile.action === 'cancel') continue;
     const id = String(zeile.external_event_id || '').trim();
-    if (!id) continue;
-    // Eine Absage gilt unabhaengig davon, ueber welche Verbindung sie lief:
-    // abgesagt ist abgesagt.
-    if (zeile.action === 'cancel') { offen.delete(id); continue; }
+    if (!id || abgesagt.has(id)) continue;
 
     // Angeboten wird nur, was ueber die HEUTE aktive Verbindung und den heute
     // gewaehlten Kalender auch absagbar ist.
@@ -305,8 +357,22 @@ function resolveAppointments(rows, connection) {
       if (!kalender || (connection.selected_calendar_id && kalender !== connection.selected_calendar_id)) continue;
     }
 
-    const antwort = zeile.details?.response || {};
-    if (!antwort.start || !antwort.end) continue;
+    if (!proTermin.has(id)) proTermin.set(id, []);
+    proTermin.get(id).push(zeile);
+  }
+
+  const offen = new Map();
+  for (const [id, zeilen] of proTermin) {
+    // Die juengste Zeile, die ueberhaupt Zeiten traegt. Eine spaetere ohne
+    // Zeiten darf die frueheren nicht entwerten -- das tat die Vorgaengerfassung
+    // mit ihrem `continue` beilaeufig richtig, und das soll so bleiben.
+    const massgeblich = [...zeilen]
+      .sort((a, b) => mutationTime(a) - mutationTime(b))
+      .reverse()
+      .find((zeile) => zeile.details?.response?.start && zeile.details?.response?.end);
+    if (!massgeblich) continue;
+
+    const antwort = massgeblich.details.response;
     offen.set(id, {
       external_event_id: id,
       start: antwort.start,
@@ -314,8 +380,8 @@ function resolveAppointments(rows, connection) {
       // Seit dem 14.08.: an WEN der Termin gebunden ist. Aeltere Zeilen tragen
       // beides nicht -- siehe die Erlaeuterung in _lib/caller-identity.js, wo
       // sich Nachschlagen (streng) und Absagen (nachsichtig) unterscheiden.
-      caller_reference: String(zeile.details?.caller_reference || '') || null,
-      booking_reference: String(zeile.details?.booking_reference || '') || null
+      caller_reference: String(massgeblich.details?.caller_reference || '') || null,
+      booking_reference: String(massgeblich.details?.booking_reference || '') || null
     });
   }
   return offen;
@@ -677,7 +743,15 @@ exports.handler = async (event) => {
       responsePayload = {
         ok: true,
         action,
-        appointments: termine.slice(0, LOOKUP_LIMIT).map((termin) => ({
+        // Bei Ueberschreitung wird GAR NICHTS herausgegeben.
+        //
+        // Codex-Befund vom 14.08. (P2): die erste Fassung meldete `truncated`
+        // und lieferte trotzdem fuenfzig verwertbare Termin-IDs. Der Prompt bat
+        // das Modell, keine davon zu waehlen -- und genau das ist der Fehler,
+        // den dieser PR an anderer Stelle selbst benennt: Prosa ist keine
+        // Vorgabe. Wer den Rueckrufpfad erzwingen will, darf nichts
+        // Verwertbares mitgeben.
+        appointments: gekuerzt ? [] : termine.map((termin) => ({
           external_event_id: termin.external_event_id,
           start: termin.start,
           end: termin.end
@@ -870,7 +944,12 @@ exports.handler = async (event) => {
       const beleg = bookingReference(vergebeneBelege);
       const eventRecord = await createEvent(connection.provider, (await holeToken()).accessToken, connection.selected_calendar_id, input);
       externalEventId = String(eventRecord.id || '').trim();
-      auditZusatz = { caller_reference: identitaet.callerReference || null, booking_reference: beleg };
+      auditZusatz = {
+        caller_reference: identitaet.callerReference || null,
+        booking_reference: beleg,
+        // Die Aenderungszeit des ANBIETERS, nicht unsere. Siehe mutationTime().
+        provider_updated_at: eventRecord.updated || eventRecord.lastModifiedDateTime || null
+      };
       responsePayload = {
         ok: true, action, external_event_id: externalEventId,
         event_url: eventRecord.htmlLink || eventRecord.webLink || null,
@@ -908,7 +987,8 @@ exports.handler = async (event) => {
       // ist.
       auditZusatz = {
         caller_reference: bestehenderTermin?.caller_reference || identitaet.callerReference || null,
-        booking_reference: beleg
+        booking_reference: beleg,
+        provider_updated_at: eventRecord.updated || eventRecord.lastModifiedDateTime || null
       };
       responsePayload = {
         ok: true, action, external_event_id: externalEventId,

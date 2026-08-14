@@ -892,6 +892,55 @@ await check('Ueberlappende Verschiebungen zaehlen nach Abschluss, nicht nach Anl
     'die Wiedergabe folgt der Claim-Reihenfolge und meldet eine veraltete Zeit');
 });
 
+// Codex-Befund vom 14.08. (P2): `completed_at` ist die Ankunft UNSERER Antwort,
+// nicht die Aenderungszeit des Anbieters. Wendet der Anbieter A vor B an,
+// waehrend die Antwort auf B zuerst zurueckkommt, waere B der Kalenderstand --
+// die Wiedergabe nach Antwortankunft meldete aber A.
+await check('Die Anbieterzeit schlaegt die Ankunft unserer Antwort', async () => {
+  const verdreht = [
+    { external_event_id: 'evt_y', connection_id: 'conn_1', action: 'book', created_at: '2026-08-01T10:00:00Z',
+      details: { caller_reference: ANRUFER_A, calendar_id: 'cal_1',
+                 completed_at: '2026-08-01T10:00:05Z', provider_updated_at: '2026-08-01T10:00:04Z',
+                 response: { start: '2027-09-05T06:00:00.000Z', end: '2027-09-05T06:30:00.000Z' } } },
+    // Beim ANBIETER zuletzt angewandt (10:02:00), aber unsere Antwort kam
+    // zuerst zurueck (10:01:00).
+    { external_event_id: 'evt_y', connection_id: 'conn_1', action: 'reschedule', created_at: '2026-08-02T10:00:00Z',
+      details: { caller_reference: ANRUFER_A, calendar_id: 'cal_1',
+                 completed_at: '2026-08-02T10:01:00Z', provider_updated_at: '2026-08-02T10:02:00Z',
+                 response: { start: '2027-09-07T06:00:00.000Z', end: '2027-09-07T06:30:00.000Z' } } },
+    // Antwort kam spaeter (10:03:00), beim Anbieter aber frueher (10:01:30).
+    { external_event_id: 'evt_y', connection_id: 'conn_1', action: 'reschedule', created_at: '2026-08-02T10:00:10Z',
+      details: { caller_reference: ANRUFER_A, calendar_id: 'cal_1',
+                 completed_at: '2026-08-02T10:03:00Z', provider_updated_at: '2026-08-02T10:01:30Z',
+                 response: { start: '2027-09-06T06:00:00.000Z', end: '2027-09-06T06:30:00.000Z' } } }
+  ];
+  const { payload } = await lookupRuf({ caller_id: ANRUFER_A }, verdreht);
+  assert.equal(payload.appointments[0].start, '2027-09-07T06:00:00.000Z',
+    'die Wiedergabe folgt der Antwortankunft und meldet damit den falschen Kalenderstand');
+});
+
+// Die gefaehrliche Richtung: eine Absage darf sich durch keine Sortierung
+// aufheben lassen. Deshalb gilt sie unabhaengig von jeder Reihenfolge.
+await check('Eine Absage laesst sich durch keine Zeitangabe wieder aufheben', async () => {
+  const absageZuerst = [
+    { external_event_id: 'evt_w', connection_id: 'conn_1', action: 'book', created_at: '2026-08-01T10:00:00Z',
+      details: { caller_reference: ANRUFER_A, calendar_id: 'cal_1', completed_at: '2026-08-01T10:00:05Z',
+                 response: { start: '2027-09-09T06:00:00.000Z', end: '2027-09-09T06:30:00.000Z' } } },
+    { external_event_id: 'evt_w', connection_id: 'conn_1', action: 'cancel', created_at: '2026-08-02T10:00:00Z',
+      details: { caller_reference: ANRUFER_A, calendar_id: 'cal_1', completed_at: '2026-08-02T10:00:05Z',
+                 response: { cancelled: true } } },
+    // Eine Zeile, die NACH der Absage einsortiert wuerde -- etwa durch eine
+    // abweichende Uhr beim Anbieter.
+    { external_event_id: 'evt_w', connection_id: 'conn_1', action: 'reschedule', created_at: '2026-08-01T10:30:00Z',
+      details: { caller_reference: ANRUFER_A, calendar_id: 'cal_1',
+                 completed_at: '2026-08-01T10:30:05Z', provider_updated_at: '2026-08-03T10:00:00Z',
+                 response: { start: '2027-09-10T06:00:00.000Z', end: '2027-09-10T06:30:00.000Z' } } }
+  ];
+  const { payload } = await lookupRuf({ caller_id: ANRUFER_A }, absageZuerst);
+  assert.equal(payload.appointment_count, 0,
+    'ein abgesagter Termin ist durch eine spaeter einsortierte Zeile wieder aufgetaucht');
+});
+
 // Die Kollisionssperre der Terminnummer laesst sich am Handler nicht scharf
 // pruefen: eine zufaellige Ziehung trifft eine bestimmte Nummer praktisch nie,
 // der Fall waere also auch ohne Sperre gruen. Geprueft wird deshalb direkt an
@@ -1235,6 +1284,22 @@ await check('Die Historie wird ueber die Seitengrenze hinaus gelesen', async () 
     'die Absage auf der zweiten Seite wurde nicht gelesen -- der Termin ist wieder da');
 });
 
+// Codex-Befund vom 14.08. (P2): bei EXAKT 20 000 Zeilen ist die letzte Seite
+// legitim voll -- der Abbruch traf eine vollstaendig gelesene Historie. Weil
+// loadAppointmentHistory() unter allen vier Aktionen liegt, haette dieser eine
+// Randwert Nachschlagen, Buchen, Absagen und Verschieben zugleich lahmgelegt.
+await check('Eine genau volle letzte Seite ist kein Abbruch', async () => {
+  const zeilen = langeHistorie(20000);
+  zeilen[0] = {
+    ...zeilen[0], external_event_id: 'evt_rand',
+    details: { ...zeilen[0].details, caller_reference: ANRUFER_A, booking_reference: '515151' }
+  };
+  const { response, payload } = await lookupRuf({ caller_id: ANRUFER_A }, zeilen);
+  assert.equal(response.statusCode, 200, 'die vollstaendige Historie gilt als abgeschnitten');
+  assert.equal(payload.ok, true);
+  assert.equal(payload.appointment_count, 1);
+});
+
 await check('Eine zu lange Historie bricht ab statt gekuerzt zu rechnen', async () => {
   // 40 Seiten a 500 sind die Grenze; 20001 Zeilen reissen sie.
   const { response, payload } = await lookupRuf({ caller_id: ANRUFER_A }, langeHistorie(20001));
@@ -1259,6 +1324,11 @@ await check('Zu viele Termine werden gemeldet, nicht abgeschnitten', async () =>
   assert.equal(payload.appointment_count, 51);
   assert.equal(payload.truncated, true, 'die Kuerzung bleibt unbemerkt');
   assert.equal(payload.reason, 'calendar_too_many_appointments');
+  // Codex-Befund vom 14.08. (P2): die Meldung allein reicht nicht. Wer den
+  // Rueckrufpfad erzwingen will, darf nichts Verwertbares mitgeben -- sonst
+  // bleibt die Absicherung eine Bitte an das Modell.
+  assert.deepEqual(payload.appointments, [],
+    'es kommen weiterhin verwertbare Termin-IDs heraus, obwohl der Rueckrufpfad gelten soll');
 });
 
 await check('Kette: die gesprochene Terminnummer traegt auch mit Trennzeichen', async () => {
