@@ -35,7 +35,8 @@ Code und Migration dürfen also in beliebiger Reihenfolge ausgerollt werden. Der
 | 1 | **Twilio-Guthaben aufladen** | Stand bei der Freigabe auf **3.67 USD**. Bei sechs SMS je Anruf ist das im niedrigen zweistelligen Anrufbereich aufgebraucht. Ein leeres Guthaben ist im Code als *wiederholbarer* Fehler eingestuft (nicht endgültig) — die Nachricht geht also nicht verloren, sie kommt nur zu spät. Bei einem Notfall ist das dasselbe wie verloren. |
 | 2 | **SMS Pumping Protection aktivieren** | Steht auf **deaktiviert**. Der Anrufer-Versand nimmt die Nummer entgegen, die der Anrufer selbst mitbringt — also eine automatisch verwendete, nicht kuratierte Zielnummer. Genau das ist das Muster, gegen das die Schutzfunktion gebaut ist. Ohne sie ist eine Serie manipulierter Anrufe ein direkter Kostenhebel. |
 | ~~3~~ | ~~`DATA_RETENTION_ENFORCEMENT_ENABLED` prüfen~~ | **Erledigt:** steht auf `true` (Netlify, 2026-08-10). Die 90-Tage-Frist greift. |
-| 4 | **Preisentscheid** | `TICKET_SMS_KOSTEN_PAKETMERKMAL_2026-08-11.md`. `sms_notify` zu CHF 9 trägt fünf Empfänger nicht (Break-even ≈ 18–26 Anrufe/Monat). |
+| ~~4~~ | ~~**Preisentscheid**~~ | **Entschieden am 2026-08-15:** `sms_notify` CHF 19/Monat (Migration `20260815120000`). Der Break-even verschiebt sich auf ≈ 38–54 Anrufe/Monat, er verschwindet nicht — das empfängerabhängige Modell bleibt in `TICKET_SMS_KOSTEN_PAKETMERKMAL_2026-08-11.md` offen. |
+| 8 | **`TWILIO_SMS_FROM` muss in der Function ankommen** | Eingetragen am 2026-08-14 in **beiden** Netlify-Projekten (`voxera-dashboard`, `voxera-admin`), Wert `Voxera`; vorher fehlte sie in beiden. Der Nachweis, dass sie die Function auch erreicht, steht noch aus und ist **nach dem nächsten Deploy** zu führen — siehe [Die Prüfung, die ein erfolgreicher Versand nicht ersetzt](#die-prüfung-die-ein-erfolgreicher-versand-nicht-ersetzt). |
 
 ### Empfohlen
 
@@ -89,9 +90,46 @@ Ein unbekannter Wert fällt auf `callback_only` zurück, nicht auf `all` — im 
 |---|---|---|---|
 | `TWILIO_ACCOUNT_SID` | ja | — | vorhanden, wird bereits für Sprache benutzt |
 | `TWILIO_AUTH_TOKEN` | ja | — | vorhanden |
-| `TWILIO_SMS_FROM` | nein | `Voxera` | alphanumerische Absenderkennung, höchstens 11 Zeichen. Eine rein numerische Angabe wird als Telefonnummer behandelt — so lässt sich später auf eine SMS-fähige Nummer wechseln, ohne Code zu ändern. |
+| `TWILIO_SMS_FROM` | nein | `Voxera` | alphanumerische Absenderkennung, höchstens 11 Zeichen. Eine rein numerische Angabe wird als Telefonnummer behandelt — so lässt sich später auf eine SMS-fähige Nummer wechseln, ohne Code zu ändern. **Gesetzter Wert und Vorgabe sind identisch** — siehe direkt unten. |
 | `SMS_MAX_TEAM_EMPFAENGER` | nein | `10` | Kostenbremse je Anruf. Wird sie erreicht, protokolliert `sms_empfaenger_gekappt` — es wird nicht still abgeschnitten. |
 | `DASHBOARD_URL` | nein | `https://dashboard.voxera.ch` | Basis des Links in der Team-SMS. **Längenkritisch**, siehe unten. |
+
+### Die Prüfung, die ein erfolgreicher Versand nicht ersetzt
+
+`TWILIO_SMS_FROM` ist seit 2026-08-14 in beiden Netlify-Projekten eingetragen, Wert `Voxera`. Vorher fehlte sie in beiden — **ohne Wirkung auf den Versand**, denn `DEFAULT_SENDER` im Code ist ebenfalls `Voxera`. Der Fallback ist Absicht, keine Panne.
+
+Genau daraus folgt die Falle: **beide Fälle ergeben denselben Absender**. Eine angekommene SMS mit Absender „Voxera" belegt nicht, dass die Variable die Function erreicht hat — sie ist mit einer nie durchgereichten Variable vollständig verträglich. Wer den Nachweis am Empfangsgerät führt, prüft am Gegenstand vorbei.
+
+Der zweite Weg wäre die Netlify-Oberfläche. Die zeigt, was eingetragen ist, nicht, was in der Function ankommt: Umgebungsvariablen sind in Netlify je **Deploy-Kontext** setzbar (Production, Deploy Preview, Branch Deploy). Eine nur für Production gesetzte Variable fehlt in jeder Vorschau — und fällt dort still auf `Voxera` zurück.
+
+Deshalb meldet `resolveSender()` seit dem 15.08. zusätzlich `quelle`:
+
+| `quelle` | Bedeutung |
+|---|---|
+| `env` | `TWILIO_SMS_FROM` kam gesetzt in der Function an |
+| `standardwert` | die Variable war leer, der Fallback hat gegriffen |
+
+Der Wert steht an zwei Stellen im Zielsystem:
+
+1. **`outbox_events.payload → from_quelle`**, je Nachricht, dauerhaft.
+2. **Function-Log**, Zeile `sms_send_succeeded`, Felder `from` und `from_quelle`.
+
+**So wird geprüft — nach dem nächsten Deploy, ein Testanruf genügt:**
+
+```sql
+select payload->>'from'        as absender,
+       payload->>'from_quelle' as herkunft,
+       count(*)
+from outbox_events
+where event_type in ('sms_team_notification', 'sms_caller_confirmation')
+group by 1, 2;
+```
+
+Erwartet: `Voxera` / `env`. Steht dort `standardwert`, ist die Variable im betreffenden Deploy-Kontext nicht angekommen — der Versand läuft trotzdem, aber jede spätere Änderung des Absenders würde wirkungslos verpuffen.
+
+**Die Prüfung ist auf beiden Sites zu führen.** Der Erstversand läuft auf `voxera-dashboard`, der Retry-Worker auf `voxera-admin`; eine nur dort fehlende Variable fällt im Normalbetrieb nie auf, weil der Worker erst bei einem Fehlschlag anläuft.
+
+*Diese Prüfung wird bedeutungslos, sobald `TWILIO_SMS_FROM` einen anderen Wert als `Voxera` trägt — dann ist der Absender selbst der Nachweis. Solange beide gleich sind, ist `from_quelle` das einzige Unterscheidungsmerkmal.*
 
 ### Das Längenbudget der Team-SMS
 

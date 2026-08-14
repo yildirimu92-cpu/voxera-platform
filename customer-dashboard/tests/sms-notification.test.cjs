@@ -233,6 +233,30 @@ test('eine numerische Konfiguration wird als Nummer durchgelassen', () => {
   assert.equal(r.alphanumerisch, false);
 });
 
+// Der Standardwert im Code und der in Netlify eingetragene Wert sind beide
+// 'Voxera'. Ohne quelle waeren die beiden Faelle am Ergebnis nicht zu
+// unterscheiden -- und damit die Frage "kommt die Variable in der Function an"
+// nur noch aus der Netlify-Oberflaeche zu beantworten, nicht aus dem
+// Zielsystem.
+test('quelle unterscheidet gesetzte Variable vom gleichlautenden Standardwert', () => {
+  const ausEnv = transport.resolveSender({ TWILIO_SMS_FROM: 'Voxera' });
+  const ausFallback = transport.resolveSender({});
+
+  assert.equal(ausEnv.sender, ausFallback.sender, 'Voraussetzung des Tests: beide ergeben denselben Absender');
+  assert.equal(ausEnv.quelle, 'env');
+  assert.equal(ausFallback.quelle, 'standardwert');
+});
+
+test('quelle steht auch dann fest, wenn der Absender abgewiesen wird', () => {
+  const r = transport.resolveSender({ TWILIO_SMS_FROM: 'VoxeraSchweizAG' });
+  assert.equal(r.sender, null);
+  assert.equal(r.quelle, 'env', 'sonst waere bei Fehlkonfiguration nicht erkennbar, wer den Wert gesetzt hat');
+});
+
+test('Leerzeichen allein zaehlen nicht als gesetzte Variable', () => {
+  assert.equal(transport.resolveSender({ TWILIO_SMS_FROM: '   ' }).quelle, 'standardwert');
+});
+
 // ───────────────────────────────────────────────────────────────────────────
 // Fehlereinordnung -- daran haengt der Festnetz-Fall
 // ───────────────────────────────────────────────────────────────────────────
@@ -710,6 +734,19 @@ test('sms-transport.js ist in beiden Funktionsverzeichnissen identisch', () => {
     'utf8'
   );
   assert.equal(a, b, 'Die Kopien sind auseinandergelaufen. Beide Dateien gleich halten.');
+});
+
+test('die Herkunft des Absenders wird protokolliert, nicht nur der Absender', () => {
+  // Ohne from_quelle ist die Frage "kommt TWILIO_SMS_FROM in der Function an"
+  // aus dem Zielsystem nicht beantwortbar: gesetzter Wert und Standardwert
+  // sind beide 'Voxera' und ergeben denselben Versand.
+  const src = fs.readFileSync(path.join(LIB, 'sms-delivery.js'), 'utf8');
+  assert.match(src, /from_quelle:\s*senderQuelle/,
+    'from_quelle fehlt in der Outbox-Nutzlast');
+  const iErfolg = src.indexOf("'sms_send_succeeded'");
+  assert.ok(iErfolg > -1);
+  assert.match(src.slice(iErfolg, iErfolg + 240), /from_quelle/,
+    'die Erfolgszeile im Log nennt die Herkunft des Absenders nicht');
 });
 
 test('die Migration definiert set_updated_at, bevor sie den Trigger anlegt', () => {

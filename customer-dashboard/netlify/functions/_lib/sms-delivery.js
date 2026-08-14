@@ -106,12 +106,22 @@ async function deliverSms(sbAdmin, {
     return smsResult({ skipped: true, reason: 'keine_gueltige_nummer' });
   }
 
-  const { sender, error: senderError } = resolveSender(env);
+  const { sender, quelle: senderQuelle, error: senderError } = resolveSender(env);
 
+  // from_quelle steht neben from, weil der Absender allein nicht verraet, woher
+  // er stammt: TWILIO_SMS_FROM ist in beiden Netlify-Projekten auf 'Voxera'
+  // gesetzt, und 'Voxera' ist auch der Standardwert im Code. Eine nicht
+  // durchgereichte Variable saehe im Ergebnis identisch aus.
+  //
+  // 'standardwert' im Betrieb heisst nicht, dass etwas kaputt ist -- der
+  // Fallback ist Absicht. Es heisst, dass die Umgebungsvariable die Function
+  // nicht erreicht, und das ist der Moment, in dem eine spaetere Aenderung des
+  // Absenders wirkungslos verpuffen wuerde.
   const payload = {
     ...meta,
     to: ziel,
     from: sender,
+    from_quelle: senderQuelle,
     body: text,
     sms_type: typ
   };
@@ -176,7 +186,10 @@ async function deliverSms(sbAdmin, {
         });
       });
     }
-    log('info', 'sms_send_succeeded', { event_type: typ, outbox_id: outboxId, provider_sid: antwort.sid, ...meta });
+    log('info', 'sms_send_succeeded', {
+      event_type: typ, outbox_id: outboxId, provider_sid: antwort.sid,
+      from: sender, from_quelle: senderQuelle, ...meta
+    });
     return smsResult({ attempted: true, accepted: true, status: antwort.status, outbox_id: outboxId, provider_sid: antwort.sid });
   }
 
