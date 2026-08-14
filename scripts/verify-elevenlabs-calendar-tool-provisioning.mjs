@@ -575,6 +575,44 @@ try {
       `${zweig}: die Terminnummer wird erst nach ${anbieteraufruf} gezogen — ein Abbruch liesse den Kalender geändert zurück`);
   }
 
+  // ── Testanruf vom 14.08.: zwei Prompt-Befunde ─────────────────────────────
+  //
+  // Beide entstehen an derselben Nahtstelle: der Kalenderblock beschreibt, was
+  // das Werkzeug kann, und schweigt zu dem, was danach gesprochen wird. Der
+  // allgemeine Systemprompt füllt die Lücke — mit Formeln, die für eine
+  // aufgenommene Anfrage gedacht sind.
+
+  // 1. „Wir melden uns bei Ihnen" nach einer erfolgreichen Buchung.
+  //
+  // Der Abschnitt GESPRÄCHSENDE kennt drei Varianten (ohne Rückruf, mit
+  // Rückruf, mit Zeitpunkt) — alle um „notieren" herum gebaut. Ein bestätigter
+  // Termin ist keine davon, und das Modell muss trotzdem eine wählen. Der
+  // Kalenderblock muss die vierte Kategorie deshalb selbst mitbringen.
+  assert.match(block, /ABGESCHLOSSENER Vorgang/,
+    'Der Prompt kennt den abgeschlossenen Vorgang nicht als eigene Kategorie');
+  assert.match(block, /NIEMALS "wir melden uns bei Ihnen"/,
+    'Die Rückruf-Formel ist nach einer Buchung nicht verboten');
+  assert.match(block, /Der Termin ist fix eingetragen\./,
+    'Es fehlt die Abschlussformel für eine Buchung');
+  assert.match(block, /Der Termin ist storniert\./,
+    'Es fehlt die Abschlussformel für eine Absage');
+
+  // 2. Zu lange Antworten.
+  //
+  // Der allgemeine Prompt setzt „maximal 1–2 Sätze pro Antwort". Schritt 6
+  // verlangte davor vier Inhalte in EINEM Zug — drei Zeiten nennen, den
+  // Mehr-Hinweis, Datum/Uhrzeit/Dauer wiederholen und bestätigen lassen. Die
+  // spezifischere Anweisung gewinnt, also war die Rhythmusregel chancenlos.
+  // Aufgeteilt auf zwei Züge sind beide erfüllbar.
+  const schritt6 = block.split('\n').find((zeile) => /^6\. /.test(zeile)) || '';
+  const schritt6a = block.split('\n').find((zeile) => /^6a\. /.test(zeile)) || '';
+  assert.match(schritt6, /in EINEM Satz/,
+    'Schritt 6 begrenzt die Länge des Zuges nicht');
+  assert.ok(!/Bestätigung/.test(schritt6),
+    'Schritt 6 verlangt weiterhin Vorschlag UND Bestätigung im selben Zug');
+  assert.match(schritt6a, /zwei Züge, nicht einer/,
+    'Die Aufteilung auf zwei Züge ist nicht als Regel benannt');
+
   // GRENZE: eine Anrufernummer ist keine Authentifizierung. Sie ist faelschbar.
   // Der Prompt darf sie nirgends als Schutz darstellen -- ein Satz wie "nur Sie
   // koennen Ihren Termin absagen" waere ein Versprechen ohne Deckung.

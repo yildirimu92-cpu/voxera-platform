@@ -96,7 +96,16 @@ check(
 // an AGENT_DEFINITION nicht unbemerkt hinter die Entscheidung zurueckfaellt.
 check('turn_model ist turn_v3',   sent.conversation_config.turn.turn_model === 'turn_v3');
 check('turn_timeout ist 5',       sent.conversation_config.turn.turn_timeout === 5);
-check('Wartefloskel ist aus',     sent.conversation_config.turn.soft_timeout_config.timeout_seconds === -1);
+// 14.08.: die Wartefloskel ist wieder an, aber VERZOEGERT. Der Wert traegt die
+// Aussage, nicht das blosse "an": bei 0 spraeche sie sofort und waere zurueck
+// beim Befund vom 10.08., bei -1 waere sie aus und die 15 Sekunden Stille aus
+// dem Testanruf blieben unkommentiert. Geprueft wird deshalb das Fenster
+// zwischen normalem Zug und Kaskadenschwelle.
+check('Wartefloskel spricht verzoegert, nicht sofort',
+  sent.conversation_config.turn.soft_timeout_config.timeout_seconds > 0);
+check('Wartefloskel bleibt unter der Kaskadenschwelle',
+  sent.conversation_config.turn.soft_timeout_config.timeout_seconds
+    < sent.conversation_config.agent.prompt.cascade_timeout_seconds);
 check('keine Audio-Tags',
   sent.conversation_config.tts.expressive_mode === false
   && Array.isArray(sent.conversation_config.tts.suggested_audio_tags)

@@ -163,32 +163,55 @@ const AGENT_DEFINITION = Object.freeze({
       retranscribe_on_turn_timeout: false,
       turn_model: 'turn_v3',              // [E] 10.08. — vorher turn_v2
 
-      // [E] AUS. Die Wartefloskel ist abgeschaltet (-1), nicht verkuerzt.
+      // [E] WIEDER AN, mit Verzoegerung. 14.08. — vorher -1 (aus), davor 3.
       //
-      // Sie sprang nach drei Sekunden an und sagte "Einen Moment". Das klang
-      // nach einer Reaktion, war aber eine Ansage darueber, dass keine kommt:
-      // sie hat ein Latenzproblem kaschiert, statt es zu loesen. Wer sie
-      // hoert, wartet danach genauso lange -- nur mit dem Eindruck, es liege
-      // an ihm. Ein Fuellsatz, der immer denselben Wortlaut hat, wird ausserdem
-      // beim zweiten Mal im selben Gespraech als Defekt gehoert.
+      // Die Entscheidung vom 10.08. bleibt hier stehen, weil sie richtig
+      // begruendet war und die Umkehr nur mit ihr zusammen lesbar ist:
       //
-      // Was beim Abschalten sichtbar wurde, gehoert dazu, sonst wird der
-      // naechste Befund falsch gelesen: Die Floskel war zugleich ein
-      // Zughaltesignal. Solange sie sprach, wusste die anrufende Person, dass
-      // die Leitung steht und sie nicht dran ist. Ohne sie entstehen an
-      // derselben Stelle drei Sekunden Stille -- und die Rueckmeldung darauf
-      // war "das ist nervig". Das ist keine Gegenanzeige zum Abschalten,
-      // sondern der Beleg, dass zwei Aufgaben in einem Feld staken.
+      //   Die Floskel sprang nach drei Sekunden an und sagte "Einen Moment".
+      //   Das klang nach einer Reaktion, war aber eine Ansage darueber, dass
+      //   keine kommt: sie hat ein Latenzproblem kaschiert, statt es zu
+      //   loesen. Wer sie hoert, wartet danach genauso lange -- nur mit dem
+      //   Eindruck, es liege an ihm. Ein Fuellsatz mit immer demselben
+      //   Wortlaut wird ausserdem beim zweiten Mal im selben Gespraech als
+      //   Defekt gehoert.
       //
-      // Die Latenz ist damit unverdeckt und weiterhin offen. Ein Ersatz fuer
-      // das Zughaltesignal -- falls einer kommt -- gehoert nicht hierher,
-      // sondern dorthin, wo er nicht zugleich eine Verzoegerung verschweigt.
+      //   Was beim Abschalten sichtbar wurde: die Floskel war zugleich ein
+      //   Zughaltesignal. Solange sie sprach, wusste die anrufende Person,
+      //   dass die Leitung steht. Zwei Aufgaben staken in einem Feld.
       //
-      // `message` bleibt stehen: bei timeout_seconds -1 ist sie wirkungslos,
-      // und ein geleertes Feld saehe aus wie ein vergessener Wert.
+      // Was sich seither geaendert hat, und warum die Umkehr keine Ruecknahme
+      // der damaligen Begruendung ist:
+      //
+      // 1. Die Latenz ist nicht mehr unbekannt, sondern GEMESSEN. Testanruf
+      //    vom 14.08.: der Absage-Einstieg dauerte 15 Sekunden, die
+      //    Verfuegbarkeitspruefung 8,6. Unsere eigene Seite ist daran mit
+      //    912 ms beteiligt (sechs Supabase-Abfragen, aus den Zugriffs-
+      //    protokollen abgelesen); Buchung 1,7 s und Absage 1,3 s je
+      //    einschliesslich des Google-Aufrufs. Es bleiben rund 14 Sekunden
+      //    beim Agenten. Die Floskel verdeckt also nichts mehr, was wir
+      //    beheben koennten -- der Rest liegt bei ElevenLabs (siehe die
+      //    offene Frage zu cascade_timeout_seconds).
+      //
+      // 2. Der Einwand "kaschiert statt loest" galt einer Floskel, die bei
+      //    JEDEM Zug ansprang. Bei 4 Sekunden spricht sie nur noch auf den
+      //    pathologischen Zuegen. Ein schneller Zug bleibt still.
+      //
+      // 3. Der Massstab kommt aus dem Prompt selbst: er verbietet, laenger
+      //    als 15 Sekunden Stille zu tolerieren -- fuer den Fall, dass die
+      //    ANRUFENDE Person schweigt. Fuer den umgekehrten Fall stand nichts
+      //    da, und genau den haben wir gemessen.
+      //
+      // Ehrlich dazu: der Einwand aus dem 10.08.-Text, ein Ersatz fuer das
+      // Zughaltesignal gehoere NICHT in dieses Feld, ist damit nicht
+      // ausgeraeumt, sondern zurueckgestellt. Dieses Feld ist das einzige, das
+      // wir ohne ElevenLabs-Aenderung erreichen; ein eigener Mechanismus waere
+      // die sauberere Loesung und bleibt offen.
       soft_timeout_config: {
-        timeout_seconds: -1,              // [E] 10.08. — vorher 3
-        message: 'Einen Moment',          // wirkungslos, solange -1
+        // Vier Sekunden: oberhalb eines normalen Zuges, unterhalb der
+        // Kaskadenschwelle von 8. Wer sie hoert, wartet wirklich.
+        timeout_seconds: 4,               // [E] 14.08. — vorher -1, davor 3
+        message: 'Einen Moment',
         use_llm_generated_message: false  // Statisch — nie LLM-generiert
       }
     },
