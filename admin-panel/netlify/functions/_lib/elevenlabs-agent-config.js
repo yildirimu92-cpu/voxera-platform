@@ -622,10 +622,26 @@ function buildSyncPatch({ customer = {}, prompt = '', firstMessage = null, toolI
       // kuenftige Agenten erreicht -- kein einziger Bestandskunde, auch nicht
       // der Testagent, an dem die 15 Sekunden Stille gemessen wurden.
       //
-      // Gesendet wird das GANZE soft_timeout_config-Objekt, nicht nur das
-      // geaenderte Feld: ob ElevenLabs innerhalb eines Teilbaums zusammenfuehrt
+      // Gesendet werden DREI Felder des soft_timeout_config-Objekts, nicht nur
+      // das geaenderte: ob ElevenLabs innerhalb eines Teilbaums zusammenfuehrt
       // oder ersetzt, ist fuer diese Ebene nicht belegt. Bei Ersatz fielen
       // `message` und `use_llm_generated_message` sonst weg.
+      //
+      // KORREKTUR am 14.08.: hier stand "das GANZE Objekt". Das war falsch.
+      // Am beobachteten Agentenzustand gemessen hat das Objekt beim Anbieter
+      // ACHT Felder -- neben den drei hier noch `randomize_fillers`,
+      // `additional_soft_timeout_messages`, `disable_until_first_user_message`,
+      // `max_soft_timeouts_per_generation` und
+      // `llm_generated_message_prompt_override`. Vollstaendig ist das hier also
+      // nur gegenueber AGENT_DEFINITION, nicht gegenueber dem Anbieterschema.
+      //
+      // Bei ersetzender Semantik -- fuer die Ebene darueber durch #932 BELEGT --
+      // fielen die fuenf uebrigen bei jedem Sync auf Anbieter-Vorgabe zurueck,
+      // und die Rueckleseprüfung koennte das nicht sehen: sie vergleicht nur
+      // gesendete Pfade, ein nicht gesendetes Feld hat keinen Sollwert. Heute
+      // stehen alle fuenf ohnehin auf Vorgabe, der Schaden waere null.
+      // Beantwortbar ist die Frage am naechsten Sync -- `observed` traegt das
+      // Objekt vollstaendig. Siehe #1005.
       //
       // Bewusst NUR dieses eine Feld aus `turn`. Die uebrigen Werte dort
       // (turn_timeout, turn_model, turn_eagerness) haben dasselbe Problem --
