@@ -1063,6 +1063,17 @@ await check('Eine abgesagte Termin-ID nimmt keine Aenderung mehr an', async () =
     external_event_id: gebucht.external_event_id, caller_id: ANRUFER_A
   });
   assert.equal(nochmal.error, 'calendar_event_already_cancelled');
+
+  // ABER: die Wiederholung DERSELBEN Anfrage muss weiterhin die gespeicherte
+  // Erfolgsantwort liefern. Sonst haette die neue Sperre einen Netzabbruch
+  // zwischen Werkzeug und Agent in eine Fehlermeldung verwandelt -- bei einer
+  // Absage, die laengst stattgefunden hat.
+  const wiederholt = await kettenRuf(welt, {
+    action: 'cancel', request_id: 'wieder_2',
+    external_event_id: gebucht.external_event_id, caller_id: ANRUFER_A
+  });
+  assert.equal(wiederholt.ok, true, JSON.stringify(wiederholt));
+  assert.equal(wiederholt.cancelled, true);
 });
 
 // Die gefaehrliche Richtung: eine Absage darf sich durch keine Sortierung
