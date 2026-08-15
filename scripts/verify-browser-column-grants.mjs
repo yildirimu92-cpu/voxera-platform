@@ -94,16 +94,12 @@ function jsDateien(verzeichnis) {
  * auswertbare Fundstelle ohne Eintrag ebenfalls. Sonst waere das hier eine
  * Ausnahmeliste, in der ein Befund dauerhaft ruhen kann.
  */
+// Der Eintrag fuer vxBestEffortPatchCallLifecycle stand hier bis 2026-08-12.
+// Er ist entfallen, weil die Stelle entfallen ist: die Lifecycle-Zeitstempel
+// setzt jetzt call-update-status serverseitig, der Browser schreibt sie nicht
+// mehr. Die Selbstpruefung der Liste hat das erzwungen -- ein Eintrag ohne
+// Fundstelle faerbt den Lauf rot. Genau dafuer ist sie da.
 const HANDGEPFLEGTE_STELLEN = [
-  {
-    datei: 'customer-dashboard/index.html',
-    tabelle: 'calls',
-    funktion: 'vxBestEffortPatchCallLifecycle',
-    spalten: ['updated_at', 'completed_at', 'archived_at'],
-    grund: 'Payload wird beim Aufrufer applyStatusTransition als `lifecyclePatch` '
-      + 'gebaut und als Parameter durchgereicht -- am Aufruf selbst steht nur '
-      + '`.update(fields)`. Die drei Spalten sind dort abschliessend aufgezaehlt.',
-  },
   {
     datei: 'customer-dashboard/index.html',
     tabelle: 'customer_tasks',
@@ -266,10 +262,18 @@ if (direktAufgerufen && process.argv.includes('--selbsttest')) {
     'customer-dashboard/index.html:19634');
   pruefe('Extraktion liefert ueberhaupt Schreibstellen', alle.length > 0, `${alle.length} Stellen`);
 
-  // Der zweite bekannte Fall -- der, den die erste Fassung uebersah.
-  pruefe('vxBestEffortPatchCallLifecycle wird im echten Code erkannt',
-    alleUnklar.some((u) => u.tabelle === 'calls' && u.datei.endsWith('customer-dashboard/index.html')),
-    'sb.from(CALLS_TABLE).update(fields)');
+  // Konstantenaufloesung am ECHTEN Repo-Stand, nicht nur am fingierten
+  // Schnipsel. Bis 2026-08-12 hing dieser Test an
+  // vxBestEffortPatchCallLifecycle; die Stelle ist entfallen (Zeitstempel jetzt
+  // serverseitig). Er haengt jetzt an vxBestEffortPatchTaskLifecycle --
+  // dieselbe Bauform, `sb.from(CASES_TABLE).update(fields)`, CASES_TABLE ist
+  // customer_tasks. Der Test darf nicht ersatzlos wegfallen: er ist die
+  // Gegenprobe dafuer, dass die Aufloesung auf gewachsenem Code greift und
+  // nicht nur auf dem, was der Test selbst schreibt.
+  pruefe('.from(KONSTANTE) wird auch im echten Repo-Stand aufgeloest',
+    alleUnklar.some((u) => u.tabelle === 'customer_tasks'
+      && u.datei.endsWith('customer-dashboard/index.html')),
+    'sb.from(CASES_TABLE).update(fields) -> customer_tasks');
 
   // Jede nicht auswertbare Fundstelle muss gedeckt sein, sonst ist der
   // Regullauf rot -- das hier sagt frueh, WELCHE fehlt.

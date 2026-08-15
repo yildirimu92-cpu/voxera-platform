@@ -53,6 +53,40 @@ function buildTransitionSequence(current, target) {
   return [target];
 }
 
+/**
+ * Lifecycle-Zeitstempel zum ZIEL-Status.
+ *
+ * Diese Logik stand bis 2026-08-12 im Browser (`applyStatusTransition` ->
+ * `vxBestEffortPatchCallLifecycle`) und lief dort ins Leere: `authenticated`
+ * hat auf `public.calls` ein SPALTENWEISES UPDATE-Recht, und weder
+ * `completed_at` noch `archived_at` stehen darin. PostgREST lehnt daraufhin
+ * das GANZE Update ab -- auch das `updated_at`, fuer das ein Recht besteht.
+ * Seit Einfuehrung der Funktionen wurde also kein einziger Lifecycle-Zeitstempel
+ * geschrieben, und der catch-Zweig setzte den Wert im Browser trotzdem lokal:
+ * die Oberflaeche zeigte einen Zustand, den die Datenbank nicht hatte.
+ *
+ * Hier ist die richtige Stelle. Der Kommentar im Browser nannte diese Function
+ * selbst "die autoritative Status-Function"; sie laeuft mit service_role, hat
+ * das Recht ohnehin, und die Kundenschreibflaeche wird nicht um zwei
+ * Zeitstempel erweitert.
+ *
+ * ZIELBEZOGEN, nicht schrittbezogen -- bewusst. Die Uebergangskette kann
+ * Zwischenstufen enthalten (NEW -> ... -> CLOSED -> ARCHIVED). Wuerde jede
+ * Stufe stempeln, bekaeme ein direkt archivierter Anruf ein `completed_at`,
+ * obwohl ihn nie jemand abgeschlossen hat. Das waere ein erfundener Wert. Die
+ * Regel bleibt deshalb exakt die, die der Browser hatte: es zaehlt, wo die
+ * Kette endet.
+ */
+function lifecycleStempel(zielStatus, jetzt) {
+  if (zielStatus === CALL_STATUS.CLOSED) return { completed_at: jetzt, archived_at: null };
+  if (zielStatus === CALL_STATUS.ARCHIVED) return { archived_at: jetzt };
+  // NEW ist ueber assertCallTransition kein erreichbares Ziel (keine Kante
+  // fuehrt dorthin). Der Zweig stand im Browser und wird mitgenommen, damit die
+  // Regel vollstaendig an einer Stelle steht, falls die Kante je entsteht.
+  if (zielStatus === CALL_STATUS.NEW) return { completed_at: null, archived_at: null };
+  return {};
+}
+
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers, body: '' };
   if (event.httpMethod !== 'POST') return response(405, { error: 'Method not allowed' });
@@ -124,12 +158,16 @@ exports.handler = async (event) => {
   }
 
   let result = callRow;
-  for (const status of sequence) {
+  for (let i = 0; i < sequence.length; i += 1) {
+    const status = sequence[i];
+    const letzterSchritt = i === sequence.length - 1;
     const patch = {
       dashboard_status: status,
       updated_at: new Date().toISOString()
     };
     if (status === CALL_STATUS.CLOSED) patch.follow_up_at = null;
+    // Nur am Ende der Kette -- siehe lifecycleStempel().
+    if (letzterSchritt) Object.assign(patch, lifecycleStempel(status, new Date().toISOString()));
 
     const { data, error } = await sbAdmin
       .from('calls')
@@ -157,3 +195,11 @@ exports.handler = async (event) => {
 
   return response(200, { success: true, call: result });
 };
+
+// Nur fuer Pruefzwecke exportiert. Netlify laedt ausschliesslich `handler`;
+// diese beiden Zeilen aendern am Laufzeitverhalten nichts, machen die
+// Uebergangskette und die Stempelregel aber ohne HTTP-Aufruf nachpruefbar.
+// Eine Regel, die man nur ueber eine deployte Function testen kann, testet
+// niemand.
+exports.buildTransitionSequence = buildTransitionSequence;
+exports.lifecycleStempel = lifecycleStempel;

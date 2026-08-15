@@ -134,19 +134,25 @@ test('Gegenprobe: Auto-Apply-Flow admin_notes (Stand 2026-08-11, kein Helfer) wi
 // sie unsichtbar gelassen, und eine ungeprueft gebliebene neue Konstanten-
 // Schreibstelle waere nie als Waise aufgefallen.
 
+// Bis 2026-08-12 haftete dieser Test an vxBestEffortPatchCallLifecycle. Die
+// Stelle ist entfallen (Lifecycle-Zeitstempel jetzt serverseitig in
+// call-update-status), der Test wandert deshalb auf die zweite Stelle
+// derselben Bauform: sb.from(CASES_TABLE) in vxBestEffortPatchTaskLifecycle.
+// Ersatzlos streichen waere falsch -- geprueft wird hier die FAEHIGKEIT, eine
+// Konstante als Tabellennamen zu erkennen, nicht eine bestimmte Funktion.
 test('Positivkontrolle: sb.from(KONSTANTE) wird als Schreibstelle erkannt (Codex-P2-Fund)', () => {
   const fixture = `
-async function vxBestEffortPatchCallLifecycle(recordId, fields) {
+async function vxBestEffortPatchTaskLifecycle(recordId, fields) {
   if (!recordId || !fields || typeof fields !== 'object') return null;
   try {
     var sb = (typeof getSupabaseAuthClient === 'function') ? getSupabaseAuthClient() : _sb;
-    if (!sb || !CALLS_TABLE) return null;
-    var res = await sb.from(CALLS_TABLE).update(fields).eq('id', recordId).select('*').maybeSingle();
+    if (!sb || !CASES_TABLE) return null;
+    var res = await sb.from(CASES_TABLE).update(fields).eq('id', entityId).select('*').maybeSingle();
     if (res && res.error) throw res.error;
   } catch(e) {}
 }`;
-  assert.equal(zaehleSchreibstellen(fixture), 1, 'sb.from(CALLS_TABLE) ist eine echte Schreibstelle, auch ohne String-Literal');
-  const ergebnis = pruefeStelle(fixture, stelle('vxBestEffortPatchCallLifecycle'));
+  assert.equal(zaehleSchreibstellen(fixture), 1, 'sb.from(CASES_TABLE) ist eine echte Schreibstelle, auch ohne String-Literal');
+  const ergebnis = pruefeStelle(fixture, stelle('vxBestEffortPatchTaskLifecycle'));
   assert.equal(ergebnis.ok, true);
 });
 
