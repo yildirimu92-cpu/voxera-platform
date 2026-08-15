@@ -41,13 +41,23 @@
 //   node scripts/verify-browser-column-grants.mjs              (gegen die DB)
 //   node scripts/verify-browser-column-grants.mjs --selbsttest (ohne DB)
 //
-// Die DB-Verbindung kommt aus SUPABASE_DB_URL, wie bei
-// verify-db-security-invariants.mjs.
+// Die DB-Verbindung kommt aus denselben Variablen wie bei
+// verify-db-security-invariants.mjs, mit derselben Rangfolge: die Einzelfelder
+// SUPABASE_DB_HOST / _PORT / _USER / _PASSWORD haben Vorrang vor
+// SUPABASE_DB_URL. Beim Connection-String ueber den Pooler zerlegen "/", "@",
+// "%" und ":" im Passwort den URI -- ueber PGPASSWORD wird nichts geparst.
 
 import { readFileSync, existsSync, readdirSync } from 'node:fs';
-import { execFileSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 import path from 'node:path';
+
+// Drei Ausgaenge, nicht zwei. "Nicht pruefbar" ist ebenfalls rot -- aber es ist
+// eine andere Aussage als "ein Spaltenrecht fehlt", und wer den Lauf liest,
+// muss die beiden unterscheiden koennen.
+const EXIT_OK = 0;
+const EXIT_VERLETZT = 1;
+const EXIT_NICHT_PRUEFBAR = 2;
 
 // Dateien, die den Supabase-Client IM BROWSER benutzen. Netlify-Functions sind
 // bewusst nicht dabei: die laufen mit service_role und unterliegen weder RLS
@@ -198,15 +208,120 @@ function sammleAusRepo() {
   return { alle, alleUnklar, gelesen };
 }
 
-function holeSpaltenrechte() {
-  const url = process.env.SUPABASE_DB_URL;
+/**
+ * Verbindung wie in verify-db-security-invariants.mjs -- Einzelfelder VOR
+ * Connection-String.
+ *
+ * Warum das hier nachgezogen wurde: Der erste Lauf auf main scheiterte mit
+ * "password authentication failed for user voxera_ci_verifier", obwohl der
+ * Nachbarcheck mit denselben Zugangsdaten durchlief. Der Unterschied war genau
+ * dieser: Ueber den Pooler laeuft ein URI, und '/', '@', '%' und ':' im Passwort
+ * zerlegen ihn falsch -- `openssl rand -base64 32` erzeugt solche Zeichen. Ueber
+ * PGPASSWORD wird nichts geparst. Ein Waechter, der nur den fragilen der beiden
+ * Wege kennt, ist genau dann rot, wenn er nichts gefunden hat.
+ */
+export function verbindungsArgumente() {
+  const felder = {
+    host: (process.env.SUPABASE_DB_HOST || '').trim(),
+    port: (process.env.SUPABASE_DB_PORT || '5432').trim(),
+    user: (process.env.SUPABASE_DB_USER || '').trim(),
+    password: (process.env.SUPABASE_DB_PASSWORD || '').trim(),
+    dbname: (process.env.SUPABASE_DB_NAME || 'postgres').trim(),
+  };
+  if (felder.host && felder.user && felder.password) {
+    return {
+      args: ['--host', felder.host, '--port', felder.port,
+             '--username', felder.user, '--dbname', felder.dbname],
+      env: { ...process.env, PGPASSWORD: felder.password,
+             PGSSLMODE: process.env.PGSSLMODE || 'require' },
+      geheim: [felder.password],
+      url: '',
+      weg: 'Einzelfelder (SUPABASE_DB_HOST/_USER/_PASSWORD)',
+    };
+  }
+  // WELCHER der beiden benutzt wurde, muss mitgefuehrt werden. Vorher las die
+  // Schwaerzung fest SUPABASE_DB_URL -- griff DATABASE_URL, blieb der ganze
+  // String samt Passwort ungeschwaerzt im Log stehen (Review PR #979).
+  const ausSupabase = (process.env.SUPABASE_DB_URL || '').trim();
+  const url = ausSupabase || (process.env.DATABASE_URL || '').trim();
   if (!url) return null;
+  // Kodierte UND dekodierte Form. Im String steht das Passwort URL-kodiert
+  // ("%2F"), Fehlermeldungen von libpq zitieren aber teils die dekodierte --
+  // wer nur eine der beiden ersetzt, schwaerzt in der Haelfte der Faelle nicht.
+  const roh = (() => { try { return new URL(url).password || ''; } catch { return ''; } })();
+  const klar = (() => { try { return decodeURIComponent(roh); } catch { return ''; } })();
+  return { args: [url], env: { ...process.env }, geheim: [roh, klar], url,
+           weg: ausSupabase ? 'SUPABASE_DB_URL (Connection-String)'
+                            : 'DATABASE_URL (Connection-String)' };
+}
+
+/**
+ * Weder der String noch das Passwort duerfen je im CI-Log stehen.
+ *
+ * Geschwaerzt wird gegen das, was `verbindungsArgumente()` TATSAECHLICH gewaehlt
+ * hat -- nicht gegen eine fest verdrahtete Variable. Sonst haengt die
+ * Schwaerzung davon ab, welchen der beiden Wege die Umgebung zufaellig
+ * bereitstellt, und genau der seltenere Fall bliebe ungeschwaerzt.
+ */
+export function schwaerze(text, verb) {
+  if (!text) return '';
+  let out = text;
+  if (verb && verb.url) out = out.split(verb.url).join('<connection-string>');
+  for (const g of (verb && verb.geheim) || []) {
+    if (g && g.length > 3) out = out.split(g).join('<redacted>');
+  }
+  return out;
+}
+
+function holeSpaltenrechte() {
+  const verb = verbindungsArgumente();
+  if (!verb) return null;
   const sql = `select table_name || '.' || column_name
                from information_schema.column_privileges
                where table_schema='public' and grantee='${ROLLE}' and privilege_type='UPDATE';`;
-  const roh = execFileSync('psql', [url, '-X', '-q', '-A', '-t', '-v', 'ON_ERROR_STOP=1', '-c', sql],
-    { encoding: 'utf8' });
-  return new Set(roh.split('\n').map((z) => z.trim()).filter(Boolean));
+  const proc = spawnSync('psql',
+    [...verb.args, '-X', '-q', '-A', '-t', '-v', 'ON_ERROR_STOP=1', '-c', sql],
+    { encoding: 'utf8', env: verb.env, timeout: 60_000 });
+
+  if (proc.status === 0) {
+    return new Set((proc.stdout || '').split('\n').map((z) => z.trim()).filter(Boolean));
+  }
+
+  // NICHT PRUEFBAR ist etwas anderes als VERLETZT, und beides ist etwas anderes
+  // als ein Stacktrace. Vorher warf execFileSync roh durch -- ein Zugangsproblem
+  // sah aus wie ein Absturz, und niemand konnte am Log erkennen, ob nun ein
+  // Spaltenrecht fehlt oder nur das Passwort.
+  const fehler = schwaerze(proc.stderr || String(proc.error || ''), verb);
+  console.log('NICHT PRUEFBAR — die Spaltenrechte konnten nicht gelesen werden.');
+  console.log('');
+  console.log(`Zugang: ${verb.weg}`);
+  if (/password authentication failed|28P01/i.test(fehler)) {
+    console.log('Die Anmeldung wurde abgelehnt.');
+    if (verb.weg.startsWith('SUPABASE_DB_URL')) {
+      // Nur hier ist der Rat sinnvoll. Stuende er auch im Einzelfeld-Fall, wuerde
+      // er zu dem Weg raten, der bereits laeuft -- eine Fehlermeldung, die in die
+      // Irre fuehrt, ist schlimmer als eine ohne Rat.
+      console.log('Haeufigste Ursache ueber den Pooler: Sonderzeichen im Passwort zerlegen');
+      console.log('den Connection-String ("/", "@", "%", ":"). Loesung ist derselbe Weg wie');
+      console.log('bei verify-db-security-invariants -- die Einzelfelder SUPABASE_DB_HOST /');
+      console.log('_PORT / _USER / _PASSWORD setzen; dann geht das Passwort ueber PGPASSWORD');
+      console.log('und wird nirgends geparst.');
+    } else {
+      console.log('Der fragile Weg ist hier bereits ausgeschlossen -- es laeuft ueber die');
+      console.log('Einzelfelder, das Passwort wird also nicht geparst. Bleiben zwei Ursachen:');
+      console.log('das Passwort im Secret weicht von dem auf der Rolle gesetzten ab, oder dem');
+      console.log('Benutzernamen fehlt die Projekt-Referenz (der Pooler erwartet');
+      console.log('<rolle>.<projekt-ref>, nicht den blossen Rollennamen).');
+    }
+  } else if (proc.error && proc.error.code === 'ENOENT') {
+    console.log('psql ist nicht installiert.');
+  }
+  console.log('');
+  console.log('Gewertet wird das als NICHT GEPRUEFT, nicht als gruen. Bis die Ursache');
+  console.log('geklaert ist, gilt der Zustand der Spaltenrechte als unbekannt.');
+  console.log('');
+  console.log(`psql:\n${fehler}`);
+  process.exit(EXIT_NICHT_PRUEFBAR);
 }
 
 // Nur ausfuehren, wenn direkt aufgerufen. Ohne diesen Waechter wuerde ein
@@ -246,6 +361,62 @@ if (direktAufgerufen && process.argv.includes('--selbsttest')) {
     'sb.from(CALLS_TABLE).update(fields) -> calls, Payload unklar');
   pruefe('.from(unaufloesbar) faellt auf, statt unsichtbar zu bleiben',
     unklar.some((u) => u.grundfehlt === 'Tabellenname nicht aufloesbar'));
+
+  // ── Schwaerzung ──────────────────────────────────────────────────────────
+  //
+  // Sie wird geprueft, weil psql den Connection-String nur in seltenen
+  // Fehlerbildern zitiert. Eine Schwaerzung, die im Normalbetrieb nie feuert,
+  // merkt niemand, wenn sie aufhoert zu wirken -- und dann steht das Passwort
+  // genau einmal im CI-Log, an dem Tag, an dem etwas schiefgeht.
+  {
+    const sichern = {
+      SUPABASE_DB_URL: process.env.SUPABASE_DB_URL,
+      DATABASE_URL: process.env.DATABASE_URL,
+      SUPABASE_DB_HOST: process.env.SUPABASE_DB_HOST,
+      SUPABASE_DB_USER: process.env.SUPABASE_DB_USER,
+      SUPABASE_DB_PASSWORD: process.env.SUPABASE_DB_PASSWORD,
+    };
+    const setze = (o) => {
+      for (const k of Object.keys(sichern)) delete process.env[k];
+      Object.assign(process.env, o);
+    };
+
+    // Der Fall aus dem Review: DATABASE_URL statt SUPABASE_DB_URL.
+    setze({ DATABASE_URL: 'postgresql://ci:ge%2Fhe%2Bim@db.example:5432/postgres' });
+    const vDb = verbindungsArgumente();
+    pruefe('DATABASE_URL wird als Weg erkannt und benannt',
+      vDb && vDb.weg.startsWith('DATABASE_URL'), vDb && vDb.weg);
+    const gemeldet = schwaerze(
+      'psql: error: connection to postgresql://ci:ge%2Fhe%2Bim@db.example:5432/postgres'
+      + ' failed for password ge/he+im', vDb);
+    pruefe('DATABASE_URL: der ganze String wird geschwaerzt',
+      !gemeldet.includes('db.example:5432'), gemeldet);
+    pruefe('DATABASE_URL: die KODIERTE Passwortform wird geschwaerzt',
+      !gemeldet.includes('ge%2Fhe%2Bim'));
+    pruefe('DATABASE_URL: die DEKODIERTE Passwortform wird geschwaerzt',
+      !gemeldet.includes('ge/he+im'));
+
+    setze({ SUPABASE_DB_URL: 'postgresql://ci:abc123xyz@db.example:5432/postgres' });
+    pruefe('SUPABASE_DB_URL hat Vorrang und wird ebenso geschwaerzt',
+      !schwaerze('psql: abc123xyz', verbindungsArgumente()).includes('abc123xyz'));
+
+    setze({ SUPABASE_DB_HOST: 'db.example', SUPABASE_DB_USER: 'ci',
+            SUPABASE_DB_PASSWORD: 'geheimespasswort' });
+    const vFelder = verbindungsArgumente();
+    pruefe('Einzelfelder haben Vorrang vor jedem String',
+      vFelder && vFelder.weg.startsWith('Einzelfelder'), vFelder && vFelder.weg);
+    pruefe('Einzelfelder: das Passwort wird geschwaerzt',
+      !schwaerze('psql: FATAL geheimespasswort', vFelder).includes('geheimespasswort'));
+
+    setze({});
+    pruefe('ohne jede Zugangsdaten liefert die Verbindung null',
+      verbindungsArgumente() === null);
+
+    for (const k of Object.keys(sichern)) {
+      if (sichern[k] === undefined) delete process.env[k];
+      else process.env[k] = sichern[k];
+    }
+  }
 
   // Gegenprobe zur Selbstpruefung der gepflegten Liste: ein Eintrag, der auf
   // keine Fundstelle passt, MUSS auffallen.
@@ -297,14 +468,16 @@ if (gelesen === 0 || alle.length === 0) {
   console.log('oder die Schreibweise hat sich geaendert und die Extraktion laeuft daran');
   console.log('vorbei. Ein Waechter, der nichts findet, hat nichts geprueft.');
   console.log(`Erwartet werden Treffer in: ${BROWSER_DATEIEN.join(', ')}`);
-  process.exit(1);
+  process.exit(EXIT_NICHT_PRUEFBAR);
 }
 
 const rechte = holeSpaltenrechte();
 if (rechte === null) {
-  console.log('SKIP — SUPABASE_DB_URL nicht gesetzt, Spaltenrechte nicht abfragbar.');
-  console.log('Die Extraktion hat funktioniert (siehe Zahl oben), nur der Abgleich fehlt.');
-  process.exit(1);
+  console.log('NICHT PRUEFBAR — keine Datenbank-Zugangsdaten gesetzt.');
+  console.log('Entweder SUPABASE_DB_HOST / _PORT / _USER / _PASSWORD (empfohlen, keine');
+  console.log('URL-Kodierung noetig) oder SUPABASE_DB_URL. Die Extraktion hat funktioniert');
+  console.log('(siehe Zahl oben), nur der Abgleich fehlt.');
+  process.exit(EXIT_NICHT_PRUEFBAR);
 }
 
 // Nicht auswertbare Stellen gegen die gepflegte Liste halten -- in BEIDE
@@ -333,7 +506,7 @@ for (const t of alle) {
 
 if (!fehlend.length && !ungedeckt.length && !veraltet.length) {
   console.log(`PASS — alle ${alle.length} Schreibstellen haben ein passendes Spaltenrecht.`);
-  process.exit(0);
+  process.exit(EXIT_OK);
 }
 
 if (ungedeckt.length) {
@@ -370,5 +543,5 @@ console.log('');
 console.log('Behebung: entweder die Spalte in die Allowlist aufnehmen');
 console.log('  grant update (<spalte>) on table public.<tabelle> to authenticated;');
 console.log('oder den Schreibzugriff entfernen, wenn er nicht mehr gebraucht wird.');
-process.exit(1);
+process.exit(EXIT_VERLETZT);
 }
