@@ -1,0 +1,35 @@
+name: Verify Prompt Assurances
+
+# Ohne Pfad-Filter, gleiche Begruendung wie bei den uebrigen Prompt-Checks: wer
+# eine gelesene Datei anfasst, sie aber nicht in die Pfadliste eingetragen hat,
+# bekommt einen uebersprungenen statt eines bestandenen Laufs -- und
+# uebersprungen sieht in der PR-Ansicht nicht nach einer Luecke aus.
+#
+# Der Check sichert Schritt B aus #1000. Rund drei Viertel des ausgelieferten
+# Systemprompts stammen aus zwei Zeilen von `system_config`, die per SQL
+# geaendert werden -- ohne Commit, ohne Diff, ohne Review. Die vorhandenen
+# Prompt-Waechter pruefen den Bauer, nicht seine Eingaben; dieser hier prueft
+# das Ergebnis.
+#
+# Zwei Dinge kann er NICHT, und beide stehen ausfuehrlich im Kopf des
+# Prueftstands: Er sieht die echte Datenbankzeile nicht (CI hat keinen
+# Datenbankzugang -- genau der Befund, aus dem #1000 entstand), und er sagt
+# nichts darueber, ob die Offenlegung im Gespraech AUSGESPROCHEN wird. Auf dem
+# Produktivagenten ist `ignore_default_personality` aktiv, und dessen Regel
+# arbeitet gegen die Anweisung, die hier gesichert wird (#965). Beides zu
+# verwechseln waere ein gruener Waechter ueber einem stummen Agenten.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: node scripts/verify-prompt-assurances.mjs
