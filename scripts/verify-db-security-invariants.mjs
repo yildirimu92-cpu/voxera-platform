@@ -285,10 +285,22 @@ function checkLedger(baseline) {
   //   2026-04-08_core_tables_schema_sot.sql -- vor dem Ledger entstanden. Eine
   //     Version waere hier erfunden; der Dateiname sagt darum, dass es keine
   //     gibt.
+  //
+  // Das Datum wird auf BEIDEN Seiten abgestreift, in beiden Schreibweisen.
+  // Grund: Die Repo-Datei heisst `2026-08-10_calls_admin_review.sql`, der
+  // Ledger fuehrt sie als `2026_08_10_calls_admin_review` -- Supabase ersetzt
+  // beim Anwenden die Bindestriche. Kannte `nameOf` nur die Bindestrichform,
+  // stand auf der einen Seite `calls_admin_review` und auf der anderen
+  // `2026_08_10_calls_admin_review`; sie trafen sich nie, und dieselbe
+  // Migration wurde GLEICHZEITIG als "nicht angewandt" und als Waise gemeldet.
+  // Drei der sechs Meldungen vom 12.08. hatten genau diese Ursache.
+  //
+  // Nur ein FUEHRENDES Datum wird entfernt, nicht irgendeine Ziffernfolge:
+  // eine Migration, die legitim `2026_ausblick` heisst, bleibt unangetastet.
   const nameOf = (f) => f
+    .replace(/\.sql$/, '')
     .replace(/^\d{14}_/, '')
-    .replace(/^\d{4}-\d{2}-\d{2}_/, '')
-    .replace(/\.sql$/, '');
+    .replace(/^\d{4}[-_]\d{2}[-_]\d{2}_/, '');
   const versionOf = (f) => (f.match(/^(\d{14})_/) || [])[1] || null;
 
   // Die Version ist der belastbare Schluessel: Supabase selbst gleicht darueber
@@ -296,6 +308,11 @@ function checkLedger(baseline) {
   // bleibt als zweiter Weg fuer Dateien ohne Version im Namen.
   const ledgerVersions = new Set(info.ledger.values());
   const repoVersions = new Set(files.map(versionOf).filter(Boolean));
+
+  // Die Ledger-Namen werden mit DERSELBEN Normalisierung durchgereicht wie die
+  // Dateinamen. Nur eine Seite zu normalisieren hilft nichts: die eine Seite
+  // hiesse dann `calls_admin_review`, die andere `2026_08_10_calls_admin_review`.
+  const ledgerNamenNormalisiert = new Set([...info.ledger.keys()].map(nameOf));
 
   const tracked = files.filter((f) => !preLedger.has(f));
 
@@ -312,7 +329,7 @@ function checkLedger(baseline) {
   // Richtung 1 -- der P0-Fehlermodus: Migration liegt im Repo, wurde auf der DB
   // aber nie angewandt. Genau hier blieb der alte Check monatelang gruen.
   const isApplied = (f) => (versionOf(f) && ledgerVersions.has(versionOf(f)))
-    || info.ledger.has(nameOf(f))
+    || ledgerNamenNormalisiert.has(nameOf(f))
     || (aliasMap[f] || []).some((ledgerName) => info.ledger.has(ledgerName));
   const missing = tracked.filter((f) => !isApplied(f));
   add(missing.length === 0 ? 'PASS' : 'FAIL', 'G-ledger',
@@ -337,7 +354,7 @@ function checkLedger(baseline) {
   const repoNames = new Map(files.map((f) => [nameOf(f), f]));
 
   const orphans = [...info.ledger.keys()].filter((n) => !repoVersions.has(info.ledger.get(n))
-    && !repoNames.has(n) && !aliasOwner.has(n));
+    && !repoNames.has(nameOf(n)) && !aliasOwner.has(n));
   add(orphans.length === 0 ? 'PASS' : 'FAIL', 'G-ledger',
     'keine DB-Migration ohne Repo-Datei',
     orphans.length
