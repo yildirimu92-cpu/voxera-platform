@@ -575,6 +575,30 @@ exports.handler = async (event) => {
       if (previous?.status === 'processing') return reply(409, { ok: false, error: 'calendar_request_in_progress' });
       if (previous?.status === 'failed') return reply(409, { ok: false, error: 'calendar_request_id_already_failed' });
     }
+    // Die Oeffnungszeiten haengen von nichts ab und werden deshalb SOFORT
+    // mitgestartet, statt hinter den beiden Kalenderabfragen zu warten.
+    //
+    // Aus dem Testanruf vom 14.08.: die sechs Supabase-Abfragen dieses
+    // Handlers laufen je ~105 ms und strikt nacheinander -- zusammen 912 ms
+    // fuer ein Nachschlagen. Gemessen an den 15 Sekunden, die der Anruf
+    // gebraucht hat, ist das nicht die Ursache; es ist aber die einzige
+    // Stelle, an der wir ueberhaupt etwas kuerzen koennen.
+    //
+    // Nur diese eine laesst sich vorziehen: `calendar_connections` braucht
+    // `settings.active_provider` und kann nicht frueher laufen. Der Gewinn ist
+    // also eine Abfrage, rund 105 ms -- nicht drei.
+    //
+    // Der Fehlerwandler ist kein Schmuck: wird weiter unten geworfen, bevor
+    // dieses Versprechen gelesen wird, gaebe eine Ablehnung eine unbehandelte
+    // Zurueckweisung. So wird daraus ein Wert, den erst der Lesepunkt
+    // auswertet -- die Reihenfolge der Fehlermeldungen bleibt damit exakt die
+    // alte.
+    const oeffnungszeitenVersprechen = sb.from('customers')
+      .select('ai_opening_hours')
+      .eq('id', customerId)
+      .maybeSingle()
+      .then((ergebnis) => ergebnis, (error) => ({ data: null, error }));
+
     const { data: settingsRow, error: settingsError } = await sb.from('calendar_settings').select('*').eq('customer_id', customerId).maybeSingle();
     if (settingsError) throw settingsError;
     settings = settingsRow;
@@ -609,10 +633,7 @@ exports.handler = async (event) => {
     // Buchungszeiten sind eine Teilmenge der Oeffnungszeiten -- siehe
     // _lib/booking-window.js. Dafuer braucht dieses Werkzeug das
     // Wochenraster aus dem Geschaeftsprofil, das bisher nur der Prompt kannte.
-    const { data: customerRow, error: customerError } = await sb.from('customers')
-      .select('ai_opening_hours')
-      .eq('id', customerId)
-      .maybeSingle();
+    const { data: customerRow, error: customerError } = await oeffnungszeitenVersprechen;
     if (customerError) throw customerError;
     const openingHours = customerRow?.ai_opening_hours || null;
 

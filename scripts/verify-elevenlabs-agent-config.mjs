@@ -96,7 +96,22 @@ check(
 // an AGENT_DEFINITION nicht unbemerkt hinter die Entscheidung zurueckfaellt.
 check('turn_model ist turn_v3',   sent.conversation_config.turn.turn_model === 'turn_v3');
 check('turn_timeout ist 5',       sent.conversation_config.turn.turn_timeout === 5);
-check('Wartefloskel ist aus',     sent.conversation_config.turn.soft_timeout_config.timeout_seconds === -1);
+// 14.08.: die Wartefloskel ist wieder an, aber VERZOEGERT. Der Wert traegt die
+// Aussage, nicht das blosse "an": bei 0 spraeche sie sofort und waere zurueck
+// beim Befund vom 10.08., bei -1 waere sie aus und die 15 Sekunden Stille aus
+// dem Testanruf blieben unkommentiert. Geprueft wird deshalb das Fenster
+// zwischen normalem Zug und Kaskadenschwelle.
+// Codex-Befund vom 14.08. (P2): die beiden Fenstergrenzen allein lassen auch 1
+// oder 7 durch -- beides wuerde spuerbar aendern, wann die Floskel spricht,
+// ohne dass CI etwas meldet. Das Fenster begruendet die Wahl, der feste Wert
+// haelt sie fest; beides zusammen, wie bei den Nachbarwerten.
+check('Wartefloskel steht auf vier Sekunden',
+  sent.conversation_config.turn.soft_timeout_config.timeout_seconds === 4);
+check('Wartefloskel spricht verzoegert, nicht sofort',
+  sent.conversation_config.turn.soft_timeout_config.timeout_seconds > 0);
+check('Wartefloskel bleibt unter der Kaskadenschwelle',
+  sent.conversation_config.turn.soft_timeout_config.timeout_seconds
+    < sent.conversation_config.agent.prompt.cascade_timeout_seconds);
 check('keine Audio-Tags',
   sent.conversation_config.tts.expressive_mode === false
   && Array.isArray(sent.conversation_config.tts.suggested_audio_tags)
@@ -240,8 +255,20 @@ check(
 );
 // Der Kern des Befunds: der Sync darf nirgends mehr ein prompt-Objekt aus nur
 // prompt/tool_ids bauen.
+// 14.08.: EIN Feld ist dazugekommen, und zwar bewusst.
+//
+// Die Regel unten lautet: kein Feld aus der Definition, das die Handabstimmung
+// vom 10.08. zuruecknehmen wuerde. `soft_timeout_config` nimmt nichts zurueck
+// -- es TRAEGT die neueste Abstimmung (14.08., -1 auf 4). Ohne Mitsenden
+// erreicht sie niemanden: AGENT_DEFINITION wird nur beim ANLEGEN angewandt,
+// und die Provisionierung lehnt bestehende Agenten mit 409 ab. Codex-Befund
+// (P1) auf #1002.
+//
+// Der Unterschied zu `turn_model` und den uebrigen Verbotenen ist nicht der
+// Wert, sondern die Absicht: dort wollen wir NICHT ueberschreiben, hier ist das
+// Ueberschreiben der ganze Zweck.
 check(
-  'Der Sync-Koerper enthaelt genau die Felder von vor #932',
+  'Der Sync-Koerper enthaelt die Felder von vor #932 plus die Wartefloskel',
   (() => {
     const body = buildSyncPatch({ customer: { voice_id: 'v' }, prompt: 'P', firstMessage: 'G', toolIds: ['t'] });
     const paths = [...expectedLeaves(body).keys()].sort();
@@ -250,11 +277,106 @@ check(
       'conversation_config.agent.prompt.prompt',
       'conversation_config.agent.prompt.tool_ids',
       'conversation_config.tts.voice_id',
+      'conversation_config.turn.soft_timeout_config.timeout_seconds',
+      'conversation_config.turn.soft_timeout_config.message',
+      'conversation_config.turn.soft_timeout_config.use_llm_generated_message',
       'platform_settings.privacy.record_voice',
       'platform_settings.privacy.retention_days',
       'platform_settings.privacy.zero_retention_mode'
     ].sort());
   })()
+);
+
+// Und der Punkt, an dem der Befund haengt: der laufende Sync muss die Floskel
+// tatsaechlich mitschicken, nicht nur die Definition sie tragen. Ohne diese
+// Zeile waere die Aenderung fuer jeden Bestandskunden wirkungslos -- und beim
+// Testanruf haette es ausgesehen, als wirke die Einstellung nicht.
+check(
+  'Der Sync traegt die Wartefloskel zu bestehenden Agenten',
+  buildSyncPatch({ customer: {}, prompt: 'P' })
+    .conversation_config.turn.soft_timeout_config.timeout_seconds === 4
+);
+
+// Codex-Befund vom 14.08. (P1) -- eine Regression, die der Sync-Fix selbst
+// erzeugt hat: die Floskel stand fest auf Deutsch. Solange sie nur beim
+// Anlegen wirkte, fiel das nicht auf; seit sie zu JEDEM Bestandsagenten
+// gesendet wird, spraeche ein franzoesischer Agent mitten im Gespraech ein
+// deutsches Wort. Geprueft wird der Text pro Sprache, auf BEIDEN Schreibwegen.
+const FLOSKELN = { de: 'Einen Moment', fr: 'Un instant', it: 'Un momento', en: 'One moment' };
+for (const [sprache, floskel] of Object.entries(FLOSKELN)) {
+  check(
+    `Wartefloskel spricht ${sprache} im Sync`,
+    buildSyncPatch({ customer: { ai_language: sprache }, prompt: 'P' })
+      .conversation_config.turn.soft_timeout_config.message === floskel
+  );
+  check(
+    `Wartefloskel spricht ${sprache} beim Anlegen`,
+    buildAgentConfig({ customer: { ai_language: sprache }, prompt: 'P', firstMessage: 'G', toolIds: [] })
+      .conversation_config.turn.soft_timeout_config.message === floskel
+  );
+}
+// Eine FEHLENDE Sprache darf keinen leeren Text senden -- ElevenLabs spraeche
+// dann gar nichts, und die 15 Sekunden Stille waeren zurueck, ohne dass
+// irgendwo etwas fehlschlaegt. Sie ist auch kein Mischwert: `agent.language`
+// faellt selbst auf Deutsch zurueck, der Agent spricht also Deutsch.
+for (const fehlt of [null, undefined, '']) {
+  check(
+    `Fehlende Sprache ${JSON.stringify(fehlt)} faellt auf Deutsch zurueck`,
+    buildSyncPatch({ customer: { ai_language: fehlt }, prompt: 'P' })
+      .conversation_config.turn.soft_timeout_config.message === FLOSKELN.de
+  );
+}
+
+// Codex-Befund vom 14.08. (P1): `ai_language` kennt Mischwerte, und der
+// Prompt-Bauer definiert sie als Agenten mit automatischem Sprachwechsel. Ein
+// Rueckfall auf Deutsch unterbraeche ein englisch gefuehrtes Gespraech auf
+// Deutsch. Fuer diese Werte wird die Floskel GAR NICHT gesetzt.
+//
+// Die Liste steht hier bewusst als eigene Aufzaehlung und wird nicht aus dem
+// Produktionscode gelesen: eine Zusicherung, die dieselbe Quelle liest, die
+// sie pruefen soll, waere ein Vakuum-Pass. Sie stammt aus `languageMap` in
+// prompt-builder-v2.js -- kommt dort ein Mischwert dazu, muss er auch hier
+// stehen, und bis dahin faengt ihn die Regel fuer unbekannte Werte.
+const MISCHSPRACHEN = ['de_en', 'de_en_fr', 'de_fr_it_en'];
+for (const gemischt of MISCHSPRACHEN) {
+  check(
+    `Mischwert ${gemischt} bekommt vom Sync gar keine Floskel`,
+    buildSyncPatch({ customer: { ai_language: gemischt }, prompt: 'P' })
+      .conversation_config.turn === undefined
+  );
+  // Beim Anlegen laesst sich das Feld nicht weglassen -- AGENT_DEFINITION
+  // traegt es bereits. Also ausdruecklich aus, statt still auf Deutsch.
+  check(
+    `Mischwert ${gemischt} bekommt beim Anlegen eine ausgeschaltete Floskel`,
+    buildAgentConfig({ customer: { ai_language: gemischt }, prompt: 'P', firstMessage: 'G', toolIds: [] })
+      .conversation_config.turn.soft_timeout_config.timeout_seconds === -1
+  );
+}
+// Ein unbekannter Wert wird wie ein Mischwert behandelt, nicht wie eine
+// fehlende Sprache: wir wissen dann nicht, was der Agent spricht, und raten
+// nicht. Der Unterschied zu `''` ist der Kern der Regel.
+check(
+  'Unbekannte Sprache bekommt keine Floskel statt einer geratenen',
+  buildSyncPatch({ customer: { ai_language: 'xx' }, prompt: 'P' })
+    .conversation_config.turn === undefined
+);
+// Und die Sperre darf nicht mehr wegnehmen als die Floskel: Prompt und
+// Begruessung muessen einen mehrsprachigen Agenten weiterhin erreichen.
+check(
+  'Der Mischwert-Fall sendet Prompt und Begruessung weiterhin',
+  (() => {
+    const body = buildSyncPatch({ customer: { ai_language: 'de_en_fr' }, prompt: 'P', firstMessage: 'G' });
+    return body.conversation_config.agent.prompt.prompt === 'P'
+      && body.conversation_config.agent.first_message === 'G';
+  })()
+);
+// Und die Floskel bleibt gesprochener Text, kein Modellauftrag: mit
+// use_llm_generated_message=true wuerde das Modell selbst formulieren -- genau
+// die zweite Aufgabe im selben Feld, gegen die am 10.08. entschieden wurde.
+check(
+  'Die Wartefloskel wird nicht vom Modell erzeugt',
+  buildSyncPatch({ customer: { ai_language: 'fr' }, prompt: 'P' })
+    .conversation_config.turn.soft_timeout_config.use_llm_generated_message === false
 );
 // Der eigentliche Regressionsschutz dieses Umbaus: Kein Feld aus der
 // Definition, das nicht schon vor #932 gesendet wurde, darf in den

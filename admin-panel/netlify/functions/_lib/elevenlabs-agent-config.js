@@ -79,6 +79,96 @@ const DEFAULT_VOICE_ID = '1iF3vHdwHKuVKSPDK23Z';
 
 const DEFAULT_LANGUAGE = 'de';
 
+// Die Wartefloskel in den vier unterstuetzten Sprachen.
+//
+// Codex-Befund vom 14.08. (P1): solange `soft_timeout_config` nur beim Anlegen
+// gesetzt wurde, war der fest verdrahtete deutsche Text harmlos -- er erreichte
+// keinen bestehenden Agenten. Seit der Sync ihn mitsendet, ist er es nicht
+// mehr: ein franzoesisch- oder italienischsprachiger Agent wuerde bei jedem
+// langsamen Zug hoerbar auf Deutsch wechseln. Die Sprache selbst ist ein
+// kundenspezifischer Pfad (CUSTOMER_SPECIFIC_PATHS) und wird bewusst nicht
+// synchronisiert -- der Text darf sie also nicht ueberfahren.
+//
+// Es ist eine Reparatur an einer Regression, die diese Aenderung selbst
+// erzeugt hat: vorher stand derselbe deutsche Text da und richtete keinen
+// Schaden an.
+//
+// Der Wortlaut ist bewusst knapp und in allen vier Sprachen dasselbe Register.
+// Er ist von mir gesetzt und sollte von jemandem gegengelesen werden, der die
+// Sprache spricht -- es sind zwei Woerter, aber sie fallen im Gespraech auf.
+const SOFT_TIMEOUT_MESSAGES = Object.freeze({
+  de: 'Einen Moment',
+  fr: 'Un instant',
+  it: 'Un momento',
+  en: 'One moment'
+});
+
+// Die Floskel fuer die Sprache des Kunden -- oder `null`, wenn wir die
+// gesprochene Sprache nicht mit Sicherheit benennen koennen.
+//
+// Codex-Befund vom 14.08. (P1): `ai_language` kennt neben den vier Einzel-
+// sprachen auch MISCHWERTE -- `de_en`, `de_en_fr`, `de_fr_it_en`. Der
+// Prompt-Bauer definiert sie ausdruecklich als Agenten mit automatischem
+// Sprachwechsel ("Deutsch (Standard), Englisch und Franzoesisch mit
+// automatischem Wechsel", prompt-builder-v2.js). Ein Rueckfall auf Deutsch
+// behandelt sie wie unbekannte Werte -- und unterbraeche ein englisch
+// gefuehrtes Gespraech ab Sekunde vier auf Deutsch.
+//
+// Fuer diese Werte wird die Floskel deshalb GAR NICHT gesetzt. Eine Zuordnung,
+// die falsch raten kann, ist schlechter als keine: beim Sync bleibt der
+// Ist-Zustand des Agenten stehen, beim Anlegen bleibt die Floskel aus. Das
+// kostet einen mehrsprachigen Agenten die Ueberbrueckung langer Zuege -- die
+// ehrlichere Kosten, verglichen mit einer Unterbrechung in der falschen
+// Sprache.
+//
+// Die saubere Loesung waere eine Floskel, die der AKTIVEN Gespraechssprache
+// folgt. Die ginge nur ueber `use_llm_generated_message` -- am 10.08.
+// verworfen, weil sie zwei Aufgaben in ein Feld legt -- oder ueber
+// `additional_soft_timeout_messages`, dessen Semantik wir nicht belegen
+// koennen. Eigenes Ticket, nicht dieser PR.
+//
+// LEER und UNBEKANNT werden verschieden behandelt, und das ist Absicht, keine
+// Inkonsistenz. Beide stehen nicht in SOFT_TIMEOUT_MESSAGES, aber sie sagen
+// etwas Verschiedenes:
+//
+//   ''/null  -> "keine Sprache gesetzt". `agent.language` faellt dort selbst
+//               auf DEFAULT_LANGUAGE zurueck (siehe buildAgentConfig). Der
+//               Agent spricht also NACHWEISLICH Deutsch -- die deutsche
+//               Floskel ist nicht geraten, sondern hergeleitet.
+//   'xx'     -> "eine Sprache, die wir nicht kennen". Was der Agent damit
+//               spricht, wissen wir nicht. Also raten wir nicht, sondern
+//               senden nichts -- dieselbe Antwort wie beim Mischwert.
+//
+// Im Code ist das genau das `sprache &&` in der Bedingung unten: nur ein
+// NICHT-leerer, unbekannter Wert fuehrt zu `null`. Wer die Bedingung zu
+// `!SOFT_TIMEOUT_MESSAGES[sprache]` vereinfacht, dreht den leeren Fall auf die
+// Mischwert-Seite und nimmt ihm die Floskel.
+//
+// Wie haeufig der leere Fall ist, ist nachgesehen: `customers.ai_language` ist
+// NULLABLE mit Vorgabe `'de'`. Eine neu angelegte Zeile traegt also 'de', der
+// leere Fall entsteht nur durch ein ausdrueckliches NULL -- oder dadurch, dass
+// eine Aufrufstelle ein unvollstaendiges Kundenobjekt uebergibt, was
+// buildSyncPatch() ausdruecklich zulaesst (`customer = {}`). Selten, aber
+// erreichbar, und dann ist Deutsch die belegte Antwort.
+//
+// OFFENE UNSTIMMIGKEIT, damit sie nicht unbemerkt bleibt: `agent.language`
+// selbst wird vom Sync NICHT gesendet (siehe die Anmerkung an
+// CUSTOMER_SPECIFIC_PATHS -- bewusst zurueckgestellt). Wechselt ein Kunde nach
+// dem Anlegen seine Sprache, spricht der Agent also weiter Deutsch, waehrend
+// diese Floskel ab dem naechsten Sync franzoesisch waere. Die saubere Loesung
+// ist die dort beschriebene -- `language` in die Nutzlast aufnehmen, zusammen
+// mit einer Pruefung, die CUSTOMER_SPECIFIC_PATHS gegen die Pfade der Nutzlast
+// haelt. Dieser PR nimmt sie nicht vorweg.
+function softTimeoutConfigFor(language) {
+  const sprache = String(language || '').trim().toLowerCase();
+  if (sprache && !SOFT_TIMEOUT_MESSAGES[sprache]) return null;
+  return {
+    timeout_seconds: AGENT_DEFINITION.conversation_config.turn.soft_timeout_config.timeout_seconds,
+    message: SOFT_TIMEOUT_MESSAGES[sprache] || SOFT_TIMEOUT_MESSAGES[DEFAULT_LANGUAGE],
+    use_llm_generated_message: false
+  };
+}
+
 // Kundenspezifisch — alles andere kommt unveraendert aus diesem Modul.
 // Als dotted paths gefuehrt, damit die Rueckleseprüfung und der Test sie
 // benennen koennen, ohne sie ein zweites Mal aufzuzaehlen.
@@ -163,32 +253,57 @@ const AGENT_DEFINITION = Object.freeze({
       retranscribe_on_turn_timeout: false,
       turn_model: 'turn_v3',              // [E] 10.08. — vorher turn_v2
 
-      // [E] AUS. Die Wartefloskel ist abgeschaltet (-1), nicht verkuerzt.
+      // [E] WIEDER AN, mit Verzoegerung. 14.08. — vorher -1 (aus), davor 3.
       //
-      // Sie sprang nach drei Sekunden an und sagte "Einen Moment". Das klang
-      // nach einer Reaktion, war aber eine Ansage darueber, dass keine kommt:
-      // sie hat ein Latenzproblem kaschiert, statt es zu loesen. Wer sie
-      // hoert, wartet danach genauso lange -- nur mit dem Eindruck, es liege
-      // an ihm. Ein Fuellsatz, der immer denselben Wortlaut hat, wird ausserdem
-      // beim zweiten Mal im selben Gespraech als Defekt gehoert.
+      // Die Entscheidung vom 10.08. bleibt hier stehen, weil sie richtig
+      // begruendet war und die Umkehr nur mit ihr zusammen lesbar ist:
       //
-      // Was beim Abschalten sichtbar wurde, gehoert dazu, sonst wird der
-      // naechste Befund falsch gelesen: Die Floskel war zugleich ein
-      // Zughaltesignal. Solange sie sprach, wusste die anrufende Person, dass
-      // die Leitung steht und sie nicht dran ist. Ohne sie entstehen an
-      // derselben Stelle drei Sekunden Stille -- und die Rueckmeldung darauf
-      // war "das ist nervig". Das ist keine Gegenanzeige zum Abschalten,
-      // sondern der Beleg, dass zwei Aufgaben in einem Feld staken.
+      //   Die Floskel sprang nach drei Sekunden an und sagte "Einen Moment".
+      //   Das klang nach einer Reaktion, war aber eine Ansage darueber, dass
+      //   keine kommt: sie hat ein Latenzproblem kaschiert, statt es zu
+      //   loesen. Wer sie hoert, wartet danach genauso lange -- nur mit dem
+      //   Eindruck, es liege an ihm. Ein Fuellsatz mit immer demselben
+      //   Wortlaut wird ausserdem beim zweiten Mal im selben Gespraech als
+      //   Defekt gehoert.
       //
-      // Die Latenz ist damit unverdeckt und weiterhin offen. Ein Ersatz fuer
-      // das Zughaltesignal -- falls einer kommt -- gehoert nicht hierher,
-      // sondern dorthin, wo er nicht zugleich eine Verzoegerung verschweigt.
+      //   Was beim Abschalten sichtbar wurde: die Floskel war zugleich ein
+      //   Zughaltesignal. Solange sie sprach, wusste die anrufende Person,
+      //   dass die Leitung steht. Zwei Aufgaben staken in einem Feld.
       //
-      // `message` bleibt stehen: bei timeout_seconds -1 ist sie wirkungslos,
-      // und ein geleertes Feld saehe aus wie ein vergessener Wert.
+      // Was sich seither geaendert hat, und warum die Umkehr keine Ruecknahme
+      // der damaligen Begruendung ist:
+      //
+      // 1. Die Latenz ist nicht mehr unbekannt, sondern GEMESSEN. Testanruf
+      //    vom 14.08.: der Absage-Einstieg dauerte 15 Sekunden, die
+      //    Verfuegbarkeitspruefung 8,6. Unsere eigene Seite ist daran mit
+      //    912 ms beteiligt (sechs Supabase-Abfragen, aus den Zugriffs-
+      //    protokollen abgelesen); Buchung 1,7 s und Absage 1,3 s je
+      //    einschliesslich des Google-Aufrufs. Es bleiben rund 14 Sekunden
+      //    beim Agenten. Die Floskel verdeckt also nichts mehr, was wir
+      //    beheben koennten -- der Rest liegt bei ElevenLabs (siehe die
+      //    offene Frage zu cascade_timeout_seconds).
+      //
+      // 2. Der Einwand "kaschiert statt loest" galt einer Floskel, die bei
+      //    JEDEM Zug ansprang. Bei 4 Sekunden spricht sie nur noch auf den
+      //    pathologischen Zuegen. Ein schneller Zug bleibt still.
+      //
+      // 3. Der Massstab kommt aus dem Prompt selbst: er verbietet, laenger
+      //    als 15 Sekunden Stille zu tolerieren -- fuer den Fall, dass die
+      //    ANRUFENDE Person schweigt. Fuer den umgekehrten Fall stand nichts
+      //    da, und genau den haben wir gemessen.
+      //
+      // Ehrlich dazu: der Einwand aus dem 10.08.-Text, ein Ersatz fuer das
+      // Zughaltesignal gehoere NICHT in dieses Feld, ist damit nicht
+      // ausgeraeumt, sondern zurueckgestellt. Dieses Feld ist das einzige, das
+      // wir ohne ElevenLabs-Aenderung erreichen; ein eigener Mechanismus waere
+      // die sauberere Loesung und bleibt offen.
       soft_timeout_config: {
-        timeout_seconds: -1,              // [E] 10.08. — vorher 3
-        message: 'Einen Moment',          // wirkungslos, solange -1
+        // Vier Sekunden: oberhalb eines normalen Zuges, unterhalb der
+        // Kaskadenschwelle von 8. Wer sie hoert, wartet wirklich.
+        timeout_seconds: 4,               // [E] 14.08. — vorher -1, davor 3
+        // Vorgabewert. Die tatsaechlich gesendete Fassung richtet sich nach
+        // `customers.ai_language` -- siehe softTimeoutConfigFor().
+        message: SOFT_TIMEOUT_MESSAGES[DEFAULT_LANGUAGE],
         use_llm_generated_message: false  // Statisch — nie LLM-generiert
       }
     },
@@ -351,6 +466,19 @@ function buildAgentConfig({ customer = {}, prompt = '', firstMessage = null, too
   const body = clone(AGENT_DEFINITION);
 
   body.conversation_config.agent.language = customer.ai_language || DEFAULT_LANGUAGE;
+  // Dieselbe Sprache wie der Agent -- sonst bekaeme ein neu angelegter
+  // franzoesischsprachiger Agent eine deutsche Wartefloskel.
+  //
+  // Bei einem Mischwert (`de_en_fr` und Geschwister) liefert die Funktion
+  // `null`: die Gespraechssprache steht dann erst zur Laufzeit fest. Weglassen
+  // koennen wir das Feld hier nicht -- AGENT_DEFINITION traegt es bereits, und
+  // ein geklontes Objekt haette sonst die deutsche Vorgabe. Also wird die
+  // Floskel ausdruecklich AUSGESCHALTET. Das ist der Zustand von vor dem
+  // 14.08., und er ist fuer diesen Fall der richtige: lieber keine Floskel als
+  // eine in der falschen Sprache.
+  const wartefloskel = softTimeoutConfigFor(customer.ai_language);
+  body.conversation_config.turn.soft_timeout_config = wartefloskel
+    || { ...body.conversation_config.turn.soft_timeout_config, timeout_seconds: -1 };
   if (firstMessage !== null && firstMessage !== undefined) {
     body.conversation_config.agent.first_message = firstMessage;
   }
@@ -495,10 +623,54 @@ function buildSyncPatch({ customer = {}, prompt = '', firstMessage = null, toolI
   const agent = { prompt: promptPatch };
   if (firstMessage !== null && firstMessage !== undefined) agent.first_message = firstMessage;
 
+  // Bei einem Mischwert bleibt `turn` ganz weg -- siehe softTimeoutConfigFor().
+  // Weglassen heisst hier: der Agent behaelt, was er hat. Das ist die einzige
+  // Aussage, die wir fuer einen sprachwechselnden Agenten verantworten koennen.
+  const wartefloskel = softTimeoutConfigFor(customer.ai_language);
+
   return {
     conversation_config: {
       agent,
-      tts: customer.voice_id ? { voice_id: customer.voice_id } : undefined
+      tts: customer.voice_id ? { voice_id: customer.voice_id } : undefined,
+      // Die Wartefloskel MUSS mitgesendet werden, sonst erreicht sie niemanden.
+      //
+      // Codex-Befund vom 14.08. (P1): AGENT_DEFINITION beschreibt den
+      // Sollzustand, angewandt wird sie aber nur beim ANLEGEN --
+      // elevenlabs-provision-agent lehnt einen bestehenden Agenten mit 409 ab.
+      // Der laufende Sync schickt diesen Ausschnitt hier, und `turn` stand
+      // nicht darin. Die Aenderung von -1 auf 4 haette damit ausschliesslich
+      // kuenftige Agenten erreicht -- kein einziger Bestandskunde, auch nicht
+      // der Testagent, an dem die 15 Sekunden Stille gemessen wurden.
+      //
+      // Gesendet werden DREI Felder des soft_timeout_config-Objekts, nicht nur
+      // das geaenderte: ob ElevenLabs innerhalb eines Teilbaums zusammenfuehrt
+      // oder ersetzt, ist fuer diese Ebene nicht belegt. Bei Ersatz fielen
+      // `message` und `use_llm_generated_message` sonst weg.
+      //
+      // KORREKTUR am 14.08.: hier stand "das GANZE Objekt". Das war falsch.
+      // Am beobachteten Agentenzustand gemessen hat das Objekt beim Anbieter
+      // ACHT Felder -- neben den drei hier noch `randomize_fillers`,
+      // `additional_soft_timeout_messages`, `disable_until_first_user_message`,
+      // `max_soft_timeouts_per_generation` und
+      // `llm_generated_message_prompt_override`. Vollstaendig ist das hier also
+      // nur gegenueber AGENT_DEFINITION, nicht gegenueber dem Anbieterschema.
+      //
+      // Bei ersetzender Semantik -- fuer die Ebene darueber durch #932 BELEGT --
+      // fielen die fuenf uebrigen bei jedem Sync auf Anbieter-Vorgabe zurueck,
+      // und die Rueckleseprüfung koennte das nicht sehen: sie vergleicht nur
+      // gesendete Pfade, ein nicht gesendetes Feld hat keinen Sollwert. Heute
+      // stehen alle fuenf ohnehin auf Vorgabe, der Schaden waere null.
+      // Beantwortbar ist die Frage am naechsten Sync -- `observed` traegt das
+      // Objekt vollstaendig. Siehe #1005.
+      //
+      // Bewusst NUR dieses eine Feld aus `turn`. Die uebrigen Werte dort
+      // (turn_timeout, turn_model, turn_eagerness) haben dasselbe Problem --
+      // auch sie gelten nur fuer neue Agenten. Das ist ein eigener Befund und
+      // gehoert nicht in einen PR, der die Wartefloskel behebt: sie hier
+      // mitzusenden hiesse, sie von einer BEOBACHTUNG zu einer ZUSICHERUNG zu
+      // machen, und diese Unterscheidung ist weiter unten ausdruecklich
+      // begruendet.
+      turn: wartefloskel ? { soft_timeout_config: wartefloskel } : undefined
     },
     platform_settings: {
       privacy: {

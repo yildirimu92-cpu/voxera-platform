@@ -103,6 +103,16 @@ function sortiereWiePostgrest(zeilen, ops) {
 function makeSupabase({ answers = {} } = {}) {
   const inserts = [];
   const updates = [];
+  // Reihenfolge der from()-Aufrufe. Die einzige Spur, an der sich ablesen
+  // laesst, ob eine Abfrage vorgezogen wurde -- das Ergebnis ist bei
+  // sequenzieller wie paralleler Ausfuehrung identisch.
+  const tabellen = [];
+  // Codex-Befund vom 14.08. (P2): from() haelt nur die KONSTRUKTION des
+  // Abfragebauers fest. Die Abfrage startet erst, wenn jemand sie awaitet --
+  // ein Rueckbau, der frueh baut und spaet awaitet, saehe in `tabellen`
+  // identisch aus und liefe trotzdem wieder sequenziell. Massgeblich ist der
+  // Zeitpunkt des then().
+  const ausfuehrungen = [];
 
   function chain(table) {
     const ops = [];
@@ -111,6 +121,7 @@ function makeSupabase({ answers = {} } = {}) {
       // mit der gesammelten Aufrufkette -- so kann ein Testfall zwischen
       // "insert" und "select" auf derselben Tabelle unterscheiden.
       then(resolve, reject) {
+        ausfuehrungen.push(table);
         const answer = answers[table];
         try {
           const result = typeof answer === 'function' ? answer(ops) : (answer ?? { data: null, error: null });
@@ -136,7 +147,7 @@ function makeSupabase({ answers = {} } = {}) {
     return self;
   }
 
-  return { client: { from: chain }, inserts, updates };
+  return { client: { from: (table) => { tabellen.push(table); return chain(table); } }, inserts, updates, tabellen, ausfuehrungen };
 }
 
 // ── Mitschreibender Supabase-Ersatz ─────────────────────────────────────────
@@ -399,6 +410,34 @@ await check('availability schreibt auch im Fehlerfall genau EINE Zeile', async (
     assert.equal(zeilen[0].row.status, 'failed');
     assert.equal(zeilen[0].row.provider, 'google');
   } finally { providerFehler = null; }
+});
+
+// Aus dem Testanruf vom 14.08.: sechs Supabase-Abfragen, je ~105 ms, strikt
+// nacheinander. Die Oeffnungszeiten haengen von nichts ab und werden deshalb
+// vorgezogen; `calendar_connections` kann es nicht, weil es
+// `settings.active_provider` braucht.
+//
+// Am ERGEBNIS ist das nicht zu sehen -- sequenziell und parallel liefern
+// dasselbe. Beobachtbar ist nur die Reihenfolge der Abfragen, und genau die
+// wird hier geprueft. Ohne diesen Fall waere die Aenderung unbewacht: eine
+// spaetere Umstellung zurueck auf sequenziell liesse alle uebrigen Faelle
+// gruen.
+await check('Die Oeffnungszeiten werden vor den Kalenderabfragen gestartet', async () => {
+  verfuegbarkeit = { available: true, busy: [] };
+  const { supabase } = await ruf({
+    action: 'availability', agent_id: 'agent_1', start: DI('08:00'), end: DI('12:00')
+  });
+  // Codex-Befund vom 14.08. (P2): geprueft wird die AUSFUEHRUNG, nicht die
+  // Konstruktion. `from()` legt nur den Abfragebauer an; losgeschickt wird die
+  // Abfrage erst beim then(). Ein Rueckbau, der den Bauer frueh anlegt und erst
+  // nach den Kalenderabfragen awaitet, saehe in der Konstruktionsreihenfolge
+  // identisch aus -- und liefe trotzdem wieder sequenziell.
+  const reihenfolge = supabase.ausfuehrungen;
+  const oeffnungszeiten = reihenfolge.indexOf('customers', 1);
+  const einstellungen = reihenfolge.indexOf('calendar_settings');
+  assert.ok(oeffnungszeiten > 0, 'die Oeffnungszeiten werden gar nicht geladen');
+  assert.ok(oeffnungszeiten < einstellungen,
+    `die Oeffnungszeiten warten weiterhin auf die Kalenderabfragen (Reihenfolge: ${reihenfolge.join(' → ')})`);
 });
 
 // ── Punkt 1 am Handler: der Halbtag ist teilbar ─────────────────────────────
