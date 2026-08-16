@@ -5,6 +5,23 @@
 -- Policies, Grants, Funktionssignaturen, search_path. Das Laufzeitverhalten
 -- prueft db_security_invariants_behavior.sql.
 --
+-- ── Zum wiederkehrenden Filter `c.relkind in ('r', 'p')` ───────────────────
+--
+-- 'r' ist die gewoehnliche Tabelle, 'p' der Elternteil einer partitionierten.
+-- Ein Filter auf 'r' allein sieht partitionierte Tabellen NICHT -- und zwar
+-- genau die Seite, auf der Rechte und RLS haengen: Grants werden am Elternteil
+-- vergeben, RLS wird am Elternteil aktiviert, und `truncate` am Elternteil
+-- leert alle Partitionen. Der Check waere dort gruen, weil er nicht hinsieht.
+--
+-- In `public` gibt es heute keine partitionierte Tabelle. Das ist der Grund,
+-- 'p' JETZT aufzunehmen und nicht spaeter: Solange keine existiert, aendert
+-- die Ergaenzung kein einziges Ergebnis. Wird eines Tages eine angelegt, ist
+-- der Check schon richtig -- statt still eine Luecke aufzureissen, die
+-- niemandem auffaellt, weil nichts rot wird.
+--
+-- Gefunden im Review von PR #944 (dort fuer den supabase_admin-Check gefixt);
+-- hier auf die uebrigen Bestandschecks nachgezogen.
+
 -- Ausgabekontrakt: jede Zeile ist genau
 --     STATUS <tab> GRUPPE <tab> NAME <tab> DETAIL
 -- mit STATUS aus PASS | FAIL | SKIP | INFO. INFO-Zeilen sind keine Urteile,
@@ -163,13 +180,13 @@ select case when pg_catalog.count(*) filter (where not c.relrowsecurity) = 0
          || (pg_catalog.count(*) filter (where not c.relrowsecurity))::text
 from pg_catalog.pg_class as c
 join pg_catalog.pg_namespace as n on n.oid = c.relnamespace
-where n.nspname = 'public' and c.relkind = 'r';
+where n.nspname = 'public' and c.relkind in ('r', 'p');  -- 'p': siehe Kopf
 
 -- Tabellen ohne RLS gehen als Rohdaten an den Baseline-Diff (aktuell: keine).
 select 'INFO', 'rls-off', c.relname, ''
 from pg_catalog.pg_class as c
 join pg_catalog.pg_namespace as n on n.oid = c.relnamespace
-where n.nspname = 'public' and c.relkind = 'r' and not c.relrowsecurity
+where n.nspname = 'public' and c.relkind in ('r', 'p') and not c.relrowsecurity
 order by c.relname;
 
 -- ═══ Gruppe F5: benannte Policies der P0-Kette ═════════════════════════════
@@ -382,7 +399,7 @@ select case when pg_catalog.count(*) filter (
          || ' -- RLS greift bei TRUNCATE nicht, das Grant ist die einzige Huerde'
 from pg_catalog.pg_class as c
 join pg_catalog.pg_namespace as n on n.oid = c.relnamespace
-where n.nspname = 'public' and c.relkind = 'r';
+where n.nspname = 'public' and c.relkind in ('r', 'p');  -- 'p': siehe Kopf
 
 -- Welche Tabellen es betrifft, falls die Zeile oben rot ist. Als eigene
 -- Zeilen, damit im CI-Log ohne Nachfragen steht, wo nachzuziehen ist.
@@ -392,7 +409,7 @@ select 'FAIL', 'F6-grants', 'TRUNCATE fuer Browser-Rolle auf ' || c.relname,
          case when pg_catalog.has_table_privilege('authenticated', c.oid, 'TRUNCATE') then 'authenticated' end)
 from pg_catalog.pg_class as c
 join pg_catalog.pg_namespace as n on n.oid = c.relnamespace
-where n.nspname = 'public' and c.relkind = 'r'
+where n.nspname = 'public' and c.relkind in ('r', 'p')  -- 'p': siehe Kopf
   and (pg_catalog.has_table_privilege('anon', c.oid, 'TRUNCATE')
     or pg_catalog.has_table_privilege('authenticated', c.oid, 'TRUNCATE'))
 order by c.relname;
@@ -567,7 +584,8 @@ select 'INFO', 'anon-grants', c.relname,
 from pg_catalog.pg_class as c
 join pg_catalog.pg_namespace as n on n.oid = c.relnamespace
 cross join lateral pg_catalog.aclexplode(c.relacl) as ac
-where n.nspname = 'public' and c.relkind = 'r' and ac.grantee = 'anon'::regrole
+where n.nspname = 'public' and c.relkind in ('r', 'p')  -- 'p': siehe Kopf
+  and ac.grantee = 'anon'::regrole
 group by c.relname
 order by c.relname;
 
@@ -581,7 +599,8 @@ select 'INFO', 'authenticated-grants', c.relname,
 from pg_catalog.pg_class as c
 join pg_catalog.pg_namespace as n on n.oid = c.relnamespace
 cross join lateral pg_catalog.aclexplode(c.relacl) as ac
-where n.nspname = 'public' and c.relkind = 'r' and ac.grantee = 'authenticated'::regrole
+where n.nspname = 'public' and c.relkind in ('r', 'p')  -- 'p': siehe Kopf
+  and ac.grantee = 'authenticated'::regrole
   and c.relname in ('users', 'customers', 'calls', 'notifications', 'ai_change_requests',
                     'contracts', 'subscriptions', 'invoices', 'offers', 'customer_addons',
                     'voxera_cases', 'customer_tasks', 'system_config')

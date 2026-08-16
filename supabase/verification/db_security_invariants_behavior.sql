@@ -61,7 +61,12 @@ from pg_catalog.pg_class as c
 join pg_catalog.pg_namespace as n on n.oid = c.relnamespace
 join pg_catalog.pg_attribute as a
   on a.attrelid = c.oid and a.attname = 'customer_id' and a.attnum > 0 and not a.attisdropped
-where n.nspname = 'public' and c.relkind = 'r';
+-- 'p' MUSS mit: der Elternteil einer partitionierten Tabelle wird als 'p'
+-- gefuehrt, und genau dort haengen Grants und RLS. Ein Filter auf 'r' allein
+-- liesse eine partitionierte Mandantentabelle ungeprueft -- der Lauf waere
+-- gruen, weil er nicht hinsieht. In `public` gibt es heute keine; die
+-- Ergaenzung aendert also kein Ergebnis und schliesst die Luecke vorab.
+where n.nspname = 'public' and c.relkind in ('r', 'p');
 -- customers traegt die Mandanten-ID in `id`, nicht in `customer_id`.
 insert into tenant_tbl values ('customers', 'id');
 
@@ -192,7 +197,7 @@ begin
       from pg_catalog.pg_class as c
       join pg_catalog.pg_namespace as ns on ns.oid = c.relnamespace
       left join census as cs on cs.rel = c.relname
-      where ns.nspname = 'public' and c.relkind = 'r'
+      where ns.nspname = 'public' and c.relkind in ('r', 'p')  -- 'p': partitionierte Eltern
     )
     select rel, n, 'UPDATE' as op,
            pg_catalog.format('update public.%1$I set %2$I = %2$I', rel, anycol) as stmt
@@ -256,7 +261,7 @@ begin
            || 'Grant ist per Baseline ueberwacht, die Policy nicht'
   from pg_catalog.pg_class as c
   join pg_catalog.pg_namespace as ns on ns.oid = c.relnamespace
-  where ns.nspname = 'public' and c.relkind = 'r'
+  where ns.nspname = 'public' and c.relkind in ('r', 'p')  -- 'p': partitionierte Eltern
     and pg_catalog.has_table_privilege('anon', c.oid, 'INSERT');
 
   -- ═══ Probe C: positive Mandantenisolation ════════════════════════════════
