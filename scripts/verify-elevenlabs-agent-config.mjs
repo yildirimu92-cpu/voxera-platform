@@ -290,6 +290,54 @@ check('Beobachtung erfasst tts-Felder',
   beobachtet.tts.expressive_mode === false && Array.isArray(beobachtet.tts.suggested_audio_tags));
 check('Schluesselinventar macht unbekannte Felder sichtbar',
   beobachtet._keys.conversation_config.includes('default_personality'));
+
+// ── Die ungelesenen Promptquellen ───────────────────────────────────────────
+//
+// `ignore_default_personality` steht auf false, ein Feld `default_personality`
+// gibt es im Koerper nicht: es wirkt also ein Text auf den Agenten, den wir
+// nirgends lesen koennen. Die fuenf platform_settings-Felder und
+// `agent.text_behavior_overrides` stehen unter demselben Verdacht. Sie werden
+// gemessen, nicht zugesichert -- diese Pruefungen halten nur fest, dass die
+// Messung stattfindet.
+const beobachtetQuellen = observeAgentState({
+  conversation_config: {
+    agent: {
+      language: 'de',
+      prompt: { prompt: 'p', ignore_default_personality: false },
+      text_behavior_overrides: { ton: 'x' }
+    }
+  },
+  platform_settings: {
+    overrides: { conversation_config_override: { agent: { prompt: 'FREMD' } } },
+    workspace_overrides: null,
+    guardrails: { blocked: [] },
+    safety: { is_blocked_ivc: false }
+    // trust_context fehlt absichtlich
+  }
+});
+check('Beobachtung erfasst den Schalter zur Standardpersoenlichkeit',
+  beobachtetQuellen.agent_prompt.ignore_default_personality === false);
+check('Beobachtung erfasst platform_settings.overrides',
+  beobachtetQuellen.platform.overrides?.conversation_config_override?.agent?.prompt === 'FREMD');
+check('Beobachtung erfasst workspace_overrides, guardrails und safety',
+  'workspace_overrides' in beobachtetQuellen.platform
+  && 'guardrails' in beobachtetQuellen.platform
+  && 'safety' in beobachtetQuellen.platform);
+check('Ein Feld, das der Anbieter nicht fuehrt, bleibt als fehlend erkennbar',
+  !('trust_context' in beobachtetQuellen.platform));
+check('Beobachtung erfasst agent.text_behavior_overrides',
+  beobachtetQuellen.agent_text_behavior_overrides?.ton === 'x');
+
+// Unbekannte Felder koennen beliebig gross sein. Ungedeckelt waere die erste
+// grosse Konfiguration zugleich die letzte lesbare Log-Zeile.
+const beobachtetGross = observeAgentState({
+  conversation_config: { agent: { prompt: {} } },
+  platform_settings: { overrides: { fuellung: 'y'.repeat(9000) } }
+});
+check('Ein uebergrosses unbekanntes Feld wird sichtbar gekuerzt',
+  beobachtetGross.platform.overrides._gekuerzt_zeichen > 9000
+  && beobachtetGross.platform.overrides._anfang.length === 4000
+  && JSON.stringify(beobachtetGross).length < 6000);
 check('Beobachtung traegt den Prompt NICHT (Log-Groesse)',
   !JSON.stringify(beobachtet).includes('xxxxx') && JSON.stringify(beobachtet).length < 2000);
 check('Beobachtung landet in der Log-Zeile',
