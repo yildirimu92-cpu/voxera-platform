@@ -981,6 +981,40 @@ check('forwarding data itself is untouched', () => {
   assert.equal(mitZielen.ai_forwarding_2_name, 'Buchhaltung');
 });
 
+// #921: die dritte Stelle, an der eine nicht vorhandene Weiterleitung im Prompt
+// auftauchte. Block WEITERLEITUNGEN und UNKNOWN_TEXT.human waren die ersten
+// beiden; FUNCTION_TEXT.transfer nannte sie zusaetzlich als freigegebene
+// Funktion im Abschnitt AUFGABEN & ERFOLGSKRITERIUM.
+check('#921: transfer erscheint nicht als freigegebene Funktion', () => {
+  const mitTransfer = buildPromptV2({
+    customer: { ...customer, ai_internal_notes: '[PROMPT_V2] {"functions":["information","transfer","callback"]}' },
+    masterPrompt: '{{CUSTOMER_LAYER}}'
+  });
+  assert.deepEqual(mitTransfer.profile.functions, ['information', 'callback']);
+  assert.ok(!mitTransfer.prompt.includes('an die richtige zuständige Person weiterleiten'),
+    'Die Transfer-Funktion steht weiterhin im Prompt');
+  assert.match(mitTransfer.prompt, /Informationen und häufige Fragen/, 'Die uebrigen Funktionen fehlen');
+  assert.match(mitTransfer.prompt, /Rückrufanfrage aufnehmen und verbindlich zusammenfassen/);
+});
+
+check('#921: transfer als einzige Funktion laesst den Abschnitt weg statt zu luegen', () => {
+  const nurTransfer = buildPromptV2({
+    customer: { ...customer, ai_internal_notes: '[PROMPT_V2] {"functions":["transfer"]}' },
+    masterPrompt: '{{CUSTOMER_LAYER}}'
+  });
+  assert.deepEqual(nurTransfer.profile.functions, []);
+  assert.ok(!nurTransfer.prompt.includes('## AUFGABEN & ERFOLGSKRITERIUM'),
+    'Ein Abschnitt ohne einzige gueltige Funktion');
+  // Der Qualitaetscheck muss das melden -- ein Agent, dessen einzige gewaehlte
+  // Funktion es nicht gibt, ist nicht startbereit.
+  assert.equal(nurTransfer.quality.checks.find((item) => item.id === 'functions').passed, false);
+});
+
+check('#921: derselbe Schalter wie an den beiden anderen Stellen', () => {
+  assert.match(source.compiler, /item !== 'transfer' \|\| WEITERLEITUNG_FREIGESCHALTET/,
+    'Die Sperre haengt nicht an WEITERLEITUNG_FREIGESCHALTET und kommt beim Freischalten nicht von selbst zurueck');
+});
+
 check('unknown handling "human" falls back to the callback path', () => {
   assert.equal(unknownText('human'), unknownText('callback'));
   const notes = customer.ai_internal_notes.replace('"unknownHandling":"callback"', '"unknownHandling":"human"');

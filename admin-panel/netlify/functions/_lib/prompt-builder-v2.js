@@ -44,7 +44,12 @@
 // bekam -- unabhaengig davon, ob er direkt buchen durfte. Ausserdem liest der
 // Builder den Terminmodus nicht mehr aus der [PROMPT_V2]-Notiz. Beides aendert
 // die Ausgabe fuer betroffene Kunden, der Bump gehoert also dazu.
-const PROMPT_BUILDER_VERSION = '3.0';
+// 3.1 (11.08., #921): `transfer` faellt aus der Funktionsliste, solange die
+// Weiterleitung nicht freigeschaltet ist. Der Abschnitt AUFGABEN &
+// ERFOLGSKRITERIUM nannte sie bisher als freigegebene Funktion, obwohl dem
+// Agenten kein Transferwerkzeug bereitsteht. Betrifft jeden Kunden, der sie
+// gewaehlt hat -- die Ausgabe aendert sich, der Bump gehoert dazu.
+const PROMPT_BUILDER_VERSION = '3.1';
 const PROFILE_MARKER = 'PROMPT_V2';
 const WIZARD_MARKER = 'WIZARD';
 
@@ -328,7 +333,31 @@ function parseMarkedJson(notes, marker) {
 function parsePromptProfile(notes) {
   const raw = parseMarkedJson(notes, PROFILE_MARKER);
   const requestedFunctions = Array.isArray(raw.functions) ? raw.functions : [];
-  const functions = [...new Set(requestedFunctions.filter(item => Object.prototype.hasOwnProperty.call(FUNCTION_TEXT, item)))];
+  // #921: `transfer` faellt heraus, solange es die Faehigkeit nicht gibt.
+  //
+  // FUNCTION_TEXT.transfer sagt "Anrufende gemaess den konfigurierten Regeln an
+  // die richtige zustaendige Person weiterleiten" -- eine Funktion, die dem
+  // Agenten im Abschnitt AUFGABEN & ERFOLGSKRITERIUM als freigegeben genannt
+  // wird, obwohl ihm dafuer kein Werkzeug bereitsteht. Dieselbe Luecke wie beim
+  // Block WEITERLEITUNGEN und bei UNKNOWN_TEXT.human, nur an der dritten Stelle.
+  //
+  // Entschieden wurde herausfiltern statt umformulieren: solange die Funktion
+  // nicht existiert, hat sie im Prompt nichts zu suchen -- auch nicht als
+  // Rueckruf-Formulierung, die dann eine zweite Beschreibung derselben Sache
+  // waere und neben `callback` staende.
+  //
+  // Die gespeicherte Auswahl bleibt unberuehrt: der Wizard erfasst `transfer`
+  // weiter, und das Kunden-Dashboard liest die Zeile mit einem eigenen Parser
+  // (customer-assistant-profile.js), zeigt die Auswahl also weiterhin an. Nur
+  // der Prompt bekommt sie nicht.
+  //
+  // Derselbe Schalter wie an den beiden anderen Stellen. Wird die Weiterleitung
+  // freigeschaltet, kommt die Funktion mit ihm zurueck -- ohne dass jemand
+  // diese Zeile suchen muss.
+  const funktionVerfuegbar = (item) =>
+    Object.prototype.hasOwnProperty.call(FUNCTION_TEXT, item)
+    && (item !== 'transfer' || WEITERLEITUNG_FREIGESCHALTET);
+  const functions = [...new Set(requestedFunctions.filter(funktionVerfuegbar))];
   if (!functions.length && LEGACY_GOAL_FUNCTION[raw.goal]) functions.push(LEGACY_GOAL_FUNCTION[raw.goal]);
   const unknownHandling = Object.prototype.hasOwnProperty.call(UNKNOWN_TEXT, raw.unknownHandling) ? raw.unknownHandling : '';
   // `appointmentMode` wird hier seit dem 2026-08-10 NICHT mehr gelesen.
